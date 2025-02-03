@@ -7,6 +7,7 @@ import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
 import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
+import Sidebar from '@/Components/Sidebar.vue'; // Importa el Sidebar
 
 defineProps({
     title: String,
@@ -273,17 +274,26 @@ const logout = () => {
                 </div>
             </nav>
 
-            <!-- Page Heading -->
-            <header v-if="$slots.header" class="bg-white dark:bg-gray-800 shadow">
-                <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-                    <slot name="header" />
-                </div>
-            </header>
+            <!-- Main Content -->
+            <div class="flex">
+                <!-- Sidebar -->
+                <Sidebar />
 
-            <!-- Page Content -->
-            <main>
-                <slot />
-            </main>
+                <!-- Page Content -->
+                <div class="flex-1">
+                    <!-- Page Heading -->
+                    <header v-if="$slots.header" class="bg-white dark:bg-gray-800 shadow">
+                        <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                            <slot name="header" />
+                        </div>
+                    </header>
+
+                    <!-- Page Content -->
+                    <main>
+                        <slot />
+                    </main>
+                </div>
+            </div>
         </div>
     </div>
 </template>
