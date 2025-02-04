@@ -33,6 +33,15 @@ Route::middleware([
     // Ruta para guardar un nuevo cliente
     Route::post('/clientes', [ClienteController::class, 'store'])->name('clientes.store');
 
+    // Formulario de edición de clientes
+    Route::get('/clientes/{cliente}/edit', [ClienteController::class, 'edit'])->name('clientes.edit');
+
+    // Actualizar un cliente
+    Route::put('/clientes/{cliente}', [ClienteController::class, 'update'])->name('clientes.update');
+
+    // Eliminar un cliente
+    Route::delete('/clientes/{cliente}', [ClienteController::class, 'destroy'])->name('clientes.destroy');
+
     // Productos
     Route::get('/productos', [ProductoController::class, 'index'])->name('productos');
 

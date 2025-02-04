@@ -50,4 +50,43 @@ class ClienteController extends Controller
         // Devuelve una respuesta JSON para Inertia.js
         return redirect()->route('clientes.index')->with('success', 'Cliente creado correctamente.');
     }
+
+    public function edit(Cliente $cliente)
+    {
+        return Inertia::render('Clientes/Edit', [
+            'cliente' => $cliente,
+        ]);
+    }
+
+    public function update(Request $request, Cliente $cliente)
+    {
+        $validated = $request->validate([
+            'nombre_razon_social' => 'required|string|max:255',
+            'rfc' => 'nullable|string|max:20',
+            'regimen_fiscal' => 'nullable|string|max:255',
+            'uso_cfdi' => 'nullable|string|max:255',
+            'email' => 'nullable|email|max:255|unique:clientes,email,' . $cliente->id,
+            'telefono' => 'nullable|string|max:20',
+            'calle' => 'nullable|string|max:255',
+            'numero_exterior' => 'nullable|string|max:20',
+            'numero_interior' => 'nullable|string|max:20',
+            'colonia' => 'nullable|string|max:255',
+            'codigo_postal' => 'nullable|string|max:10',
+            'municipio' => 'nullable|string|max:255',
+            'estado' => 'nullable|string|max:255',
+            'pais' => 'nullable|string|max:255',
+        ]);
+
+        $cliente->update($validated);
+
+        return redirect()->route('clientes.index')->with('success', 'Cliente actualizado correctamente.');
+    }
+
+    public function destroy($id)
+    {
+        $cliente = Cliente::findOrFail($id);
+        $cliente->delete();
+
+        return redirect()->route('clientes.index')->with('success', 'Cliente eliminado correctamente.');
+    }
 }
