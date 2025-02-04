@@ -22,6 +22,11 @@
                             Categorias
                         </Link>
                     </li>
+                    <li class="hover:bg-gray-700">
+                        <Link href="/marcas" class="block p-4" :class="{ 'bg-gray-700': $page.url.startsWith('/cotizacion') }">
+                            Marcas
+                        </Link>
+                    </li>
                 </ul>
             </nav>
         </aside>

@@ -6,6 +6,7 @@ use Inertia\Inertia;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\CategoriaController;
+use App\Http\Controllers\MarcaController;
 
 
 Route::get('/', function () {
@@ -51,4 +52,7 @@ Route::middleware([
 
     // Categorias
     Route::resource('categorias', CategoriaController::class)->names('categorias');
+
+    // Marcas
+    Route::resource('marcas', MarcaController::class)->names('marcas');
 });

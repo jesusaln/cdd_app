@@ -1,17 +1,15 @@
 <template>
     <div>
         <!-- Título de la página -->
-        <h1 class="text-2xl font-semibold mb-6">Categorías</h1>
-
-        <!-- Botón para crear una nueva categoría -->
+        <h1 class="text-2xl font-semibold mb-6">Marcas</h1>
+        <!-- Botón para crear una nueva marca -->
         <div class="mb-4">
-            <Link :href="route('categorias.create')" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-300">
-                Crear Categoría
+            <Link :href="route('marcas.create')" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-300">
+                Crear Marca
             </Link>
         </div>
-
-        <!-- Tabla de categorías -->
-        <div v-if="categorias.length > 0" class="overflow-x-auto bg-white rounded-lg shadow-md">
+        <!-- Tabla de marcas -->
+        <div v-if="marcas.length > 0" class="overflow-x-auto bg-white rounded-lg shadow-md">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
@@ -21,14 +19,14 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
-                    <tr v-for="categoria in categorias" :key="categoria.id" class="hover:bg-gray-100">
-                        <td class="px-4 py-3 text-sm text-gray-700">{{ categoria.nombre }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-700">{{ categoria.descripcion || 'Sin descripción' }}</td>
+                    <tr v-for="marca in marcas" :key="marca.id" class="hover:bg-gray-100">
+                        <td class="px-4 py-3 text-sm text-gray-700">{{ marca.nombre }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-700">{{ marca.descripcion || 'Sin descripción' }}</td>
                         <td class="px-4 py-3 flex space-x-2">
-                            <Link :href="route('categorias.edit', categoria.id)" class="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 transition duration-300">
+                            <Link :href="route('marcas.edit', marca.id)" class="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 transition duration-300">
                                 Editar
                             </Link>
-                            <button @click="eliminarCategoria(categoria.id)" class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition duration-300">
+                            <button @click="eliminarMarca(marca.id)" class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition duration-300">
                                 Eliminar
                             </button>
                         </td>
@@ -36,10 +34,9 @@
                 </tbody>
             </table>
         </div>
-
-        <!-- Mensaje si no hay categorías -->
+        <!-- Mensaje si no hay marcas -->
         <div v-else class="text-center text-gray-500 mt-4">
-            No hay categorías registradas.
+            No hay marcas registradas.
         </div>
     </div>
 </template>
@@ -54,9 +51,8 @@ import Dashboard from '@/Pages/Dashboard.vue'; // Importa el layout del dashboar
 // Define el layout del dashboard
 defineOptions({ layout: Dashboard });
 
-
-// Recibe las categorías como prop
-defineProps({ categorias: Array });
+// Recibe las marcas como prop
+defineProps({ marcas: Array });
 
 // Configuración personalizada de Notyf
 const notyf = new Notyf({
@@ -68,20 +64,19 @@ const notyf = new Notyf({
     ],
 });
 
-// Función para eliminar una categoría
-const eliminarCategoria = async (id) => {
-    if (!confirm('¿Estás seguro de que deseas eliminar esta categoría? Esta acción no se puede deshacer.')) {
+// Función para eliminar una marca
+const eliminarMarca = async (id) => {
+    if (!confirm('¿Estás seguro de que deseas eliminar esta marca? Esta acción no se puede deshacer.')) {
         return;
     }
-
     try {
-        await router.delete(route('categorias.destroy', id), {
+        await router.delete(route('marcas.destroy', id), {
             onSuccess: () => {
-                notyf.success('La categoría ha sido eliminada exitosamente.');
+                notyf.success('La marca ha sido eliminada exitosamente.');
             },
             onError: (error) => {
-                console.error('Error al eliminar la categoría:', error);
-                notyf.error('Hubo un error al eliminar la categoría.');
+                console.error('Error al eliminar la marca:', error);
+                notyf.error('Hubo un error al eliminar la marca.');
             },
         });
     } catch (error) {

@@ -229,9 +229,9 @@ const form = useForm({
     numero_exterior: '',
     numero_interior: '',
     colonia: '',
-    codigo_postal: '',
+    codigo_postal: '83000',
     municipio: 'HERMOSILLO', // Valor predeterminado
-    estado: 'SSONORA',       // Valor predeterminado
+    estado: 'SONORA',       // Valor predeterminado
     pais: 'MEXICO'          // Valor predeterminado
 });
 
