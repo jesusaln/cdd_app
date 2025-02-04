@@ -3,7 +3,7 @@
         <h1 class="text-2xl font-semibold mb-4">Crear Cliente</h1>
         <!-- Formulario de creación de clientes -->
         <form @submit.prevent="submit">
-            <div v-if="errorMessage" class="text-red-500 mb-4">{{ errorMessage }}</div>
+            <div v-if="form.errors.email" class="text-red-500">{{ form.errors.email }}</div>
             <div class="space-y-4">
                 <!-- Nombre/Razón Social -->
                 <div>
@@ -15,6 +15,7 @@
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
                         @blur="convertirAMayusculas('nombre_razon_social')"
                     />
+                    <p v-if="form.errors.nombre_razon_social" class="text-red-500 text-sm">{{ form.errors.nombre_razon_social }}</p>
                 </div>
 
                 <!-- RFC -->
@@ -27,17 +28,19 @@
                         maxlength="13"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
                         @blur="validarRFC"
+                        required
                     />
                     <p v-if="form.errors.rfc" class="text-red-500 text-sm">{{ form.errors.rfc }}</p>
                 </div>
 
-                <!-- Régimen Fiscal -->
-                <div>
+               <!-- Régimen Fiscal -->
+               <div>
                     <label for="regimen_fiscal" class="block text-sm font-medium text-gray-700">Régimen Fiscal</label>
                     <select
                         v-model="form.regimen_fiscal"
                         id="regimen_fiscal"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                        required
                     >
                         <option value="" disabled>Selecciona un régimen fiscal</option>
                         <option v-for="regimen in regimenesFiscales" :key="regimen" :value="regimen">{{ regimen }}</option>
@@ -51,10 +54,12 @@
                         v-model="form.uso_cfdi"
                         id="uso_cfdi"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                        required
                     >
                         <option value="" disabled>Selecciona un uso CFDI</option>
                         <option v-for="uso in usosCFDI" :key="uso" :value="uso">{{ uso }}</option>
                     </select>
+                    <p v-if="form.errors.uso_cfdi" class="text-red-500 text-sm">{{ form.errors.uso_cfdi }}</p>
                 </div>
 
                 <!-- Email -->
@@ -65,7 +70,9 @@
                         type="email"
                         id="email"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                        required
                     />
+                    <p v-if="form.errors.email" class="text-red-500 text-sm">{{ form.errors.email }}</p>
                 </div>
 
                 <!-- Teléfono -->
@@ -78,6 +85,7 @@
                         maxlength="10"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
                         @input="validarTelefono"
+                        required
                     />
                     <p v-if="form.errors.telefono" class="text-red-500 text-sm">{{ form.errors.telefono }}</p>
                 </div>
@@ -92,7 +100,9 @@
                         maxlength="40"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
                         @blur="convertirAMayusculas('calle')"
+                        required
                     />
+                    <p v-if="form.errors.calle" class="text-red-500 text-sm">{{ form.errors.calle }}</p>
                 </div>
 
                 <!-- Número Exterior -->
@@ -103,6 +113,7 @@
                         type="text"
                         id="numero_exterior"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                        required
                     />
                 </div>
 
@@ -126,6 +137,7 @@
                         id="colonia"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
                         @blur="convertirAMayusculas('colonia')"
+                        required
                     />
                 </div>
 
@@ -136,8 +148,8 @@
                         v-model="form.codigo_postal"
                         type="text"
                         id="codigo_postal"
-                        maxlength="5"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                        required
                     />
                 </div>
 
@@ -176,94 +188,107 @@
                         readonly
                     />
                 </div>
-
-                <div class="mt-6">
-                    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">
-                        Guardar Cliente
-                    </button>
-                </div>
+            </div>
+            <div class="mt-6">
+                <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">
+                    Guardar Cliente
+                </button>
             </div>
         </form>
     </div>
 </template>
-
 <script setup>
 import { useForm } from '@inertiajs/vue3';
-import { ref } from 'vue';
-import Dashboard from '@/Pages/Dashboard.vue';
+import Dashboard from '@/Pages/Dashboard.vue'; // Importa el layout del dashboard
 
+// Define el layout del dashboard
 defineOptions({ layout: Dashboard });
 
-const fields = {
-    nombre_razon_social: 'Nombre/Razón Social',
-    rfc: 'RFC',
-    regimen_fiscal: 'Régimen Fiscal',
-    uso_cfdi: 'Uso CFDI',
-    email: 'Email',
-    telefono: 'Teléfono',
-    calle: 'Calle',
-    numero_exterior: 'Número Exterior',
-    numero_interior: 'Número Interior',
-    colonia: 'Colonia',
-    codigo_postal: 'Código Postal',
-    municipio: 'Municipio',
-    estado: 'Estado',
-    pais: 'País'
-};
+// Listas predefinidas
+const regimenesFiscales = [
+    'Persona Física con Actividad Empresarial',
+    'Régimen General de Ley Personas Morales',
+    'Régimen Simplificado de Confianza'
+];
 
-const inputTypes = { email: 'email', telefono: 'text', rfc: 'text' };
-const maxLengths = { rfc: 13, telefono: 10, codigo_postal: 5 };
-const readonlyFields = ['municipio', 'estado', 'pais'];
+const usosCFDI = [
+    'Gastos en general',
+    'Adquisición de mercancías',
+    'Honorarios médicos, dentales y gastos hospitalarios'
+];
 
-const regimenesFiscales = ['Persona Física con Actividad Empresarial', 'Régimen General de Ley Personas Morales', 'Régimen Simplificado de Confianza'];
-const usosCFDI = ['Gastos en general', 'Adquisición de mercancías', 'Honorarios médicos, dentales y gastos hospitalarios'];
-
+// Formulario para crear un cliente
 const form = useForm({
-    nombre_razon_social: '', rfc: '', regimen_fiscal: '', uso_cfdi: '', email: '', telefono: '',
-    calle: '', numero_exterior: '', numero_interior: '', colonia: '', codigo_postal: '',
-    municipio: 'Hermosillo', estado: 'Sonora', pais: 'México'
+    nombre_razon_social: '',
+    rfc: '',
+    regimen_fiscal: '',
+    uso_cfdi: '',
+    email: '',
+    telefono: '',
+    calle: '',
+    numero_exterior: '',
+    numero_interior: '',
+    colonia: '',
+    codigo_postal: '',
+    municipio: 'HERMOSILLO', // Valor predeterminado
+    estado: 'SSONORA',       // Valor predeterminado
+    pais: 'MEXICO'          // Valor predeterminado
 });
 
-const errorMessage = ref('');
+// Función para enviar el formulario
+const submit = () => {
 
-const submit = async () => {
-    if (await checkEmailUniqueness(form.email)) {
-        errorMessage.value = 'El correo electrónico ya está registrado.';
-        return;
-    }
-    if (!form.regimen_fiscal || !form.uso_cfdi) {
-        errorMessage.value = 'Todos los campos obligatorios deben estar completos.';
-        return;
-    }
-    form.post(route('clientes.store'), { onSuccess: () => { form.reset(); errorMessage.value = ''; }});
+
+    form.post(route('clientes.store'), {
+        onSuccess: () => {
+            form.reset(); // Limpia el formulario después de guardar
+        },
+    });
 };
 
-const onBlur = (field) => {
-    if (['nombre_razon_social', 'calle', 'colonia'].includes(field)) {
-        form[field] = form[field].toUpperCase();
+// Método para convertir a mayúsculas
+const convertirAMayusculas = (campo) => {
+    if (form[campo]) {
+        form[campo] = form[campo].toUpperCase();
     }
-    if (field === 'rfc') validarRFC();
-    if (field === 'telefono') validarTelefono();
 };
 
+// Validación del RFC
 const validarRFC = () => {
-    const rfcRegex = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/;
-    form.setError('rfc', rfcRegex.test(form.rfc.toUpperCase()) ? '' : 'RFC inválido. Debe tener 13 caracteres.');
+    const rfcRegex = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/; // Expresión regular para RFC
+    const minLength = 12; // Mínimo de 12 caracteres
+    const maxLength = 13; // Máximo de 13 caracteres
+
+    // Convertir el RFC a mayúsculas para validar
+    const rfcValue = form.rfc.toUpperCase();
+
+    // Verificar longitud mínima
+    if (rfcValue.length < minLength) {
+        form.setError('rfc', 'El RFC debe tener al menos 12 caracteres.');
+        return;
+    }
+
+    // Verificar longitud máxima
+    if (rfcValue.length > maxLength) {
+        form.setError('rfc', 'El RFC no puede tener más de 13 caracteres.');
+        return;
+    }
+
+    // Verificar formato con expresión regular
+    if (!rfcRegex.test(rfcValue)) {
+        form.setError('rfc', 'El RFC no es válido.');
+        return;
+    }
+
+    // Si pasa todas las validaciones, limpiar el error
+    form.clearErrors('rfc');
 };
 
+// Validación del teléfono
 const validarTelefono = () => {
     const telefonoRegex = /^\d{10}$/;
-    form.setError('telefono', telefonoRegex.test(form.telefono) ? '' : 'El teléfono debe tener 10 dígitos.');
-};
-
-const checkEmailUniqueness = async (email) => {
-    try {
-        const response = await fetch(`/api/check-email?email=${encodeURIComponent(email)}`);
-        const data = await response.json();
-        return data.exists;
-    } catch (error) {
-        console.error('Error al verificar el correo:', error);
-        return false;
+    if (!telefonoRegex.test(form.telefono)) {
+        form.setError('telefono', 'El teléfono debe tener 10 dígitos.');
     }
 };
 </script>

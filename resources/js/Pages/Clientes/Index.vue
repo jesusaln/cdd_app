@@ -101,6 +101,8 @@ defineOptions({ layout: Dashboard });
 // Recibe los clientes como prop
 const props = defineProps({ clientes: Array });
 
+
+
 // Encabezados de la tabla
 const headers = [
     'Nombre/Razón Social',
@@ -164,6 +166,9 @@ const notyf = new Notyf({
 // Referencia al componente de confirmación
 const confirmDialog = ref(null);
 
+// Definir clientes como una referencia reactiva
+const clientes = ref([]);
+
 // Función para eliminar un cliente
 const eliminarCliente = async (id) => {
     // Mostrar el cuadro de confirmación
@@ -171,7 +176,6 @@ const eliminarCliente = async (id) => {
         '¿Estás seguro de eliminarlo?',
         'Esta acción no se puede deshacer.'
     );
-
     // Si el usuario cancela, detener la ejecución
     if (!confirmed) return;
 
@@ -182,6 +186,17 @@ const eliminarCliente = async (id) => {
         await router.delete(route('clientes.destroy', id), {
             onSuccess: () => {
                 notyf.success('El cliente ha sido eliminado exitosamente.');
+
+                // Eliminar el cliente de la lista en el frontend
+                clientes.value = clientes.value.filter(cliente => cliente.id !== id);
+               // console.log(clientes.value); // Verifica que el cliente se haya eliminado
+
+                // Opcional: Recargar la lista de clientes desde el servidor
+                const fetchClientes = async () => {
+                    const response = await axios.get(route('clientes.index'));
+                    clientes.value = response.data;
+                };
+                fetchClientes();
             },
             onError: (error) => {
                 console.error('Error al eliminar el cliente:', error);
