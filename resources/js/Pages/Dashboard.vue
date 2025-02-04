@@ -17,11 +17,11 @@
                             Productos
                         </Link>
                     </li>
-                    <!-- <li class="hover:bg-gray-700">
-                        <Link href="/cotizacion" class="block p-4" :class="{ 'bg-gray-700': $page.url.startsWith('/cotizacion') }">
-                            Cotización
+                    <li class="hover:bg-gray-700">
+                        <Link href="/categorias" class="block p-4" :class="{ 'bg-gray-700': $page.url.startsWith('/cotizacion') }">
+                            Categorias
                         </Link>
-                    </li> -->
+                    </li>
                 </ul>
             </nav>
         </aside>

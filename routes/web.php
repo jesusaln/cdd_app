@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\ProductoController;
+use App\Http\Controllers\CategoriaController;
 
 
 Route::get('/', function () {
@@ -45,6 +46,9 @@ Route::middleware([
     // Productos
     Route::get('/productos', [ProductoController::class, 'index'])->name('productos');
 
-    // Cotización
 
+
+
+    // Categorias
+    Route::resource('categorias', CategoriaController::class)->names('categorias');
 });

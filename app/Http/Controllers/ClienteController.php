@@ -89,4 +89,10 @@ class ClienteController extends Controller
 
         return redirect()->route('clientes.index')->with('success', 'Cliente eliminado correctamente.');
     }
+
+    public function checkEmail(Request $request)
+    {
+        $exists = Cliente::where('email', $request->query('email'))->exists();
+        return response()->json(['exists' => $exists]);
+    }
 }

@@ -4,14 +4,25 @@
         <h1 class="text-2xl font-semibold mb-6">Registro de Clientes</h1>
 
         <!-- Botón para crear un nuevo cliente -->
-        <div class="mb-4">
+        <div class="mb-4 flex justify-between items-center">
             <Link :href="route('clientes.create')" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-300">
                 Crear Cliente
             </Link>
+
+
+
+                <input
+                    v-model="searchTerm"
+                    type="text"
+                    placeholder="Buscar por nombre o RFC"
+                    class="px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    @input="filtrarClientes"
+                />
+
         </div>
 
         <!-- Tabla de clientes -->
-        <div v-if="clientes.length > 0" class="overflow-x-auto bg-white rounded-lg shadow-md">
+        <div v-if="clientesFiltrados.length > 0" class="overflow-x-auto bg-white rounded-lg shadow-md">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
@@ -22,7 +33,7 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
-                    <tr v-for="cliente in clientes" :key="cliente.id" class="hover:bg-gray-100">
+                    <tr v-for="cliente in clientesFiltrados" :key="cliente.id" class="hover:bg-gray-100">
                         <td class="px-4 py-3 text-sm text-gray-700">
                             {{ cliente.nombre_razon_social }}
                         </td>
@@ -78,7 +89,7 @@
 
 <script setup>
 import { Link, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { Notyf } from 'notyf';
 import 'notyf/notyf.min.css'; // Importa los estilos de Notyf
 import Dashboard from '@/Pages/Dashboard.vue'; // Importa el layout del dashboard
@@ -88,7 +99,7 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'; // Importa el compon
 defineOptions({ layout: Dashboard });
 
 // Recibe los clientes como prop
-defineProps({ clientes: Array });
+const props = defineProps({ clientes: Array });
 
 // Encabezados de la tabla
 const headers = [
@@ -103,6 +114,23 @@ const headers = [
 
 // Estado para el spinner de carga
 const loading = ref(false);
+
+// Término de búsqueda
+const searchTerm = ref('');
+
+// Clientes filtrados
+const clientesFiltrados = ref(props.clientes);
+
+// Función para filtrar clientes
+const filtrarClientes = () => {
+    const term = searchTerm.value.toLowerCase();
+    clientesFiltrados.value = props.clientes.filter(cliente => {
+        return (
+            cliente.nombre_razon_social.toLowerCase().includes(term) ||
+            cliente.rfc.toLowerCase().includes(term)
+        );
+    });
+};
 
 // Configuración personalizada de Notyf
 const notyf = new Notyf({
