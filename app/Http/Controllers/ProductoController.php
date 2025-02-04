@@ -8,6 +8,6 @@ class ProductoController extends Controller
 {
     public function index()
     {
-        return Inertia::render('Productos'); // Renderiza el componente Vue "Productos"
+        return Inertia::render('Productos/Index'); // Renderiza el componente Vue "Productos"
     }
 }

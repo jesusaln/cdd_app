@@ -26,7 +26,12 @@ Route::middleware([
     })->name('dashboard');
 
     // Clientes
-    Route::get('/clientes', [ClienteController::class, 'index'])->name('clientes');
+    Route::get('/clientes', [ClienteController::class, 'index'])->name('clientes.index');
+
+    // Ruta para mostrar el formulario de creación de clientes
+    Route::get('/clientes/create', [ClienteController::class, 'create'])->name('clientes.create');
+    // Ruta para guardar un nuevo cliente
+    Route::post('/clientes', [ClienteController::class, 'store'])->name('clientes.store');
 
     // Productos
     Route::get('/productos', [ProductoController::class, 'index'])->name('productos');
