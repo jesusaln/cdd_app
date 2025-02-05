@@ -7,6 +7,7 @@ use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\MarcaController;
+use App\Http\Controllers\ProveedorController;
 
 
 Route::get('/', function () {
@@ -46,6 +47,28 @@ Route::middleware([
 
     // Productos
     Route::get('/productos', [ProductoController::class, 'index'])->name('productos');
+
+
+
+    // Proveedores
+    Route::get('/proveedores', [ProveedorController::class, 'index'])->name('proveedores.index');
+
+    // Ruta para mostrar el formulario de creación de proveedores
+    Route::get('/proveedores/create', [ProveedorController::class, 'create'])->name('proveedores.create');
+
+    // Ruta para guardar un nuevo proveedor
+    Route::post('/proveedores', [ProveedorController::class, 'store'])->name('proveedores.store');
+
+    // Formulario de edición de proveedores
+    Route::get('/proveedores/{proveedor}/edit', [ProveedorController::class, 'edit'])->name('proveedores.edit');
+
+    // Actualizar un proveedor
+    Route::put('/proveedores/{proveedor}', [ProveedorController::class, 'update'])->name('proveedores.update');
+
+    // Eliminar un proveedor
+    Route::delete('/proveedores/{proveedor}', [ProveedorController::class, 'destroy'])->name('proveedores.destroy');
+
+
 
 
 
