@@ -7,31 +7,11 @@
             </div>
             <nav>
                 <ul>
-                    <li class="hover:bg-gray-700">
-                        <Link href="/clientes" class="block p-4" :class="{ 'bg-gray-700': $page.url.startsWith('/clientes') }">
-                            Clientes
-                        </Link>
-                    </li>
-                    <li class="hover:bg-gray-700">
-                        <Link href="/productos" class="block p-4" :class="{ 'bg-gray-700': $page.url.startsWith('/productos') }">
-                            Productos
-                        </Link>
-                    </li>
-                    <li class="hover:bg-gray-700">
-                        <Link href="/categorias" class="block p-4" :class="{ 'bg-gray-700': $page.url.startsWith('/cotizacion') }">
-                            Categorias
-                        </Link>
-                    </li>
-                    <li class="hover:bg-gray-700">
-                        <Link href="/marcas" class="block p-4" :class="{ 'bg-gray-700': $page.url.startsWith('/cotizacion') }">
-                            Marcas
-                        </Link>
-                    </li>
-                    <li class="hover:bg-gray-700">
-                        <Link href="/proveedores" class="block p-4" :class="{ 'bg-gray-700': $page.url.startsWith('/cotizacion') }">
-                            Proveedores
-                        </Link>
-                    </li>
+                    <NavLink href="/clientes" icon="users">Clientes</NavLink>
+                    <NavLink href="/productos" icon="box">Productos</NavLink>
+                    <NavLink href="/categorias" icon="tags">Categorías</NavLink>
+                    <NavLink href="/marcas" icon="trademark">Marcas</NavLink>
+                    <NavLink href="/proveedores" icon="truck">Proveedores</NavLink>
                 </ul>
             </nav>
         </aside>
@@ -44,5 +24,5 @@
 </template>
 
 <script setup>
-import { Link } from '@inertiajs/vue3';
+import NavLink from '@/Components/NavLink.vue'; // Asegúrate de que la ruta sea correcta
 </script>
