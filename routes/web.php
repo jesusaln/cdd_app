@@ -68,6 +68,11 @@ Route::middleware([
     // Eliminar un proveedor
     Route::delete('/proveedores/{proveedor}', [ProveedorController::class, 'destroy'])->name('proveedores.destroy');
 
+    Route::get('/panel', function () {
+        return Inertia::render('Panel'); // Aquí debe coincidir con el nombre exacto del archivo Panel.vue
+    })->name('panel');
+
+
 
 
 
