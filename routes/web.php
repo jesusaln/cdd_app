@@ -46,7 +46,23 @@ Route::middleware([
     Route::delete('/clientes/{cliente}', [ClienteController::class, 'destroy'])->name('clientes.destroy');
 
     // Productos
-    Route::get('/productos', [ProductoController::class, 'index'])->name('productos');
+    Route::get('/productos', [ProductoController::class, 'index'])->name('productos.index');
+
+    // Ruta para mostrar el formulario de creación de productos
+    Route::get('/productos/create', [ProductoController::class, 'create'])->name('productos.create');
+
+    // Ruta para guardar un nuevo producto
+    Route::post('/productos', [ProductoController::class, 'store'])->name('productos.store');
+
+    // Formulario de edición de productos
+    Route::get('/productos/{producto}/edit', [ProductoController::class, 'edit'])->name('productos.edit');
+
+    // Actualizar un producto
+    Route::put('/productos/{producto}', [ProductoController::class, 'update'])->name('productos.update');
+
+    // Eliminar un producto
+    Route::delete('/productos/{producto}', [ProductoController::class, 'destroy'])->name('productos.destroy');
+
 
 
 
