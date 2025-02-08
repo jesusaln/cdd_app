@@ -3,8 +3,13 @@
 namespace App\Http\Controllers;
 
 use Inertia\Inertia;
-use App\Models\Producto; // Modelo Producto
+use App\Models\Producto;
+use App\Models\Categoria;
+use App\Models\Marca;
+use App\Models\Proveedor;
+use App\Models\Almacen;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class ProductoController extends Controller
 {
@@ -13,10 +18,8 @@ class ProductoController extends Controller
      */
     public function index()
     {
-        // Obtiene todos los productos y los pasa al frontend
-        $productos = Producto::all();
         return Inertia::render('Productos/Index', [
-            'productos' => $productos,
+            'productos' => Producto::all(),
         ]);
     }
 
@@ -25,7 +28,12 @@ class ProductoController extends Controller
      */
     public function create()
     {
-        return Inertia::render('Productos/Create');
+        return Inertia::render('Productos/Create', [
+            'categorias' => Categoria::select('id', 'nombre')->get(),
+            'marcas' => Marca::select('id', 'nombre')->get(),
+            'proveedores' => Proveedor::select('id', 'nombre')->get(),
+            'almacenes' => Almacen::select('id', 'nombre')->get(), // Corrección aquí
+        ]);
     }
 
     /**
@@ -33,20 +41,34 @@ class ProductoController extends Controller
      */
     public function store(Request $request)
     {
-        // Valida los datos del formulario
-        $request->validate([
+        $validated = $request->validate([
             'nombre' => 'required|string|max:255',
-            'descripcion' => 'nullable|string|max:1000',
-            'precio' => 'required|numeric|min:0',
+            'descripcion' => 'nullable|string',
+            'codigo' => 'required|string|unique:productos,codigo',
+            'codigo_barras' => 'required|string|unique:productos,codigo_barras',
+            'numero_serie' => 'nullable|string',
+            'categoria_id' => 'required|exists:categorias,id',
+            'marca_id' => 'required|exists:marcas,id',
+            'proveedor_id' => 'nullable|exists:proveedores,id',
+            'almacen_id' => 'nullable|exists:almacenes,id', // Corrección aquí
             'stock' => 'required|integer|min:0',
-            'categoria' => 'nullable|string|max:255',
-            'proveedor' => 'nullable|string|max:255',
+            'stock_minimo' => 'required|integer|min:0',
+            'precio_compra' => 'required|numeric|min:0',
+            'precio_venta' => 'required|numeric|min:0',
+            'impuesto' => 'required|numeric|min:0',
+            'unidad_medida' => 'required|string',
+            'fecha_vencimiento' => 'nullable|date',
+            'tipo_producto' => 'required|in:fisico,digital',
+            'imagen' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'estado' => 'required|in:activo,inactivo',
         ]);
 
-        // Crea un nuevo producto con los datos del formulario
-        Producto::create($request->all());
+        if ($request->hasFile('imagen')) {
+            $validated['imagen'] = $request->file('imagen')->store('productos', 'public');
+        }
 
-        // Redirige a la lista de productos con un mensaje de éxito
+        Producto::create($validated);
+
         return redirect()->route('productos.index')->with('success', 'Producto creado correctamente.');
     }
 
@@ -65,33 +87,39 @@ class ProductoController extends Controller
      */
     public function update(Request $request, Producto $producto)
     {
-        // Valida los datos del formulario
         $validated = $request->validate([
             'nombre' => 'required|string|max:255',
             'descripcion' => 'nullable|string|max:1000',
-            'precio' => 'required|numeric|min:0',
+            'precio_venta' => 'required|numeric|min:0',
             'stock' => 'required|integer|min:0',
-            'categoria' => 'nullable|string|max:255',
-            'proveedor' => 'nullable|string|max:255',
+            'categoria_id' => 'required|exists:categorias,id',
+            'proveedor_id' => 'nullable|exists:proveedores,id',
+            'imagen' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
         ]);
 
-        // Actualiza el producto con los datos validados
+        if ($request->hasFile('imagen')) {
+            if ($producto->imagen) {
+                Storage::disk('public')->delete($producto->imagen);
+            }
+            $validated['imagen'] = $request->file('imagen')->store('productos', 'public');
+        }
+
         $producto->update($validated);
 
-        // Redirige a la lista de productos con un mensaje de éxito
         return redirect()->route('productos.index')->with('success', 'Producto actualizado correctamente.');
     }
 
     /**
      * Elimina un producto de la base de datos.
      */
-    public function destroy($id)
+    public function destroy(Producto $producto)
     {
-        // Busca el producto por su ID y lo elimina
-        $producto = Producto::findOrFail($id);
+        if ($producto->imagen) {
+            Storage::disk('public')->delete($producto->imagen);
+        }
+
         $producto->delete();
 
-        // Redirige a la lista de productos con un mensaje de éxito
         return redirect()->route('productos.index')->with('success', 'Producto eliminado correctamente.');
     }
 }

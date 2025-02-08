@@ -12,6 +12,7 @@ class ProveedorController extends Controller
     {
         // Obtiene todos los proveedores y los pasa al frontend
         $proveedores = Proveedor::all();
+        //return response()->json(Proveedor::all());
 
         return Inertia::render('Proveedores/Index', [
             'proveedores' => $proveedores,

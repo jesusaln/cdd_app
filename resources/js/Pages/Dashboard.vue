@@ -13,6 +13,7 @@
 <NavLink href="/categorias" icon="tags">Categorías</NavLink>
 <NavLink href="/marcas" icon="trademark">Marcas</NavLink>
 <NavLink href="/proveedores" icon="truck">Proveedores</NavLink>
+<NavLink href="/almacenes" icon="truck">Almacenes</NavLink>
 
                 </ul>
             </nav>

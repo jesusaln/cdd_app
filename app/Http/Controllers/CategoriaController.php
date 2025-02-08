@@ -13,6 +13,7 @@ class CategoriaController extends Controller
      */
     public function index()
     {
+        //return response()->json(Categoria::all());
         $categorias = Categoria::all();
         return Inertia::render('Categorias/Index', [
             'categorias' => $categorias,

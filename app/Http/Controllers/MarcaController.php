@@ -13,6 +13,7 @@ class MarcaController extends Controller
      */
     public function index()
     {
+        //return response()->json(Marca::all());
         $marcas = Marca::all();
         return Inertia::render('Marcas/Index', [
             'marcas' => $marcas,

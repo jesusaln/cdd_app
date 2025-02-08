@@ -8,6 +8,7 @@ use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\MarcaController;
 use App\Http\Controllers\ProveedorController;
+use App\Http\Controllers\AlmacenController;
 
 
 Route::get('/', function () {
@@ -99,4 +100,22 @@ Route::middleware([
 
     // Marcas
     Route::resource('marcas', MarcaController::class)->names('marcas');
+
+    // Ruta para mostrar la lista de almacenes
+    Route::get('/almacenes', [AlmacenController::class, 'index'])->name('almacenes.index');
+
+    // Ruta para mostrar el formulario de creación de almacenes
+    Route::get('/almacenes/create', [AlmacenController::class, 'create'])->name('almacenes.create');
+
+    // Ruta para guardar un nuevo almacén
+    Route::post('/almacenes', [AlmacenController::class, 'store'])->name('almacenes.store');
+
+    // Ruta para mostrar el formulario de edición de un almacén
+    Route::get('/almacenes/{almacen}/edit', [AlmacenController::class, 'edit'])->name('almacenes.edit');
+
+    // Ruta para actualizar un almacén existente
+    Route::put('/almacenes/{almacen}', [AlmacenController::class, 'update'])->name('almacenes.update');
+
+    // Ruta para eliminar un almacén
+    Route::delete('/almacenes/{almacen}', [AlmacenController::class, 'destroy'])->name('almacenes.destroy');
 });

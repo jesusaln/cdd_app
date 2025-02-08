@@ -37,9 +37,9 @@
                         <td class="px-4 py-3 text-sm text-gray-700">
                             {{ producto.codigo }}
                         </td>
-                        <td class="px-4 py-3 text-sm text-gray-700">
+                        <!-- <td class="px-4 py-3 text-sm text-gray-700">
                             {{ producto.categoria.nombre }}
-                        </td>
+                        </td> -->
                         <td class="px-4 py-3 text-sm text-gray-700">
                             {{ producto.precio_venta }}
                         </td>
@@ -97,7 +97,7 @@ const props = defineProps({ productos: Array });
 const headers = [
     'Nombre',
     'Código',
-    'Categoría',
+    //'Categoría',
     'Precio de Venta',
     'Stock',
     'Estado'
