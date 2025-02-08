@@ -32,11 +32,12 @@
                 <tbody class="divide-y divide-gray-200">
                     <tr v-for="producto in productosFiltrados" :key="producto.id" class="hover:bg-gray-100">
                         <td class="px-4 py-3 text-sm text-gray-700">
-                            {{ producto.nombre }}
-                        </td>
-                        <td class="px-4 py-3 text-sm text-gray-700">
                             {{ producto.codigo }}
                         </td>
+                        <td class="px-4 py-3 text-sm text-gray-700">
+                            {{ producto.nombre }}
+                        </td>
+
                         <!-- <td class="px-4 py-3 text-sm text-gray-700">
                             {{ producto.categoria.nombre }}
                         </td> -->
@@ -95,8 +96,9 @@ const props = defineProps({ productos: Array });
 
 // Encabezados de la tabla
 const headers = [
-    'Nombre',
-    'Código',
+'Código',
+'Nombre',
+
     //'Categoría',
     'Precio de Venta',
     'Stock',
