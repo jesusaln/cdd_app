@@ -47,8 +47,9 @@ class Producto extends Model
         return $this->belongsTo(Proveedor::class);
     }
 
-    // public function almacen()
-    // {
-    //     return $this->belongsTo(Almacen::class);
-    // }
+    // Relación con el almacén
+    public function almacen()
+    {
+        return $this->belongsTo(Almacen::class);
+    }
 }

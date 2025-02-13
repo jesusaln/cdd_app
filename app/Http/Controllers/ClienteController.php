@@ -16,6 +16,11 @@ class ClienteController extends Controller
         return Inertia::render('Clientes/Index', [
             'clientes' => $clientes,
         ]);
+
+        $clientesCount = Cliente::count(); // Contar clientes
+        return Inertia::render('Clientes/Index', [
+            'clientesCount' => $clientesCount
+        ]);
     }
 
     // Método para mostrar el formulario de creación de clientes

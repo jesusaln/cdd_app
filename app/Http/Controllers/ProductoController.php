@@ -144,4 +144,16 @@ class ProductoController extends Controller
 
         return redirect()->route('productos.index')->with('success', 'Producto eliminado correctamente.');
     }
+    public function show($id)
+    {
+        $producto = Producto::with(['categoria', 'marca', 'proveedor', 'almacen'])->find($id);
+
+        if (!$producto) {
+            abort(404, 'Producto no encontrado');
+        }
+
+        return Inertia::render('Productos/Show', [
+            'producto' => $producto,
+        ]);
+    }
 }

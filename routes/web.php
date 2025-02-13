@@ -27,7 +27,9 @@ Route::middleware([
 
     // Ruta principal para el panel
     Route::get('/panel', function () {
-        return Inertia::render('Panel'); // Verifica que 'Panel.vue' exista en el frontend
+        return Inertia::render('Panel', [
+            'clientesCount' => \App\Models\Cliente::count()
+        ]); // Verifica que 'Panel.vue' exista en el frontend
     })->name('panel');
 
     // Redirigir dashboard a panel

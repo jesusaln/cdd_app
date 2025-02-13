@@ -37,10 +37,6 @@
                         <td class="px-4 py-3 text-sm text-gray-700">
                             {{ producto.nombre }}
                         </td>
-
-                        <!-- <td class="px-4 py-3 text-sm text-gray-700">
-                            {{ producto.categoria.nombre }}
-                        </td> -->
                         <td class="px-4 py-3 text-sm text-gray-700">
                             {{ producto.precio_venta }}
                         </td>
@@ -51,10 +47,17 @@
                             {{ producto.estado }}
                         </td>
                         <td class="px-4 py-3 flex space-x-2">
+                            <!-- Botón para mostrar el producto -->
+                            <button @click="openModal(producto)" class="flex items-center space-x-2 bg-green-500 text-white px-4 py-2 rounded-md shadow-md hover:bg-green-600 transition duration-300">
+                                <i class="fas fa-eye"></i>
+                                <span>Ver</span>
+                            </button>
+                            <!-- Botón para editar el producto -->
                             <Link :href="route('productos.edit', producto.id)" class="flex items-center space-x-2 bg-blue-500 text-white px-4 py-2 rounded-md shadow-md hover:bg-blue-600 transition duration-300">
                                 <i class="fas fa-edit"></i>
                                 <span>Editar</span>
                             </Link>
+                            <!-- Botón para eliminar el producto -->
                             <button @click="eliminarProducto(producto.id)" class="flex items-center space-x-2 bg-red-500 text-white px-4 py-2 rounded-md shadow-md hover:bg-red-600 transition duration-300">
                                 <i class="fas fa-trash-alt"></i>
                                 <span>Eliminar</span>
@@ -70,36 +73,52 @@
             No hay productos registrados.
         </div>
 
-        <!-- Spinner de carga
-        <div v-if="loading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-        </div>
-
-        Componente de confirmación
-        <ConfirmDialog ref="confirmDialog" /> -->
+         <!-- Modal para mostrar los detalles del producto -->
+         <ProductoModal
+            v-if="isModalOpen"
+            :producto="selectedProducto"
+            :isOpen="isModalOpen"
+            @close="closeModal"
+        />
     </div>
 </template>
 
 <script setup>
-import { Link, router } from '@inertiajs/vue3';
-import { ref, watch } from 'vue';
+import { Link } from '@inertiajs/vue3'; // Importación de Inertia
+import { ref } from 'vue';
 import { Notyf } from 'notyf';
 import 'notyf/notyf.min.css'; // Importa los estilos de Notyf
 import Dashboard from '@/Pages/Dashboard.vue'; // Importa el layout del dashboard
-//import ConfirmDialog from '@/components/ConfirmDialog.vue'; // Importa el componente
+import ProductoModal from '@/Components/ProductoModal.vue'; // Importa el componente modal
 
 // Define el layout del dashboard
 defineOptions({ layout: Dashboard });
 
-// Recibe los productos como prop
-const props = defineProps({ productos: Array });
+// Propiedades del componente (productos)
+const props = defineProps({
+    productos: Array
+});
+
+// Estado del modal
+const isModalOpen = ref(false);
+const selectedProducto = ref(null);
+
+// Función para abrir el modal
+const openModal = (producto) => {
+    selectedProducto.value = producto;
+    isModalOpen.value = true;
+};
+
+// Función para cerrar el modal
+const closeModal = () => {
+    isModalOpen.value = false;
+    selectedProducto.value = null;
+};
 
 // Encabezados de la tabla
 const headers = [
-'Código',
-'Nombre',
-
-    //'Categoría',
+    'Código',
+    'Nombre',
     'Precio de Venta',
     'Stock',
     'Estado'
@@ -154,24 +173,13 @@ const notyf = new Notyf({
     ],
 });
 
-// Referencia al componente de confirmación
-const confirmDialog = ref(null);
-
 // Función para eliminar un producto
 const eliminarProducto = async (id) => {
-    // Mostrar el cuadro de confirmación
-    const confirmed = await confirmDialog.value.show(
-        '¿Estás seguro de eliminarlo?',
-        'Esta acción no se puede deshacer.'
-    );
-    // Si el usuario cancela, detener la ejecución
-    if (!confirmed) return;
-
     // Activar estado de carga
     loading.value = true;
 
     try {
-        await router.delete(route('productos.destroy', id), {
+        await Inertia.delete(route('productos.destroy', id), {
             onSuccess: () => {
                 notyf.success('El producto ha sido eliminado exitosamente.');
 
