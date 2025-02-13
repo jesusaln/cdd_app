@@ -144,16 +144,24 @@ class ProductoController extends Controller
 
         return redirect()->route('productos.index')->with('success', 'Producto eliminado correctamente.');
     }
+    // ProductoController.php
     public function show($id)
     {
+        // Cargar el producto con sus relaciones
         $producto = Producto::with(['categoria', 'marca', 'proveedor', 'almacen'])->find($id);
 
         if (!$producto) {
-            abort(404, 'Producto no encontrado');
+            return response()->json(['error' => 'Producto no encontrado'], 404);
         }
+         // Agregar la URL completa de la imagen
+    if ($producto->imagen) {
+        $producto->imagen_url = asset('storage/' . $producto->imagen);
+    } else {
+        $producto->imagen_url = null;
+    }
 
-        return Inertia::render('Productos/Show', [
-            'producto' => $producto,
-        ]);
+    
+
+        return response()->json($producto);
     }
 }

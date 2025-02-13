@@ -109,12 +109,12 @@
                     <div v-if="form.errors.tipo_producto" class="text-red-500">{{ form.errors.tipo_producto }}</div>
                 </div>
 
-                <!-- Imagen
+                <!-- Imagen -->
                 <div>
                     <label for="imagen" class="block text-sm font-medium text-gray-700">Imagen</label>
                     <input type="file" @change="handleImageUpload" id="imagen" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" />
                     <div v-if="form.errors.imagen" class="text-red-500">{{ form.errors.imagen }}</div>
-                </div> -->
+                </div>
 
                 <!-- Estado -->
                 <div>
@@ -145,11 +145,11 @@ defineOptions({ layout: Dashboard });
 
 // Recibe el producto, categorías, marcas y proveedores como props
 const props = defineProps({
-    producto: Object,  // Recibe el producto
-    categorias: Array, // Recibe las categorías
-    marcas: Array,     // Recibe las marcas
-    proveedores: Array, // Recibe los proveedores
-    almacenes: Array, // Recibe los almacenes
+    producto: Object,
+    categorias: { type: Array, default: () => [] },
+    marcas: { type: Array, default: () => [] },
+    proveedores: { type: Array, default: () => [] },
+    almacenes: { type: Array, default: () => [] }, // Evita el error si no se recibe
 });
 
 // Inicializa el formulario con los datos del producto

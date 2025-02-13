@@ -47,22 +47,25 @@
                             {{ producto.estado }}
                         </td>
                         <td class="px-4 py-3 flex space-x-2">
-                            <!-- Botón para mostrar el producto -->
-                            <button @click="openModal(producto)" class="flex items-center space-x-2 bg-green-500 text-white px-4 py-2 rounded-md shadow-md hover:bg-green-600 transition duration-300">
+    <!-- Botón para mostrar el producto -->
+     <!-- Botón para mostrar el producto -->
+     <button
+                                @click="openModal(producto)"
+                                class="flex items-center space-x-2 bg-green-500 text-white px-4 py-2 rounded-md shadow-md hover:bg-green-600 transition duration-300">
                                 <i class="fas fa-eye"></i>
                                 <span>Ver</span>
                             </button>
-                            <!-- Botón para editar el producto -->
-                            <Link :href="route('productos.edit', producto.id)" class="flex items-center space-x-2 bg-blue-500 text-white px-4 py-2 rounded-md shadow-md hover:bg-blue-600 transition duration-300">
-                                <i class="fas fa-edit"></i>
-                                <span>Editar</span>
-                            </Link>
-                            <!-- Botón para eliminar el producto -->
-                            <button @click="eliminarProducto(producto.id)" class="flex items-center space-x-2 bg-red-500 text-white px-4 py-2 rounded-md shadow-md hover:bg-red-600 transition duration-300">
-                                <i class="fas fa-trash-alt"></i>
-                                <span>Eliminar</span>
-                            </button>
-                        </td>
+    <!-- Botón para editar el producto -->
+    <Link :href="route('productos.edit', producto.id)" class="flex items-center space-x-2 bg-blue-500 text-white px-4 py-2 rounded-md shadow-md hover:bg-blue-600 transition duration-300">
+        <i class="fas fa-edit"></i>
+        <span>Editar</span>
+    </Link>
+    <!-- Botón para eliminar el producto -->
+    <button @click="eliminarProducto(producto.id)" class="flex items-center space-x-2 bg-red-500 text-white px-4 py-2 rounded-md shadow-md hover:bg-red-600 transition duration-300">
+        <i class="fas fa-trash-alt"></i>
+        <span>Eliminar</span>
+    </button>
+</td>
                     </tr>
                 </tbody>
             </table>
