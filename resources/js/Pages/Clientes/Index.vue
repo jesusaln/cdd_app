@@ -68,9 +68,6 @@
 
         <!-- Modal de Cliente -->
         <ClienteModal :cliente="clienteSeleccionado" :isOpen="isModalOpen" @close="closeModal" />
-
-        <!-- Componente de confirmación -->
-        <ConfirmDialog ref="confirmDialog" />
     </div>
 </template>
 
@@ -80,19 +77,17 @@ import { ref, computed } from 'vue';
 import { Notyf } from 'notyf';
 import 'notyf/notyf.min.css';
 import Dashboard from '@/Pages/Dashboard.vue';
-import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import ClienteModal from '@/Components/ClienteModal.vue';
 
 // Define el layout del dashboard
 defineOptions({ layout: Dashboard });
 
 const props = defineProps({ clientes: Array });
-const headers = ['nombre_razon_social', 'RFC', 'Régimen Fiscal', 'Uso CFDI', 'Email', 'Teléfono', 'Dirección'];
+const headers = ['Nombre/Razón Social', 'RFC', 'Régimen Fiscal', 'Uso CFDI', 'Email', 'Teléfono', 'Dirección'];
 const loading = ref(false);
 const searchTerm = ref('');
 const clienteSeleccionado = ref(null);
 const isModalOpen = ref(false);
-const confirmDialog = ref(null);
 
 // Filtrado de clientes con `computed()`
 const clientesFiltrados = computed(() => {
@@ -116,8 +111,6 @@ const closeModal = () => {
 
 // Función para eliminar un cliente
 const eliminarCliente = async (id) => {
-    const confirmed = await confirmDialog.value.show('¿Estás seguro de eliminarlo?', 'Esta acción no se puede deshacer.');
-    if (!confirmed) return;
     loading.value = true;
     try {
         await router.delete(route('clientes.destroy', id), {
