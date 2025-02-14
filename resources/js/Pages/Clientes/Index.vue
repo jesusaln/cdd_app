@@ -3,22 +3,17 @@
         <!-- Título de la página -->
         <h1 class="text-2xl font-semibold mb-6">Registro de Clientes</h1>
 
-        <!-- Botón para crear un nuevo cliente -->
+        <!-- Botón para crear un nuevo cliente y búsqueda -->
         <div class="mb-4 flex justify-between items-center">
             <Link :href="route('clientes.create')" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-300">
                 Crear Cliente
             </Link>
-
-
-
-                <input
-                    v-model="searchTerm"
-                    type="text"
-                    placeholder="Buscar por nombre o RFC"
-                    class="px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    @input="filtrarClientes"
-                />
-
+            <input
+                v-model="searchTerm"
+                type="text"
+                placeholder="Buscar por nombre o RFC"
+                class="px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
         </div>
 
         <!-- Tabla de clientes -->
@@ -34,37 +29,26 @@
                 </thead>
                 <tbody class="divide-y divide-gray-200">
                     <tr v-for="cliente in clientesFiltrados" :key="cliente.id" class="hover:bg-gray-100">
-                        <td class="px-4 py-3 text-sm text-gray-700">
-                            {{ cliente.nombre_razon_social }}
-                        </td>
-                        <td class="px-4 py-3 text-sm text-gray-700">
-                            {{ cliente.rfc }}
-                        </td>
-                        <td class="px-4 py-3 text-sm text-gray-700">
-                            {{ cliente.regimen_fiscal }}
-                        </td>
-                        <td class="px-4 py-3 text-sm text-gray-700">
-                            {{ cliente.uso_cfdi }}
-                        </td>
-                        <td class="px-4 py-3 text-sm text-gray-700">
-                            {{ cliente.email }}
-                        </td>
-                        <td class="px-4 py-3 text-sm text-gray-700">
-                            {{ cliente.telefono }}
-                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-700">{{ cliente.nombre_razon_social }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-700">{{ cliente.rfc }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-700">{{ cliente.regimen_fiscal }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-700">{{ cliente.uso_cfdi }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-700">{{ cliente.email }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-700">{{ cliente.telefono }}</td>
                         <td class="px-4 py-3 text-sm text-gray-700">
                             {{ cliente.calle }} {{ cliente.numero_exterior }} {{ cliente.numero_interior }},
                             {{ cliente.colonia }}, {{ cliente.codigo_postal }},
                             {{ cliente.municipio }}, {{ cliente.estado }}, {{ cliente.pais }}
                         </td>
                         <td class="px-4 py-3 flex space-x-2">
-                            <Link :href="route('clientes.edit', cliente.id)" class="flex items-center space-x-2 bg-blue-500 text-white px-4 py-2 rounded-md shadow-md hover:bg-blue-600 transition duration-300">
-                                <i class="fas fa-edit"></i>
-                                <span>Editar</span>
+                            <button @click="openModal(cliente)" class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600">
+                                Ver
+                            </button>
+                            <Link :href="route('clientes.edit', cliente.id)" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">
+                                Editar
                             </Link>
-                            <button @click="eliminarCliente(cliente.id)" class="flex items-center space-x-2 bg-red-500 text-white px-4 py-2 rounded-md shadow-md hover:bg-red-600 transition duration-300">
-                                <i class="fas fa-trash-alt"></i>
-                                <span>Eliminar</span>
+                            <button @click="eliminarCliente(cliente.id)" class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600">
+                                Eliminar
                             </button>
                         </td>
                     </tr>
@@ -82,6 +66,9 @@
             <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
         </div>
 
+        <!-- Modal de Cliente -->
+        <ClienteModal :cliente="clienteSeleccionado" :isOpen="isModalOpen" @close="closeModal" />
+
         <!-- Componente de confirmación -->
         <ConfirmDialog ref="confirmDialog" />
     </div>
@@ -89,122 +76,58 @@
 
 <script setup>
 import { Link, router } from '@inertiajs/vue3';
-import { ref, watch } from 'vue';
+import { ref, computed } from 'vue';
 import { Notyf } from 'notyf';
-import 'notyf/notyf.min.css'; // Importa los estilos de Notyf
-import Dashboard from '@/Pages/Dashboard.vue'; // Importa el layout del dashboard
-import ConfirmDialog from '@/components/ConfirmDialog.vue'; // Importa el componente
+import 'notyf/notyf.min.css';
+import Dashboard from '@/Pages/Dashboard.vue';
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
+import ClienteModal from '@/Components/ClienteModal.vue';
 
 // Define el layout del dashboard
 defineOptions({ layout: Dashboard });
 
-// Recibe los clientes como prop
 const props = defineProps({ clientes: Array });
-
-
-
-// Encabezados de la tabla
-const headers = [
-    'Nombre/Razón Social',
-    'RFC',
-    'Régimen Fiscal',
-    'Uso CFDI',
-    'Email',
-    'Teléfono',
-    'Dirección'
-];
-
-// Estado para el spinner de carga
+const headers = ['nombre_razon_social', 'RFC', 'Régimen Fiscal', 'Uso CFDI', 'Email', 'Teléfono', 'Dirección'];
 const loading = ref(false);
-
-// Término de búsqueda
 const searchTerm = ref('');
-
-// Clientes filtrados
-const clientesFiltrados = ref(props.clientes);
-
-// Función para filtrar clientes
-const filtrarClientes = () => {
-    const term = searchTerm.value.toLowerCase();
-    clientesFiltrados.value = props.clientes.filter(cliente => {
-        return (
-            cliente.nombre_razon_social.toLowerCase().includes(term) ||
-            cliente.rfc.toLowerCase().includes(term)
-        );
-    });
-};
-
-// Configuración personalizada de Notyf
-const notyf = new Notyf({
-    duration: 3000, // Duración en milisegundos
-    position: {
-        x: 'right', // Posición horizontal
-        y: 'top',   // Posición vertical
-    },
-    types: [
-        {
-            type: 'success',
-            background: '#4caf50', // Color de fondo para éxito
-            icon: {
-                className: 'fas fa-check-circle', // Ícono de Font Awesome
-                tagName: 'i',
-                color: '#fff', // Color del ícono
-            },
-        },
-        {
-            type: 'error',
-            background: '#f44336', // Color de fondo para error
-            icon: {
-                className: 'fas fa-times-circle', // Ícono de Font Awesome
-                tagName: 'i',
-                color: '#fff', // Color del ícono
-            },
-        },
-    ],
-});
-
-// Referencia al componente de confirmación
+const clienteSeleccionado = ref(null);
+const isModalOpen = ref(false);
 const confirmDialog = ref(null);
 
-// Definir clientes como una referencia reactiva
-const clientes = ref([]);
+// Filtrado de clientes con `computed()`
+const clientesFiltrados = computed(() => {
+    return props.clientes.filter(cliente => {
+        return cliente.nombre_razon_social.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
+               cliente.rfc.toLowerCase().includes(searchTerm.value.toLowerCase());
+    });
+});
+
+// Configuración de Notyf
+const notyf = new Notyf({ duration: 3000, position: { x: 'right', y: 'top' }});
+
+// Funciones del modal
+const openModal = (cliente) => {
+    clienteSeleccionado.value = cliente;
+    isModalOpen.value = true;
+};
+const closeModal = () => {
+    isModalOpen.value = false;
+};
 
 // Función para eliminar un cliente
 const eliminarCliente = async (id) => {
-    // Mostrar el cuadro de confirmación
-    const confirmed = await confirmDialog.value.show(
-        '¿Estás seguro de eliminarlo?',
-        'Esta acción no se puede deshacer.'
-    );
-    // Si el usuario cancela, detener la ejecución
+    const confirmed = await confirmDialog.value.show('¿Estás seguro de eliminarlo?', 'Esta acción no se puede deshacer.');
     if (!confirmed) return;
-
-    // Activar estado de carga
     loading.value = true;
-
     try {
         await router.delete(route('clientes.destroy', id), {
             onSuccess: () => {
-                notyf.success('El cliente ha sido eliminado exitosamente.');
-
-                // Eliminar el cliente de la lista en el frontend
-                clientes.value = clientes.value.filter(cliente => cliente.id !== id);
-               // console.log(clientes.value); // Verifica que el cliente se haya eliminado
-
-                // Opcional: Recargar la lista de clientes desde el servidor
-                const fetchClientes = async () => {
-                    const response = await axios.get(route('clientes.index'));
-                    clientes.value = response.data;
-                };
-                fetchClientes();
+                notyf.success('Cliente eliminado exitosamente.');
+                props.clientes = props.clientes.filter(cliente => cliente.id !== id);
             },
-            onError: (error) => {
-                console.error('Error al eliminar el cliente:', error);
-                notyf.error('Hubo un error al eliminar el cliente.');
-            },
+            onError: () => notyf.error('Error al eliminar el cliente.')
         });
     } catch (error) {
-        console.error('Error inesperado:', error);
         notyf.error('Ocurrió un error inesperado.');
     } finally {
         loading.value = false;
