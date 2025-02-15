@@ -52,4 +52,10 @@ class Producto extends Model
     {
         return $this->belongsTo(Almacen::class);
     }
+
+    // Relación con cotizaciones
+    public function cotizaciones()
+    {
+        return $this->belongsToMany(Cotizacion::class)->withPivot('precio', 'cantidad');
+    }
 }

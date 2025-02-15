@@ -90,6 +90,7 @@
                         <NavLink href="/marcas" icon="trademark">Marcas</NavLink>
                         <NavLink href="/proveedores" icon="truck">Proveedores</NavLink>
                         <NavLink href="/almacenes" icon="warehouse">Almacenes</NavLink>
+                        <NavLink href="/cotizaciones" icon="file-alt">Cotizaciones</NavLink>
                     </ul>
                 </nav>
             </aside>
