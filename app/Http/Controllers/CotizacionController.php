@@ -3,129 +3,140 @@
 namespace App\Http\Controllers;
 
 use App\Models\Cotizacion;
-use App\Models\Cliente;
 use App\Models\Producto;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
+use App\Models\Cliente;
+use App\Models\ProductoCotizacion;
 
 class CotizacionController extends Controller
 {
-
-
+    /**
+     * Display a listing of the resource.
+     *
+     * @return \Illuminate\Http\Response
+     */
     public function index()
     {
         $cotizaciones = Cotizacion::with('cliente', 'productos')->get();
         return Inertia::render('Cotizaciones/Index', [
-            'cotizaciones' => $cotizaciones
+            'cotizaciones' => $cotizaciones,
         ]);
     }
 
-    /**
-     * Mostrar el formulario para crear una nueva cotización.
-     */
-    public function create()
-    {
-        $clientes = Cliente::all();
-        $productos = Producto::all();
-        return response()->json([
-            'clientes' => $clientes,
-            'productos' => $productos
-        ]);
-    }
-
-    /**
-     * Almacenar una nueva cotización en la base de datos.
-     */
     public function store(Request $request)
     {
-        // Validar los datos recibidos
-        $validated = $request->validate([
+        // Validar los datos de entrada
+        $validator = Validator::make($request->all(), [
             'cliente_id' => 'required|exists:clientes,id',
             'productos' => 'required|array',
             'productos.*.id' => 'required|exists:productos,id',
-            'productos.*.precio' => 'required|numeric',
-            'total' => 'required|numeric'
+            'productos.*.cantidad' => 'required|integer|min:1',
+            'productos.*.precio' => 'required|numeric|min:0',
         ]);
 
-        // Crear la cotización
-        $cotizacion = new Cotizacion();
-        $cotizacion->cliente_id = $validated['cliente_id'];
-        $cotizacion->total = $validated['total'];
-        $cotizacion->save();
-
-        // Adjuntar los productos a la cotización
-        foreach ($validated['productos'] as $producto) {
-            $cotizacion->productos()->attach($producto['id'], ['precio' => $producto['precio']]);
+        if ($validator->fails()) {
+            // Redirigir con errores si la validación falla
+            return back()->withErrors($validator)->withInput();
         }
 
-        return response()->json(['message' => 'Cotización creada con éxito'], 201);
+        // Crear la cotización
+        $cotizacion = Cotizacion::create([
+            'cliente_id' => $request->cliente_id,
+            'total' => $request->total,
+        ]);
+
+        // Asociar los productos a la cotización
+        foreach ($request->productos as $productoData) {
+            $producto = Producto::find($productoData['id']);
+            $cotizacion->productos()->attach($producto->id, [
+                'cantidad' => $productoData['cantidad'],
+                'precio' => $productoData['precio'],
+            ]);
+        }
+
+        // Redirigir con un mensaje de éxito
+        return redirect()->route('cotizaciones.index')
+            ->with('success', 'Cotización creada exitosamente.');
     }
 
     /**
-     * Mostrar una cotización específica.
+     * Display the specified resource.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
      */
     public function show($id)
     {
         $cotizacion = Cotizacion::with('cliente', 'productos')->findOrFail($id);
-        return response()->json($cotizacion);
-    }
-
-    /**
-     * Mostrar el formulario para editar una cotización existente.
-     */
-    public function edit($id)
-    {
-        $cotizacion = Cotizacion::with('cliente', 'productos')->findOrFail($id);
-        $clientes = Cliente::all();
-        $productos = Producto::all();
-
-        return response()->json([
+        return Inertia::render('Cotizaciones/Show', [
             'cotizacion' => $cotizacion,
-            'clientes' => $clientes,
-            'productos' => $productos
         ]);
     }
 
     /**
-     * Actualizar una cotización existente en la base de datos.
+     * Update the specified resource in storage.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
      */
     public function update(Request $request, $id)
     {
-        // Validar los datos recibidos
-        $validated = $request->validate([
+        $cotizacion = Cotizacion::findOrFail($id);
+
+        // Validar los datos de entrada
+        $validator = Validator::make($request->all(), [
             'cliente_id' => 'required|exists:clientes,id',
             'productos' => 'required|array',
             'productos.*.id' => 'required|exists:productos,id',
-            'productos.*.precio' => 'required|numeric',
-            'total' => 'required|numeric'
+            'productos.*.cantidad' => 'required|integer|min:1',
+            'productos.*.precio' => 'required|numeric|min:0',
         ]);
 
-        // Encontrar la cotización
-        $cotizacion = Cotizacion::findOrFail($id);
-
-        // Actualizar los datos de la cotización
-        $cotizacion->cliente_id = $validated['cliente_id'];
-        $cotizacion->total = $validated['total'];
-        $cotizacion->save();
-
-        // Sincronizar los productos
-        $productosSync = [];
-        foreach ($validated['productos'] as $producto) {
-            $productosSync[$producto['id']] = ['precio' => $producto['precio']];
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
         }
-        $cotizacion->productos()->sync($productosSync);
 
-        return response()->json(['message' => 'Cotización actualizada con éxito']);
+        // Actualizar la cotización
+        $cotizacion->update([
+            'cliente_id' => $request->cliente_id,
+            'total' => $request->total,
+        ]);
+
+        // Sincronizar los productos de la cotización
+        $cotizacion->productos()->sync([]); // Eliminar todos los productos actuales
+        foreach ($request->productos as $productoData) {
+            $cotizacion->productos()->attach($productoData['id'], [
+                'cantidad' => $productoData['cantidad'],
+                'precio' => $productoData['precio'],
+            ]);
+        }
+
+        return response()->json(['message' => 'Cotización actualizada exitosamente.', 'cotizacion' => $cotizacion]);
     }
 
     /**
-     * Eliminar una cotización existente de la base de datos.
+     * Remove the specified resource from storage.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
      */
     public function destroy($id)
     {
         $cotizacion = Cotizacion::findOrFail($id);
         $cotizacion->delete();
+        return response()->json(['message' => 'Cotización eliminada exitosamente.']);
+    }
 
-        return response()->json(['message' => 'Cotización eliminada con éxito']);
+    public function create()
+    {
+        $clientes = Cliente::all();
+        $productos = Producto::all();
+        return Inertia::render('Cotizaciones/Create', [
+            'clientes' => $clientes,
+            'productos' => $productos
+        ]);
     }
 }

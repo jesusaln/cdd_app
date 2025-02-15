@@ -1,105 +1,122 @@
 <template>
     <div class="cotizaciones-index">
-      <h1>Listado de Cotizaciones</h1>
+      <!-- Título de la página -->
+      <h1 class="text-2xl font-semibold mb-6">Listado de Cotizaciones</h1>
+
+      <!-- Botón de crear cotización y campo de búsqueda -->
+      <div class="mb-4 flex justify-between items-center">
+        <Link :href="route('cotizaciones.create')" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-300">
+          Crear Cotización
+        </Link>
+        <input
+          v-model="searchTerm"
+          type="text"
+          placeholder="Buscar por cliente o producto"
+          class="px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
 
       <!-- Tabla de cotizaciones -->
-      <table class="cotizaciones-table">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Cliente</th>
-            <th>Productos</th>
-            <th>Total</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="cotizacion in cotizaciones" :key="cotizacion.id">
-            <td>{{ cotizacion.id }}</td>
-            <td>{{ cotizacion.cliente.nombre }}</td>
-            <td>
-              <ul>
-                <li v-for="producto in cotizacion.productos" :key="producto.id">
-                  {{ producto.nombre }} - ${{ producto.pivot.precio }} (Cantidad: {{ producto.pivot.cantidad }})
-                </li>
-              </ul>
-            </td>
-            <td>${{ cotizacion.total }}</td>
-            <td>
-              <button @click="editarCotizacion(cotizacion.id)">Editar</button>
-              <button @click="eliminarCotizacion(cotizacion.id)">Eliminar</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <div v-if="cotizacionesFiltradas.length > 0" class="overflow-x-auto bg-white rounded-lg shadow-md">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Productos</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200">
+            <tr v-for="cotizacion in cotizacionesFiltradas" :key="cotizacion.id" class="hover:bg-gray-100">
+              <td class="px-4 py-3 text-sm text-gray-700">{{ cotizacion.id }}</td>
+              <td class="px-4 py-3 text-sm text-gray-700">{{ cotizacion.cliente.nombre }}</td>
+              <td class="px-4 py-3 text-sm text-gray-700">
+                <ul>
+                  <li v-for="producto in cotizacion.productos" :key="producto.id">
+                    {{ producto.nombre }} - ${{ producto.pivot.precio }} (Cantidad: {{ producto.pivot.cantidad }})
+                  </li>
+                </ul>
+              </td>
+              <td class="px-4 py-3 text-sm text-gray-700">${{ cotizacion.total }}</td>
+              <td class="px-4 py-3 flex space-x-2">
+                <button @click="editarCotizacion(cotizacion.id)" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">
+                  Editar
+                </button>
+                <button @click="eliminarCotizacion(cotizacion.id)" class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600">
+                  Eliminar
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-      <!-- Botón para crear nueva cotización -->
-      <div class="actions">
-        <inertia-link href="/cotizaciones/create" class="btn-create">Crear Nueva Cotización</inertia-link>
+      <!-- Mensaje si no hay cotizaciones -->
+      <div v-else class="text-center text-gray-500 mt-4">
+        No hay cotizaciones registradas.
+      </div>
+
+      <!-- Spinner de carga -->
+      <div v-if="loading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     </div>
   </template>
 
-  <script>
-  import { Inertia } from "@inertiajs/inertia";
+  <script setup>
+  import { Link, router } from '@inertiajs/vue3';
+  import { ref, computed } from 'vue';
+  import { Notyf } from 'notyf';
+  import 'notyf/notyf.min.css';
+  import Dashboard from '@/Pages/Dashboard.vue';
 
-  export default {
-    props: {
-      cotizaciones: Array // Las cotizaciones se pasan desde el backend
-    },
-    methods: {
-      // Método para redirigir a la página de edición
-      editarCotizacion(id) {
-        Inertia.get(`/cotizaciones/${id}/edit`);
-      },
-      // Método para eliminar una cotización
-      eliminarCotizacion(id) {
-        if (confirm("¿Estás seguro de que deseas eliminar esta cotización?")) {
-          Inertia.delete(`/cotizaciones/${id}`);
-        }
+// Define el layout del dashboard
+defineOptions({ layout: Dashboard });
+
+  // Propiedades
+  const props = defineProps({ cotizaciones: Array });
+  const searchTerm = ref('');
+  const loading = ref(false);
+
+  // Configuración de Notyf para notificaciones
+  const notyf = new Notyf({ duration: 3000, position: { x: 'right', y: 'top' }});
+
+  // Filtrado de cotizaciones
+  const cotizacionesFiltradas = computed(() => {
+    return props.cotizaciones.filter(cotizacion => {
+      return cotizacion.cliente.nombre.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
+             cotizacion.productos.some(producto => producto.nombre.toLowerCase().includes(searchTerm.value.toLowerCase()));
+    });
+  });
+
+  // Función para editar una cotización
+  const editarCotizacion = (id) => {
+    router.get(`/cotizaciones/${id}/edit`);
+  };
+
+  // Función para eliminar una cotización
+  const eliminarCotizacion = async (id) => {
+    loading.value = true;
+    if (confirm('¿Estás seguro de que deseas eliminar esta cotización?')) {
+      try {
+        await router.delete(`/cotizaciones/${id}`, {
+          onSuccess: () => {
+            notyf.success('Cotización eliminada exitosamente.');
+            props.cotizaciones = props.cotizaciones.filter(cotizacion => cotizacion.id !== id);
+          },
+          onError: () => notyf.error('Error al eliminar la cotización.')
+        });
+      } catch (error) {
+        notyf.error('Ocurrió un error inesperado.');
+      } finally {
+        loading.value = false;
       }
     }
   };
   </script>
 
-  <style scoped>
-  .cotizaciones-index {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
-  }
+<style scoped>
 
-  .cotizaciones-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 20px;
-  }
-
-  .cotizaciones-table th,
-  .cotizaciones-table td {
-    border: 1px solid #ddd;
-    padding: 8px;
-    text-align: left;
-  }
-
-  .cotizaciones-table th {
-    background-color: #f4f4f4;
-  }
-
-  .actions {
-    text-align: right;
-  }
-
-  .btn-create {
-    display: inline-block;
-    padding: 10px 20px;
-    background-color: #28a745;
-    color: white;
-    text-decoration: none;
-    border-radius: 5px;
-  }
-
-  .btn-create:hover {
-    background-color: #218838;
-  }
   </style>

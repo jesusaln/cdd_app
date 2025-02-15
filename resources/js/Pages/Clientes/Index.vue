@@ -90,8 +90,9 @@ const clienteSeleccionado = ref(null);
 const isModalOpen = ref(false);
 
 // Filtrado de clientes con `computed()`
+const clientes = ref(props.clientes);
 const clientesFiltrados = computed(() => {
-    return props.clientes.filter(cliente => {
+    return clientes.value.filter(cliente => {
         return cliente.nombre_razon_social.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
                cliente.rfc.toLowerCase().includes(searchTerm.value.toLowerCase());
     });
@@ -116,7 +117,7 @@ const eliminarCliente = async (id) => {
         await router.delete(route('clientes.destroy', id), {
             onSuccess: () => {
                 notyf.success('Cliente eliminado exitosamente.');
-                props.clientes = props.clientes.filter(cliente => cliente.id !== id);
+                clientes.value = clientes.value.filter(cliente => cliente.id !== id);
             },
             onError: () => notyf.error('Error al eliminar el cliente.')
         });
