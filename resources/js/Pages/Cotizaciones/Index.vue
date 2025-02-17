@@ -31,7 +31,7 @@
           <tbody class="divide-y divide-gray-200">
             <tr v-for="cotizacion in cotizacionesFiltradas" :key="cotizacion.id" class="hover:bg-gray-100">
               <td class="px-4 py-3 text-sm text-gray-700">{{ cotizacion.id }}</td>
-              <td class="px-4 py-3 text-sm text-gray-700">{{ cotizacion.cliente.nombre }}</td>
+              <td class="px-4 py-3 text-sm text-gray-700">{{ cotizacion.cliente.nombre_razon_social }}</td>
               <td class="px-4 py-3 text-sm text-gray-700">
                 <ul>
                   <li v-for="producto in cotizacion.productos" :key="producto.id">
@@ -86,7 +86,7 @@ defineOptions({ layout: Dashboard });
   // Filtrado de cotizaciones
   const cotizacionesFiltradas = computed(() => {
     return props.cotizaciones.filter(cotizacion => {
-      return cotizacion.cliente.nombre.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
+      return cotizacion.cliente.nombre_razon_social.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
              cotizacion.productos.some(producto => producto.nombre.toLowerCase().includes(searchTerm.value.toLowerCase()));
     });
   });

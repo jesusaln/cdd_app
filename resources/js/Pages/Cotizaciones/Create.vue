@@ -153,6 +153,7 @@
   const form = useForm({
     cliente_id: '',
     total: 0,
+    productos: [], // Agregamos productos al formulario
   });
 
   const buscarCliente = ref('');
@@ -283,26 +284,25 @@ const ocultarProductosDespuesDeTiempo = (event) => {
   };
 
   const crearCotizacion = () => {
-    const productos = selectedProducts.value.map((id) => ({
-      id,
-      cantidad: quantities.value[id] || 0,
-      precio: prices.value[id] || 0,
-    }));
+  form.productos = selectedProducts.value.map((productoId) => ({
+    id: productoId,
+    cantidad: quantities.value[productoId] || 1,
+    precio: prices.value[productoId] || 0,
+  }));
 
-    form.post('/cotizaciones', {
-      data: {
-        ...form.data(),
-        productos: productos,
-      },
-      onSuccess: () => {
-        console.log('Cotización creada exitosamente.');
-        localStorage.removeItem('cotizacionEnProgreso');
-      },
-      onError: (errors) => {
-        console.error('Error al crear la cotización:', errors);
-      },
-    });
-  };
+  form.post(route('cotizaciones.store'), {
+    onSuccess: () => {
+      localStorage.removeItem('cotizacionEnProgreso'); // Limpiar localStorage después de guardar
+      selectedProducts.value = [];
+      quantities.value = {};
+      prices.value = {};
+    },
+    onError: (error) => {
+      console.error('Error al crear la cotización:', error);
+    },
+  });
+};
+
 
   const formatearLocalStorage = () => {
     localStorage.removeItem('cotizacionEnProgreso');

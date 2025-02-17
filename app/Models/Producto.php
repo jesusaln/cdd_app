@@ -56,6 +56,7 @@ class Producto extends Model
     // Relación con cotizaciones
     public function cotizaciones()
     {
-        return $this->belongsToMany(Cotizacion::class)->withPivot('precio', 'cantidad');
+        return $this->belongsToMany(Cotizacion::class, 'cotizacion_producto')
+            ->withPivot('precio', 'cantidad');
     }
 }

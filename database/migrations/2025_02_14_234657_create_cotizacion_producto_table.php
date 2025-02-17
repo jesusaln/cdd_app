@@ -15,8 +15,9 @@ class CreateCotizacionProductoTable extends Migration
     {
         Schema::create('cotizacion_producto', function (Blueprint $table) {
             $table->id(); // ID de la relación
-            $table->foreignId('cotizacion_id')->constrained()->onDelete('cascade'); // Relación con la cotización
-            $table->foreignId('producto_id')->constrained()->onDelete('cascade'); // Relación con el producto
+            $table->foreignId('cotizacion_id')->constrained('cotizaciones')->onDelete('cascade');
+            $table->foreignId('producto_id')->constrained('productos')->onDelete('cascade');
+
             $table->decimal('precio', 8, 2); // Precio del producto en la cotización
             $table->integer('cantidad')->default(1); // Cantidad del producto en la cotización
             $table->timestamps(); // Columnas created_at y updated_at
