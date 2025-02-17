@@ -99,25 +99,27 @@
     router.get(`/cotizaciones/${id}/edit`);
   };
 
-  // Función para eliminar una cotización
-  const eliminarCotizacion = async (id) => {
+ // Función para eliminar una cotización
+const eliminarCotizacion = async (id) => {
+  if (confirm('¿Estás seguro de que deseas eliminar esta cotización?')) {
     loading.value = true;
-    if (confirm('¿Estás seguro de que deseas eliminar esta cotización?')) {
-      try {
-        await router.delete(`/cotizaciones/${id}`, {
-          onSuccess: () => {
-            notyf.success('Cotización eliminada exitosamente.');
-            cotizaciones.value = cotizaciones.value.filter(cotizacion => cotizacion.id !== id);
-          },
-          onError: () => notyf.error('Error al eliminar la cotización.')
-        });
-      } catch (error) {
-        notyf.error('Ocurrió un error inesperado.');
-      } finally {
-        loading.value = false;
-      }
+    try {
+      await router.delete(`/cotizaciones/${id}`, {
+        onSuccess: () => {
+          notyf.success('Cotización eliminada exitosamente.');
+          cotizaciones.value = cotizaciones.value.filter(cotizacion => cotizacion.id !== id);
+        },
+        onError: () => notyf.error('Error al eliminar la cotización.')
+      });
+    } catch (error) {
+      notyf.error('Ocurrió un error inesperado.');
+    } finally {
+      loading.value = false;
     }
-  };
+  } else {
+    loading.value = false; // Asegúrate de que loading se establezca en false si se cancela
+  }
+};
   </script>
 
   <style scoped>

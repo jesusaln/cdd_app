@@ -88,7 +88,7 @@ import { ref, watch } from 'vue';
 import { Notyf } from 'notyf';
 import 'notyf/notyf.min.css'; // Importa los estilos de Notyf
 import Dashboard from '@/Pages/Dashboard.vue'; // Importa el layout del dashboard
-import ConfirmDialog from '@/components/ConfirmDialog.vue'; // Importa el componente
+import ConfirmDialog from '@/Components/ConfirmDialog.vue'; // Importa el componente
 
 // Define el layout del dashboard
 defineOptions({ layout: Dashboard });
