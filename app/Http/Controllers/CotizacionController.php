@@ -114,7 +114,8 @@ class CotizacionController extends Controller
             ]);
         }
 
-        return response()->json(['message' => 'Cotización actualizada exitosamente.', 'cotizacion' => $cotizacion]);
+        // Redirigir con un mensaje de éxito
+        return redirect()->route('cotizaciones.index')->with('success', 'Cotización actualizada exitosamente.');
     }
 
     /**
@@ -127,7 +128,7 @@ class CotizacionController extends Controller
     {
         $cotizacion = Cotizacion::findOrFail($id);
         $cotizacion->delete();
-        return response()->json(['message' => 'Cotización eliminada exitosamente.']);
+        return redirect()->route('cotizaciones.index')->with('success', 'Cotización eliminada exitosamente.');
     }
 
     public function create()
@@ -137,6 +138,23 @@ class CotizacionController extends Controller
         return Inertia::render('Cotizaciones/Create', [
             'clientes' => $clientes,
             'productos' => $productos
+        ]);
+    }
+
+    public function edit($id)
+    {
+        // Encuentra la cotización, incluyendo los productos y el cliente
+        $cotizacion = Cotizacion::with('cliente', 'productos')->findOrFail($id);
+
+        // Obtener la lista de clientes y productos para los selectores
+        $clientes = Cliente::all();
+        $productos = Producto::all();
+
+        // Devolver los datos en formato JSON, para que Vue.js los pueda usar
+        return inertia('Cotizaciones/Edit', [
+            'cotizacion' => $cotizacion,
+            'clientes' => $clientes,
+            'productos' => $productos,
         ]);
     }
 }

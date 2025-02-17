@@ -67,13 +67,13 @@
 
   <script setup>
   import { Link, router } from '@inertiajs/vue3';
-  import { ref, computed } from 'vue';
+  import { ref, computed, onMounted } from 'vue';
   import { Notyf } from 'notyf';
   import 'notyf/notyf.min.css';
   import Dashboard from '@/Pages/Dashboard.vue';
 
-// Define el layout del dashboard
-defineOptions({ layout: Dashboard });
+  // Define el layout del dashboard
+  defineOptions({ layout: Dashboard });
 
   // Propiedades
   const props = defineProps({ cotizaciones: Array });
@@ -81,11 +81,14 @@ defineOptions({ layout: Dashboard });
   const loading = ref(false);
 
   // Configuración de Notyf para notificaciones
-  const notyf = new Notyf({ duration: 3000, position: { x: 'right', y: 'top' }});
+  const notyf = new Notyf({ duration: 3000, position: { x: 'right', y: 'top' } });
+
+  // Variable reactiva local para almacenar las cotizaciones
+  const cotizaciones = ref([...props.cotizaciones]);
 
   // Filtrado de cotizaciones
   const cotizacionesFiltradas = computed(() => {
-    return props.cotizaciones.filter(cotizacion => {
+    return cotizaciones.value.filter(cotizacion => {
       return cotizacion.cliente.nombre_razon_social.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
              cotizacion.productos.some(producto => producto.nombre.toLowerCase().includes(searchTerm.value.toLowerCase()));
     });
@@ -104,7 +107,7 @@ defineOptions({ layout: Dashboard });
         await router.delete(`/cotizaciones/${id}`, {
           onSuccess: () => {
             notyf.success('Cotización eliminada exitosamente.');
-            props.cotizaciones = props.cotizaciones.filter(cotizacion => cotizacion.id !== id);
+            cotizaciones.value = cotizaciones.value.filter(cotizacion => cotizacion.id !== id);
           },
           onError: () => notyf.error('Error al eliminar la cotización.')
         });
@@ -117,6 +120,6 @@ defineOptions({ layout: Dashboard });
   };
   </script>
 
-<style scoped>
-
+  <style scoped>
+  /* Aquí van tus estilos personalizados */
   </style>
