@@ -2,7 +2,7 @@
     <div> <h1 class="text-2xl font-semibold mb-6">{{ titulo }}</h1> <!-- Muestra el título en la vista -->
     <div>
       <!-- Título de la página -->
-      <h1 class="text-3xl font-bold mb-6 text-center">Clientes</h1>
+      <h1 class="text-3xl font-bold mb-6 text-center">Registro de Clientes</h1>
       <!-- Título de la página -->
       <!-- <h1 class="text-2xl font-semibold mb-6">Registro de Clientes</h1> -->
 
