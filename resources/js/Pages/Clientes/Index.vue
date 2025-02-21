@@ -1,7 +1,10 @@
 <template>
+    <div> <h1 class="text-2xl font-semibold mb-6">{{ titulo }}</h1> <!-- Muestra el título en la vista -->
     <div>
       <!-- Título de la página -->
-      <h1 class="text-2xl font-semibold mb-6">Registro de Clientes</h1>
+      <h1 class="text-3xl font-bold mb-6 text-center">Clientes</h1>
+      <!-- Título de la página -->
+      <!-- <h1 class="text-2xl font-semibold mb-6">Registro de Clientes</h1> -->
 
       <!-- Botón para crear un nuevo cliente y búsqueda -->
       <div class="mb-4 flex justify-between items-center">
@@ -47,7 +50,7 @@
                 <Link :href="route('clientes.edit', cliente.id)" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">
                   Editar
                 </Link>
-                <button @click="eliminarCliente(cliente.id)" class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600">
+                <button @click="confirmarEliminacion(cliente)" class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600">
                   Eliminar
                 </button>
               </td>
@@ -69,9 +72,23 @@
       <!-- Modal de Cliente -->
       <ClienteModal :cliente="clienteSeleccionado" :isOpen="isModalOpen" @close="closeModal" />
 
-      <!-- Componente de confirmación -->
-      <ConfirmDialog ref="confirmDialog" />
+      <!-- Modal de confirmación -->
+      <div v-if="isConfirmOpen" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+        <div class="bg-white p-6 rounded-lg shadow-lg w-96">
+          <h2 class="text-xl font-semibold mb-4">Confirmar eliminación</h2>
+          <p class="text-gray-700 mb-4">¿Estás seguro de que deseas eliminar el cliente <strong>{{ clienteAEliminar.nombre_razon_social }}</strong>?</p>
+          <div class="flex justify-end space-x-4">
+            <button @click="isConfirmOpen = false" class="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500 transition">
+              Cancelar
+            </button>
+            <button @click="eliminarClienteConfirmado" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition">
+              Eliminar
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
+</div>
   </template>
 
   <script setup>
@@ -81,18 +98,24 @@
   import 'notyf/notyf.min.css';
   import Dashboard from '@/Pages/Dashboard.vue';
   import ClienteModal from '@/Components/ClienteModal.vue';
-  import ConfirmDialog from '@/Components/ConfirmDialog.vue';
+  import { defineProps } from 'vue';
+
+const props = defineProps({
+  titulo: String,  // Recibes el título desde el controlador
+  clientes: Array
+});
+
+document.title = props.titulo;  // Cambias el título de la página dinámicamente
 
   defineOptions({ layout: Dashboard });
-
-  const props = defineProps({ clientes: Array });
   const headers = ['Nombre/Razón Social', 'RFC', 'Régimen Fiscal', 'Uso CFDI', 'Email', 'Teléfono', 'Dirección'];
   const loading = ref(false);
   const searchTerm = ref('');
   const clienteSeleccionado = ref(null);
   const isModalOpen = ref(false);
+  const isConfirmOpen = ref(false);
+  const clienteAEliminar = ref(null);
 
-  // Filtrado de clientes con `computed()`
   const clientes = ref(props.clientes);
   const clientesFiltrados = computed(() => {
     return clientes.value.filter(cliente => {
@@ -101,10 +124,8 @@
     });
   });
 
-  // Configuración de Notyf
   const notyf = new Notyf({ duration: 3000, position: { x: 'right', y: 'top' } });
 
-  // Funciones del modal
   const openModal = (cliente) => {
     clienteSeleccionado.value = cliente;
     isModalOpen.value = true;
@@ -113,43 +134,28 @@
     isModalOpen.value = false;
   };
 
-  // Referencia al confirmDialog
-  const confirmDialog = ref(null);
+  const confirmarEliminacion = (cliente) => {
+    clienteAEliminar.value = cliente;
+    isConfirmOpen.value = true;
+  };
 
-  // Función para eliminar un cliente
-  const eliminarCliente = async (id) => {
-    if (!confirmDialog.value) {
-      console.error("ConfirmDialog no está referenciado correctamente");
-      return;
-    }
-
-    const confirmed = await confirmDialog.value.show(
-      '¿Estás seguro de que deseas eliminar este cliente?',
-      'Esta acción no se puede deshacer.'
-    );
-
-    if (!confirmed) {
-      loading.value = false;
-      return;
-    }
+  const eliminarClienteConfirmado = async () => {
+    if (!clienteAEliminar.value) return;
 
     loading.value = true;
     try {
-      await router.delete(route('clientes.destroy', id), {
+      await router.delete(route('clientes.destroy', clienteAEliminar.value.id), {
         onSuccess: () => {
           notyf.success('Cliente eliminado exitosamente.');
-          clientes.value = clientes.value.filter(cliente => cliente.id !== id);
+          clientes.value = clientes.value.filter(c => c.id !== clienteAEliminar.value.id);
         },
         onError: () => notyf.error('Error al eliminar el cliente.')
       });
     } catch (error) {
       notyf.error('Ocurrió un error inesperado.');
     } finally {
+      isConfirmOpen.value = false;
       loading.value = false;
     }
   };
   </script>
-
-  <style scoped>
-  /* Estilos adicionales si son necesarios */
-  </style>
