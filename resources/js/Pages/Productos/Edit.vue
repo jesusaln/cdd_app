@@ -1,4 +1,5 @@
 <template>
+    <Head title="Editar Productos" />
     <div>
         <h1 class="text-2xl font-semibold mb-4">Editar Producto</h1>
         <!-- Formulario de edición de producto -->
@@ -137,7 +138,7 @@
     </div>
 </template>
 <script setup>
-import { useForm } from '@inertiajs/vue3';
+import { Head, useForm } from '@inertiajs/vue3';
 import Dashboard from '@/Pages/Dashboard.vue'; // Importa el Dashboard
 
 // Define el layout

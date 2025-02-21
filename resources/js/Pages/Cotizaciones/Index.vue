@@ -1,4 +1,5 @@
 <template>
+    <Head title="Cotizaciones" />
     <div class="cotizaciones-index">
       <!-- Título de la página -->
       <h1 class="text-2xl font-semibold mb-6">Listado de Cotizaciones</h1>
@@ -81,7 +82,7 @@
   </template>
 
   <script setup>
-  import { Link, router } from '@inertiajs/vue3';
+  import { Head, Link, router } from '@inertiajs/vue3';
   import { ref, computed } from 'vue';
   import { Notyf } from 'notyf';
   import 'notyf/notyf.min.css';

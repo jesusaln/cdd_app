@@ -1,4 +1,5 @@
 <template>
+    <Head title="Mostrar cotizaciones" />
     <div class="cotizaciones-show">
       <!-- Título de la página -->
       <h1 class="text-2xl font-semibold mb-6">Detalles de la Cotización</h1>

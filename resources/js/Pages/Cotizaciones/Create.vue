@@ -1,4 +1,5 @@
 <template>
+    <Head title="Crear cotizaciones" />
     <div class="cotizaciones-create">
       <h1 class="text-2xl font-semibold mb-6">Crear Nueva Cotización</h1>
       <form @submit.prevent="crearCotizacion" class="space-y-6">
@@ -139,8 +140,7 @@
 
   <script setup>
   import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
-  import { useForm } from '@inertiajs/vue3';
-  import { Link } from '@inertiajs/vue3';
+  import { Head, useForm, Link } from '@inertiajs/vue3';
   import Dashboard from '@/Pages/Dashboard.vue';
 
   defineOptions({ layout: Dashboard });

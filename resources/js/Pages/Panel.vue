@@ -1,4 +1,5 @@
 <template>
+    <Head title="Panel" />
     <div>
         <h1 class="text-2xl font-bold mb-4">Bienvenido al Panel</h1>
         <div class="grid grid-cols-3 gap-4">
@@ -22,6 +23,7 @@
 </template>
 
 <script setup>
+import { Head } from '@inertiajs/vue3';
 import Dashboard from '@/Pages/Dashboard.vue'; // Importa el layout del dashboard
 import NavLink from '@/Components/NavLink.vue';
 

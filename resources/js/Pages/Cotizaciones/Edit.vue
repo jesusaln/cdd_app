@@ -1,4 +1,5 @@
 <template>
+    <Head title="Editar cotizaciones" />
     <div class="cotizaciones-edit">
       <h1 class="text-2xl font-semibold mb-6">Editar Cotización</h1>
       <form @submit.prevent="actualizarCotizacion" class="space-y-6">
@@ -132,7 +133,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
-import { useForm } from '@inertiajs/vue3';
+import { Head, useForm } from '@inertiajs/vue3';
 import { Link } from '@inertiajs/vue3';
 import Dashboard from '@/Pages/Dashboard.vue';
 

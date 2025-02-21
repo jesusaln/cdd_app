@@ -1,4 +1,5 @@
 <template>
+    <Head title="Crear Producto" />
     <div>
         <h1 class="text-2xl font-semibold mb-4">Crear Producto</h1>
         <form @submit.prevent="submit">
@@ -177,7 +178,7 @@
 </template>
 
 <script setup>
-import { useForm } from '@inertiajs/vue3';
+import { Head, useForm } from '@inertiajs/vue3';
 import Dashboard from '@/Pages/Dashboard.vue';
 
 // Define el layout

@@ -1,4 +1,6 @@
 <template>
+
+<Head title="Crear clientes" />
     <div>
         <h1 class="text-2xl font-semibold mb-4">Crear Cliente</h1>
         <!-- Formulario de creación de clientes -->
@@ -198,7 +200,7 @@
     </div>
 </template>
 <script setup>
-import { useForm } from '@inertiajs/vue3';
+import { Head, useForm } from '@inertiajs/vue3';
 import Dashboard from '@/Pages/Dashboard.vue'; // Importa el layout del dashboard
 
 // Define el layout del dashboard

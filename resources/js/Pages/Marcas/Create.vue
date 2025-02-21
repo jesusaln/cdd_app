@@ -1,4 +1,5 @@
 <template>
+    <Head title="Crear Marca" />
     <div>
         <!-- Título de la página -->
         <h1 class="text-2xl font-semibold mb-6">Crear Marca</h1>
@@ -41,7 +42,7 @@
 </template>
 
 <script setup>
-import { Link, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { reactive } from 'vue';
 import Dashboard from '@/Pages/Dashboard.vue'; // Importa el layout del dashboard
 

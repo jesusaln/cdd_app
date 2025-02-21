@@ -1,4 +1,5 @@
 <template>
+    <Head title="Editar categorias" />
     <div>
         <!-- Título de la página -->
         <h1 class="text-2xl font-semibold mb-4">Editar Categoría</h1>
@@ -45,7 +46,7 @@
 
 <script setup>
 import { useForm } from '@inertiajs/vue3';
-import { Link } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 
 // Define el layout del dashboard (si es necesario)
 import Dashboard from '@/Pages/Dashboard.vue';

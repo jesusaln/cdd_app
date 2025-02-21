@@ -1,4 +1,5 @@
 <template>
+    <Head title="Editar clientes" />
     <div>
         <h1 class="text-2xl font-semibold mb-4">Editar Cliente</h1>
         <!-- Formulario de edición de clientes -->
@@ -72,7 +73,7 @@
 </template>
 
 <script setup>
-import { useForm } from '@inertiajs/vue3';
+import {Head,  useForm } from '@inertiajs/vue3';
 import Dashboard from '@/Pages/Dashboard.vue'; // Importa el layout del dashboard
 
 // Define el layout del dashboard

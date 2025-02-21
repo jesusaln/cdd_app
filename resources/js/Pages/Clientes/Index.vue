@@ -1,4 +1,6 @@
 <template>
+
+<Head title="Clientes" />
     <div> <h1 class="text-2xl font-semibold mb-6">{{ titulo }}</h1> <!-- Muestra el título en la vista -->
     <div>
       <!-- Título de la página -->
@@ -92,7 +94,7 @@
   </template>
 
   <script setup>
-  import { Link, router } from '@inertiajs/vue3';
+  import { Head, Link, router } from '@inertiajs/vue3';
   import { ref, computed } from 'vue';
   import { Notyf } from 'notyf';
   import 'notyf/notyf.min.css';

@@ -1,4 +1,5 @@
 <template>
+    <Head title="Mostrar productos" />
     <div>
         <h1 class="text-2xl font-semibold mb-4">Detalles del Producto</h1>
 
