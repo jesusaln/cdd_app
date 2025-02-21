@@ -39,7 +39,7 @@
                             </Link>
                             <!-- Botón para eliminar -->
                             <button
-                                @click="eliminarAlmacen(almacen.id)"
+                                @click="abrirModalEliminar(almacen.id)"
                                 class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition duration-300"
                             >
                                 Eliminar
@@ -54,6 +54,18 @@
         <div v-else class="text-center text-gray-500 mt-4">
             No hay almacenes registrados.
         </div>
+
+        <!-- Modal de confirmación de eliminación -->
+        <div v-if="modalVisible" class="fixed inset-0 bg-gray-500 bg-opacity-75 flex justify-center items-center z-50">
+            <div class="bg-white rounded-lg p-6 w-96">
+                <h3 class="text-lg font-semibold text-gray-800">Confirmar eliminación</h3>
+                <p class="text-sm text-gray-600 mt-2">¿Estás seguro de que deseas eliminar este almacén? Esta acción no se puede deshacer.</p>
+                <div class="mt-4 flex justify-end space-x-4">
+                    <button @click="cerrarModal" class="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500">Cancelar</button>
+                    <button @click="eliminarAlmacen" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Eliminar</button>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -66,7 +78,6 @@ import Dashboard from '@/Pages/Dashboard.vue'; // Importa el layout del dashboar
 
 // Define el layout del dashboard
 defineOptions({ layout: Dashboard });
-
 
 // Recibe los almacenes como prop
 defineProps({
@@ -83,15 +94,32 @@ const notyf = new Notyf({
     ],
 });
 
-// Función para eliminar un almacén
-const eliminarAlmacen = async (id) => {
-    if (!confirm('¿Estás seguro de que deseas eliminar este almacén? Esta acción no se puede deshacer.')) {
-        return;
-    }
+// Estado para el modal y el almacén a eliminar
+const modalVisible = ref(false);
+const almacenAEliminar = ref(null);
+
+// Función para abrir el modal
+const abrirModalEliminar = (id) => {
+    almacenAEliminar.value = id;
+    modalVisible.value = true;
+};
+
+// Función para cerrar el modal
+const cerrarModal = () => {
+    modalVisible.value = false;
+    almacenAEliminar.value = null;
+};
+
+// Función para eliminar el almacén
+const eliminarAlmacen = async () => {
+    if (!almacenAEliminar.value) return;
+
     try {
-        await router.delete(route('almacenes.destroy', id), {
+        await router.delete(route('almacenes.destroy', almacenAEliminar.value), {
             onSuccess: () => {
                 notyf.success('El almacén ha sido eliminado exitosamente.');
+                // Cerrar el modal después de la eliminación
+                cerrarModal();
             },
             onError: (error) => {
                 console.error('Error al eliminar el almacén:', error);
@@ -104,6 +132,7 @@ const eliminarAlmacen = async (id) => {
     }
 };
 </script>
+
 
 <style scoped>
 /* Estilos adicionales si es necesario */

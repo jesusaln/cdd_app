@@ -44,7 +44,7 @@
                 <button @click="editarCotizacion(cotizacion.id)" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">
                   Editar
                 </button>
-                <button @click="eliminarCotizacion(cotizacion.id)" class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600">
+                <button @click="confirmarEliminacion(cotizacion.id)" class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600">
                   Eliminar
                 </button>
               </td>
@@ -62,12 +62,27 @@
       <div v-if="loading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
+
+      <!-- Diálogo de confirmación de eliminación -->
+      <div v-if="showConfirmationDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+          <p class="mb-4">¿Estás seguro de que deseas eliminar esta cotización?</p>
+          <div class="flex justify-end">
+            <button @click="cancelarEliminacion" class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 mr-2">
+              Cancelar
+            </button>
+            <button @click="eliminarCotizacion" class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600">
+              Eliminar
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </template>
 
   <script setup>
   import { Link, router } from '@inertiajs/vue3';
-  import { ref, computed, onMounted } from 'vue';
+  import { ref, computed } from 'vue';
   import { Notyf } from 'notyf';
   import 'notyf/notyf.min.css';
   import Dashboard from '@/Pages/Dashboard.vue';
@@ -79,6 +94,8 @@
   const props = defineProps({ cotizaciones: Array });
   const searchTerm = ref('');
   const loading = ref(false);
+  const showConfirmationDialog = ref(false);
+  const cotizacionIdToDelete = ref(null);
 
   // Configuración de Notyf para notificaciones
   const notyf = new Notyf({ duration: 3000, position: { x: 'right', y: 'top' } });
@@ -99,27 +116,38 @@
     router.get(`/cotizaciones/${id}/edit`);
   };
 
- // Función para eliminar una cotización
-const eliminarCotizacion = async (id) => {
-  if (confirm('¿Estás seguro de que deseas eliminar esta cotización?')) {
-    loading.value = true;
-    try {
-      await router.delete(`/cotizaciones/${id}`, {
-        onSuccess: () => {
-          notyf.success('Cotización eliminada exitosamente.');
-          cotizaciones.value = cotizaciones.value.filter(cotizacion => cotizacion.id !== id);
-        },
-        onError: () => notyf.error('Error al eliminar la cotización.')
-      });
-    } catch (error) {
-      notyf.error('Ocurrió un error inesperado.');
-    } finally {
-      loading.value = false;
+  // Función para confirmar la eliminación de una cotización
+  const confirmarEliminacion = (id) => {
+    cotizacionIdToDelete.value = id;
+    showConfirmationDialog.value = true;
+  };
+
+  // Función para cancelar la eliminación
+  const cancelarEliminacion = () => {
+    cotizacionIdToDelete.value = null;
+    showConfirmationDialog.value = false;
+  };
+
+  // Función para eliminar una cotización
+  const eliminarCotizacion = async () => {
+    if (cotizacionIdToDelete.value) {
+      loading.value = true;
+      try {
+        await router.delete(`/cotizaciones/${cotizacionIdToDelete.value}`, {
+          onSuccess: () => {
+            notyf.success('Cotización eliminada exitosamente.');
+            cotizaciones.value = cotizaciones.value.filter(cotizacion => cotizacion.id !== cotizacionIdToDelete.value);
+            showConfirmationDialog.value = false;
+          },
+          onError: () => notyf.error('Error al eliminar la cotización.')
+        });
+      } catch (error) {
+        notyf.error('Ocurrió un error inesperado.');
+      } finally {
+        loading.value = false;
+      }
     }
-  } else {
-    loading.value = false; // Asegúrate de que loading se establezca en false si se cancela
-  }
-};
+  };
   </script>
 
   <style scoped>

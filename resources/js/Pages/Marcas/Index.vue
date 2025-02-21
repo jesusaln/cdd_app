@@ -2,12 +2,14 @@
     <div>
         <!-- Título de la página -->
         <h1 class="text-2xl font-semibold mb-6">Marcas</h1>
+
         <!-- Botón para crear una nueva marca -->
         <div class="mb-4">
             <Link :href="route('marcas.create')" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-300">
                 Crear Marca
             </Link>
         </div>
+
         <!-- Tabla de marcas -->
         <div v-if="marcas.length > 0" class="overflow-x-auto bg-white rounded-lg shadow-md">
             <table class="min-w-full divide-y divide-gray-200">
@@ -26,7 +28,7 @@
                             <Link :href="route('marcas.edit', marca.id)" class="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 transition duration-300">
                                 Editar
                             </Link>
-                            <button @click="eliminarMarca(marca.id)" class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition duration-300">
+                            <button @click="abrirModal(marca.id)" class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition duration-300">
                                 Eliminar
                             </button>
                         </td>
@@ -34,9 +36,26 @@
                 </tbody>
             </table>
         </div>
+
         <!-- Mensaje si no hay marcas -->
         <div v-else class="text-center text-gray-500 mt-4">
             No hay marcas registradas.
+        </div>
+
+        <!-- Modal de confirmación de eliminación -->
+        <div v-if="mostrarModal" class="fixed inset-0 bg-gray-800 bg-opacity-50 flex justify-center items-center">
+            <div class="bg-white p-6 rounded-lg shadow-lg w-96">
+                <h3 class="text-xl font-semibold mb-4">¿Estás seguro de eliminar esta marca?</h3>
+                <p class="mb-4">Esta acción no se puede deshacer.</p>
+                <div class="flex justify-end space-x-4">
+                    <button @click="cerrarModal" class="bg-gray-300 text-black px-4 py-2 rounded hover:bg-gray-400">
+                        Cancelar
+                    </button>
+                    <button @click="eliminarMarca" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
+                        Eliminar
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </template>
@@ -64,24 +83,40 @@ const notyf = new Notyf({
     ],
 });
 
-// Función para eliminar una marca
-const eliminarMarca = async (id) => {
-    if (!confirm('¿Estás seguro de que deseas eliminar esta marca? Esta acción no se puede deshacer.')) {
-        return;
-    }
+// Estado reactivo para manejar la visibilidad del modal y el id de la marca a eliminar
+const mostrarModal = ref(false);
+const idMarcaAEliminar = ref(null);
+
+// Función para abrir el modal de confirmación
+const abrirModal = (id) => {
+    idMarcaAEliminar.value = id;
+    mostrarModal.value = true;
+};
+
+// Función para cerrar el modal
+const cerrarModal = () => {
+    mostrarModal.value = false;
+    idMarcaAEliminar.value = null;
+};
+
+// Función para eliminar la marca
+const eliminarMarca = async () => {
     try {
-        await router.delete(route('marcas.destroy', id), {
+        await router.delete(route('marcas.destroy', idMarcaAEliminar.value), {
             onSuccess: () => {
                 notyf.success('La marca ha sido eliminada exitosamente.');
+                cerrarModal(); // Cierra el modal después de la eliminación exitosa
             },
             onError: (error) => {
                 console.error('Error al eliminar la marca:', error);
                 notyf.error('Hubo un error al eliminar la marca.');
+                cerrarModal(); // Cierra el modal en caso de error
             },
         });
     } catch (error) {
         console.error('Error inesperado:', error);
         notyf.error('Ocurrió un error inesperado.');
+        cerrarModal();
     }
 };
 </script>

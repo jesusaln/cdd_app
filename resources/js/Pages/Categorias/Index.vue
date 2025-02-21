@@ -28,7 +28,7 @@
                             <Link :href="route('categorias.edit', categoria.id)" class="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 transition duration-300">
                                 Editar
                             </Link>
-                            <button @click="eliminarCategoria(categoria.id)" class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition duration-300">
+                            <button @click="confirmarEliminacion(categoria)" class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition duration-300">
                                 Eliminar
                             </button>
                         </td>
@@ -40,6 +40,22 @@
         <!-- Mensaje si no hay categorías -->
         <div v-else class="text-center text-gray-500 mt-4">
             No hay categorías registradas.
+        </div>
+
+        <!-- Modal de confirmación de eliminación -->
+        <div v-if="isConfirmOpen" class="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-50">
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <h2 class="text-xl font-semibold mb-4">Confirmar eliminación</h2>
+                <p class="mb-4">¿Estás seguro de que deseas eliminar esta Categoria?</p>
+                <div class="mt-4 flex justify-end space-x-4">
+                    <button @click="cancelarEliminacion" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                        Cancelar
+                    </button>
+                    <button @click="eliminarCategoriaConfirmado" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
+                        Eliminar
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </template>
@@ -54,7 +70,6 @@ import Dashboard from '@/Pages/Dashboard.vue'; // Importa el layout del dashboar
 // Define el layout del dashboard
 defineOptions({ layout: Dashboard });
 
-
 // Recibe las categorías como prop
 defineProps({ categorias: Array });
 
@@ -68,16 +83,31 @@ const notyf = new Notyf({
     ],
 });
 
-// Función para eliminar una categoría
-const eliminarCategoria = async (id) => {
-    if (!confirm('¿Estás seguro de que deseas eliminar esta categoría? Esta acción no se puede deshacer.')) {
-        return;
-    }
+const isConfirmOpen = ref(false);
+const categoriaAEliminar = ref(null);
+
+// Función para abrir el modal de confirmación
+const confirmarEliminacion = (categoria) => {
+    categoriaAEliminar.value = categoria;
+    isConfirmOpen.value = true;
+};
+
+// Función para cancelar la eliminación
+const cancelarEliminacion = () => {
+    isConfirmOpen.value = false;
+    categoriaAEliminar.value = null;
+};
+
+// Función para eliminar la categoría confirmada
+const eliminarCategoriaConfirmado = async () => {
+    if (!categoriaAEliminar.value) return;
 
     try {
-        await router.delete(route('categorias.destroy', id), {
+        await router.delete(route('categorias.destroy', categoriaAEliminar.value.id), {
             onSuccess: () => {
                 notyf.success('La categoría ha sido eliminada exitosamente.');
+                // Filtrar la categoría eliminada de la lista
+                categorias.value = categorias.value.filter(c => c.id !== categoriaAEliminar.value.id);
             },
             onError: (error) => {
                 console.error('Error al eliminar la categoría:', error);
@@ -87,6 +117,8 @@ const eliminarCategoria = async (id) => {
     } catch (error) {
         console.error('Error inesperado:', error);
         notyf.error('Ocurrió un error inesperado.');
+    } finally {
+        isConfirmOpen.value = false;
     }
 };
 </script>
