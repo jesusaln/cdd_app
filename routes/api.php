@@ -36,4 +36,6 @@ Route::get('/almacenes/{id}', [AlmacenController::class, 'show'])->name('api.alm
 
 
 
+
+
 Route::get('/productos/{id}', [ProductoController::class, 'show']);

@@ -10,6 +10,7 @@ use App\Http\Controllers\MarcaController;
 use App\Http\Controllers\ProveedorController;
 use App\Http\Controllers\AlmacenController;
 use App\Http\Controllers\CotizacionController;
+use App\Http\Controllers\PedidoController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -57,4 +58,12 @@ Route::middleware([
 
     // Cotizaciones
     Route::resource('cotizaciones', CotizacionController::class)->names('cotizaciones');
+
+    // Pedidos
+    Route::resource('pedidos', PedidoController::class)->names('pedidos');
+
+
+    // require __DIR__ . '/auth.php';
+
+    // // Rutas para el frontend de Laravel Inertia
 });

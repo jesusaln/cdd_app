@@ -63,6 +63,7 @@
                         <NavLink href="/proveedores" icon="truck">Proveedores</NavLink>
                         <NavLink href="/almacenes" icon="warehouse">Almacenes</NavLink>
                         <NavLink href="/cotizaciones" icon="file-alt">Cotizaciones</NavLink>
+                        <NavLink href="/pedidos" icon="truck-loading">Pedidos</NavLink>
                     </ul>
                 </nav>
             </aside>
