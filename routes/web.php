@@ -58,6 +58,7 @@ Route::middleware([
 
     // Cotizaciones
     Route::resource('cotizaciones', CotizacionController::class)->names('cotizaciones');
+    Route::post('/cotizaciones/{id}/convertir-a-pedido', [CotizacionController::class, 'convertirAPedido'])->name('cotizaciones.convertir-a-pedido');
 
     // Pedidos
     Route::resource('pedidos', PedidoController::class)->names('pedidos');

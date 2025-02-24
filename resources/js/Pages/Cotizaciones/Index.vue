@@ -48,6 +48,9 @@
                 <button @click="confirmarEliminacion(cotizacion.id)" class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600">
                   Eliminar
                 </button>
+                <button @click="verDetalles(cotizacion)" class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600">
+                  Ver Detalles
+                </button>
               </td>
             </tr>
           </tbody>
@@ -78,6 +81,18 @@
           </div>
         </div>
       </div>
+
+      <!-- Diálogo para mostrar detalles de la cotización -->
+      <div v-if="showDetailsDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-lg w-1/2">
+          <Show :cotizacion="selectedCotizacion" @convertir-a-pedido="handleConvertirAPedido" />
+          <div class="flex justify-end mt-4">
+            <button @click="cerrarDetalles" class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">
+              Cerrar
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </template>
 
@@ -87,6 +102,7 @@
   import { Notyf } from 'notyf';
   import 'notyf/notyf.min.css';
   import Dashboard from '@/Pages/Dashboard.vue';
+  import Show from './Show.vue'; // Asegúrate de que la ruta sea correcta
 
   // Define el layout del dashboard
   defineOptions({ layout: Dashboard });
@@ -97,6 +113,8 @@
   const loading = ref(false);
   const showConfirmationDialog = ref(false);
   const cotizacionIdToDelete = ref(null);
+  const showDetailsDialog = ref(false);
+  const selectedCotizacion = ref(null);
 
   // Configuración de Notyf para notificaciones
   const notyf = new Notyf({ duration: 3000, position: { x: 'right', y: 'top' } });
@@ -149,6 +167,38 @@
       }
     }
   };
+
+  // Función para mostrar detalles de la cotización
+  const verDetalles = (cotizacion) => {
+    selectedCotizacion.value = cotizacion;
+    showDetailsDialog.value = true;
+  };
+
+  // Función para cerrar el diálogo de detalles
+  const cerrarDetalles = () => {
+    selectedCotizacion.value = null;
+    showDetailsDialog.value = false;
+  };
+
+// Función para manejar la conversión a pedido
+const handleConvertirAPedido = async (cotizacionData) => {
+  try {
+    await router.post(`/cotizaciones/${cotizacionData.id}/convertir-a-pedido`, {
+      onSuccess: () => {
+        // Mostrar alerta de éxito
+        alert('Conversión correcta. ¿Deseas ir al índice de pedidos?');
+        // Opcional: Cerrar el diálogo de detalles
+        cerrarDetalles();
+      },
+      onError: (errors) => {
+        // Manejar el error, por ejemplo, mostrar una notificación de error
+        console.error('Error al convertir la cotización a pedido:', errors);
+      }
+    });
+  } catch (error) {
+    console.error('Ocurrió un error inesperado:', error);
+  }
+};
   </script>
 
   <style scoped>

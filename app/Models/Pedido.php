@@ -36,7 +36,7 @@ class Pedido extends Model
      */
     public function productos()
     {
-        return $this->belongsToMany(Producto::class)
-            ->withPivot('cantidad', 'precio'); // Datos adicionales en la tabla pivote
+        return $this->belongsToMany(Producto::class, 'pedido_producto')
+            ->withPivot('cantidad', 'precio'); // Asegura que los campos estén en la tabla pivote
     }
 }

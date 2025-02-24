@@ -4,8 +4,8 @@
       <!-- Título de la página -->
       <h1 class="text-2xl font-semibold mb-6">Detalles de la Cotización</h1>
 
-      <!-- Información de la cotización -->
-      <div class="bg-white rounded-lg shadow-md p-6">
+      <!-- Verificar si cotizacion no es null -->
+      <div v-if="cotizacion" class="bg-white rounded-lg shadow-md p-6">
         <div class="mb-4">
           <h2 class="text-lg font-medium text-gray-700">Cliente</h2>
           <p>{{ cotizacion.cliente.nombre_razon_social }}</p>
@@ -23,14 +23,20 @@
           <p>${{ cotizacion.total }}</p>
         </div>
       </div>
+      <div v-else>
+        <p>Cargando detalles de la cotización...</p>
+      </div>
 
       <!-- Botones de acción -->
-      <div class="mt-6 flex space-x-4">
+      <div v-if="cotizacion" class="mt-6 flex space-x-4">
         <Link :href="route('cotizaciones.edit', cotizacion.id)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
           Editar
         </Link>
         <button @click="eliminarCotizacion(cotizacion.id)" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
           Eliminar
+        </button>
+        <button @click="enviarAPedido" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+          Enviar a Pedido
         </button>
       </div>
 
@@ -42,8 +48,8 @@
   </template>
 
   <script setup>
-  import { Link, router } from '@inertiajs/vue3';
-  import { ref } from 'vue';
+  import { Head, Link, router } from '@inertiajs/vue3';
+  import { ref, defineEmits } from 'vue';
   import { Notyf } from 'notyf';
   import 'notyf/notyf.min.css';
   import Dashboard from '@/Pages/Dashboard.vue';
@@ -54,6 +60,7 @@
   // Propiedades
   const props = defineProps({ cotizacion: Object });
   const loading = ref(false);
+  const emit = defineEmits(['convertir-a-pedido']);
 
   // Configuración de Notyf para notificaciones
   const notyf = new Notyf({ duration: 3000, position: { x: 'right', y: 'top' } });
@@ -76,6 +83,11 @@
         loading.value = false;
       }
     }
+  };
+
+  // Función para enviar a pedido
+  const enviarAPedido = () => {
+    emit('convertir-a-pedido', props.cotizacion);
   };
   </script>
 

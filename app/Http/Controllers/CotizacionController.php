@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Cotizacion;
+use App\Models\Pedido;
 use App\Models\Cliente;
 use App\Models\Producto;
 use Illuminate\Http\Request;
@@ -160,5 +161,37 @@ class CotizacionController extends Controller
         $cotizacion = Cotizacion::findOrFail($id);
         $cotizacion->delete();
         return redirect()->route('cotizaciones.index')->with('success', 'Cotización eliminada exitosamente.');
+    }
+
+
+    /**
+     * Convertir una cotización en un pedido.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function convertirAPedido($id)
+    {
+        // Validar la cotización
+        $cotizacion = Cotizacion::with('cliente', 'productos')->findOrFail($id);
+
+        // Crear un nuevo pedido
+        $pedido = new Pedido();
+        $pedido->cliente_id = $cotizacion->cliente_id;
+        $pedido->total = $cotizacion->total;
+        $pedido->save();
+
+        // Asociar los productos al pedido
+        foreach ($cotizacion->productos as $producto) {
+            $pedido->productos()->attach($producto->id, [
+                'cantidad' => $producto->pivot->cantidad,
+                'precio' => $producto->pivot->precio,
+            ]);
+        }
+
+        // Opcional: Marcar la cotización como convertida o eliminarla
+        // $cotizacion->delete();
+
+        return redirect()->route('pedidos.index')->with('success', 'Cotización convertida a pedido exitosamente.');
     }
 }
