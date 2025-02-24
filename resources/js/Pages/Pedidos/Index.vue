@@ -50,6 +50,9 @@
                 <button @click="confirmarEliminacion(pedido.id)" class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600">
                   Eliminar
                 </button>
+                <button @click="verDetalles(pedido)" class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600">
+                  Ver Detalles
+                </button>
               </td>
             </tr>
           </tbody>
@@ -80,6 +83,18 @@
           </div>
         </div>
       </div>
+
+      <!-- Diálogo para mostrar detalles del pedido -->
+      <div v-if="showDetailsDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-lg w-1/2">
+          <Show :pedido="selectedPedido" />
+          <div class="flex justify-end mt-4">
+            <button @click="cerrarDetalles" class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">
+              Cerrar
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </template>
 
@@ -89,6 +104,7 @@
   import { Notyf } from 'notyf';
   import 'notyf/notyf.min.css';
   import Dashboard from '@/Pages/Dashboard.vue';
+  import Show from './Show.vue'; // Asegúrate de que la ruta sea correcta
 
   // Define el layout del dashboard
   defineOptions({ layout: Dashboard });
@@ -99,6 +115,8 @@
   const loading = ref(false);
   const showConfirmationDialog = ref(false);
   const pedidoIdToDelete = ref(null);
+  const showDetailsDialog = ref(false);
+  const selectedPedido = ref(null);
 
   // Configuración de Notyf para notificaciones
   const notyf = new Notyf({ duration: 3000, position: { x: 'right', y: 'top' } });
@@ -150,6 +168,18 @@
         loading.value = false;
       }
     }
+  };
+
+  // Función para mostrar detalles del pedido
+  const verDetalles = (pedido) => {
+    selectedPedido.value = pedido;
+    showDetailsDialog.value = true;
+  };
+
+  // Función para cerrar el diálogo de detalles
+  const cerrarDetalles = () => {
+    selectedPedido.value = null;
+    showDetailsDialog.value = false;
   };
   </script>
 
