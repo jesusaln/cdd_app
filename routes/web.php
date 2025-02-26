@@ -11,6 +11,7 @@ use App\Http\Controllers\ProveedorController;
 use App\Http\Controllers\AlmacenController;
 use App\Http\Controllers\CotizacionController;
 use App\Http\Controllers\PedidoController;
+use App\Http\Controllers\NotificationController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -67,4 +68,9 @@ Route::middleware([
     // require __DIR__ . '/auth.php';
 
     // // Rutas para el frontend de Laravel Inertia
+
+    Route::middleware('auth')->group(function () {
+        Route::get('/notifications', [NotificationController::class, 'index']);
+        Route::post('/notifications/mark-as-read', [NotificationController::class, 'markAsRead']);
+    });
 });

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Inertia\Inertia;
 use App\Models\Cliente;
 use Illuminate\Http\Request;
+use App\Events\ClientCreated;
 
 class ClienteController extends Controller
 {
@@ -50,7 +51,10 @@ class ClienteController extends Controller
         ]);
 
         // Crea un nuevo cliente con los datos del formulario
-        Cliente::create($request->all());
+        $cliente = Cliente::create($request->all());
+
+        // Crea un evento para notificar a las aplicaciones subscritas al evento
+        event(new ClientCreated($cliente));
 
         // Devuelve una respuesta JSON para Inertia.js
         return redirect()->route('clientes.index')->with('success', 'Cliente creado correctamente.');
