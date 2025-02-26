@@ -19,7 +19,7 @@
 
 <script setup>
 import { ref } from 'vue';
-import ProductModal from '@/Components/ProductModal.vue'; // Importar el componente del modal
+import ProductModal from '@/Components/ProductoModal.vue'; // Importar el componente del modal
 
 // Recibe el producto como prop
 const props = defineProps({
