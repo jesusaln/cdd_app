@@ -83,6 +83,10 @@
                         <NavLink href="/almacenes" icon="warehouse">Almacenes</NavLink>
                         <NavLink href="/cotizaciones" icon="file-alt">Cotizaciones</NavLink>
                         <NavLink href="/pedidos" icon="truck-loading">Pedidos</NavLink>
+                         <NavLink href="ventas" icon="dollar-sign">Ventas</NavLink>
+                        <!--Link href="/compras" icon="shopping-cart">Compras</NavLink>
+                        <NavLink href="/reportes" icon="chart-bar">Reportes</NavLink>
+                        <NavLink href="/configuracion" icon="cog">Configuración</NavLink> -->
                     </ul>
                 </nav>
             </aside>
