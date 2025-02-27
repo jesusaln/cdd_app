@@ -13,6 +13,7 @@ use App\Http\Controllers\CotizacionController;
 use App\Http\Controllers\PedidoController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\VentaController;
+use App\Http\Controllers\UserController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -67,6 +68,9 @@ Route::middleware([
 
     //Ventas
     Route::resource('ventas', VentaController::class)->names('ventas');
+
+    // Usuarios
+    Route::resource('usuarios', UserController::class)->names('usuarios');
 
 
     // require __DIR__ . '/auth.php';

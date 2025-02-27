@@ -106,9 +106,10 @@
   import { ref, computed } from 'vue';
   import { Notyf } from 'notyf';
   import 'notyf/notyf.min.css';
-  import Dashboard from '@/Pages/Dashboard.vue';
+
   import { generarPDF } from '@/Utils/pdfGenerator'; // Asegúrate de que la ruta sea correcta
   import Show from './Show.vue'; // Asegúrate de que la ruta sea correcta
+  import Dashboard from '@/Pages/Dashboard.vue';
 
 
 

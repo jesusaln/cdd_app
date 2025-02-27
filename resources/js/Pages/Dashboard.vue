@@ -84,7 +84,14 @@
                         <NavLink href="/cotizaciones" icon="file-alt">Cotizaciones</NavLink>
                         <NavLink href="/pedidos" icon="truck-loading">Pedidos</NavLink>
                          <NavLink href="ventas" icon="dollar-sign">Ventas</NavLink>
-                        <!--Link href="/compras" icon="shopping-cart">Compras</NavLink>
+                         <NavLink href="/usuarios" icon="user">Usuarios</NavLink>
+
+                         <!-- <NavLink href="/cajas" icon="cash-register">Cajas</NavLink>
+                          <NavLink href="/bancos" icon="bank">Bancos</NavLink>
+                        <NavLink href="/pagos" icon="money-check-alt">Pagos</NavLink>
+                        <NavLink href="/notas-credito" icon="file-invoice-dollar">Notas de Crédito</NavLink>
+
+                        Link href="/compras" icon="shopping-cart">Compras</NavLink>
                         <NavLink href="/reportes" icon="chart-bar">Reportes</NavLink>
                         <NavLink href="/configuracion" icon="cog">Configuración</NavLink> -->
                     </ul>
