@@ -53,7 +53,7 @@
                 <button @click="verDetalles(venta)" class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600">
                   Ver Detalles
                 </button>
-                <button @click="generarPDF(venta)" class="bg-purple-500 text-white px-4 py-2 rounded-md hover:bg-purple-600">
+                <button @click="generarPDFVenta(venta)" class="bg-purple-500 text-white px-4 py-2 rounded-md hover:bg-purple-600">
                   Generar PDF
                 </button>
               </td>
@@ -106,9 +106,9 @@
   import { ref, computed } from 'vue';
   import { Notyf } from 'notyf';
   import 'notyf/notyf.min.css';
-  import jsPDF from 'jspdf';
   import Dashboard from '@/Pages/Dashboard.vue';
   import Show from './Show.vue'; // Asegúrate de que la ruta sea correcta
+  import { generarPDF } from '@/Utils/pdfGenerator'; // Asegúrate de que la ruta sea correcta
 
   // Define el layout del dashboard
   defineOptions({ layout: Dashboard });
@@ -187,82 +187,8 @@
   };
 
   // Función para generar el PDF de la venta
-  const generarPDF = (venta) => {
-    const doc = new jsPDF();
-    doc.setFont("helvetica", "normal");
-
-    // Encabezado de la empresa mejorado
-doc.setFontSize(20);
-doc.setFont("helvetica", "bold");
-doc.text("CLIMAS DEL DESIERTO", 105, 18, { align: "center" });
-
-doc.setFontSize(12);
-doc.setFont("helvetica", "normal");
-doc.text("JESUS ALBERTO LOPEZ NORIEGA", 105, 24, { align: "center" });
-
-doc.setFontSize(10);
-doc.text("Dirección: Av. Paseo de la Reina, 2345", 105, 28, { align: "center" });
-doc.text("Teléfono: (55) 5555-5555", 105, 32, { align: "center" });
-doc.text("Email: jesus@climasdeldesierto.com", 105, 36, { align: "center" });
-doc.text("Página Web: www.climasdeldesierto.com", 105, 40, { align: "center" });
-
-    // Título del documento
-    doc.setFontSize(14);
-    doc.setFont("helvetica", "bold");
-    doc.text("Nota de Venta", 14, 18);
-
-    // Información de la venta
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.text("Número:", 14, 84);
-    doc.setFont("helvetica", "normal");
-    doc.text(`${venta.id}`, 40, 84);
-    doc.setFont("helvetica", "bold");
-    doc.text("Fecha:", 140, 84);
-    doc.setFont("helvetica", "normal");
-    doc.text(new Date().toLocaleDateString(), 160, 84);
-    doc.line(14, 90, 190, 90); // Línea divisoria
-
-
-
-// Tabla invisible para la información del cliente
-const clienteInfo = [
-    ["Nombre", venta.cliente.nombre_razon_social],
-    //["Dirección", venta.cliente.direccion], // Asegúrate de que la propiedad 'direccion' exista en el objeto 'cliente'
-    //["Teléfono", venta.cliente.telefono],  // Asegúrate de que la propiedad 'telefono' exista en el objeto 'cliente'
-    //["Correo", venta.cliente.email]        // Asegúrate de que la propiedad 'email' exista en el objeto 'cliente'
-];
-
-// Establecer las posiciones de las filas
-let yPos = 104;
-const columnWidth = 60; // Ancho de la columna para las etiquetas
-
-// Dibuja las celdas invisibles de la tabla
-clienteInfo.forEach((row, index) => {
-    doc.text(row[0], 14, yPos);  // Mostrar el nombre del campo
-    doc.text(row[1], 14 + columnWidth, yPos);  // Mostrar el valor correspondiente
-    yPos += 8;  // Espaciado entre las filas
-});
-
-// Línea divisoria después de la tabla
-doc.line(14, yPos, 190, yPos); // Línea divisoria debajo de la tabla
-
-    // Productos
-    let yOffset = 110;
-    venta.productos.forEach((producto, index) => {
-      const cantidad = producto.pivot.cantidad || 1;
-      const precio = producto.pivot.precio || 0;
-      const subtotal = (cantidad * precio).toFixed(2);
-      doc.text(`${producto.nombre} - ${cantidad} x $${precio} = $${subtotal}`, 14, yOffset);
-      yOffset += 8; // Ajusta el espacio entre líneas
-    });
-
-    // Total
-    doc.setFont("helvetica", "bold");
-    doc.text(`Total: $${venta.total}`, 14, yOffset + 10);
-
-    // Guardar o abrir el PDF
-    doc.save(`Nota_${venta.id}.pdf`);
+  const generarPDFVenta = (venta) => {
+    generarPDF('Nota de Venta', venta);
   };
   </script>
 

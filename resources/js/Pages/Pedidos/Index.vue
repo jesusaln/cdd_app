@@ -53,6 +53,9 @@
                 <button @click="verDetalles(pedido)" class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600">
                   Ver Detalles
                 </button>
+                <button @click="generarPDFPedido(pedido)" class="bg-purple-500 text-white px-4 py-2 rounded-md hover:bg-purple-600">
+                  Generar PDF
+                </button>
               </td>
             </tr>
           </tbody>
@@ -104,6 +107,7 @@
   import { Notyf } from 'notyf';
   import 'notyf/notyf.min.css';
   import Dashboard from '@/Pages/Dashboard.vue';
+  import { generarPDF } from '@/utils/pdfGenerator'; // Asegúrate de que la ruta sea correcta
   import Show from './Show.vue'; // Asegúrate de que la ruta sea correcta
 
   // Define el layout del dashboard
@@ -180,6 +184,11 @@
   const cerrarDetalles = () => {
     selectedPedido.value = null;
     showDetailsDialog.value = false;
+  };
+
+  // Función para generar el PDF del pedido
+  const generarPDFPedido = (pedido) => {
+    generarPDF('Pedido', pedido);
   };
   </script>
 

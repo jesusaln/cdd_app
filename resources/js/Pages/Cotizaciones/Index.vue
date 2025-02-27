@@ -51,6 +51,9 @@
                 <button @click="verDetalles(cotizacion)" class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600">
                   Ver Detalles
                 </button>
+                <button @click="generarPDFVenta(cotizacion)" class="bg-purple-500 text-white px-4 py-2 rounded-md hover:bg-purple-600">
+                  Generar PDF
+                </button>
               </td>
             </tr>
           </tbody>
@@ -102,6 +105,7 @@
   import { Notyf } from 'notyf';
   import 'notyf/notyf.min.css';
   import Dashboard from '@/Pages/Dashboard.vue';
+  import { generarPDF } from '@/utils/pdfGenerator'; // Asegúrate de que la ruta sea correcta
   import Show from './Show.vue'; // Asegúrate de que la ruta sea correcta
 
   // Define el layout del dashboard
@@ -180,25 +184,30 @@
     showDetailsDialog.value = false;
   };
 
-// Función para manejar la conversión a pedido
-const handleConvertirAPedido = async (cotizacionData) => {
-  try {
-    await router.post(`/cotizaciones/${cotizacionData.id}/convertir-a-pedido`, {
-      onSuccess: () => {
-        // Mostrar alerta de éxito
-        alert('Conversión correcta. ¿Deseas ir al índice de pedidos?');
-        // Opcional: Cerrar el diálogo de detalles
-        cerrarDetalles();
-      },
-      onError: (errors) => {
-        // Manejar el error, por ejemplo, mostrar una notificación de error
-        console.error('Error al convertir la cotización a pedido:', errors);
-      }
-    });
-  } catch (error) {
-    console.error('Ocurrió un error inesperado:', error);
-  }
-};
+  // Función para manejar la conversión a pedido
+  const handleConvertirAPedido = async (cotizacionData) => {
+    try {
+      await router.post(`/cotizaciones/${cotizacionData.id}/convertir-a-pedido`, {
+        onSuccess: () => {
+          // Mostrar alerta de éxito
+          alert('Conversión correcta. ¿Deseas ir al índice de pedidos?');
+          // Opcional: Cerrar el diálogo de detalles
+          cerrarDetalles();
+        },
+        onError: (errors) => {
+          // Manejar el error, por ejemplo, mostrar una notificación de error
+          console.error('Error al convertir la cotización a pedido:', errors);
+        }
+      });
+    } catch (error) {
+      console.error('Ocurrió un error inesperado:', error);
+    }
+  };
+
+  // Función para generar el PDF de la cotización
+  const generarPDFVenta = (cotizacion) => {
+    generarPDF('Cotización', cotizacion);
+  };
   </script>
 
   <style scoped>
