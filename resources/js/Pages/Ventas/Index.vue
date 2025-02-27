@@ -109,6 +109,9 @@
   import Dashboard from '@/Pages/Dashboard.vue';
   import Show from './Show.vue'; // Asegúrate de que la ruta sea correcta
   import { generarPDF } from '@/Utils/pdfGenerator'; // Asegúrate de que la ruta sea correcta
+  const { jsPDF } = await import("jspdf");
+
+
 
   // Define el layout del dashboard
   defineOptions({ layout: Dashboard });
