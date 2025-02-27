@@ -107,7 +107,7 @@
   import Dashboard from '@/Pages/Dashboard.vue';
   import { generarPDF } from '@/Utils/pdfGenerator';  // Asegúrate de que la ruta sea correcta
   import Show from './Show.vue'; // Asegúrate de que la ruta sea correcta
-  const { jsPDF } = await import("jspdf");
+
 
 
 
