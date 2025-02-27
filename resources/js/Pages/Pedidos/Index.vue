@@ -107,7 +107,7 @@
   import { Notyf } from 'notyf';
   import 'notyf/notyf.min.css';
   import Dashboard from '@/Pages/Dashboard.vue';
-  import { generarPDF } from '@/utils/pdfGenerator'; // Asegúrate de que la ruta sea correcta
+  import { generarPDF } from '@/Utils/pdfGenerator'; // Asegúrate de que la ruta sea correcta
   import Show from './Show.vue'; // Asegúrate de que la ruta sea correcta
 
   // Define el layout del dashboard
