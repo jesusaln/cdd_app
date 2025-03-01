@@ -5,10 +5,21 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class UserController extends Controller
 {
+    public function profile()
+    {
+        // Obtener el usuario autenticado
+        $user = Auth::user();
+
+        // Retornar la vista de perfil con los datos del usuario
+        return Inertia::render('Usuarios/Profile', [
+            'usuario' => $user,
+        ]);
+    }
     public function index()
     {
         $users = User::all();
@@ -66,6 +77,16 @@ class UserController extends Controller
         // Redirige con mensaje de éxito
         return redirect()->route('usuarios.index')->with('success', 'Usuario actualizado exitosamente.');
     }
+
+
+
+    public function show($id)
+    {
+        $user = User::findOrFail($id);
+        return Inertia::render('Usuarios/Profile', ['usuario' => $user]);
+    }
+
+
 
 
 

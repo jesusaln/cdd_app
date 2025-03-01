@@ -24,6 +24,7 @@ Route::get('/', function () {
     ]);
 })->name('welcome');
 
+// Rutas protegidas por autenticación
 Route::middleware([
     'auth:sanctum',
     config('jetstream.auth_session'),
@@ -33,7 +34,7 @@ Route::middleware([
     Route::get('/panel', function () {
         return Inertia::render('Panel', [
             'clientesCount' => \App\Models\Cliente::count()
-        ]); // Verifica que 'Panel.vue' exista en el frontend
+        ]);
     })->name('panel');
 
     // Redirigir dashboard a panel
@@ -66,19 +67,19 @@ Route::middleware([
     // Pedidos
     Route::resource('pedidos', PedidoController::class)->names('pedidos');
 
-    //Ventas
+    // Ventas
     Route::resource('ventas', VentaController::class)->names('ventas');
 
     // Usuarios
     Route::resource('usuarios', UserController::class)->names('usuarios');
 
+    // Perfil de usuario autenticado
+    Route::get('/perfil', [UserController::class, 'profile'])->name('perfil');
 
-    // require __DIR__ . '/auth.php';
+    // Ver detalle de un usuario (sólo admins pueden ver otros usuarios)
+    Route::get('/usuario/{id}', [UserController::class, 'show'])->name('usuarios.show');
 
-    // // Rutas para el frontend de Laravel Inertia
-
-    Route::middleware('auth')->group(function () {
-        Route::get('/notifications', [NotificationController::class, 'index']);
-        Route::post('/notifications/mark-as-read', [NotificationController::class, 'markAsRead']);
-    });
+    // Notificaciones
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::post('/notifications/mark-as-read', [NotificationController::class, 'markAsRead']);
 });
