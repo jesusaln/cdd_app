@@ -66,6 +66,7 @@ Route::middleware([
 
     // Pedidos
     Route::resource('pedidos', PedidoController::class)->names('pedidos');
+    Route::post('/pedidos/{id}/enviar-a-ventas', [PedidoController::class, 'enviarAVentas'])->name('pedidos.enviarAVentas');
 
     // Ventas
     Route::resource('ventas', VentaController::class)->names('ventas');

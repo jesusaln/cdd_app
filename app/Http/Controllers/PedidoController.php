@@ -5,12 +5,53 @@ namespace App\Http\Controllers;
 use App\Models\Pedido;
 use App\Models\Cliente;
 use App\Models\Producto;
+use App\Models\Venta;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class PedidoController extends Controller
 {
+
+    /**
+     * Convertir un pedido en una venta.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function enviarAVentas($id)
+    {
+        // Validar el pedido
+        $pedido = Pedido::with('cliente', 'productos')->findOrFail($id);
+
+        // Crear una nueva venta
+        $venta = new Venta();
+        $venta->cliente_id = $pedido->cliente_id;
+        $venta->total = $pedido->total;
+        //$venta->fecha_venta = now(); // Fecha actual de la venta
+        $venta->save();
+
+        // Asociar los productos a la venta
+        foreach ($pedido->productos as $producto) {
+            $venta->productos()->attach($producto->id, [
+                'cantidad' => $producto->pivot->cantidad,
+                'precio' => $producto->pivot->precio,
+            ]);
+
+            // Opcional: Actualizar el stock del producto
+            // $producto->decrement('stock', $producto->pivot->cantidad);
+        }
+
+        // Opcional: Marcar el pedido como convertido o eliminarlo
+        // $pedido->delete();
+
+        return redirect()->route('ventas.index')->with('success', 'Pedido convertido a venta exitosamente.');
+    }
+
+
+
+
     /**
      * Display a listing of the resource.
      *
