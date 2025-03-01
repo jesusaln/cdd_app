@@ -5,20 +5,20 @@ namespace App\Listeners;
 use App\Events\ClientCreated;
 use App\Models\Notification;
 
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Queue\InteractsWithQueue;
-
 class StoreClientNotification
 {
     public function handle(ClientCreated $event)
     {
-        Notification::create([
-            'type' => 'new_client',
-            'data' => [
-                'client_name' => $event->client->name,
-                'client_id' => $event->client->id,
-            ],
-            'read' => false,
-        ]);
+        // Verifica si ya existe una notificación para este cliente
+        if (!Notification::where('data->client_id', $event->cliente->id)->exists()) {
+            Notification::create([
+                'type' => 'new_client',
+                'data' => [
+                    'client_name' => $event->cliente->nombre_razon_social,
+                    'client_id' => $event->cliente->id, // Asegúrate de incluir el ID del cliente
+                ],
+                'read' => false,
+            ]);
+        }
     }
 }

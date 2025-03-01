@@ -57,6 +57,7 @@ class ClienteController extends Controller
         event(new ClientCreated($cliente));
 
         // Devuelve una respuesta JSON para Inertia.js
+        // return response()->json($cliente, 201);
         return redirect()->route('clientes.index')->with('success', 'Cliente creado correctamente.');
     }
 
