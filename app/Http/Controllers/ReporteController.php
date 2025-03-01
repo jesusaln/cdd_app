@@ -33,7 +33,7 @@ class ReporteController extends Controller
         $totalCompras = $compras->sum('total');
 
         // Reporte de Inventarios
-        $inventarios = Producto::all();
+        $productos = Producto::all();
 
         return Inertia::render('Reportes/Index', [
             'reportesVentas' => $ventas,
@@ -41,7 +41,7 @@ class ReporteController extends Controller
             'utilidadVentas' => $utilidadVentas,
             'reportesCompras' => $compras,
             'totalCompras' => $totalCompras,
-            'reportesInventarios' => $inventarios,
+            'inventario' => $productos,
         ]);
     }
 
