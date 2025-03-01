@@ -168,8 +168,18 @@ class CompraController extends Controller
      */
     public function destroy($id)
     {
-        $compra = Compra::findOrFail($id);
+        $compra = Compra::with('productos')->findOrFail($id);
+
+        // Recorrer los productos asociados a la compra y restar la cantidad del inventario
+        foreach ($compra->productos as $producto) {
+            $producto->stock -= $producto->pivot->cantidad; // Restar la cantidad del stock
+            $producto->save();
+        }
+
+        // Eliminar la compra
         $compra->delete();
+
+        // Redirigir con un mensaje de éxito
         return redirect()->route('compras.index')->with('success', 'Compra eliminada exitosamente.');
     }
 }

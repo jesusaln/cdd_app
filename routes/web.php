@@ -15,6 +15,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\VentaController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\CompraController;
+use App\Http\Controllers\ReporteController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -83,6 +84,15 @@ Route::middleware([
 
     // Compras
     Route::resource('compras', CompraController::class)->names('compras');
+
+    // Reportes
+    Route::get('/reportes', function () {
+        return Inertia::render('Reportes/Index');
+    })->name('reportes.index');
+
+    Route::resource('reportes', ReporteController::class);
+    Route::get('/reportes', [ReporteController::class, 'index'])->name('reportes.index');
+
 
     // Notificaciones
     Route::get('/notifications', [NotificationController::class, 'index']);

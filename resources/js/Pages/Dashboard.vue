@@ -136,8 +136,10 @@
                         <NavLink href="/cotizaciones" icon="file-alt">Cotizaciones</NavLink>
                         <NavLink href="/pedidos" icon="truck-loading">Pedidos</NavLink>
                         <NavLink href="/ventas" icon="dollar-sign">Ventas</NavLink>
-                        <NavLink href="/usuarios" icon="user">Usuarios</NavLink>
+                        <NavLink href="/reportes" icon="chart-bar">Reportes Ventas</NavLink>
                         <NavLink href="/compras" icon="cart-shopping">Compras</NavLink>
+                        <NavLink href="/reportes" icon="chart-bar">Reportes Compras</NavLink>
+                        <NavLink href="/usuarios" icon="user">Usuarios</NavLink>
                     </ul>
                 </nav>
             </aside>
@@ -158,6 +160,7 @@ import NavLink from '@/Components/NavLink.vue'; // Asegúrate de que la ruta sea
 import { Link } from '@inertiajs/vue3'; // Importa el componente Link de Inertia
 import { library } from '@fortawesome/fontawesome-svg-core';
 import {
+    faChartBar,
     faCartShopping,
     faCircle,
     faHome,
@@ -177,7 +180,7 @@ import { router } from '@inertiajs/vue3'; // Importa router de Inertia
 import axios from 'axios'; // Importa axios para hacer peticiones HTTP
 
 // Registrar los iconos en la librería
-library.add(faCartShopping, faCircle, faHome, faUsers, faBox, faTags, faTrademark, faTruck, faWarehouse, faFileAlt, faTruckLoading, faDollarSign, faUser);
+library.add(faChartBar,faCartShopping, faCircle, faHome, faUsers, faBox, faTags, faTrademark, faTruck, faWarehouse, faFileAlt, faTruckLoading, faDollarSign, faUser);
 
 // Lógica para el menú desplegable
 const isDropdownOpen = ref(false);

@@ -43,4 +43,12 @@ class Venta extends Model
         return $this->belongsToMany(Producto::class, 'venta_producto')
             ->withPivot('cantidad', 'precio'); // Asegura que los campos estén en la tabla pivote
     }
+
+    public function calcularCostoTotal()
+    {
+        return $this->productos->sum(function ($producto) {
+            // Usar el precio_compra del producto
+            return $producto->pivot->cantidad * $producto->precio_compra;
+        });
+    }
 }

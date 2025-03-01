@@ -55,6 +55,14 @@ class VentaController extends Controller
             'productos.*.precio' => 'required|numeric|min:0',
         ]);
 
+        // Verificar si hay suficiente stock
+        foreach ($validatedData['productos'] as $productoData) {
+            $producto = Producto::findOrFail($productoData['id']);
+            if ($producto->stock < $productoData['cantidad']) {
+                return redirect()->back()->withErrors(['stock' => 'No hay suficiente stock para el producto: ' . $producto->nombre]);
+            }
+        }
+
         // Crear la venta
         $venta = Venta::create([
             'cliente_id' => $validatedData['cliente_id'],
@@ -63,8 +71,12 @@ class VentaController extends Controller
             }, $validatedData['productos'])),
         ]);
 
-        // Asociar los productos a la venta
+        // Asociar los productos a la venta y actualizar el inventario
         foreach ($validatedData['productos'] as $productoData) {
+            $producto = Producto::findOrFail($productoData['id']);
+            $producto->stock -= $productoData['cantidad']; // Restar la cantidad del stock
+            $producto->save();
+
             $venta->productos()->attach($productoData['id'], [
                 'cantidad' => $productoData['cantidad'],
                 'precio' => $productoData['precio'],
@@ -74,6 +86,7 @@ class VentaController extends Controller
         // Redirigir con un mensaje de éxito
         return redirect()->route('ventas.index')->with('success', 'Venta creada exitosamente.');
     }
+
 
     /**
      * Display the specified resource.
@@ -156,8 +169,19 @@ class VentaController extends Controller
      */
     public function destroy($id)
     {
-        $venta = Venta::findOrFail($id);
+        // Encontrar la venta por ID
+        $venta = Venta::with('productos')->findOrFail($id);
+
+        // Recorrer los productos asociados a la venta y devolver la cantidad al inventario
+        foreach ($venta->productos as $producto) {
+            $producto->stock += $producto->pivot->cantidad; // Sumar la cantidad vendida al stock
+            $producto->save();
+        }
+
+        // Eliminar la venta
         $venta->delete();
+
+        // Redirigir con un mensaje de éxito
         return redirect()->route('ventas.index')->with('success', 'Venta eliminada exitosamente.');
     }
 }

@@ -23,6 +23,7 @@
         "@fortawesome/fontawesome-svg-core": "^6.7.2",
         "@fortawesome/free-solid-svg-icons": "^6.7.2",
         "@fortawesome/vue-fontawesome": "^3.0.8",
+        "date-fns": "^4.1.0",
         "jspdf": "^3.0.0",
         "notyf": "^3.10.0"
     }
