@@ -9,10 +9,43 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Models\Venta;
 use App\Models\Compra;
+use App\Models\Producto;
 
 class ReporteController extends Controller
 {
     public function index()
+    {
+        // Reporte de Ventas
+        $ventas = Venta::with('productos')->get();
+        $corteVentas = $ventas->sum('total');
+        // Calcular la utilidad total (suma de utilidades por venta)
+        $utilidadVentas = $ventas->sum(function ($venta) {
+            return $venta->total - $venta->calcularCostoTotal();
+        });
+
+        // Agregar el costo_total a cada venta
+        $ventasConCosto = $ventas->map(function ($venta) {
+            $venta->costo_total = $venta->calcularCostoTotal();
+            return $venta;
+        });
+        // Reporte de Compras
+        $compras = Compra::with('productos')->get();
+        $totalCompras = $compras->sum('total');
+
+        // Reporte de Inventarios
+        $inventarios = Producto::all();
+
+        return Inertia::render('Reportes/Index', [
+            'reportesVentas' => $ventas,
+            'corteVentas' => $corteVentas,
+            'utilidadVentas' => $utilidadVentas,
+            'reportesCompras' => $compras,
+            'totalCompras' => $totalCompras,
+            'reportesInventarios' => $inventarios,
+        ]);
+    }
+
+    public function ventas()
     {
         // Obtener todas las ventas con sus productos
         $ventas = Venta::with('productos')->get();

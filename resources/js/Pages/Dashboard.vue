@@ -136,9 +136,9 @@
                         <NavLink href="/cotizaciones" icon="file-alt">Cotizaciones</NavLink>
                         <NavLink href="/pedidos" icon="truck-loading">Pedidos</NavLink>
                         <NavLink href="/ventas" icon="dollar-sign">Ventas</NavLink>
-                        <NavLink href="/reportes" icon="chart-bar">Reportes Ventas</NavLink>
+                        <NavLink href="/reportes" icon="chart-bar">Reportes</NavLink>
                         <NavLink href="/compras" icon="cart-shopping">Compras</NavLink>
-                        <NavLink href="/reportes" icon="chart-bar">Reportes Compras</NavLink>
+
                         <NavLink href="/usuarios" icon="user">Usuarios</NavLink>
                     </ul>
                 </nav>
