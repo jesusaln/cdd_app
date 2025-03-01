@@ -8,7 +8,7 @@
       <div v-if="compra" class="bg-white rounded-lg shadow-md p-6">
         <div class="mb-4">
           <h2 class="text-lg font-medium text-gray-700">Proveedor</h2>
-          <p>{{ compra.proveedor.nombre_razon_social }}</p>
+          <p>{{ compra.proveedor.nombre }}</p>
         </div>
         <div class="mb-4">
           <h2 class="text-lg font-medium text-gray-700">Productos</h2>

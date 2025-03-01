@@ -73,14 +73,14 @@
                     </div>
                 </div>
 
-                <!-- Foto de perfil y menú desplegable -->
+                <!-- //Foto de perfil y menú desplegable -->
                 <div class="relative">
                     <button
                         @click="toggleDropdown"
                         class="flex items-center focus:outline-none"
                     >
                         <img
-                            src="/images/profile.jpg"
+                            src=""
                             alt="Foto de perfil"
                             class="h-8 w-8 rounded-full"
                         />

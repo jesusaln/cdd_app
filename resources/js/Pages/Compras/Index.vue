@@ -88,7 +88,7 @@
       <!-- Diálogo para mostrar detalles de la compra -->
       <div v-if="showDetailsDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white p-6 rounded-lg shadow-lg w-1/2">
-          <Show :compra="selectedCompra" @convertir-a-pedido="handleConvertirAPedido" />
+          <Show :compra="selectedCompra"/>
           <div class="flex justify-end mt-4">
             <button @click="cerrarDetalles" class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">
               Cerrar
@@ -184,25 +184,7 @@
     showDetailsDialog.value = false;
   };
 
-  // Función para manejar la conversión a pedido
-  const handleConvertirAPedido = async (compraData) => {
-    try {
-      await router.post(`/compras/${compraData.id}/convertir-a-pedido`, {
-        onSuccess: () => {
-          // Mostrar alerta de éxito
-          alert('Conversión correcta. ¿Deseas ir al índice de pedidos?');
-          // Opcional: Cerrar el diálogo de detalles
-          cerrarDetalles();
-        },
-        onError: (errors) => {
-          // Manejar el error, por ejemplo, mostrar una notificación de error
-          console.error('Error al convertir la compra a pedido:', errors);
-        }
-      });
-    } catch (error) {
-      console.error('Ocurrió un error inesperado:', error);
-    }
-  };
+
 
   // Función para generar el PDF de la compra
   const generarPDFCompra = (compra) => {
