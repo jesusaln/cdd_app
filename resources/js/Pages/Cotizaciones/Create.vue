@@ -47,7 +47,7 @@
               @click="agregarProducto(producto)"
               class="px-4 py-2 cursor-pointer hover:bg-gray-100"
             >
-              {{ producto.nombre }}
+              {{ producto.nombre }} (Disponible: {{ producto.stock }})
             </li>
           </ul>
           <div v-if="productosFiltrados.length === 0 && buscarProducto" class="text-red-500 text-sm mt-2">

@@ -34,7 +34,7 @@
           />
           <ul v-if="mostrarProductos && productosFiltrados.length > 0" class="absolute z-10 bg-white border rounded-md shadow-md w-full max-h-48 overflow-y-auto">
             <li v-for="producto in productosFiltrados" :key="producto.id" @click="agregarProducto(producto)" class="px-4 py-2 cursor-pointer hover:bg-gray-100">
-              {{ producto.nombre }}
+              {{ producto.nombre }} (Disponible: {{ producto.stock }})
             </li>
           </ul>
         </div>
