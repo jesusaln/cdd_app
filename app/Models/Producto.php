@@ -59,4 +59,9 @@ class Producto extends Model
         return $this->belongsToMany(Cotizacion::class, 'cotizacion_producto')
             ->withPivot('precio', 'cantidad');
     }
+
+    public function compras()
+    {
+        return $this->belongsToMany(Compra::class)->withPivot('cantidad', 'precio');
+    }
 }

@@ -137,6 +137,7 @@
                         <NavLink href="/pedidos" icon="truck-loading">Pedidos</NavLink>
                         <NavLink href="/ventas" icon="dollar-sign">Ventas</NavLink>
                         <NavLink href="/usuarios" icon="user">Usuarios</NavLink>
+                        <NavLink href="/compras" icon="cart-shopping">Compras</NavLink>
                     </ul>
                 </nav>
             </aside>
@@ -157,6 +158,7 @@ import NavLink from '@/Components/NavLink.vue'; // Asegúrate de que la ruta sea
 import { Link } from '@inertiajs/vue3'; // Importa el componente Link de Inertia
 import { library } from '@fortawesome/fontawesome-svg-core';
 import {
+    faCartShopping,
     faCircle,
     faHome,
     faUsers,
@@ -175,7 +177,7 @@ import { router } from '@inertiajs/vue3'; // Importa router de Inertia
 import axios from 'axios'; // Importa axios para hacer peticiones HTTP
 
 // Registrar los iconos en la librería
-library.add(faCircle, faHome, faUsers, faBox, faTags, faTrademark, faTruck, faWarehouse, faFileAlt, faTruckLoading, faDollarSign, faUser);
+library.add(faCartShopping, faCircle, faHome, faUsers, faBox, faTags, faTrademark, faTruck, faWarehouse, faFileAlt, faTruckLoading, faDollarSign, faUser);
 
 // Lógica para el menú desplegable
 const isDropdownOpen = ref(false);
@@ -204,7 +206,7 @@ const unreadCount = ref(0); // Contador de notificaciones no leídas
 const fetchNotifications = async () => {
     const response = await axios.get('/notifications');
     notifications.value = response.data;
-    unreadCount.value = notifications.value.length; // Actualizar contador
+    unreadCount.value = notifications.value.filter(n => !n.read_at).length; // Contar las no leídas
 };
 
 // Alternar la visibilidad del dropdown

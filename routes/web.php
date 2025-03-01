@@ -14,6 +14,7 @@ use App\Http\Controllers\PedidoController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\VentaController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\CompraController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -79,6 +80,9 @@ Route::middleware([
 
     // Ver detalle de un usuario (sólo admins pueden ver otros usuarios)
     Route::get('/usuario/{id}', [UserController::class, 'show'])->name('usuarios.show');
+
+    // Compras
+    Route::resource('compras', CompraController::class)->names('compras');
 
     // Notificaciones
     Route::get('/notifications', [NotificationController::class, 'index']);

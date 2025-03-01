@@ -25,4 +25,14 @@ class Proveedor extends Model
         'pais',
 
     ];
+
+    /**
+     * Relación con las compras.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function compras()
+    {
+        return $this->hasMany(Compra::class); // Relación uno a muchos
+    }
 }
