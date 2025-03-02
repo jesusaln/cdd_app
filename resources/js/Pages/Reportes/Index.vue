@@ -97,7 +97,7 @@
                             <td class="px-4 py-2">{{ producto.id }}</td>
                             <td class="px-4 py-2">{{ producto.nombre }}</td>
                             <td class="px-4 py-2">{{ producto.stock }}</td>
-                            <td class="px-4 py-2">{{ formatCurrency(producto.precio) }}</td>
+                            <td class="px-4 py-2">{{ formatCurrency(producto.precio_venta) }}</td>
                         </tr>
                     </tbody>
                 </table>

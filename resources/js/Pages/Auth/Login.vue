@@ -1,34 +1,3 @@
-<script setup>
-import { Head, Link, useForm } from '@inertiajs/vue3';
-import AuthenticationCard from '@/Components/AuthenticationCard.vue';
-import AuthenticationCardLogo from '@/Components/AuthenticationCardLogo.vue';
-import Checkbox from '@/Components/Checkbox.vue';
-import InputError from '@/Components/InputError.vue';
-import InputLabel from '@/Components/InputLabel.vue';
-import PrimaryButton from '@/Components/PrimaryButton.vue';
-import TextInput from '@/Components/TextInput.vue';
-
-defineProps({
-    canResetPassword: Boolean,
-    status: String,
-});
-
-const form = useForm({
-    email: '',
-    password: '',
-    remember: false,
-});
-
-const submit = () => {
-    form.transform(data => ({
-        ...data,
-        remember: form.remember ? 'on' : '',
-    })).post(route('login'), {
-        onFinish: () => form.reset('password'),
-    });
-};
-</script>
-
 <template>
     <Head title="Log in" />
 
@@ -50,8 +19,8 @@ const submit = () => {
                     type="email"
                     class="mt-1 block w-full"
                     required
-                    autofocus
                     autocomplete="username"
+                    ref="emailInput"
                 />
                 <InputError class="mt-2" :message="form.errors.email" />
             </div>
@@ -88,3 +57,45 @@ const submit = () => {
         </form>
     </AuthenticationCard>
 </template>
+
+<script setup>
+import { Head, Link, useForm } from '@inertiajs/vue3';
+import { ref, onMounted, nextTick } from 'vue';
+import AuthenticationCard from '@/Components/AuthenticationCard.vue';
+import AuthenticationCardLogo from '@/Components/AuthenticationCardLogo.vue';
+import Checkbox from '@/Components/Checkbox.vue';
+import InputError from '@/Components/InputError.vue';
+import InputLabel from '@/Components/InputLabel.vue';
+import PrimaryButton from '@/Components/PrimaryButton.vue';
+import TextInput from '@/Components/TextInput.vue';
+
+defineProps({
+    canResetPassword: Boolean,
+    status: String,
+});
+
+const emailInput = ref(null);
+
+const form = useForm({
+    email: '',
+    password: '',
+    remember: false,
+});
+
+onMounted(() => {
+    nextTick(() => {
+        if (!document.activeElement || document.activeElement === document.body) {
+            emailInput.value?.focus();
+        }
+    });
+});
+
+const submit = () => {
+    form.transform(data => ({
+        ...data,
+        remember: form.remember ? 'on' : '',
+    })).post(route('login'), {
+        onFinish: () => form.reset('password'),
+    });
+};
+</script>
