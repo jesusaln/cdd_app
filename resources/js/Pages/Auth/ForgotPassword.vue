@@ -7,38 +7,48 @@ import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 
+// Definir las propiedades que recibe el componente
 defineProps({
-    status: String,
+    status: String, // Estado del proceso (por ejemplo, mensaje de éxito)
 });
 
+// Objeto de formulario para manejar los datos del correo electrónico
 const form = useForm({
-    email: '',
+    email: '', // Correo electrónico del usuario
 });
 
+// Función para enviar el formulario de restablecimiento de contraseña
 const submit = () => {
-    form.post(route('password.email'));
+    form.post(route('password.email')); // Enviar una solicitud para restablecer la contraseña
 };
 </script>
 
 <template>
-    <Head title="Forgot Password" />
+    <!-- Configuración del título de la página -->
+    <Head title="Restablecer Contraseña" />
 
+    <!-- Componente principal de autenticación -->
     <AuthenticationCard>
+        <!-- Slot para el logo personalizado -->
         <template #logo>
             <AuthenticationCardLogo />
         </template>
 
+        <!-- Mensaje informativo sobre el restablecimiento de contraseña -->
         <div class="mb-4 text-sm text-gray-600 dark:text-gray-400">
-            Forgot your password? No problem. Just let us know your email address and we will email you a password reset link that will allow you to choose a new one.
+            ¿Olvidaste tu contraseña? No te preocupes. Simplemente indícanos tu dirección de correo electrónico y te enviaremos un enlace para restablecer la contraseña que te permitirá elegir una nueva.
         </div>
 
+        <!-- Mensaje de estado (por ejemplo, "Correo enviado correctamente") -->
         <div v-if="status" class="mb-4 font-medium text-sm text-green-600 dark:text-green-400">
             {{ status }}
         </div>
 
+        <!-- Formulario para solicitar el restablecimiento de contraseña -->
         <form @submit.prevent="submit">
+            <!-- Campo de correo electrónico -->
             <div>
-                <InputLabel for="email" value="Email" />
+                <InputLabel for="email" value="Correo electrónico" />
                 <TextInput
                     id="email"
                     v-model="form.email"
@@ -51,9 +61,13 @@ const submit = () => {
                 <InputError class="mt-2" :message="form.errors.email" />
             </div>
 
+            <!-- Botón para enviar el enlace de restablecimiento -->
             <div class="flex items-center justify-end mt-4">
-                <PrimaryButton :class="{ 'opacity-25': form.processing }" :disabled="form.processing">
-                    Email Password Reset Link
+                <PrimaryButton
+                    :class="{ 'opacity-25': form.processing }"
+                    :disabled="form.processing"
+                >
+                    Enviar enlace para restablecer contraseña
                 </PrimaryButton>
             </div>
         </form>

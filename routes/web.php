@@ -94,6 +94,8 @@ Route::middleware([
     Route::get('/reportes', [ReporteController::class, 'index'])->name('reportes.index');
 
 
+
+
     // Notificaciones
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::post('/notifications/mark-as-read', [NotificationController::class, 'markAsRead']);
