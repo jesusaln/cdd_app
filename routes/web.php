@@ -70,9 +70,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // Ventas
     Route::resource('ventas', VentaController::class)->names('ventas');
 
+
     // Usuarios
-    Route::resource('usuarios', UserController::class)->only(['index', 'show'])->names('usuarios');
-    Route::resource('usuarios', UserController::class)->except(['index', 'show'])->names('usuarios');
+    Route::resource('usuarios', UserController::class)->names('usuarios');
 
     // Perfil de usuario autenticado
     Route::get('/perfil', [UserController::class, 'profile'])->name('perfil');

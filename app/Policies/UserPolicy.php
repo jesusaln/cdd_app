@@ -48,7 +48,13 @@ class UserPolicy
      */
     public function update(User $user, User $model): bool
     {
-        return $user->id === $model->id || $user->hasRole('admin');
+        // Solo los administradores pueden cambiar roles
+        if ($user->hasRole('admin')) {
+            return true;
+        }
+
+        // Los usuarios normales solo pueden actualizar sus propios datos, excepto el rol
+        return $user->id === $model->id;
     }
 
     /**
