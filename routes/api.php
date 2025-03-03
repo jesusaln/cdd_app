@@ -2,7 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\ClienteController;
+use App\Http\Controllers\Api\ClienteController;
 use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\MarcaController;
 use App\Http\Controllers\ProveedorController;
@@ -33,9 +33,15 @@ Route::get('/proveedores/{id}', [ProveedorController::class, 'show'])->name('api
 Route::get('/almacenes', [AlmacenController::class, 'index'])->name('api.almacenes.index');
 Route::get('/almacenes/{id}', [AlmacenController::class, 'show'])->name('api.almacenes.show');
 
+// Productos
+Route::get('/productos/{id}', [ProductoController::class, 'show'])->name('api.productos.show');
 
+// Clientes
+Route::get('/clientes', [ClienteController::class, 'index'])->name('api.clientes.index'); // Obtener todos los clientes
+Route::post('/clientes', [ClienteController::class, 'store'])->name('api.clientes.store'); // Crear un nuevo cliente
+Route::get('/clientes/{id}', [ClienteController::class, 'show'])->name('api.clientes.show'); // Obtener un cliente específico
+Route::put('/clientes/{id}', [ClienteController::class, 'update'])->name('api.clientes.update'); // Actualizar un cliente
+Route::delete('/clientes/{id}', [ClienteController::class, 'destroy'])->name('api.clientes.destroy'); // Eliminar un cliente
 
-
-
-
-Route::get('/productos/{id}', [ProductoController::class, 'show']);
+// Verificar si un email ya existe
+Route::get('/clientes/check-email', [ClienteController::class, 'checkEmail'])->name('api.clientes.check-email');

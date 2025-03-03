@@ -84,7 +84,7 @@
   import 'notyf/notyf.min.css';
   import Dashboard from '@/Pages/Dashboard.vue';
  import TecnicoModal from '@/Components/TecnicoModal.vue';
-  import { defineProps } from 'vue';
+
 
   const props = defineProps({
     titulo: String,
