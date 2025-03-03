@@ -16,6 +16,8 @@ use App\Http\Controllers\VentaController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\CompraController;
 use App\Http\Controllers\ReporteController;
+use App\Http\Controllers\HerramientaController;
+use App\Http\Controllers\TecnicoController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -92,6 +94,12 @@ Route::middleware([
 
     Route::resource('reportes', ReporteController::class);
     Route::get('/reportes', [ReporteController::class, 'index'])->name('reportes.index');
+
+    // Herramientas
+    Route::resource('herramientas', HerramientaController::class)->names('herramientas');
+
+    // Tecnicos
+    Route::resource('tecnicos', TecnicoController::class)->names('tecnicos');
 
 
 

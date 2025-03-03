@@ -7,6 +7,7 @@
     <meta name="description" content="Descripción de tu aplicación o página">
     <meta name="keywords" content="palabras, clave, relacionadas, con, tu, sitio">
     <meta name="author" content="Jesús López">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title inertia>{{ config('app.name', 'Laravel') }}</title>
 
     <!-- Fonts -->

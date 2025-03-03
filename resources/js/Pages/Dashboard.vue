@@ -138,6 +138,8 @@
                         <NavLink href="/ventas" icon="dollar-sign">Ventas</NavLink>
                         <NavLink href="/reportes" icon="chart-bar">Reportes</NavLink>
                         <NavLink href="/compras" icon="cart-shopping">Compras</NavLink>
+                        <NavLink href="/herramientas" icon="circle">Herramientas</NavLink>
+                        <NavLink href="/tecnicos" icon="users">Técnicos</NavLink>
 
                         <NavLink href="/usuarios" icon="user">Usuarios</NavLink>
                     </ul>
