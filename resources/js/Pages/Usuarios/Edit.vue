@@ -18,6 +18,19 @@
           <input v-model="form.password" type="password" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="Contraseña (dejar en blanco para no cambiar)">
           <InputError class="mt-2" :message="form.errors.password" />
         </div>
+        <div class="mb-4">
+          <label class="block text-gray-700 text-sm font-bold mb-2">Confirmar Contraseña:</label>
+          <input v-model="form.password_confirmation" type="password" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="Confirmar Contraseña">
+          <InputError class="mt-2" :message="form.errors.password_confirmation" />
+        </div>
+        <div class="mb-4">
+          <label class="block text-gray-700 text-sm font-bold mb-2">Rol:</label>
+          <select v-model="form.role" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+            <option value="user">Usuario</option>
+            <option value="admin">Administrador</option>
+          </select>
+          <InputError class="mt-2" :message="form.errors.role" />
+        </div>
         <div class="flex items-center justify-between">
           <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Guardar</button>
         </div>
@@ -42,12 +55,20 @@
   const form = useForm({
     name: props.usuario.name,
     email: props.usuario.email,
-    password: '',  // Contraseña inicialmente vacía
-  });
+    password: '', // Contraseña inicialmente vacía
+    password_confirmation: '', // Confirmación de contraseña inicialmente vacía
+    role: (props.usuario.roles || []).length ? props.usuario.roles[0].name : 'user', // Asignar el primer rol o 'user' por defecto
+});
 
   const notyf = new Notyf({ duration: 3000, position: { x: 'right', y: 'top' } });
 
   const submit = () => {
+    // Verificar si las contraseñas coinciden
+    if (form.password && form.password !== form.password_confirmation) {
+      notyf.error('Las contraseñas no coinciden.');
+      return;
+    }
+
     // Si la contraseña está vacía, establecemos el campo password a null
     if (!form.password) {
       form.password = null;
@@ -59,7 +80,11 @@
         notyf.success('Usuario actualizado exitosamente.');
       },
       onError: (errors) => {
-        notyf.error('Error al actualizar el usuario.');
+        if (errors.email?.includes('El correo electrónico ya ha sido tomado.')) {
+          notyf.error('El correo electrónico ya ha sido tomado.');
+        } else {
+          notyf.error('Error al actualizar el usuario.');
+        }
       }
     });
   };

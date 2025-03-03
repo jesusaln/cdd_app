@@ -22,18 +22,13 @@ use App\Http\Controllers\TecnicoController;
 Route::get('/', function () {
     return Inertia::render('Welcome', [
         'canLogin' => Route::has('login'),
-        //'canRegister' => Route::has('register'),
         'laravelVersion' => Application::VERSION,
         'phpVersion' => PHP_VERSION,
     ]);
 })->name('welcome');
 
 // Rutas protegidas por autenticación
-Route::middleware([
-    'auth:sanctum',
-    config('jetstream.auth_session'),
-    'verified',
-])->group(function () {
+Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified'])->group(function () {
     // Ruta principal para el panel
     Route::get('/panel', function () {
         return Inertia::render('Panel', [
@@ -76,7 +71,8 @@ Route::middleware([
     Route::resource('ventas', VentaController::class)->names('ventas');
 
     // Usuarios
-    Route::resource('usuarios', UserController::class)->names('usuarios');
+    Route::resource('usuarios', UserController::class)->only(['index', 'show'])->names('usuarios');
+    Route::resource('usuarios', UserController::class)->except(['index', 'show'])->names('usuarios');
 
     // Perfil de usuario autenticado
     Route::get('/perfil', [UserController::class, 'profile'])->name('perfil');
@@ -88,21 +84,14 @@ Route::middleware([
     Route::resource('compras', CompraController::class)->names('compras');
 
     // Reportes
-    Route::get('/reportes', function () {
-        return Inertia::render('Reportes/Index');
-    })->name('reportes.index');
-
-    Route::resource('reportes', ReporteController::class);
     Route::get('/reportes', [ReporteController::class, 'index'])->name('reportes.index');
+    Route::resource('reportes', ReporteController::class);
 
     // Herramientas
     Route::resource('herramientas', HerramientaController::class)->names('herramientas');
 
     // Tecnicos
     Route::resource('tecnicos', TecnicoController::class)->names('tecnicos');
-
-
-
 
     // Notificaciones
     Route::get('/notifications', [NotificationController::class, 'index']);

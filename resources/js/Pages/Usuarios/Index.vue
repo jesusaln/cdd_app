@@ -24,6 +24,7 @@
             <tr>
               <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
               <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Rol</th>
               <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
             </tr>
           </thead>
@@ -31,6 +32,7 @@
             <tr v-for="usuario in usuariosFiltrados" :key="usuario.id" class="hover:bg-gray-100">
               <td class="px-4 py-3 text-sm text-gray-700">{{ usuario.name }}</td>
               <td class="px-4 py-3 text-sm text-gray-700">{{ usuario.email }}</td>
+              <td class="px-4 py-3 text-sm text-gray-700">{{ usuario.roles.map(role => role.name).join(', ') }}</td>
               <td class="px-4 py-3 flex space-x-2">
                 <Link :href="route('usuarios.edit', usuario.id)" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">
                   Editar
