@@ -40,7 +40,7 @@ class PedidoController extends Controller
             ]);
 
             // Opcional: Actualizar el stock del producto
-            // $producto->decrement('stock', $producto->pivot->cantidad);
+            $producto->decrement('stock', $producto->pivot->cantidad);
         }
 
         // Opcional: Marcar el pedido como convertido o eliminarlo
