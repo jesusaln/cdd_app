@@ -8,11 +8,20 @@ use App\Http\Controllers\MarcaController;
 use App\Http\Controllers\ProveedorController;
 use App\Http\Controllers\AlmacenController;
 use App\Http\Controllers\ProductoController;
+use App\Http\Controllers\Api\AuthController;
+
 
 // Ruta protegida por Sanctum
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
+
+
+Route::post('/login', [AuthController::class, 'login']);
+Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+Route::get('/user', [AuthController::class, 'user'])->middleware('auth:sanctum');
+
+Route::get('/create-token', [AuthController::class, 'createToken'])->middleware('auth:sanctum');
 
 // Verificar correo electrónico
 Route::get('/check-email', [ClienteController::class, 'checkEmail']);

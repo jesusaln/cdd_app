@@ -13,6 +13,7 @@ use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 use App\Notifications\ResetPassword as ResetPasswordNotification;
 
+
 class User extends Authenticatable
 {
     use HasApiTokens, Notifiable, HasRoles;

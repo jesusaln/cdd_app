@@ -142,6 +142,7 @@
                         <NavLink href="/tecnicos" icon="users">Técnicos</NavLink>
 
                         <NavLink href="/usuarios" icon="user">Usuarios</NavLink>
+                        <NavLink href="/carros" icon="car-alt">Carros</NavLink>
                     </ul>
                 </nav>
             </aside>
@@ -162,6 +163,7 @@ import NavLink from '@/Components/NavLink.vue'; // Asegúrate de que la ruta sea
 import { Link } from '@inertiajs/vue3'; // Importa el componente Link de Inertia
 import { library } from '@fortawesome/fontawesome-svg-core';
 import {
+    faCarAlt,
     faChartBar,
     faCartShopping,
     faCircle,
@@ -182,7 +184,7 @@ import { router } from '@inertiajs/vue3'; // Importa router de Inertia
 import axios from 'axios'; // Importa axios para hacer peticiones HTTP
 
 // Registrar los iconos en la librería
-library.add(faChartBar,faCartShopping, faCircle, faHome, faUsers, faBox, faTags, faTrademark, faTruck, faWarehouse, faFileAlt, faTruckLoading, faDollarSign, faUser);
+library.add(faCarAlt,faChartBar,faCartShopping, faCircle, faHome, faUsers, faBox, faTags, faTrademark, faTruck, faWarehouse, faFileAlt, faTruckLoading, faDollarSign, faUser);
 
 // Lógica para el menú desplegable
 const isDropdownOpen = ref(false);

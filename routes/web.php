@@ -18,6 +18,7 @@ use App\Http\Controllers\CompraController;
 use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\HerramientaController;
 use App\Http\Controllers\TecnicoController;
+use App\Http\Controllers\CarroController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -92,6 +93,10 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
 
     // Tecnicos
     Route::resource('tecnicos', TecnicoController::class)->names('tecnicos');
+
+
+    // Carros
+    Route::resource('carros', CarroController::class)->names('carros');
 
     // Notificaciones
     Route::get('/notifications', [NotificationController::class, 'index']);
