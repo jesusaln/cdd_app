@@ -20,6 +20,7 @@ use App\Http\Controllers\HerramientaController;
 use App\Http\Controllers\TecnicoController;
 use App\Http\Controllers\CarroController;
 use App\Http\Controllers\MantenimientoController;
+use App\Http\Controllers\CitaController;
 
 
 
@@ -97,6 +98,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
 
     // Tecnicos
     Route::resource('tecnicos', TecnicoController::class)->names('tecnicos');
+
+    // Citas
+    Route::resource('citas', CitaController::class)->names('citas');
 
 
     // Carros

@@ -139,6 +139,7 @@ import NavLink from '@/Components/NavLink.vue';
 import { Link } from '@inertiajs/vue3';
 import { library } from '@fortawesome/fontawesome-svg-core';
 import {
+    faCalendar,
     faTools,
     faCarAlt,
     faChartBar,
@@ -160,7 +161,7 @@ import { ref, onMounted } from 'vue';
 import { router } from '@inertiajs/vue3';
 import axios from 'axios';
 
-library.add(faTools, faCarAlt, faChartBar, faCartShopping, faCircle, faHome, faUsers, faBox, faTags, faTrademark, faTruck, faWarehouse, faFileAlt, faTruckLoading, faDollarSign, faUser);
+library.add(faCalendar,faTools, faCarAlt, faChartBar, faCartShopping, faCircle, faHome, faUsers, faBox, faTags, faTrademark, faTruck, faWarehouse, faFileAlt, faTruckLoading, faDollarSign, faUser);
 
 const isDropdownOpen = ref(false);
 const isSidebarCollapsed = ref(false);
