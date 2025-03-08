@@ -132,7 +132,11 @@ const citasFiltradas = computed(() => {
         const tecnicoMatch = cita.tecnico.nombre.toLowerCase().includes(filtroTecnico.value.toLowerCase());
         const tipoServicioMatch = !filtroTipoServicio.value || cita.tipo_servicio === filtroTipoServicio.value;
         const estadoMatch = !filtroEstado.value || cita.estado === filtroEstado.value;
-        const fechaTrabajoMatch = !filtroFechaTrabajo.value || new Date(cita.fecha_hora).toDateString() === new Date(filtroFechaTrabajo.value).toDateString();
+
+        // Improved date comparison
+        const fechaTrabajoMatch = !filtroFechaTrabajo.value ||
+            new Date(cita.fecha_hora).toISOString().split('T')[0] === filtroFechaTrabajo.value;
+
         return clienteMatch && tecnicoMatch && tipoServicioMatch && estadoMatch && fechaTrabajoMatch;
     });
 });
