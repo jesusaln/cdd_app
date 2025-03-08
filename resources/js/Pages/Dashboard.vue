@@ -73,7 +73,7 @@
                     </div>
                 </div>
 
-                <!-- //Foto de perfil y menú desplegable -->
+                <!-- Foto de perfil y menú desplegable -->
                 <div class="relative">
                     <button
                         @click="toggleDropdown"
@@ -120,32 +120,7 @@
         <!-- Contenido principal -->
         <div class="flex flex-1 relative">
             <!-- Sidebar -->
-            <aside
-                :class="{'w-60': !isSidebarCollapsed, 'w-10': isSidebarCollapsed}"
-                class="bg-gray-800 text-white absolute left-0 top-0 bottom-0 z-10 transition-all duration-300 ease-in-out"
-            >
-                <nav>
-                    <ul>
-                        <NavLink href="/panel" icon="home">Panel</NavLink>
-                        <NavLink href="/clientes" icon="users">Clientes</NavLink>
-                        <NavLink href="/productos" icon="box">Productos</NavLink>
-                        <NavLink href="/categorias" icon="tags">Categorías</NavLink>
-                        <NavLink href="/marcas" icon="trademark">Marcas</NavLink>
-                        <NavLink href="/proveedores" icon="truck">Proveedores</NavLink>
-                        <NavLink href="/almacenes" icon="warehouse">Almacenes</NavLink>
-                        <NavLink href="/cotizaciones" icon="file-alt">Cotizaciones</NavLink>
-                        <NavLink href="/pedidos" icon="truck-loading">Pedidos</NavLink>
-                        <NavLink href="/ventas" icon="dollar-sign">Ventas</NavLink>
-                        <NavLink href="/reportes" icon="chart-bar">Reportes</NavLink>
-                        <NavLink href="/compras" icon="cart-shopping">Compras</NavLink>
-                        <NavLink href="/herramientas" icon="circle">Herramientas</NavLink>
-                        <NavLink href="/tecnicos" icon="users">Técnicos</NavLink>
-
-                        <NavLink href="/usuarios" icon="user">Usuarios</NavLink>
-                        <NavLink href="/carros" icon="car-alt">Carros</NavLink>
-                    </ul>
-                </nav>
-            </aside>
+            <Sidebar :isSidebarCollapsed="isSidebarCollapsed" @toggleSidebar="toggleSidebar" />
 
             <!-- Área de contenido -->
             <main
@@ -159,10 +134,12 @@
 </template>
 
 <script setup>
-import NavLink from '@/Components/NavLink.vue'; // Asegúrate de que la ruta sea correcta
-import { Link } from '@inertiajs/vue3'; // Importa el componente Link de Inertia
+import Sidebar from '@/Components/Sidebar.vue';
+import NavLink from '@/Components/NavLink.vue';
+import { Link } from '@inertiajs/vue3';
 import { library } from '@fortawesome/fontawesome-svg-core';
 import {
+    faTools,
     faCarAlt,
     faChartBar,
     faCartShopping,
@@ -178,59 +155,50 @@ import {
     faTruckLoading,
     faDollarSign,
     faUser,
-} from '@fortawesome/free-solid-svg-icons'; // Importa los iconos específicos
+} from '@fortawesome/free-solid-svg-icons';
 import { ref, onMounted } from 'vue';
-import { router } from '@inertiajs/vue3'; // Importa router de Inertia
-import axios from 'axios'; // Importa axios para hacer peticiones HTTP
+import { router } from '@inertiajs/vue3';
+import axios from 'axios';
 
-// Registrar los iconos en la librería
-library.add(faCarAlt,faChartBar,faCartShopping, faCircle, faHome, faUsers, faBox, faTags, faTrademark, faTruck, faWarehouse, faFileAlt, faTruckLoading, faDollarSign, faUser);
+library.add(faTools, faCarAlt, faChartBar, faCartShopping, faCircle, faHome, faUsers, faBox, faTags, faTrademark, faTruck, faWarehouse, faFileAlt, faTruckLoading, faDollarSign, faUser);
 
-// Lógica para el menú desplegable
 const isDropdownOpen = ref(false);
-const isSidebarCollapsed = ref(false); // Estado para controlar si el sidebar está colapsado
+const isSidebarCollapsed = ref(false);
 
 const toggleDropdown = () => {
     isDropdownOpen.value = !isDropdownOpen.value;
 };
 
-// Función para colapsar o expandir el sidebar
 const toggleSidebar = () => {
     isSidebarCollapsed.value = !isSidebarCollapsed.value;
 };
 
-// Función para cerrar sesión
 const logout = () => {
-    router.post(route('logout')); // Usa la ruta de cierre de sesión de Laravel
+    router.post(route('logout'));
 };
 
-// Lógica para las notificaciones
-const notifications = ref([]); // Lista de notificaciones
-const showNotifications = ref(false); // Estado del dropdown
-const unreadCount = ref(0); // Contador de notificaciones no leídas
+const notifications = ref([]);
+const showNotifications = ref(false);
+const unreadCount = ref(0);
 
-// Obtener notificaciones desde el backend
 const fetchNotifications = async () => {
     const response = await axios.get('/notifications');
     notifications.value = response.data;
-    unreadCount.value = notifications.value.filter(n => !n.read_at).length; // Contar las no leídas
+    unreadCount.value = notifications.value.filter(n => !n.read_at).length;
 };
 
-// Alternar la visibilidad del dropdown
 const toggleNotifications = () => {
     showNotifications.value = !showNotifications.value;
     if (showNotifications.value) {
-        fetchNotifications(); // Cargar notificaciones al abrir el dropdown
+        fetchNotifications();
     }
 };
 
-// Marcar una notificación como leída
 const markAsRead = async (id) => {
     await axios.post('/notifications/mark-as-read', { ids: [id] });
-    fetchNotifications(); // Actualizar la lista de notificaciones
+    fetchNotifications();
 };
 
-// Cargar notificaciones al montar el componente
 onMounted(fetchNotifications);
 </script>
 
