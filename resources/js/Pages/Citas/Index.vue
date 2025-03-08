@@ -12,8 +12,8 @@
         <div class="mb-4 flex space-x-4">
             <input v-model="filtroCliente" type="text" placeholder="Buscar por cliente" class="border rounded px-3 py-2">
             <input v-model="filtroTecnico" type="text" placeholder="Buscar por técnico" class="border rounded px-3 py-2">
-            <select v-model="filtroTipoServicio" class="border rounded px-3 py-2">
-                <option value="">Todos los tipos de servicio</option>
+            <select v-model="filtroTipoServicio" class="border rounded px-8 py-2">
+                <option value="">Tipos de servicio</option>
                 <option value="instalacion">Instalación</option>
                 <option value="diagnostico">Diagnóstico</option>
                 <option value="reparacion">Reparación</option>
@@ -21,28 +21,34 @@
                 <option value="otro_servicio">Otro Servicio</option>
             </select>
             <select v-model="filtroEstado" class="border rounded px-3 py-2">
-                <option value="">Todos los estados</option>
+                <option value="">Estados</option>
                 <option value="pendiente">Pendiente</option>
                 <option value="en_proceso">En Proceso</option>
                 <option value="completado">Completado</option>
                 <option value="cancelado">Cancelado</option>
             </select>
+            <input v-model="filtroFechaTrabajo" type="date" placeholder="Fecha de trabajo" class="border rounded px-3 py-2">
         </div>
 
         <div v-if="citasFiltradas.length > 0" class="overflow-x-auto bg-white rounded-lg shadow-md">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
+
                     <tr>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Folio</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Fecha llamada</th>
                         <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Técnico</th>
                         <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th>
                         <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tipo de Servicio</th>
-                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Fecha y Hora</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Fecha de trabajo</th>
                         <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
                         <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
                     <tr v-for="cita in citasFiltradas" :key="cita.id" class="hover:bg-gray-100">
+                        <td class="px-4 py-3 text-sm text-gray-700">{{ cita.id }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-700">{{ formatearFechaHora(cita.created_at) }}</td>
                         <td class="px-4 py-3 text-sm text-gray-700">{{ cita.tecnico.nombre }}</td>
                         <td class="px-4 py-3 text-sm text-gray-700">{{ cita.cliente.nombre_razon_social }}</td>
                         <td class="px-4 py-3 text-sm text-gray-700">{{ formatearTipoServicio(cita.tipo_servicio) }}</td>
@@ -95,7 +101,7 @@ import { ref, computed } from 'vue';
 import { Notyf } from 'notyf';
 import 'notyf/notyf.min.css';
 import Dashboard from '@/Pages/Dashboard.vue';
-import CitaModal from '@/Components/CitaModal.vue'; // Asegúrate de importar el componente modal
+import CitaModal from '@/Components/CitaModal.vue';
 
 defineOptions({ layout: Dashboard });
 
@@ -118,6 +124,7 @@ const filtroCliente = ref('');
 const filtroTecnico = ref('');
 const filtroTipoServicio = ref('');
 const filtroEstado = ref('');
+const filtroFechaTrabajo = ref('');
 
 const citasFiltradas = computed(() => {
     return citas.filter(cita => {
@@ -125,7 +132,8 @@ const citasFiltradas = computed(() => {
         const tecnicoMatch = cita.tecnico.nombre.toLowerCase().includes(filtroTecnico.value.toLowerCase());
         const tipoServicioMatch = !filtroTipoServicio.value || cita.tipo_servicio === filtroTipoServicio.value;
         const estadoMatch = !filtroEstado.value || cita.estado === filtroEstado.value;
-        return clienteMatch && tecnicoMatch && tipoServicioMatch && estadoMatch;
+        const fechaTrabajoMatch = !filtroFechaTrabajo.value || new Date(cita.fecha_hora).toDateString() === new Date(filtroFechaTrabajo.value).toDateString();
+        return clienteMatch && tecnicoMatch && tipoServicioMatch && estadoMatch && fechaTrabajoMatch;
     });
 });
 

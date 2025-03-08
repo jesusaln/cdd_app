@@ -81,7 +81,7 @@
 
 <script setup>
 import { Head, router } from '@inertiajs/vue3';
-import { reactive, onMounted } from 'vue';
+import { reactive } from 'vue';
 import { Notyf } from 'notyf';
 import 'notyf/notyf.min.css';
 import Dashboard from '@/Pages/Dashboard.vue';
@@ -114,13 +114,6 @@ const form = reactive({
     modelo_equipo: props.cita.modelo_equipo,
     problema_reportado: props.cita.problema_reportado,
     estado: props.cita.estado,
-});
-
-onMounted(() => {
-    const now = new Date();
-    const offset = now.getTimezoneOffset();
-    now.setMinutes(now.getMinutes() + offset);
-    form.fecha_hora = now.toISOString().slice(0, 16);
 });
 
 const submit = async () => {
