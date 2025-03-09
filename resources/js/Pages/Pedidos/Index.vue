@@ -109,13 +109,11 @@
 
   import { generarPDF } from '@/Utils/pdfGenerator'; // Asegúrate de que la ruta sea correcta
   import Show from './Show.vue'; // Asegúrate de que la ruta sea correcta
-  import Dashboard from '@/Pages/Dashboard.vue';
+  import AppLayout from '@/Layouts/AppLayout.vue';
 
 
-
-
-  // Define el layout del dashboard
-  defineOptions({ layout: Dashboard });
+// Define el layout del dashboard
+defineOptions({ layout: AppLayout });
 
   // Propiedades
   const props = defineProps({ pedidos: Array });

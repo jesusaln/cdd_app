@@ -49,9 +49,11 @@
 <script setup>
 import { Head } from '@inertiajs/vue3';
 import { computed } from 'vue';
-import Dashboard from '@/Pages/Dashboard.vue';
+import AppLayout from '@/Layouts/AppLayout.vue';
 
-defineOptions({ layout: Dashboard });
+
+// Define el layout del dashboard
+defineOptions({ layout: AppLayout });
 
 const props = defineProps({
     cita: Object,

@@ -66,10 +66,11 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import { Notyf } from 'notyf';
 import 'notyf/notyf.min.css';
-import Dashboard from '@/Pages/Dashboard.vue'; // Importa el layout del dashboard
+import AppLayout from '@/Layouts/AppLayout.vue';
+
 
 // Define el layout del dashboard
-defineOptions({ layout: Dashboard });
+defineOptions({ layout: AppLayout });
 
 // Recibe las marcas como prop
 defineProps({ marcas: Array });

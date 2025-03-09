@@ -88,11 +88,13 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
 import { Notyf } from 'notyf';
 import 'notyf/notyf.min.css'; // Importa los estilos de Notyf
-import Dashboard from '@/Pages/Dashboard.vue'; // Importa el layout del dashboard
+
 import ConfirmDialog from '@/Components/ConfirmDialog.vue'; // Importa el componente
+import AppLayout from '@/Layouts/AppLayout.vue';
+
 
 // Define el layout del dashboard
-defineOptions({ layout: Dashboard });
+defineOptions({ layout: AppLayout });
 
 // Recibe los proveedores como prop
 const props = defineProps({ proveedores: Array });

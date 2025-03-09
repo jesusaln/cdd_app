@@ -61,10 +61,11 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3'; // Importa el router de Inertia
-import Dashboard from '@/Pages/Dashboard.vue'; // Importa el layout del dashboard
+import AppLayout from '@/Layouts/AppLayout.vue';
+
 
 // Define el layout del dashboard
-defineOptions({ layout: Dashboard });
+defineOptions({ layout: AppLayout });
 
 // Props para recibir la lista de herramientas y técnicos
 const props = defineProps({

@@ -73,10 +73,11 @@
   <script setup>
   import { ref } from 'vue';
   import { Head, useForm } from '@inertiajs/vue3';
-  import Dashboard from '@/Pages/Dashboard.vue'; // Importa el layout del dashboard
+  import AppLayout from '@/Layouts/AppLayout.vue';
 
-  // Define el layout del dashboard
-  defineOptions({ layout: Dashboard });
+
+// Define el layout del dashboard
+defineOptions({ layout: AppLayout });
 
   // Props para recibir la lista de técnicos
   const props = defineProps({

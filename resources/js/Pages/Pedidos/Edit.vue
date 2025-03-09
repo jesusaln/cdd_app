@@ -135,9 +135,11 @@
   import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
   import { Head, useForm } from '@inertiajs/vue3';
   import { Link } from '@inertiajs/vue3';
-  import Dashboard from '@/Pages/Dashboard.vue';
+  import AppLayout from '@/Layouts/AppLayout.vue';
 
-  defineOptions({ layout: Dashboard });
+
+// Define el layout del dashboard
+defineOptions({ layout: AppLayout });
 
   const props = defineProps({
     pedido: Object,

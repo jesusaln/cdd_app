@@ -68,9 +68,11 @@
 import { Head, useForm } from '@inertiajs/vue3';
 import { Link } from '@inertiajs/vue3';
 
-// Define el layout del dashboard (si es necesario)
-import Dashboard from '@/Pages/Dashboard.vue';
-defineOptions({ layout: Dashboard });
+import AppLayout from '@/Layouts/AppLayout.vue';
+//import Dashboard from '@/Pages/Dashboard.vue'; // Importa el layout del dashboard
+
+// Define el layout del dashboard
+defineOptions({ layout: AppLayout });
 
 // Recibe los datos del almacén como prop
 const props = defineProps({

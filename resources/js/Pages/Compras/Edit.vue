@@ -131,10 +131,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { Head, useForm, Link } from '@inertiajs/vue3';
-import Dashboard from '@/Pages/Dashboard.vue';
+import AppLayout from '@/Layouts/AppLayout.vue';
 
- // Define el layout del dashboard
- defineOptions({ layout: Dashboard });
+
+// Define el layout del dashboard
+defineOptions({ layout: AppLayout });
 
 // Props recibidos desde el backend
 const props = defineProps({

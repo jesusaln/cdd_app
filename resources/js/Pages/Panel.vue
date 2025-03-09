@@ -53,11 +53,14 @@
 </template>
 <script setup>
 import { Head } from '@inertiajs/vue3';
-import Dashboard from '@/Pages/Dashboard.vue';
+
 import NavLink from '@/Components/NavLink.vue';
 import { computed } from 'vue';
+import AppLayout from '@/Layouts/AppLayout.vue';
 
-defineOptions({ layout: Dashboard });
+
+// Define el layout del dashboard
+defineOptions({ layout: AppLayout });
 
 const props = defineProps({
     clientesCount: Number,

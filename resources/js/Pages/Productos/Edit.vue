@@ -139,10 +139,11 @@
 </template>
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3';
-import Dashboard from '@/Pages/Dashboard.vue'; // Importa el Dashboard
+import AppLayout from '@/Layouts/AppLayout.vue';
 
-// Define el layout
-defineOptions({ layout: Dashboard });
+
+// Define el layout del dashboard
+defineOptions({ layout: AppLayout });
 
 // Recibe el producto, categorías, marcas y proveedores como props
 const props = defineProps({

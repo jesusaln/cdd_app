@@ -44,9 +44,11 @@
   import InputError from '@/Components/InputError.vue';
   import { Notyf } from 'notyf';
   import 'notyf/notyf.min.css';
-  import Dashboard from '@/Pages/Dashboard.vue';
+  import AppLayout from '@/Layouts/AppLayout.vue';
 
-  defineOptions({ layout: Dashboard });
+
+// Define el layout del dashboard
+defineOptions({ layout: AppLayout });
 
   const form = useForm({
     name: '',

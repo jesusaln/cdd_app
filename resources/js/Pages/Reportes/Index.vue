@@ -112,11 +112,11 @@ import { ref, computed } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import { format, isWithinInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
-import Dashboard from '@/Pages/Dashboard.vue'; // Importa el layout del dashboard
+import AppLayout from '@/Layouts/AppLayout.vue';
 
 
 // Define el layout del dashboard
-defineOptions({ layout: Dashboard });
+defineOptions({ layout: AppLayout });
 
 const props = defineProps({
     reportesVentas: { type: Array, default: () => [] },

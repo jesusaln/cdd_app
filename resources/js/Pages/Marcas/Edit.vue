@@ -45,8 +45,11 @@
 import { Head, useForm } from '@inertiajs/vue3';
 import { Link } from '@inertiajs/vue3';
 // Define el layout del dashboard (si es necesario)
-import Dashboard from '@/Pages/Dashboard.vue';
-defineOptions({ layout: Dashboard });
+import AppLayout from '@/Layouts/AppLayout.vue';
+
+
+// Define el layout del dashboard
+defineOptions({ layout: AppLayout });
 
 // Recibe los datos de la marca como prop
 const props = defineProps({

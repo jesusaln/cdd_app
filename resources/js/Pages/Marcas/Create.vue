@@ -44,10 +44,11 @@
 <script setup>
 import { Head, Link, router } from '@inertiajs/vue3';
 import { reactive } from 'vue';
-import Dashboard from '@/Pages/Dashboard.vue'; // Importa el layout del dashboard
+import AppLayout from '@/Layouts/AppLayout.vue';
+
 
 // Define el layout del dashboard
-defineOptions({ layout: Dashboard });
+defineOptions({ layout: AppLayout });
 
 // Recibe los errores del backend
 defineProps({ errors: Object });

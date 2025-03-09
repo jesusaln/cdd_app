@@ -43,10 +43,14 @@
   import InputError from '@/Components/InputError.vue';
   import { Notyf } from 'notyf';
   import 'notyf/notyf.min.css';
-  import Dashboard from '@/Pages/Dashboard.vue';
+ // import Dashboard from '@/Pages/Dashboard.vue';
   import { defineProps } from 'vue';
 
-  defineOptions({ layout: Dashboard });
+  import AppLayout from '@/Layouts/AppLayout.vue';
+
+
+// Define el layout del dashboard
+defineOptions({ layout: AppLayout });
 
   const props = defineProps({
     usuario: Object,

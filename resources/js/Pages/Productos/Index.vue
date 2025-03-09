@@ -115,10 +115,14 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 import { Notyf } from 'notyf';
 import 'notyf/notyf.min.css';
-import Dashboard from '@/Pages/Dashboard.vue';
+
 import ProductoModal from '@/Components/ProductoModal.vue';
 
-defineOptions({ layout: Dashboard });
+import AppLayout from '@/Layouts/AppLayout.vue';
+
+
+// Define el layout del dashboard
+defineOptions({ layout: AppLayout });
 
 const props = defineProps({ productos: Array });
 const headers = ['Código', 'Nombre', 'Precio de Venta', 'Stock', 'Estado'];

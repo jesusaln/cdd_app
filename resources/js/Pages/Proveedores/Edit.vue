@@ -134,10 +134,11 @@
 
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3';
-import Dashboard from '@/Pages/Dashboard.vue'; // Importa el layout del dashboard
+import AppLayout from '@/Layouts/AppLayout.vue';
+
 
 // Define el layout del dashboard
-defineOptions({ layout: Dashboard });
+defineOptions({ layout: AppLayout });
 
 // Recibe el proveedor como prop
 const props = defineProps({

@@ -82,9 +82,12 @@
   import { ref, computed } from 'vue';
   import { Notyf } from 'notyf';
   import 'notyf/notyf.min.css';
-  import Dashboard from '@/Pages/Dashboard.vue';
  import TecnicoModal from '@/Components/TecnicoModal.vue';
+ import AppLayout from '@/Layouts/AppLayout.vue';
 
+
+// Define el layout del dashboard
+defineOptions({ layout: AppLayout });
 
   const props = defineProps({
     titulo: String,
@@ -93,7 +96,7 @@
 
   document.title = props.titulo;
 
-  defineOptions({ layout: Dashboard });
+
   const headers = ['Nombre', 'Email', 'Teléfono', 'Dirección'];
   const loading = ref(false);
   const searchTerm = ref('');

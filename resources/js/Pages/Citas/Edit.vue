@@ -84,9 +84,11 @@ import { Head, router } from '@inertiajs/vue3';
 import { reactive } from 'vue';
 import { Notyf } from 'notyf';
 import 'notyf/notyf.min.css';
-import Dashboard from '@/Pages/Dashboard.vue';
+import AppLayout from '@/Layouts/AppLayout.vue';
 
-defineOptions({ layout: Dashboard });
+
+// Define el layout del dashboard
+defineOptions({ layout: AppLayout });
 
 const props = defineProps({
     cita: Object,

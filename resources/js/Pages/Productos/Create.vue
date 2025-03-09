@@ -179,10 +179,11 @@
 
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3';
-import Dashboard from '@/Pages/Dashboard.vue';
+import AppLayout from '@/Layouts/AppLayout.vue';
 
-// Define el layout
-defineOptions({ layout: Dashboard });
+
+// Define el layout del dashboard
+defineOptions({ layout: AppLayout });
 
 // Recibir las relaciones desde el backend
 const props = defineProps({

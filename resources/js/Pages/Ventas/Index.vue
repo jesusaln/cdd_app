@@ -106,15 +106,17 @@
   import { ref, computed } from 'vue';
   import { Notyf } from 'notyf';
   import 'notyf/notyf.min.css';
-  import Dashboard from '@/Pages/Dashboard.vue';
+  //import Dashboard from '@/Pages/Dashboard.vue';
   import Show from './Show.vue'; // Asegúrate de que la ruta sea correcta
   import { generarPDF } from '@/Utils/pdfGenerator'; // Asegúrate de que la ruta sea correcta
 
+  import AppLayout from '@/Layouts/AppLayout.vue';
 
 
+// Define el layout del dashboard
+defineOptions({ layout: AppLayout });
 
-  // Define el layout del dashboard
-  defineOptions({ layout: Dashboard });
+
 
   // Propiedades
   const props = defineProps({ ventas: Array });

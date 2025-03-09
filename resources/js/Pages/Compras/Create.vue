@@ -132,9 +132,11 @@
   <script setup>
   import { ref, computed, watch, onMounted } from 'vue';
   import { Head, useForm, Link } from '@inertiajs/vue3';
-  import Dashboard from '@/Pages/Dashboard.vue';
+  import AppLayout from '@/Layouts/AppLayout.vue';
 
-  defineOptions({ layout: Dashboard });
+
+// Define el layout del dashboard
+defineOptions({ layout: AppLayout });
 
   const props = defineProps({ proveedores: Array, productos: Array });
   const form = useForm({ proveedor_id: '', total: 0, productos: [] });

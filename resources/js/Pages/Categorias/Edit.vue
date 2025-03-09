@@ -48,9 +48,11 @@
 import { useForm } from '@inertiajs/vue3';
 import { Head, Link } from '@inertiajs/vue3';
 
-// Define el layout del dashboard (si es necesario)
-import Dashboard from '@/Pages/Dashboard.vue';
-defineOptions({ layout: Dashboard });
+import AppLayout from '@/Layouts/AppLayout.vue';
+
+
+// Define el layout del dashboard
+defineOptions({ layout: AppLayout });
 
 // Recibe los datos de la categoría como prop
 const props = defineProps({

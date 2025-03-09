@@ -98,9 +98,15 @@
   import { ref, computed } from 'vue';
   import { Notyf } from 'notyf';
   import 'notyf/notyf.min.css';
-  import Dashboard from '@/Pages/Dashboard.vue';
+
   import ClienteModal from '@/Components/ClienteModal.vue';
   import { defineProps } from 'vue';
+
+  import AppLayout from '@/Layouts/AppLayout.vue';
+
+
+// Define el layout del dashboard
+defineOptions({ layout: AppLayout });
 
 const props = defineProps({
   titulo: String,  // Recibes el título desde el controlador
@@ -109,7 +115,7 @@ const props = defineProps({
 
 document.title = props.titulo;  // Cambias el título de la página dinámicamente
 
-  defineOptions({ layout: Dashboard });
+
   const headers = ['Nombre/Razón Social', 'RFC', 'Régimen Fiscal', 'Uso CFDI', 'Email', 'Teléfono', 'Dirección'];
   const loading = ref(false);
   const searchTerm = ref('');
