@@ -1,5 +1,6 @@
 <script setup>
 // Importar componentes necesarios
+import { Head } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import DeleteUserForm from '@/Pages/Profile/Partials/DeleteUserForm.vue';
 import LogoutOtherBrowserSessionsForm from '@/Pages/Profile/Partials/LogoutOtherBrowserSessionsForm.vue';
@@ -15,9 +16,11 @@ defineProps({
 </script>
 
 <template>
+    <Head title="Perfil" />
     <!-- Diseño principal de la página -->
     <AppLayout title="Perfil">
         <template #header>
+
             <!-- Encabezado de la página -->
         </template>
 

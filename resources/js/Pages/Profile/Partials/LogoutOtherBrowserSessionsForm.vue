@@ -45,19 +45,23 @@ const closeModal = () => {
 <template>
     <ActionSection>
         <template #title>
-            Browser Sessions
+            <h2 class="text-black font-semibold text-xl leading-tight">
+                Sesiones del Navegador
+            </h2>
         </template>
 
         <template #description>
-            Manage and log out your active sessions on other browsers and devices.
+            <p class="text-black">
+                Administra y cierra sesión en tus sesiones activas en otros navegadores y dispositivos.
+            </p>
         </template>
 
         <template #content>
-            <div class="max-w-xl text-sm text-gray-600 dark:text-gray-400">
-                If necessary, you may log out of all of your other browser sessions across all of your devices. Some of your recent sessions are listed below; however, this list may not be exhaustive. If you feel your account has been compromised, you should also update your password.
+            <div class="max-w-xl text-sm text-white">
+                Si es necesario, puedes cerrar sesión en todas tus otras sesiones de navegador en todos tus dispositivos. Algunas de tus sesiones recientes se listan a continuación; sin embargo, esta lista puede no ser exhaustiva. Si sientes que tu cuenta ha sido comprometida, también deberías actualizar tu contraseña.
             </div>
 
-            <!-- Other Browser Sessions -->
+            <!-- Otras Sesiones del Navegador -->
             <div v-if="sessions.length > 0" class="mt-5 space-y-6">
                 <div v-for="(session, i) in sessions" :key="i" class="flex items-center">
                     <div>
@@ -71,16 +75,16 @@ const closeModal = () => {
                     </div>
 
                     <div class="ms-3">
-                        <div class="text-sm text-gray-600 dark:text-gray-400">
-                            {{ session.agent.platform ? session.agent.platform : 'Unknown' }} - {{ session.agent.browser ? session.agent.browser : 'Unknown' }}
+                        <div class="text-sm text-black">
+                            {{ session.agent.platform ? session.agent.platform : 'Desconocido' }} - {{ session.agent.browser ? session.agent.browser : 'Desconocido' }}
                         </div>
 
                         <div>
-                            <div class="text-xs text-gray-500">
+                            <div class="text-xs text-black">
                                 {{ session.ip_address }},
 
-                                <span v-if="session.is_current_device" class="text-green-500 font-semibold">This device</span>
-                                <span v-else>Last active {{ session.last_active }}</span>
+                                <span v-if="session.is_current_device" class="text-green-500 font-semibold">Este dispositivo</span>
+                                <span v-else>Última actividad {{ session.last_active }}</span>
                             </div>
                         </div>
                     </div>
@@ -88,51 +92,55 @@ const closeModal = () => {
             </div>
 
             <div class="flex items-center mt-5">
-                <PrimaryButton @click="confirmLogout">
-                    Log Out Other Browser Sessions
+                <PrimaryButton @click="confirmLogout" class="text-black">
+                    Cerrar Sesión en Otros Navegadores
                 </PrimaryButton>
 
-                <ActionMessage :on="form.recentlySuccessful" class="ms-3">
-                    Done.
+                <ActionMessage :on="form.recentlySuccessful" class="ms-3 text-black">
+                    Hecho.
                 </ActionMessage>
             </div>
 
-            <!-- Log Out Other Devices Confirmation Modal -->
+            <!-- Modal de Confirmación para Cerrar Sesión en Otros Dispositivos -->
             <DialogModal :show="confirmingLogout" @close="closeModal">
                 <template #title>
-                    Log Out Other Browser Sessions
+                    <h2 class="text-black font-semibold text-xl leading-tight">
+                        Cerrar Sesión en Otros Navegadores
+                    </h2>
                 </template>
 
                 <template #content>
-                    Please enter your password to confirm you would like to log out of your other browser sessions across all of your devices.
+                    <p class="text-black">
+                        Por favor, introduce tu contraseña para confirmar que deseas cerrar sesión en tus otras sesiones de navegador en todos tus dispositivos.
+                    </p>
 
                     <div class="mt-4">
                         <TextInput
                             ref="passwordInput"
                             v-model="form.password"
                             type="password"
-                            class="mt-1 block w-3/4"
-                            placeholder="Password"
+                            class="mt-1 block w-3/4 text-black"
+                            placeholder="Contraseña"
                             autocomplete="current-password"
                             @keyup.enter="logoutOtherBrowserSessions"
                         />
 
-                        <InputError :message="form.errors.password" class="mt-2" />
+                        <InputError :message="form.errors.password" class="mt-2 text-black" />
                     </div>
                 </template>
 
                 <template #footer>
-                    <SecondaryButton @click="closeModal">
-                        Cancel
+                    <SecondaryButton @click="closeModal" class="text-black">
+                        Cancelar
                     </SecondaryButton>
 
                     <PrimaryButton
-                        class="ms-3"
+                        class="ms-3 text-black"
                         :class="{ 'opacity-25': form.processing }"
                         :disabled="form.processing"
                         @click="logoutOtherBrowserSessions"
                     >
-                        Log Out Other Browser Sessions
+                        Cerrar Sesión en Otros Navegadores
                     </PrimaryButton>
                 </template>
             </DialogModal>
