@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use App\Models\User;
 
 class RolesAndPermissionsSeeder extends Seeder
 {
@@ -35,5 +36,15 @@ class RolesAndPermissionsSeeder extends Seeder
         $userRole->syncPermissions(['view usuarios']);
 
         $this->command->info('Roles y permisos creados exitosamente.');
+
+         // Crear un usuario con el rol de administrador
+         $user = User::factory()->create([
+            'name' => 'Test Admin User',
+            'email' => 'admin@example.com',
+            'password' => bcrypt('adminpassword'), // Contraseña para el usuario
+        ]);
+
+        // Asignar el rol de admin al usuario
+        $user->assignRole($adminRole);
     }
 }
