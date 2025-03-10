@@ -33,6 +33,7 @@
         <div v-if="citasFiltradas.length > 0" class="overflow-x-auto bg-white rounded-lg shadow-md">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
+
                     <tr>
                         <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Folio</th>
                         <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Fecha llamada</th>
@@ -53,12 +54,7 @@
                         <td class="px-4 py-3 text-sm text-gray-700">{{ formatearTipoServicio(cita.tipo_servicio) }}</td>
                         <td class="px-4 py-3 text-sm text-gray-700">{{ formatearFechaHora(cita.fecha_hora) }}</td>
                         <td class="px-4 py-3 text-sm">
-                            <select :value="cita.estado" @change="cambiarEstado(cita.id, $event.target.value)" :class="estadoClase(cita.estado)" class="border rounded py-2">
-                                <option value="pendiente">Pendiente</option>
-                                <option value="en_proceso">En Proceso</option>
-                                <option value="completado">Completado</option>
-                                <option value="cancelado">Cancelado</option>
-                            </select>
+                            <span :class="estadoClase(cita.estado)">{{ formatearEstado(cita.estado) }}</span>
                         </td>
                         <td class="px-4 py-3 flex space-x-2">
                             <button @click="abrirModalDetalles(cita)" class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 transition duration-300">
@@ -109,8 +105,11 @@ import CitaModal from '@/Components/CitaModal.vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
 
+
 // Define el layout del dashboard
 defineOptions({ layout: AppLayout });
+
+
 
 const { citas } = defineProps({ citas: Array });
 
@@ -188,39 +187,6 @@ const eliminarCita = async () => {
     }
 };
 
-const cambiarEstado = async (id, nuevoEstado) => {
-    try {
-        console.log(`Enviando solicitud para cambiar el estado de la cita ${id} a ${nuevoEstado}`);
-
-        // Encuentra la cita que se va a actualizar
-        const cita = citas.find(c => c.id === id);
-
-        if (cita) {
-            // Envía todos los datos de la cita, incluyendo el nuevo estado
-            await router.put(route('citas.update', id), {
-                ...cita,
-                estado: nuevoEstado
-            }, {
-                onSuccess: () => {
-                    notyf.success('El estado de la cita ha sido actualizado exitosamente.');
-                    // Actualizar el estado en el frontend
-                    cita.estado = nuevoEstado;
-                },
-                onError: (error) => {
-                    console.error('Error al actualizar el estado de la cita:', error);
-                    notyf.error('Hubo un error al actualizar el estado de la cita.');
-                },
-            });
-        } else {
-            console.error('Cita no encontrada');
-            notyf.error('La cita no fue encontrada.');
-        }
-    } catch (error) {
-        console.error('Error inesperado:', error);
-        notyf.error('Ocurrió un error inesperado.');
-    }
-};
-
 const formatearTipoServicio = (tipo) => {
     const tipos = {
         instalacion: 'Instalación',
@@ -237,6 +203,16 @@ const formatearFechaHora = (fechaHora) => {
     return fecha.toLocaleString();
 };
 
+const formatearEstado = (estado) => {
+    const estados = {
+        pendiente: 'Pendiente',
+        en_proceso: 'En Proceso',
+        completado: 'Completado',
+        cancelado: 'Cancelado'
+    };
+    return estados[estado] || 'Desconocido';
+};
+
 const estadoClase = (estado) => {
     const clases = {
         pendiente: 'text-yellow-500',
@@ -247,21 +223,3 @@ const estadoClase = (estado) => {
     return clases[estado] || 'text-gray-500';
 };
 </script>
-
-<style>
-.text-yellow-500 {
-    color: #f39c12; /* Color para "Pendiente" */
-}
-
-.text-blue-500 {
-    color: #3490dc; /* Color para "En Proceso" */
-}
-
-.text-green-500 {
-    color: #38c172; /* Color para "Completado" */
-}
-
-.text-red-500 {
-    color: #e3342f; /* Color para "Cancelado" */
-}
-</style>
