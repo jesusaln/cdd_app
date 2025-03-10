@@ -39,9 +39,9 @@ class RolesAndPermissionsSeeder extends Seeder
 
         // Crear un usuario con el rol de administrador
         $user = User::create([
-            'name' => 'Test Admin User',  // Nombre del usuario
-            'email' => 'admin@example.com',  // Correo del usuario
-            'password' => bcrypt('adminpassword'), // Contraseña para el usuario
+            'name' => 'Jesus Lopez',  // Nombre del usuario
+            'email' => 'jesuslopeznoriega@hotmail.com',  // Correo del usuario
+            'password' => bcrypt('Zl01kpContpaqi1.'), // Contraseña para el usuario
         ]);
 
         // Asignar el rol de admin al usuario
