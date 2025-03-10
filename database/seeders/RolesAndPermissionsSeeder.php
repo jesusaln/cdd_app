@@ -37,10 +37,10 @@ class RolesAndPermissionsSeeder extends Seeder
 
         $this->command->info('Roles y permisos creados exitosamente.');
 
-         // Crear un usuario con el rol de administrador
-         $user = User::factory()->create([
-            'name' => 'Test Admin User',
-            'email' => 'admin@example.com',
+        // Crear un usuario con el rol de administrador
+        $user = User::create([
+            'name' => 'Test Admin User',  // Nombre del usuario
+            'email' => 'admin@example.com',  // Correo del usuario
             'password' => bcrypt('adminpassword'), // Contraseña para el usuario
         ]);
 
