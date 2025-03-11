@@ -68,7 +68,6 @@ import { Notyf } from 'notyf';
 import 'notyf/notyf.min.css';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
-
 // Define el layout del dashboard
 defineOptions({ layout: AppLayout });
 
@@ -106,21 +105,23 @@ const eliminarCategoriaConfirmado = async () => {
 
     try {
         await router.delete(route('categorias.destroy', categoriaAEliminar.value.id), {
+            preserveState: true,
             onSuccess: () => {
                 notyf.success('La categoría ha sido eliminada exitosamente.');
-                // Filtrar la categoría eliminada de la lista
-                categorias.value = categorias.value.filter(c => c.id !== categoriaAEliminar.value.id);
+                cancelarEliminacion();
             },
-            onError: (error) => {
-                console.error('Error al eliminar la categoría:', error);
-                notyf.error('Hubo un error al eliminar la categoría.');
+            onError: (errors) => {
+                console.log('Errores:', errors); // Debug en la consola
+                if (errors.error) {
+                    notyf.error(errors.error);
+                } else {
+                    notyf.error('Hubo un error al eliminar la categoría.');
+                }
             },
         });
     } catch (error) {
         console.error('Error inesperado:', error);
         notyf.error('Ocurrió un error inesperado.');
-    } finally {
-        isConfirmOpen.value = false;
     }
 };
 </script>

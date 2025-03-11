@@ -71,10 +71,25 @@ class MarcaController extends Controller
     /**
      * Elimina una marca de la base de datos.
      */
-    public function destroy(Marca $marca)
+    public function destroy($id)
     {
-        $marca->delete();
+        try {
+            // Buscar la marca por ID
+            $marca = Marca::findOrFail($id);
 
-        return redirect()->route('marcas.index')->with('success', 'Marca eliminada correctamente.');
+            // Verificar si tiene productos relacionados antes de eliminarla
+            if ($marca->productos()->exists()) {
+                return back()->withErrors(['error' => 'No se puede eliminar la marca porque tiene productos asociados.']);
+            }
+
+            // Eliminar la marca
+            $marca->delete();
+
+            // Retornar mensaje de éxito
+            return back()->with('success', 'La marca ha sido eliminada exitosamente.');
+        } catch (\Exception $e) {
+            // Capturar y manejar cualquier error inesperado
+            return back()->withErrors(['error' => 'Hubo un error al intentar eliminar la marca.']);
+        }
     }
 }

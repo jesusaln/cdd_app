@@ -102,6 +102,7 @@ const cerrarModal = () => {
 };
 
 // Función para eliminar la marca
+// Función para eliminar la marca
 const eliminarMarca = async () => {
     try {
         await router.delete(route('marcas.destroy', idMarcaAEliminar.value), {
@@ -111,7 +112,13 @@ const eliminarMarca = async () => {
             },
             onError: (error) => {
                 console.error('Error al eliminar la marca:', error);
-                notyf.error('Hubo un error al eliminar la marca.');
+
+                // Verificar si el error tiene un mensaje específico
+                if (error.error && error.error === 'No se puede eliminar la marca porque tiene productos asociados.') {
+                    notyf.error(error.error); // Mostrar el mensaje específico
+                } else {
+                    notyf.error('Hubo un error al eliminar la marca.');
+                }
                 cerrarModal(); // Cierra el modal en caso de error
             },
         });
@@ -121,4 +128,5 @@ const eliminarMarca = async () => {
         cerrarModal();
     }
 };
+
 </script>

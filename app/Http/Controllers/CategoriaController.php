@@ -71,9 +71,21 @@ class CategoriaController extends Controller
     /**
      * Elimina una categoría de la base de datos.
      */
-    public function destroy(Categoria $categoria)
+    public function destroy($id)
     {
-        $categoria->delete();
-        return redirect()->route('categorias.index')->with('success', 'Categoría eliminada correctamente.');
+        try {
+            $categoria = Categoria::findOrFail($id);
+
+            // Verificar si tiene productos relacionados antes de eliminar
+            if ($categoria->productos()->exists()) {
+                return back()->withErrors(['error' => 'No se puede eliminar la categoría porque tiene productos asociados.']);
+            }
+
+            $categoria->delete();
+
+            return back()->with('success', 'La categoría ha sido eliminada exitosamente.');
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Hubo un error al intentar eliminar la categoría.']);
+        }
     }
 }
