@@ -9,12 +9,20 @@ class NotificationController extends Controller
 {
     public function index()
     {
-        return Notification::where('read', false)->latest()->get();
+        $notifications = Notification::where('read', false)->latest()->get();
+
+        return response()->json($notifications);
     }
 
     public function markAsRead(Request $request)
     {
-        Notification::whereIn('id', $request->input('ids'))->update(['read' => true]);
-        return response()->json(['success' => true]);
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer|exists:notifications,id',
+        ]);
+
+        Notification::whereIn('id', $request->ids)->update(['read' => true]);
+
+        return response()->json(['message' => 'Notificaciones marcadas como leídas']);
     }
 }

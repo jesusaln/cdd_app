@@ -8,13 +8,23 @@ use Illuminate\Support\Facades\Auth;
 
 class RoleMiddleware
 {
-    public function handle(Request $request, Closure $next, $role)
+    public function handle(Request $request, Closure $next, ...$roles)
     {
-        // Verifica si el usuario tiene el rol requerido
-        if (!Auth::check() || !Auth::user()->hasRole($role)) {
-            abort(403, 'No tienes permiso para acceder a esta página.');
+        // Verifica si el usuario está autenticado
+        if (!Auth::check()) {
+            return redirect()->route('login'); // Redirige al login si no está autenticado
         }
 
-        return $next($request);
+        // Verifica si el usuario tiene alguno de los roles permitidos
+        $user = Auth::user();
+        foreach ($roles as $role) {
+            if ($user->hasRole($role)) {
+                return $next($request); // Permite el acceso si coincide algún rol
+            }
+        }
+
+        // Si no tiene ningún rol permitido, aborta o redirige
+        abort(403, 'No tienes permiso para acceder a esta página.');
+        // Alternativa: return redirect()->route('home')->with('error', 'Acceso denegado.');
     }
 }

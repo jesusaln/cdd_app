@@ -8,18 +8,14 @@ use Inertia\Middleware;
 class HandleInertiaRequests extends Middleware
 {
     /**
-     * La raíz del template que se carga en la primera carga de página.
-     *
-     * @see https://inertiajs.com/server-side-setup#root-template
+     * The root template that's loaded on the first page visit.
      *
      * @var string
      */
     protected $rootView = 'app';
 
     /**
-     * Determina la versión actual de los activos.
-     *
-     * @see https://inertiajs.com/asset-versioning
+     * Determines the current asset version.
      */
     public function version(Request $request): ?string
     {
@@ -27,9 +23,7 @@ class HandleInertiaRequests extends Middleware
     }
 
     /**
-     * Define las propiedades que se comparten por defecto con todas las vistas de Inertia.
-     *
-     * @see https://inertiajs.com/shared-data
+     * Define the props that are shared by default.
      *
      * @return array<string, mixed>
      */
@@ -39,11 +33,20 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user() ? [
                     'id' => $request->user()->id,
-                    'nombre' => $request->user()->name, // Asegúrate de incluir el nombre
-                    // Agrega otras propiedades del usuario según sea necesario
-                    // Agrega el rol del usuario (ajusta según tu implementación)
-                    'rol' => $request->user()->rol ?? $request->user()->roles->pluck('name')->first() ?? 'Usuario',
+                    'name' => $request->user()->name,
+                    'email' => $request->user()->email,
+                    'role' => $request->user()->getRoleNames()->first(),
+                    'profile_photo_url' => $request->user()->profile_photo_url, // Asegúrate de que este campo exista en tu modelo de usuario
                 ] : null,
+
+            ],
+            'jetstream' => [
+                'canUpdateProfileInformation' => true,
+                'canUpdatePassword' => true,
+                'canManageTwoFactorAuthentication' => true,
+                'hasAccountDeletionFeatures' => true,
+                'managesProfilePhotos' => true,
+                'hasEmailVerification' => true,
             ],
         ]);
     }

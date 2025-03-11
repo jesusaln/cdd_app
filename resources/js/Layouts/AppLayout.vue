@@ -1,17 +1,16 @@
 <template>
     <div class="flex flex-col h-screen bg-gray-100">
-        <!-- Barra de navegación -->
+        <!-- Navbar -->
         <nav class="bg-gray-900 shadow-md p-3 flex justify-between items-center">
-            <div class="flex items-center space-x-4">
+            <div class="flex items-center">
                 <!-- Botón del logo -->
                 <Link href="/panel" class="flex items-center">
                     <img src="/images/logo.png" alt="Logo" class="h-12 w-auto mr-3 cursor-pointer" />
                 </Link>
 
-
                 <!-- Botón para el Sidebar (Hamburguesa) -->
                 <button
-                    @click="alternarSidebar"
+                    @click="toggleSidebar"
                     class="p-2 text-gray-300 hover:bg-gray-700 rounded-full transition duration-200 focus:outline-none"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -19,20 +18,18 @@
                     </svg>
                 </button>
             </div>
-<!-- Nombre del usuario -->
-                <span v-if="usuario" class="text-gray-200 text-lg ">
-                    Bienvenido: {{ usuario.nombre }} ( {{ usuario.rol }}. )
-                </span>
 
-
-
+            <!-- Nombre y rol del usuario -->
+            <span v-if="usuario" class="text-gray-200 text-lg">
+                Bienvenido: {{ usuario.name }} ({{ usuario.role }})
+            </span>
 
             <!-- Menú de usuario y notificaciones -->
             <div class="flex items-center space-x-6">
                 <!-- Componente de notificaciones -->
                 <div class="relative">
                     <button
-                        @click="alternarNotificaciones"
+                        @click="toggleNotifications"
                         class="relative p-2 hover:bg-gray-700 rounded-full transition duration-200 focus:outline-none"
                     >
                         <svg
@@ -49,32 +46,32 @@
                                 d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
                             ></path>
                         </svg>
-                        <!-- Insignia de notificaciones no leídas -->
+                        <!-- Badge de notificaciones no leídas -->
                         <span
-                            v-if="conteoNoLeidas > 0"
+                            v-if="unreadCount > 0"
                             class="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full px-1 transform translate-x-1/2 -translate-y-1/2"
                         >
-                            {{ conteoNoLeidas }}
+                            {{ unreadCount }}
                         </span>
                     </button>
 
-                    <!-- Menú desplegable de notificaciones -->
+                    <!-- Dropdown de notificaciones -->
                     <div
-                        v-if="mostrarNotificaciones"
+                        v-if="showNotifications"
                         class="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50"
                     >
-                        <ul class="desplegable-notificaciones">
+                        <ul class="notifications-dropdown">
                             <li
-                                v-for="notificacion in notificaciones"
-                                :key="notificacion.id"
+                                v-for="notification in notifications"
+                                :key="notification.id"
                                 class="p-3 border-b border-gray-200 hover:bg-gray-100"
                             >
-                                <div class="text-sm">{{ notificacion.data.nombre_cliente }} Cliente nuevo creado.</div>
+                                <div class="text-sm">{{ notification.data.client_name }} Cliente nuevo creado.</div>
                                 <button
-                                    @click="marcarComoLeida(notificacion.id)"
+                                    @click="markAsRead(notification.id)"
                                     class="text-xs text-blue-500 hover:text-blue-700"
                                 >
-                                    Marcar como leída
+                                    Marcar como leído
                                 </button>
                             </li>
                         </ul>
@@ -84,10 +81,11 @@
                 <!-- Foto de perfil y menú desplegable -->
                 <div class="relative">
                     <button
-                        @click="alternarDesplegable"
+                        @click="toggleDropdown"
                         class="flex items-center focus:outline-none"
                     >
                         <img
+                            :src="usuario.profile_photo_url"
                             alt="Foto de perfil"
                             class="h-8 w-8 rounded-full"
                         />
@@ -109,12 +107,12 @@
 
                     <!-- Menú desplegable -->
                     <div
-                        v-if="estaDesplegableAbierto"
+                        v-if="isDropdownOpen"
                         class="absolute right-0 mt-2 w-48 bg-gray-700 rounded-lg shadow-lg z-50 transition-all duration-200 ease-in-out"
                     >
                         <a :href="route('profile.show')" class="block px-4 py-2 text-gray-300 hover:bg-gray-600">Perfil</a>
                         <a href="#" class="block px-4 py-2 text-gray-300 hover:bg-gray-600">Configuración</a>
-                        <form @submit.prevent="cerrarSesion" class="block w-full">
+                        <form @submit.prevent="logout" class="block w-full">
                             <button type="submit" class="w-full text-left px-4 py-2 text-gray-300 hover:bg-gray-600">
                                 Cerrar sesión
                             </button>
@@ -126,12 +124,12 @@
 
         <!-- Contenido principal -->
         <div class="flex flex-1 relative">
-            <!-- Barra lateral -->
-            <Sidebar :estaSidebarColapsada="estaSidebarColapsada" @alternarSidebar="alternarSidebar" />
+            <!-- Sidebar -->
+            <Sidebar :isSidebarCollapsed="isSidebarCollapsed" @toggleSidebar="toggleSidebar" />
 
             <!-- Área de contenido -->
             <main
-                :class="{'ml-64': !estaSidebarColapsada, 'ml-20': estaSidebarColapsada}"
+                :class="{'ml-64': !isSidebarCollapsed, 'ml-20': isSidebarCollapsed}"
                 class="flex-1 p-6 overflow-y-auto bg-gray-50"
             >
                 <slot /> <!-- Contenido de la página -->
@@ -174,64 +172,73 @@ library.add(faCalendar, faTools, faCarAlt, faChartBar, faCartShopping, faCircle,
 const { props } = usePage();
 const usuario = ref(props.auth.user);
 
-const estaDesplegableAbierto = ref(false);
-const estaSidebarColapsada = ref(false);
+const isDropdownOpen = ref(false);
+const isSidebarCollapsed = ref(false);
 
-const alternarDesplegable = () => {
-    estaDesplegableAbierto.value = !estaDesplegableAbierto.value;
+const toggleDropdown = () => {
+    isDropdownOpen.value = !isDropdownOpen.value;
 };
 
-const alternarSidebar = () => {
-    estaSidebarColapsada.value = !estaSidebarColapsada.value;
+const toggleSidebar = () => {
+    isSidebarCollapsed.value = !isSidebarCollapsed.value;
 };
 
-const cerrarSesion = () => {
+const logout = () => {
     router.post(route('logout'));
 };
 
-const notificaciones = ref([]);
-const mostrarNotificaciones = ref(false);
-const conteoNoLeidas = ref(0);
+const notifications = ref([]);
+const showNotifications = ref(false);
+const unreadCount = ref(0);
 
-const obtenerNotificaciones = async () => {
-    const respuesta = await axios.get('/notifications');
-    notificaciones.value = respuesta.data;
-    conteoNoLeidas.value = notificaciones.value.filter(n => !n.read_at).length;
-};
-
-const alternarNotificaciones = () => {
-    mostrarNotificaciones.value = !mostrarNotificaciones.value;
-    if (mostrarNotificaciones.value) {
-        obtenerNotificaciones();
+const fetchNotifications = async () => {
+    try {
+        const response = await axios.get('/notifications');
+        notifications.value = response.data;
+        unreadCount.value = notifications.value.filter(n => !n.read_at).length;
+    } catch (error) {
+        console.error('Error al obtener las notificaciones:', error);
     }
 };
 
-const marcarComoLeida = async (id) => {
-    await axios.post('/notifications/mark-as-read', { ids: [id] });
-    obtenerNotificaciones();
+const toggleNotifications = () => {
+    showNotifications.value = !showNotifications.value;
+    if (showNotifications.value) {
+        fetchNotifications();
+    }
 };
 
-onMounted(obtenerNotificaciones);
+const markAsRead = async (id) => {
+    console.log('Marcando como leído:', id); // Depuración
+    try {
+        await axios.post('/notifications/mark-as-read', { ids: [id] });
+        fetchNotifications();
+    } catch (error) {
+        console.error('Error al marcar como leído:', error);
+    }
+};
+
+onMounted(fetchNotifications);
 </script>
 
 <style scoped>
-.desplegable-notificaciones {
+.notifications-dropdown {
     max-height: 300px;
     overflow-y: auto;
 }
 
-.desplegable-notificaciones ul {
+.notifications-dropdown ul {
     list-style: none;
     padding: 0;
     margin: 0;
 }
 
-.desplegable-notificaciones li {
+.notifications-dropdown li {
     padding: 10px;
     border-bottom: 1px solid #e5e7eb;
 }
 
-.desplegable-notificaciones li:last-child {
+.notifications-dropdown li:last-child {
     border-bottom: none;
 }
 </style>

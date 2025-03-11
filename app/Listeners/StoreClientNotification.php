@@ -15,7 +15,7 @@ class StoreClientNotification
                 'type' => 'new_client',
                 'data' => [
                     'client_name' => $event->cliente->nombre_razon_social,
-                    'client_id' => $event->cliente->id, // Asegúrate de incluir el ID del cliente
+                    'client_id' => $event->cliente->id,
                 ],
                 'read' => false,
             ]);

@@ -27,6 +27,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',
     ];
 
     /**
@@ -83,4 +84,8 @@ class User extends Authenticatable
             ? Storage::url($this->profile_photo_path)
             : asset('images/default-profile.png'); // Foto por defecto si no tiene una foto
     }
+
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+    ];
 }
