@@ -14,6 +14,10 @@ return new class extends Migration
         Schema::create('clientes', function (Blueprint $table) {
             $table->id();
             $table->string('nombre_razon_social'); // Nombre o razón social
+            $table->string('tipo_persona'); // Tipo de persona (Física o Moral)
+            $table->string('tipo_identificacion')->nullable(); // Tipo de identificación (INE, Pasaporte, etc.)
+            $table->string('identificacion')->nullable(); // Número de identificación
+            $table->string('curp')->nullable(); // CURP (opcional)
             $table->string('rfc', 13); // RFC (13 caracteres)
             $table->string('regimen_fiscal'); // Clave del régimen fiscal
             $table->string('uso_cfdi'); // Clave de uso del CFDI
