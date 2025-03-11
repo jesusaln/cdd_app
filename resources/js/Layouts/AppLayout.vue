@@ -21,7 +21,7 @@
 
             <!-- Nombre y rol del usuario -->
             <span v-if="usuario" class="text-gray-200 text-lg">
-                Bienvenido: {{ usuario.name }} ({{ usuario.role }})
+                Bienvenido: {{ usuario.name }}
             </span>
 
             <!-- Menú de usuario y notificaciones -->

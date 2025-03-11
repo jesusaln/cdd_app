@@ -18,6 +18,7 @@ class Kernel extends HttpKernel
         \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
         \Illuminate\Foundation\Http\Middleware\TrimStrings::class,
         \Illuminate\Http\Middleware\HandlePrecognitiveRequests::class,
+        \App\Http\Middleware\HandleInertiaRequests::class, // Necesario para Inertia
     ];
 
     /**
