@@ -1,9 +1,9 @@
 <template>
-    <Head title="Editar Productos" />
+    <Head title="Editar Producto" />
     <div>
         <h1 class="text-2xl font-semibold mb-4">Editar Producto</h1>
         <!-- Formulario de edición de producto -->
-        <form @submit.prevent="submit">
+        <form @submit.prevent="submit" class="grid grid-cols-2 gap-4">
             <div class="space-y-4">
                 <!-- Nombre -->
                 <div>
@@ -74,11 +74,14 @@
                 <div>
                     <label for="almacen_id" class="block text-sm font-medium text-gray-700">Almacén</label>
                     <select v-model="form.almacen_id" id="almacen_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-                        <option value="">Selecciona un almacen</option>
+                        <option value="">Selecciona un almacén</option>
                         <option v-for="almacen in almacenes" :key="almacen.id" :value="almacen.id">{{ almacen.nombre }}</option>
                     </select>
                     <div v-if="form.errors.almacen_id" class="text-red-500">{{ form.errors.almacen_id }}</div>
                 </div>
+            </div>
+
+            <div class="space-y-4">
                 <!-- Stock -->
                 <div>
                     <label for="stock" class="block text-sm font-medium text-gray-700">Stock</label>
@@ -126,21 +129,21 @@
                     </select>
                     <div v-if="form.errors.estado" class="text-red-500">{{ form.errors.estado }}</div>
                 </div>
-
-                <!-- Botón de Envío -->
-                <div class="mt-6">
-                <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">
-                    Actualizar Cliente
-                </button>
             </div>
+
+            <!-- Botón de Envío -->
+            <div class="col-span-2 mt-6">
+                <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">
+                    Actualizar Producto
+                </button>
             </div>
         </form>
     </div>
 </template>
+
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
-
 
 // Define el layout del dashboard
 defineOptions({ layout: AppLayout });
@@ -162,7 +165,6 @@ const form = useForm({
     marca_id: props.producto?.marca_id || '',
     proveedor_id: props.producto?.proveedor_id || '',
     almacen_id: props.producto?.almacen_id || '',
-
     descripcion: props.producto?.descripcion || '',
     codigo: props.producto?.codigo || '',
     codigo_barras: props.producto?.codigo_barras || '',
@@ -171,7 +173,7 @@ const form = useForm({
     precio_compra: props.producto?.precio_compra || '',
     precio_venta: props.producto?.precio_venta || '',
     tipo_producto: props.producto?.tipo_producto || '',
-    //imagen: props.producto?.imagen || null, // Imagen es opcional y se envía como null si no hay imagen subida
+    // imagen: props.producto?.imagen || null, // Imagen es opcional y se envía como null si no hay imagen subida
     estado: props.producto?.estado || '',
 });
 
@@ -190,4 +192,30 @@ const submit = () => {
     });
 };
 
+// Manejar carga de imágenes
+const handleImageUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) form.imagen = file;
+};
 </script>
+
+<style>
+.input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+.btn {
+    background-color: blue;
+    color: white;
+    padding: 10px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+</style>

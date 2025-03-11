@@ -35,4 +35,10 @@ class Almacen extends Model
      * @var array
      */
     protected $casts = [];
+
+    // Definir la relación con el modelo Producto
+    public function productos()
+    {
+        return $this->hasMany(Producto::class);
+    }
 }

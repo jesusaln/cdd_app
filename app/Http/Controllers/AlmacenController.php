@@ -73,10 +73,21 @@ class AlmacenController extends Controller
     /**
      * Elimina un almacén de la base de datos.
      */
-    public function destroy(Almacen $almacen)
+    public function destroy($id)
     {
-        $almacen->delete();
+        try {
+            $almacen = Almacen::findOrFail($id);
 
-        return redirect()->route('almacenes.index')->with('success', 'Almacén eliminado correctamente.');
+            // Verificar si tiene productos relacionados antes de eliminar
+            if ($almacen->productos()->exists()) {
+                return back()->withErrors(['error' => 'No se puede eliminar el almacén porque tiene productos asociados.']);
+            }
+
+            $almacen->delete();
+
+            return back()->with('success', 'El almacén ha sido eliminado exitosamente.');
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Hubo un error al intentar eliminar el almacén.']);
+        }
     }
 }

@@ -71,6 +71,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
 
     // Almacenes
     Route::resource('almacenes', AlmacenController::class)->names('almacenes');
+    Route::delete('/almacenes/{id}', [AlmacenController::class, 'destroy'])->name('almacenes.destroy');
+
 
     // Cotizaciones
     Route::resource('cotizaciones', CotizacionController::class)->names('cotizaciones');

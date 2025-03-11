@@ -2,7 +2,7 @@
     <Head title="Crear Producto" />
     <div>
         <h1 class="text-2xl font-semibold mb-4">Crear Producto</h1>
-        <form @submit.prevent="submit">
+        <form @submit.prevent="submit" class="grid grid-cols-2 gap-4">
             <div class="space-y-4">
                 <!-- Nombre -->
                 <div>
@@ -85,7 +85,9 @@
                     </select>
                     <div v-if="form.errors.almacen_id" class="text-red-500">{{ form.errors.almacen_id }}</div>
                 </div>
+            </div>
 
+            <div class="space-y-4">
                 <!-- Stock -->
                 <div>
                     <label for="stock" class="block text-sm font-medium text-gray-700">Stock</label>
@@ -123,23 +125,22 @@
 
                 <!-- Unidad de Medida -->
                 <div>
-    <label for="unidad_medida" class="block text-sm font-medium text-gray-700">Unidad de Medida</label>
-    <select v-model="form.unidad_medida" id="unidad_medida" class="input" required>
-        <option disabled value="">Seleccione una unidad</option>
-        <option v-for="unidad in unidadesMedida" :key="unidad" :value="unidad">
-            {{ unidad }}
-        </option>
-    </select>
-    <div v-if="form.errors.unidad_medida" class="text-red-500">{{ form.errors.unidad_medida }}</div>
-</div>
-
+                    <label for="unidad_medida" class="block text-sm font-medium text-gray-700">Unidad de Medida</label>
+                    <select v-model="form.unidad_medida" id="unidad_medida" class="input" required>
+                        <option disabled value="">Seleccione una unidad</option>
+                        <option v-for="unidad in unidadesMedida" :key="unidad" :value="unidad">
+                            {{ unidad }}
+                        </option>
+                    </select>
+                    <div v-if="form.errors.unidad_medida" class="text-red-500">{{ form.errors.unidad_medida }}</div>
+                </div>
 
                 <!-- Fecha de Vencimiento -->
-                <div>
+                <!-- <div>
                     <label for="fecha_vencimiento" class="block text-sm font-medium text-gray-700">Fecha de Vencimiento</label>
                     <input v-model="form.fecha_vencimiento" type="date" id="fecha_vencimiento" class="input" />
                     <div v-if="form.errors.fecha_vencimiento" class="text-red-500">{{ form.errors.fecha_vencimiento }}</div>
-                </div>
+                </div> -->
 
                 <!-- Tipo de Producto -->
                 <div>
@@ -167,11 +168,11 @@
                     </select>
                     <div v-if="form.errors.estado" class="text-red-500">{{ form.errors.estado }}</div>
                 </div>
+            </div>
 
-                <!-- Botón de Envío -->
-                <div class="mt-6">
-                    <button type="submit" class="btn">Guardar Producto</button>
-                </div>
+            <!-- Botón de Envío -->
+            <div class="col-span-2 mt-6">
+                <button type="submit" class="btn">Guardar Producto</button>
             </div>
         </form>
     </div>
@@ -180,7 +181,6 @@
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
-
 
 // Define el layout del dashboard
 defineOptions({ layout: AppLayout });
@@ -256,5 +256,10 @@ const handleImageUpload = (event) => {
     padding: 10px;
     border-radius: 4px;
     cursor: pointer;
+}
+.grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
 }
 </style>

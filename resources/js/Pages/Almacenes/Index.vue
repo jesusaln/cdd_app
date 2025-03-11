@@ -71,12 +71,11 @@
 </template>
 
 <script setup>
-import { Head, Link, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { ref, watchEffect } from 'vue';
 import { Notyf } from 'notyf';
 import 'notyf/notyf.min.css';
 import AppLayout from '@/Layouts/AppLayout.vue';
-//import Dashboard from '@/Pages/Dashboard.vue'; // Importa el layout del dashboard
 
 // Define el layout del dashboard
 defineOptions({ layout: AppLayout });
@@ -85,6 +84,9 @@ defineOptions({ layout: AppLayout });
 defineProps({
     almacenes: Array,
 });
+
+// Obtiene los mensajes de la sesión de Inertia
+const page = usePage();
 
 // Configuración personalizada de Notyf
 const notyf = new Notyf({
@@ -112,20 +114,35 @@ const cerrarModal = () => {
     almacenAEliminar.value = null;
 };
 
+// Escuchar cambios en los mensajes de sesión y mostrar notificaciones
+watchEffect(() => {
+    if (page.props.flash?.success) {
+        notyf.success(page.props.flash.success);
+    }
+    if (page.props.flash?.error) {
+        notyf.error(page.props.flash.error);
+    }
+});
+
+
 // Función para eliminar el almacén
 const eliminarAlmacen = async () => {
     if (!almacenAEliminar.value) return;
 
     try {
         await router.delete(route('almacenes.destroy', almacenAEliminar.value), {
+            preserveState: true,
             onSuccess: () => {
                 notyf.success('El almacén ha sido eliminado exitosamente.');
-                // Cerrar el modal después de la eliminación
                 cerrarModal();
             },
-            onError: (error) => {
-                console.error('Error al eliminar el almacén:', error);
-                notyf.error('Hubo un error al eliminar el almacén.');
+            onError: (errors) => {
+                console.log('Errores:', errors); // Debug en la consola
+                if (errors.error) {
+                    notyf.error(errors.error);
+                } else {
+                    notyf.error('Hubo un error al eliminar el almacén.');
+                }
             },
         });
     } catch (error) {
@@ -133,6 +150,7 @@ const eliminarAlmacen = async () => {
         notyf.error('Ocurrió un error inesperado.');
     }
 };
+
 </script>
 
 
