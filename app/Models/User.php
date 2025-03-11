@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -12,18 +11,12 @@ use Laravel\Jetstream\HasTeams;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 use App\Notifications\ResetPassword as ResetPasswordNotification;
+use Illuminate\Support\Facades\Storage; // Asegúrate de agregar esta línea
 
 
 class User extends Authenticatable
 {
-    use HasApiTokens, Notifiable, HasRoles;
-
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory;
-    use HasProfilePhoto;
-    use HasTeams;
-    use Notifiable;
-    use TwoFactorAuthenticatable;
+    use HasApiTokens, Notifiable, HasRoles, HasFactory, HasProfilePhoto, HasTeams, TwoFactorAuthenticatable;
 
     /**
      * The attributes that are mass assignable.
@@ -79,5 +72,15 @@ class User extends Authenticatable
     public function sendPasswordResetNotification($token)
     {
         $this->notify(new ResetPasswordNotification($token));
+    }
+
+    /**
+     * Accessor para la propiedad 'profile_photo_url'.
+     */
+    public function getProfilePhotoUrlAttribute()
+    {
+        return $this->profile_photo_path
+            ? Storage::url($this->profile_photo_path)
+            : asset('images/default-profile.png'); // Foto por defecto si no tiene una foto
     }
 }

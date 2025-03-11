@@ -8,7 +8,7 @@ use Inertia\Middleware;
 class HandleInertiaRequests extends Middleware
 {
     /**
-     * The root template that's loaded on the first page visit.
+     * La raíz del template que se carga en la primera carga de página.
      *
      * @see https://inertiajs.com/server-side-setup#root-template
      *
@@ -17,7 +17,7 @@ class HandleInertiaRequests extends Middleware
     protected $rootView = 'app';
 
     /**
-     * Determines the current asset version.
+     * Determina la versión actual de los activos.
      *
      * @see https://inertiajs.com/asset-versioning
      */
@@ -27,7 +27,7 @@ class HandleInertiaRequests extends Middleware
     }
 
     /**
-     * Define the props that are shared by default.
+     * Define las propiedades que se comparten por defecto con todas las vistas de Inertia.
      *
      * @see https://inertiajs.com/shared-data
      *
@@ -36,7 +36,15 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         return array_merge(parent::share($request), [
-            //
+            'auth' => [
+                'user' => $request->user() ? [
+                    'id' => $request->user()->id,
+                    'nombre' => $request->user()->name, // Asegúrate de incluir el nombre
+                    // Agrega otras propiedades del usuario según sea necesario
+                    // Agrega el rol del usuario (ajusta según tu implementación)
+                    'rol' => $request->user()->rol ?? $request->user()->roles->pluck('name')->first() ?? 'Usuario',
+                ] : null,
+            ],
         ]);
     }
 }

@@ -21,6 +21,10 @@ use App\Http\Controllers\TecnicoController;
 use App\Http\Controllers\CarroController;
 use App\Http\Controllers\MantenimientoController;
 use App\Http\Controllers\CitaController;
+use App\Http\Controllers\PanelController;
+
+Route::get('/panel', [PanelController::class, 'index'])->name('panel');
+
 
 
 
