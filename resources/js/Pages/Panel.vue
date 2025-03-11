@@ -6,8 +6,8 @@
             <PanLink href="/clientes" class="group block bg-white p-6 rounded-2xl shadow-lg border border-gray-200 transition-all transform hover:scale-105 hover:shadow-xl text-center flex flex-col items-center justify-center h-full">
                 <div class="flex flex-col items-center justify-center space-y-2">
                     <FontAwesomeIcon :icon="['fas', 'users']" class="h-10 w-10 text-blue-600 group-hover:text-blue-700 transition-colors" />
-                    <h2 class="text-xl text-gray-900">Clientes</h2>
-                    <h2 class="text-xl text-gray-900">{{ clientesCount }}</h2>
+                    <h2 class="text-xl font-bold text-gray-900">Clientes {{ clientesCount }}</h2>
+
                 </div>
             </PanLink>
 

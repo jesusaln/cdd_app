@@ -25,6 +25,8 @@ class Cliente extends Model
         'municipio',
         'estado',
         'pais',
+        "tipo_persona",
+
     ];
 
     /**
