@@ -110,8 +110,8 @@
                         v-if="isDropdownOpen"
                         class="absolute right-0 mt-2 w-48 bg-gray-700 rounded-lg shadow-lg z-50 transition-all duration-200 ease-in-out"
                     >
-                        <a :href="route('profile.show')" class="block px-4 py-2 text-gray-300 hover:bg-gray-600">Perfil</a>
-                        <a href="#" class="block px-4 py-2 text-gray-300 hover:bg-gray-600">Configuración</a>
+                        <Link :href="route('profile.show')" class="block px-4 py-2 text-gray-300 hover:bg-gray-600">Perfil</Link>
+                        <Link :href="route('profile.config')" class="block px-4 py-2 text-gray-300 hover:bg-gray-600">Configuración</Link>
                         <form @submit.prevent="logout" class="block w-full">
                             <button type="submit" class="w-full text-left px-4 py-2 text-gray-300 hover:bg-gray-600">
                                 Cerrar sesión
@@ -140,7 +140,6 @@
 
 <script setup>
 import Sidebar from '@/Components/Sidebar.vue';
-import NavLink from '@/Components/NavLink.vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { library } from '@fortawesome/fontawesome-svg-core';
 import {

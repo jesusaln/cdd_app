@@ -1,12 +1,11 @@
 <template>
-
-<Head title="Crear clientes" />
+    <Head title="Crear clientes" />
     <div>
         <h1 class="text-2xl font-semibold mb-4">Crear Cliente</h1>
         <!-- Formulario de creación de clientes -->
-        <form @submit.prevent="submit">
-            <div v-if="form.errors.email" class="text-red-500">{{ form.errors.email }}</div>
-            <div class="space-y-4">
+        <form @submit.prevent="submit" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div v-if="form.errors.email" class="text-red-500 col-span-2">{{ form.errors.email }}</div>
+            <div class="space-y-4 col-span-2">
                 <!-- Nombre/Razón Social -->
                 <div>
                     <label for="nombre_razon_social" class="block text-sm font-medium text-gray-700">Nombre/Razón Social</label>
@@ -19,179 +18,196 @@
                     />
                     <p v-if="form.errors.nombre_razon_social" class="text-red-500 text-sm">{{ form.errors.nombre_razon_social }}</p>
                 </div>
-
-                <!-- RFC -->
-                <div>
-                    <label for="rfc" class="block text-sm font-medium text-gray-700">RFC</label>
-                    <input
-                        v-model="form.rfc"
-                        type="text"
-                        id="rfc"
-                        maxlength="13"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                        @blur="validarRFC"
-                        required
-                    />
-                    <p v-if="form.errors.rfc" class="text-red-500 text-sm">{{ form.errors.rfc }}</p>
-                </div>
-
-               <!-- Régimen Fiscal -->
-               <div>
-                    <label for="regimen_fiscal" class="block text-sm font-medium text-gray-700">Régimen Fiscal</label>
-                    <select
-                        v-model="form.regimen_fiscal"
-                        id="regimen_fiscal"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                        required
-                    >
-                        <option value="" disabled>Selecciona un régimen fiscal</option>
-                        <option v-for="regimen in regimenesFiscales" :key="regimen" :value="regimen">{{ regimen }}</option>
-                    </select>
-                </div>
-
-                <!-- Uso CFDI -->
-                <div>
-                    <label for="uso_cfdi" class="block text-sm font-medium text-gray-700">Uso CFDI</label>
-                    <select
-                        v-model="form.uso_cfdi"
-                        id="uso_cfdi"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                        required
-                    >
-                        <option value="" disabled>Selecciona un uso CFDI</option>
-                        <option v-for="uso in usosCFDI" :key="uso" :value="uso">{{ uso }}</option>
-                    </select>
-                    <p v-if="form.errors.uso_cfdi" class="text-red-500 text-sm">{{ form.errors.uso_cfdi }}</p>
-                </div>
-
-                <!-- Email -->
-                <div>
-                    <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
-                    <input
-                        v-model="form.email"
-                        type="email"
-                        id="email"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                        required
-                    />
-                    <p v-if="form.errors.email" class="text-red-500 text-sm">{{ form.errors.email }}</p>
-                </div>
-
-                <!-- Teléfono -->
-                <div>
-                    <label for="telefono" class="block text-sm font-medium text-gray-700">Teléfono</label>
-                    <input
-                        v-model="form.telefono"
-                        type="text"
-                        id="telefono"
-                        maxlength="10"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                        @input="validarTelefono"
-                        required
-                    />
-                    <p v-if="form.errors.telefono" class="text-red-500 text-sm">{{ form.errors.telefono }}</p>
-                </div>
-
-                <!-- Calle -->
-                <div>
-                    <label for="calle" class="block text-sm font-medium text-gray-700">Calle</label>
-                    <input
-                        v-model="form.calle"
-                        type="text"
-                        id="calle"
-                        maxlength="40"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                        @blur="convertirAMayusculas('calle')"
-                        required
-                    />
-                    <p v-if="form.errors.calle" class="text-red-500 text-sm">{{ form.errors.calle }}</p>
-                </div>
-
-                <!-- Número Exterior -->
-                <div>
-                    <label for="numero_exterior" class="block text-sm font-medium text-gray-700">Número Exterior</label>
-                    <input
-                        v-model="form.numero_exterior"
-                        type="text"
-                        id="numero_exterior"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                        required
-                    />
-                </div>
-
-                <!-- Número Interior -->
-                <div>
-                    <label for="numero_interior" class="block text-sm font-medium text-gray-700">Número Interior</label>
-                    <input
-                        v-model="form.numero_interior"
-                        type="text"
-                        id="numero_interior"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                    />
-                </div>
-
-                <!-- Colonia -->
-                <div>
-                    <label for="colonia" class="block text-sm font-medium text-gray-700">Colonia</label>
-                    <input
-                        v-model="form.colonia"
-                        type="text"
-                        id="colonia"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                        @blur="convertirAMayusculas('colonia')"
-                        required
-                    />
-                </div>
-
-                <!-- Código Postal -->
-                <div>
-                    <label for="codigo_postal" class="block text-sm font-medium text-gray-700">Código Postal</label>
-                    <input
-                        v-model="form.codigo_postal"
-                        type="text"
-                        id="codigo_postal"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                        required
-                    />
-                </div>
-
-                <!-- Municipio -->
-                <div>
-                    <label for="municipio" class="block text-sm font-medium text-gray-700">Municipio</label>
-                    <input
-                        v-model="form.municipio"
-                        type="text"
-                        id="municipio"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                        readonly
-                    />
-                </div>
-
-                <!-- Estado -->
-                <div>
-                    <label for="estado" class="block text-sm font-medium text-gray-700">Estado</label>
-                    <input
-                        v-model="form.estado"
-                        type="text"
-                        id="estado"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                        readonly
-                    />
-                </div>
-
-                <!-- País -->
-                <div>
-                    <label for="pais" class="block text-sm font-medium text-gray-700">País</label>
-                    <input
-                        v-model="form.pais"
-                        type="text"
-                        id="pais"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                        readonly
-                    />
-                </div>
             </div>
-            <div class="mt-6">
+
+            <!-- Tipo de Persona -->
+            <div>
+                <label for="tipo_persona" class="block text-sm font-medium text-gray-700">Tipo de Persona</label>
+                <select
+                    v-model="form.tipo_persona"
+                    id="tipo_persona"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                    @change="validarRFC"
+                    required
+                >
+                    <option value="" disabled>Selecciona el tipo de persona</option>
+                    <option value="fisica">Persona Física</option>
+                    <option value="moral">Persona Moral</option>
+                </select>
+            </div>
+
+            <!-- RFC -->
+            <div>
+                <label for="rfc" class="block text-sm font-medium text-gray-700">RFC</label>
+                <input
+                    v-model="form.rfc"
+                    type="text"
+                    id="rfc"
+                    :maxlength="form.tipo_persona === 'fisica' ? 13 : 12"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                    @input="validarRFC"
+                    required
+                />
+                <p v-if="form.errors.rfc" class="text-red-500 text-sm">{{ form.errors.rfc }}</p>
+            </div>
+
+            <!-- Régimen Fiscal -->
+            <div>
+                <label for="regimen_fiscal" class="block text-sm font-medium text-gray-700">Régimen Fiscal</label>
+                <select
+                    v-model="form.regimen_fiscal"
+                    id="regimen_fiscal"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                    required
+                >
+                    <option value="" disabled>Selecciona un régimen fiscal</option>
+                    <option v-for="regimen in regimenesFiscales" :key="regimen" :value="regimen">{{ regimen }}</option>
+                </select>
+            </div>
+
+            <!-- Uso CFDI -->
+            <div>
+                <label for="uso_cfdi" class="block text-sm font-medium text-gray-700">Uso CFDI</label>
+                <select
+                    v-model="form.uso_cfdi"
+                    id="uso_cfdi"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                    required
+                >
+                    <option value="" disabled>Selecciona un uso CFDI</option>
+                    <option v-for="uso in usosCFDI" :key="uso" :value="uso">{{ uso }}</option>
+                </select>
+                <p v-if="form.errors.uso_cfdi" class="text-red-500 text-sm">{{ form.errors.uso_cfdi }}</p>
+            </div>
+
+            <!-- Email -->
+            <div>
+                <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+                <input
+                    v-model="form.email"
+                    type="email"
+                    id="email"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                    required
+                />
+                <p v-if="form.errors.email" class="text-red-500 text-sm">{{ form.errors.email }}</p>
+            </div>
+
+            <!-- Teléfono -->
+            <div>
+                <label for="telefono" class="block text-sm font-medium text-gray-700">Teléfono</label>
+                <input
+                    v-model="form.telefono"
+                    type="text"
+                    id="telefono"
+                    maxlength="10"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                    @input="validarTelefono"
+                    required
+                />
+                <p v-if="form.errors.telefono" class="text-red-500 text-sm">{{ form.errors.telefono }}</p>
+            </div>
+
+            <!-- Calle -->
+            <div>
+                <label for="calle" class="block text-sm font-medium text-gray-700">Calle</label>
+                <input
+                    v-model="form.calle"
+                    type="text"
+                    id="calle"
+                    maxlength="40"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                    @blur="convertirAMayusculas('calle')"
+                    required
+                />
+                <p v-if="form.errors.calle" class="text-red-500 text-sm">{{ form.errors.calle }}</p>
+            </div>
+
+            <!-- Número Exterior -->
+            <div>
+                <label for="numero_exterior" class="block text-sm font-medium text-gray-700">Número Exterior</label>
+                <input
+                    v-model="form.numero_exterior"
+                    type="text"
+                    id="numero_exterior"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                    required
+                />
+            </div>
+
+            <!-- Número Interior -->
+            <div>
+                <label for="numero_interior" class="block text-sm font-medium text-gray-700">Número Interior</label>
+                <input
+                    v-model="form.numero_interior"
+                    type="text"
+                    id="numero_interior"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                />
+            </div>
+
+            <!-- Colonia -->
+            <div>
+                <label for="colonia" class="block text-sm font-medium text-gray-700">Colonia</label>
+                <input
+                    v-model="form.colonia"
+                    type="text"
+                    id="colonia"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                    @blur="convertirAMayusculas('colonia')"
+                    required
+                />
+            </div>
+
+            <!-- Código Postal -->
+            <div>
+                <label for="codigo_postal" class="block text-sm font-medium text-gray-700">Código Postal</label>
+                <input
+                    v-model="form.codigo_postal"
+                    type="text"
+                    id="codigo_postal"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                    required
+                />
+            </div>
+
+            <!-- Municipio -->
+            <div>
+                <label for="municipio" class="block text-sm font-medium text-gray-700">Municipio</label>
+                <input
+                    v-model="form.municipio"
+                    type="text"
+                    id="municipio"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                    readonly
+                />
+            </div>
+
+            <!-- Estado -->
+            <div>
+                <label for="estado" class="block text-sm font-medium text-gray-700">Estado</label>
+                <input
+                    v-model="form.estado"
+                    type="text"
+                    id="estado"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                    readonly
+                />
+            </div>
+
+            <!-- País -->
+            <div>
+                <label for="pais" class="block text-sm font-medium text-gray-700">País</label>
+                <input
+                    v-model="form.pais"
+                    type="text"
+                    id="pais"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                    readonly
+                />
+            </div>
+
+            <div class="mt-6 col-span-2">
                 <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">
                     Guardar Cliente
                 </button>
@@ -199,10 +215,10 @@
         </form>
     </div>
 </template>
+
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
-
 
 // Define el layout del dashboard
 defineOptions({ layout: AppLayout });
@@ -223,6 +239,7 @@ const usosCFDI = [
 // Formulario para crear un cliente
 const form = useForm({
     nombre_razon_social: '',
+    tipo_persona: '',
     rfc: '',
     regimen_fiscal: '',
     uso_cfdi: '',
@@ -240,8 +257,6 @@ const form = useForm({
 
 // Función para enviar el formulario
 const submit = () => {
-
-
     form.post(route('clientes.store'), {
         onSuccess: () => {
             form.reset(); // Limpia el formulario después de guardar
@@ -258,29 +273,23 @@ const convertirAMayusculas = (campo) => {
 
 // Validación del RFC
 const validarRFC = () => {
-    const rfcRegex = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/; // Expresión regular para RFC
-    const minLength = 12; // Mínimo de 12 caracteres
-    const maxLength = 13; // Máximo de 13 caracteres
+    const rfcRegexFisica = /^[A-ZÑ&]{4}\d{6}[A-Z0-9]{3}$/; // Expresión regular para RFC de persona física
+    const rfcRegexMoral = /^[A-ZÑ&]{3}\d{6}[A-Z0-9]{3}$/; // Expresión regular para RFC de persona moral
 
     // Convertir el RFC a mayúsculas para validar
     const rfcValue = form.rfc.toUpperCase();
 
-    // Verificar longitud mínima
-    if (rfcValue.length < minLength) {
-        form.setError('rfc', 'El RFC debe tener al menos 12 caracteres.');
-        return;
-    }
-
-    // Verificar longitud máxima
-    if (rfcValue.length > maxLength) {
-        form.setError('rfc', 'El RFC no puede tener más de 13 caracteres.');
-        return;
-    }
-
-    // Verificar formato con expresión regular
-    if (!rfcRegex.test(rfcValue)) {
-        form.setError('rfc', 'El RFC no es válido.');
-        return;
+    // Verificar longitud y formato según el tipo de persona
+    if (form.tipo_persona === 'fisica') {
+        if (rfcValue.length !== 13 || !rfcRegexFisica.test(rfcValue)) {
+            form.setError('rfc', 'El RFC debe tener 13 caracteres y ser válido para una persona física.');
+            return;
+        }
+    } else if (form.tipo_persona === 'moral') {
+        if (rfcValue.length !== 12 || !rfcRegexMoral.test(rfcValue)) {
+            form.setError('rfc', 'El RFC debe tener 12 caracteres y ser válido para una persona moral.');
+            return;
+        }
     }
 
     // Si pasa todas las validaciones, limpiar el error

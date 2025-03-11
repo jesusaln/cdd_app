@@ -26,7 +26,9 @@ use App\Http\Controllers\PanelController;
 Route::get('/panel', [PanelController::class, 'index'])->name('panel');
 
 
-
+Route::get('/profile/config', function () {
+    return Inertia::render('Config');
+})->name('profile.config');
 
 
 Route::get('/', function () {
