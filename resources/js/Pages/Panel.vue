@@ -70,8 +70,8 @@ const props = defineProps({
 });
 
 // Imprimir las props en la consola
-console.log('clientesCount:', props.clientesCount);
-console.log('productosCount:', props.productosCount);
-console.log('proveedoresCount:', props.proveedoresCount);
-console.log('citasCount:', props.citasCount);
+// console.log('clientesCount:', props.clientesCount);
+// console.log('productosCount:', props.productosCount);
+// console.log('proveedoresCount:', props.proveedoresCount);
+// console.log('citasCount:', props.citasCount);
 </script>

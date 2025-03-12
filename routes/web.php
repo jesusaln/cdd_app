@@ -43,14 +43,8 @@ Route::get('/', function () {
 // Rutas protegidas por autenticación
 Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified'])->group(function () {
     // Ruta principal para el panel
-    Route::get('/panel', function () {
-        return Inertia::render('Panel', [
-            'clientesCount' => \App\Models\Cliente::count(),
-            'productosCount' => \App\Models\Producto::count(),
-            'proveedoresCount' => \App\Models\Proveedor::count(),
-            'citasCount' => \App\Models\Cita::count()
-        ]);
-    })->name('panel');
+    Route::get('/panel', [PanelController::class, 'index'])->name('panel');
+
 
     // Redirigir dashboard a panel
     Route::get('/dashboard', function () {
