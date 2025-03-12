@@ -1,9 +1,14 @@
 <?php
 // app/Http/Controllers/PanelController.php
+
 namespace App\Http\Controllers;
 
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Cliente; // Modelo Cliente
+use App\Models\Producto; // Modelo Producto
+use App\Models\Proveedor; // Modelo Proveedor
+use App\Models\Cita; // Modelo Cita
 
 class PanelController extends Controller
 {
@@ -11,15 +16,23 @@ class PanelController extends Controller
     {
         $user = Auth::user();
 
-        // Aquí pasamos los datos de 'user' y cualquier otra información que necesites
+        // Contadores de registros
+        $clientesCount = Cliente::count(); // Total de clientes
+        $productosCount = Producto::count(); // Total de productos
+        $proveedoresCount = Proveedor::count(); // Total de proveedores
+        $citasCount = Cita::count(); // Total de citas
+
+        // Pasar los datos al frontend
         return Inertia::render('Panel', [
             'user' => $user ? [
                 'id' => $user->id,
                 'nombre' => $user->name,
-                // Agrega el rol del usuario (ajusta según tu implementación)
                 'rol' => $user->rol ?? $user->roles->pluck('name')->first() ?? 'Usuario',
             ] : null,
-            // otros datos...
+            'clientesCount' => $clientesCount,
+            'productosCount' => $productosCount,
+            'proveedoresCount' => $proveedoresCount,
+            'citasCount' => $citasCount,
         ]);
     }
 }

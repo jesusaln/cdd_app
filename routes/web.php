@@ -23,7 +23,7 @@ use App\Http\Controllers\MantenimientoController;
 use App\Http\Controllers\CitaController;
 use App\Http\Controllers\PanelController;
 
-Route::get('/panel', [PanelController::class, 'index'])->name('panel');
+
 
 
 Route::get('/profile/config', function () {
@@ -45,7 +45,10 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // Ruta principal para el panel
     Route::get('/panel', function () {
         return Inertia::render('Panel', [
-            'clientesCount' => \App\Models\Cliente::count()
+            'clientesCount' => \App\Models\Cliente::count(),
+            'productosCount' => \App\Models\Producto::count(),
+            'proveedoresCount' => \App\Models\Proveedor::count(),
+            'citasCount' => \App\Models\Cita::count()
         ]);
     })->name('panel');
 
