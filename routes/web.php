@@ -22,13 +22,28 @@ use App\Http\Controllers\CarroController;
 use App\Http\Controllers\MantenimientoController;
 use App\Http\Controllers\CitaController;
 use App\Http\Controllers\PanelController;
+use App\Http\Controllers\EmpresasController;
+
+use App\Http\Controllers\InventarioController;
 
 
 
 
-Route::get('/profile/config', function () {
-    return Inertia::render('Config');
-})->name('profile.config');
+Route::get('/productos/{id}/inventario', [ProductoController::class, 'showInventario'])->name('productos.inventario');
+Route::resource('inventario', InventarioController::class);
+
+
+
+Route::get('/empresas', [EmpresasController::class, 'index'])->name('empresas.index');
+
+
+
+
+
+// Route::get('/empresa.index', function () {
+//     return Inertia::render('Index');
+// })->name('/empresa.index');
+
 
 
 Route::get('/', function () {

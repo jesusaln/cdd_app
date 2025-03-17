@@ -9,18 +9,15 @@ use App\Events\ClientCreated;
 
 class ClienteController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        // Obtiene todos los clientes y los pasa al frontend
-        $clientes = Cliente::all();
+        // Obtiene los clientes con paginación (10 por página por defecto)
+        $clientes = Cliente::paginate(10);
+        $clientesCount = Cliente::count();
 
         return Inertia::render('Clientes/Index', [
             'clientes' => $clientes,
-        ]);
-
-        $clientesCount = Cliente::count(); // Contar clientes
-        return Inertia::render('Clientes/Index', [
-            'clientesCount' => $clientesCount
+            'clientesCount' => $clientesCount,
         ]);
     }
 
@@ -35,10 +32,10 @@ class ClienteController extends Controller
         // Valida los datos del formulario
         $request->validate([
             'nombre_razon_social' => 'required|string|max:255',
-            'rfc' => 'nullable|string|max:20',
+            'rfc' => 'nullable|string|max:20|unique:clientes,rfc',
             'regimen_fiscal' => 'nullable|string|max:255',
             'uso_cfdi' => 'nullable|string|max:255',
-            'email' => 'nullable|email|max:255',
+            'email' => 'nullable|email|max:255|unique:clientes,email', // Agrega la regla unique
             'telefono' => 'nullable|string|max:20',
             'calle' => 'nullable|string|max:255',
             'numero_exterior' => 'nullable|string|max:20',
@@ -56,8 +53,6 @@ class ClienteController extends Controller
         // Crea un evento para notificar a las aplicaciones subscritas al evento
         event(new ClientCreated($cliente));
 
-        // Devuelve una respuesta JSON para Inertia.js
-        // return response()->json($cliente, 201);
         return redirect()->route('clientes.index')->with('success', 'Cliente creado correctamente.');
     }
 
@@ -72,7 +67,7 @@ class ClienteController extends Controller
     {
         $validated = $request->validate([
             'nombre_razon_social' => 'required|string|max:255',
-            'rfc' => 'nullable|string|max:20',
+            'rfc' => 'nullable|string|max:20|unique:clientes,rfc,' . $cliente->id, // Added unique rule for rfc, ignoring the current client
             'regimen_fiscal' => 'nullable|string|max:255',
             'uso_cfdi' => 'nullable|string|max:255',
             'email' => 'nullable|email|max:255|unique:clientes,email,' . $cliente->id,

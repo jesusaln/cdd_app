@@ -111,7 +111,7 @@
                         class="absolute right-0 mt-2 w-48 bg-gray-700 rounded-lg shadow-lg z-50 transition-all duration-200 ease-in-out"
                     >
                         <Link :href="route('profile.show')" class="block px-4 py-2 text-gray-300 hover:bg-gray-600">Perfil</Link>
-                        <Link :href="route('profile.config')" class="block px-4 py-2 text-gray-300 hover:bg-gray-600">Configuración</Link>
+                        <Link :href="route('empresas.index')" class="block px-4 py-2 text-gray-300 hover:bg-gray-600">Configuración</Link>
                         <form @submit.prevent="logout" class="block w-full">
                             <button type="submit" class="w-full text-left px-4 py-2 text-gray-300 hover:bg-gray-600">
                                 Cerrar sesión

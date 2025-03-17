@@ -69,4 +69,9 @@ class Producto extends Model
     {
         return $this->belongsToMany(Venta::class)->withPivot('cantidad', 'precio');
     }
+
+    public function inventarios()
+    {
+        return $this->hasMany(Inventario::class);
+    }
 }

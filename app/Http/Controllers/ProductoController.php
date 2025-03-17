@@ -153,15 +153,30 @@ class ProductoController extends Controller
         if (!$producto) {
             return response()->json(['error' => 'Producto no encontrado'], 404);
         }
-         // Agregar la URL completa de la imagen
-    if ($producto->imagen) {
-        $producto->imagen_url = asset('storage/' . $producto->imagen);
-    } else {
-        $producto->imagen_url = null;
-    }
+        // Agregar la URL completa de la imagen
+        if ($producto->imagen) {
+            $producto->imagen_url = asset('storage/' . $producto->imagen);
+        } else {
+            $producto->imagen_url = null;
+        }
 
-    
+
 
         return response()->json($producto);
+    }
+
+    public function showInventario($id)
+    {
+        // Obtén el producto por su ID
+        $producto = Producto::findOrFail($id);
+
+        // Obtén todos los registros de inventario para ese producto
+        $inventarios = $producto->inventarios;
+
+        // Devuelve la vista con los datos del inventario
+        return Inertia::render('Producto/Inventario', [
+            'producto' => $producto,
+            'inventarios' => $inventarios,
+        ]);
     }
 }
