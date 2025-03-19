@@ -27,7 +27,7 @@
             <!-- Menú de usuario y notificaciones -->
             <div class="flex items-center space-x-6">
                 <!-- Componente de notificaciones -->
-                <div class="relative">
+                <div class="relative" ref="notificationsContainer" @mouseenter="clearNotificationTimer" @mouseleave="startNotificationTimer">
                     <button
                         @click="toggleNotifications"
                         class="relative p-2 hover:bg-gray-700 rounded-full transition duration-200 focus:outline-none"
@@ -79,7 +79,7 @@
                 </div>
 
                 <!-- Foto de perfil y menú desplegable -->
-                <div class="relative">
+                <div class="relative" ref="profileContainer" @mouseenter="clearProfileTimer" @mouseleave="startProfileTimer">
                     <button
                         @click="toggleDropdown"
                         class="flex items-center focus:outline-none"
@@ -161,7 +161,7 @@ import {
     faDollarSign,
     faUser,
 } from '@fortawesome/free-solid-svg-icons';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { router } from '@inertiajs/vue3';
 import axios from 'axios';
 
@@ -189,6 +189,11 @@ const logout = () => {
 const notifications = ref([]);
 const showNotifications = ref(false);
 const unreadCount = ref(0);
+const notificationsContainer = ref(null);
+const profileContainer = ref(null);
+
+let notificationTimer;
+let profileTimer;
 
 const fetchNotifications = async () => {
     try {
@@ -217,7 +222,45 @@ const markAsRead = async (id) => {
     }
 };
 
-onMounted(fetchNotifications);
+const handleClickOutside = (event) => {
+    if (notificationsContainer.value && !notificationsContainer.value.contains(event.target)) {
+        showNotifications.value = false;
+    }
+    if (profileContainer.value && !profileContainer.value.contains(event.target)) {
+        isDropdownOpen.value = false;
+    }
+};
+
+const startNotificationTimer = () => {
+    notificationTimer = setTimeout(() => {
+        showNotifications.value = false;
+    }, 300);
+};
+
+const clearNotificationTimer = () => {
+    clearTimeout(notificationTimer);
+};
+
+const startProfileTimer = () => {
+    profileTimer = setTimeout(() => {
+        isDropdownOpen.value = false;
+    }, 300);
+};
+
+const clearProfileTimer = () => {
+    clearTimeout(profileTimer);
+};
+
+onMounted(() => {
+    fetchNotifications();
+    document.addEventListener('click', handleClickOutside);
+});
+
+onBeforeUnmount(() => {
+    document.removeEventListener('click', handleClickOutside);
+    clearTimeout(notificationTimer);
+    clearTimeout(profileTimer);
+});
 </script>
 
 <style scoped>
