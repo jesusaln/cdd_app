@@ -35,10 +35,18 @@ class CitaController extends Controller
             'marca_equipo' => 'required|string|max:255',
             'modelo_equipo' => 'required|string|max:255',
             'problema_reportado' => 'nullable|string',
-            'estado' => 'required|string|in:pendiente,en_proceso,completado,cancelado', // Validación del estado
+            'estado' => 'required|string|in:pendiente,en_proceso,completado,cancelado',
+            'evidencias' => 'nullable|string',
+            'foto_equipo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'foto_hoja_servicio' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'foto_identificacion' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
-        Cita::create($validated);
+        // Guardar archivos y obtener sus rutas
+        $filePaths = $this->saveFiles($request, ['foto_equipo', 'foto_hoja_servicio', 'foto_identificacion']);
+
+        // Crear la cita con los datos validados y las rutas de los archivos
+        $cita = Cita::create(array_merge($validated, $filePaths));
 
         return redirect()->route('citas.index')->with('success', 'Cita creada exitosamente.');
     }
@@ -62,10 +70,18 @@ class CitaController extends Controller
             'marca_equipo' => 'required|string|max:255',
             'modelo_equipo' => 'required|string|max:255',
             'problema_reportado' => 'nullable|string',
-            'estado' => 'required|string|in:pendiente,en_proceso,completado,cancelado', // Validación del estado
+            'estado' => 'required|string|in:pendiente,en_proceso,completado,cancelado',
+            'evidencias' => 'nullable|string',
+            'foto_equipo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'foto_hoja_servicio' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'foto_identificacion' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
-        $cita->update($validated);
+        // Guardar archivos y obtener sus rutas
+        $filePaths = $this->saveFiles($request, ['foto_equipo', 'foto_hoja_servicio', 'foto_identificacion']);
+
+        // Actualizar la cita con los datos validados y las rutas de los archivos
+        $cita->update(array_merge($validated, $filePaths));
 
         return redirect()->route('citas.index')->with('success', 'Cita actualizada exitosamente.');
     }
@@ -79,13 +95,24 @@ class CitaController extends Controller
 
     public function show(Cita $cita)
     {
-        // Cargar relaciones si es necesario
         $cita->load('cliente', 'tecnico');
-
         return Inertia::render('Citas/Show', [
             'cita' => $cita,
-            'tecnicos' => Tecnico::all(), // Asegúrate de cargar los técnicos si es necesario
-            'clientes' => Cliente::all(), // Asegúrate de cargar los clientes si es necesario
+            'tecnicos' => Tecnico::all(),
+            'clientes' => Cliente::all(),
         ]);
+    }
+
+    private function saveFiles(Request $request, array $fileFields)
+    {
+        $filePaths = [];
+        foreach ($fileFields as $field) {
+            if ($request->hasFile($field)) {
+                $file = $request->file($field);
+                $path = $file->store('citas', 'public');
+                $filePaths[$field] = $path;
+            }
+        }
+        return $filePaths;
     }
 }

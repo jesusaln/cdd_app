@@ -48,7 +48,8 @@
                     <tr v-for="cita in citasFiltradas" :key="cita.id" class="hover:bg-gray-100">
                         <td class="px-4 py-3 text-sm text-gray-700">{{ cita.id }}</td>
                         <td class="px-4 py-3 text-sm text-gray-700">{{ formatearFechaHora(cita.created_at) }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-700">{{ cita.tecnico.nombre }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-700">{{ cita.tecnico.nombre + ' ' + cita.tecnico.apellido }}</td>
+
                         <td class="px-4 py-3 text-sm text-gray-700">{{ cita.cliente.nombre_razon_social }}</td>
                         <td class="px-4 py-3 text-sm text-gray-700">{{ formatearTipoServicio(cita.tipo_servicio) }}</td>
                         <td class="px-4 py-3 text-sm text-gray-700">{{ formatearFechaHora(cita.fecha_hora) }}</td>

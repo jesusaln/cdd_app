@@ -74,3 +74,7 @@ const eliminarEmpresaConfirmado = async () => {
   }
 };
 </script>
+<template>
+    <Head title="Empresa" />
+    Empresas
+</template>
