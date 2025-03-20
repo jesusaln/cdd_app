@@ -42,6 +42,25 @@
                 <label class="block text-gray-700 text-sm font-bold mb-1">Técnico</label>
                 <p>{{ cita.tecnico.nombre }}</p>
             </div>
+            <div class="mb-2">
+                <label class="block text-gray-700 text-sm font-bold mb-1">Evidencias</label>
+                <p>{{ cita.evidencias || 'No hay evidencias disponibles' }}</p>
+            </div>
+            <div class="mb-2">
+                <label class="block text-gray-700 text-sm font-bold mb-1">Foto del Equipo</label>
+                <img v-if="cita.foto_equipo" :src="cita.foto_equipo" alt="Foto del Equipo" class="w-full h-auto mt-2">
+                <p v-else class="text-gray-700">No hay foto del equipo disponible</p>
+            </div>
+            <div class="mb-2">
+                <label class="block text-gray-700 text-sm font-bold mb-1">Foto de la Hoja de Servicio</label>
+                <img v-if="cita.foto_hoja_servicio" :src="cita.foto_hoja_servicio" alt="Foto de la Hoja de Servicio" class="w-full h-auto mt-2">
+                <p v-else class="text-gray-700">No hay foto de la hoja de servicio disponible</p>
+            </div>
+            <div class="mb-2">
+                <label class="block text-gray-700 text-sm font-bold mb-1">Foto de Identificación del Cliente</label>
+                <img v-if="cita.foto_identificacion" :src="cita.foto_identificacion" alt="Foto de Identificación del Cliente" class="w-full h-auto mt-2">
+                <p v-else class="text-gray-700">No hay foto de identificación disponible</p>
+            </div>
             <div class="flex justify-end mt-4">
                 <button @click="close" class="bg-gray-300 text-black px-4 py-2 rounded hover:bg-gray-400">
                     Cerrar
@@ -50,6 +69,7 @@
         </div>
     </div>
 </template>
+
 
 <script setup>
 import { defineProps, defineEmits, computed } from 'vue';

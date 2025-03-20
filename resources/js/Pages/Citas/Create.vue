@@ -70,6 +70,22 @@
                     <option v-for="tecnico in tecnicos" :key="tecnico.id" :value="tecnico.id">{{ tecnico.nombre }}</option>
                 </select>
             </div>
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Evidencias (Opcional)</label>
+                <textarea v-model="form.evidencias" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"></textarea>
+            </div>
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Foto del Equipo (Opcional)</label>
+                <input type="file" @change="handleFotoEquipoChange" accept="image/*" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+            </div>
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Foto de la Hoja de Servicio (Opcional)</label>
+                <input type="file" @change="handleFotoHojaServicioChange" accept="image/*" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+            </div>
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Foto de Identificación del Cliente (Opcional)</label>
+                <input type="file" @change="handleFotoIdentificacionChange" accept="image/*" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+            </div>
             <div class="flex items-center justify-between">
                 <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-300">
                     Crear Cita
@@ -87,7 +103,6 @@ import 'notyf/notyf.min.css';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
 
-// Define el layout del dashboard
 defineOptions({ layout: AppLayout });
 
 defineProps({ tecnicos: Array, clientes: Array });
@@ -104,14 +119,18 @@ const notyf = new Notyf({
 const form = reactive({
     tecnico_id: '',
     cliente_id: '',
-    tipo_servicio: 'instalacion', // Valor predeterminado del tipo de servicio
+    tipo_servicio: 'instalacion',
     fecha_hora: '',
     descripcion: '',
-    tipo_equipo: 'minisplit', // Valor predeterminado del tipo de equipo
+    tipo_equipo: 'minisplit',
     marca_equipo: '',
     modelo_equipo: '',
     problema_reportado: '',
-    estado: 'pendiente', // Valor predeterminado del estado
+    estado: 'pendiente',
+    evidencias: '',
+    foto_equipo: null,
+    foto_hoja_servicio: null,
+    foto_identificacion: null,
 });
 
 onMounted(() => {
@@ -121,11 +140,39 @@ onMounted(() => {
     form.fecha_hora = now.toISOString().slice(0, 16);
 });
 
+const handleFotoEquipoChange = (event) => {
+    form.foto_equipo = event.target.files[0];
+};
+
+const handleFotoHojaServicioChange = (event) => {
+    form.foto_hoja_servicio = event.target.files[0];
+};
+
+const handleFotoIdentificacionChange = (event) => {
+    form.foto_identificacion = event.target.files[0];
+};
+
 const submit = async () => {
     try {
-        await router.post(route('citas.store'), form, {
+        const formData = new FormData();
+        for (const key in form) {
+            if (key === 'foto_equipo' || key === 'foto_hoja_servicio' || key === 'foto_identificacion') {
+                // Solo agregar al FormData si hay un archivo seleccionado
+                if (form[key]) {
+                    formData.append(key, form[key]);
+                }
+            } else {
+                formData.append(key, form[key]);
+            }
+        }
+
+// Depuración: Verifica los datos del formulario
+//console.log('FormData:', formData.get('evidencias'));
+
+        await router.post(route('citas.store'), formData, {
             onSuccess: () => {
                 notyf.success('La cita ha sido creada exitosamente.');
+                // Resetear el formulario
                 form.tecnico_id = '';
                 form.cliente_id = '';
                 form.tipo_servicio = 'instalacion';
@@ -136,6 +183,10 @@ const submit = async () => {
                 form.modelo_equipo = '';
                 form.problema_reportado = '';
                 form.estado = 'pendiente';
+                form.evidencias = '';
+                form.foto_equipo = null;
+                form.foto_hoja_servicio = null;
+                form.foto_identificacion = null;
             },
             onError: (error) => {
                 console.error('Error al crear la cita:', error);
@@ -147,4 +198,5 @@ const submit = async () => {
         notyf.error('Ocurrió un error inesperado.');
     }
 };
+
 </script>

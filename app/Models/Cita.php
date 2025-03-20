@@ -20,6 +20,10 @@ class Cita extends Model
         'modelo_equipo',
         'problema_reportado',
         'estado', // Nuevo campo de estado
+        'evidencias', // Asegúrate de que esté aquí
+        'foto_equipo',
+        'foto_hoja_servicio',
+        'foto_identificacion',
     ];
 
     public function tecnico()

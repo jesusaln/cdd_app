@@ -43,16 +43,33 @@
             <label class="block text-gray-700 text-sm font-bold mb-2">Técnico</label>
             <p class="text-gray-700">{{ tecnicoNombre }}</p>
         </div>
+        <div class="mb-4">
+            <label class="block text-gray-700 text-sm font-bold mb-2">Evidencias</label>
+            <p class="text-gray-700">{{ cita.evidencias || 'No hay evidencias disponibles' }}</p>
+        </div>
+        <div class="mb-4">
+            <label class="block text-gray-700 text-sm font-bold mb-2">Foto del Equipo</label>
+            <img v-if="cita.foto_equipo" :src="cita.foto_equipo" alt="Foto del Equipo" class="w-full h-auto">
+            <p v-else class="text-gray-700">No hay foto del equipo disponible</p>
+        </div>
+        <div class="mb-4">
+            <label class="block text-gray-700 text-sm font-bold mb-2">Foto de la Hoja de Servicio</label>
+            <img v-if="cita.foto_hoja_servicio" :src="cita.foto_hoja_servicio" alt="Foto de la Hoja de Servicio" class="w-full h-auto">
+            <p v-else class="text-gray-700">No hay foto de la hoja de servicio disponible</p>
+        </div>
+        <div class="mb-4">
+            <label class="block text-gray-700 text-sm font-bold mb-2">Foto de Identificación del Cliente</label>
+            <img v-if="cita.foto_identificacion" :src="cita.foto_identificacion" alt="Foto de Identificación del Cliente" class="w-full h-auto">
+            <p v-else class="text-gray-700">No hay foto de identificación disponible</p>
+        </div>
     </div>
 </template>
 
 <script setup>
-import { Head } from '@inertiajs/vue3';
+import { Head, onMounted } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
-
-// Define el layout del dashboard
 defineOptions({ layout: AppLayout });
 
 const props = defineProps({
@@ -112,4 +129,11 @@ const formatearFechaHora = (fechaHora) => {
     const fecha = new Date(fechaHora);
     return fecha.toLocaleString();
 };
+
+onMounted(() => {
+    console.log('Datos de la cita:', props.cita);
+    console.log('Foto del equipo:', props.cita.foto_equipo);
+    console.log('Foto de la hoja de servicio:', props.cita.foto_hoja_servicio);
+    console.log('Foto de identificación:', props.cita.foto_identificacion);
+});
 </script>
