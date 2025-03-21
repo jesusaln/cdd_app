@@ -50,12 +50,7 @@
                         <td class="px-4 py-3 text-sm text-gray-700">{{ formatearTipoServicio(cita.tipo_servicio) }}</td>
                         <td class="px-4 py-3 text-sm text-gray-700">{{ formatearFechaHora(cita.fecha_hora) }}</td>
                         <td class="px-4 py-3 text-sm">
-                            <select :value="cita.estado" @change="handleEstadoChange(cita.id, $event.target.value)" :class="estadoClase(cita.estado)" class="border rounded py-2">
-                                <option value="pendiente">Pendiente</option>
-                                <option value="en_proceso">En Proceso</option>
-                                <option value="completado">Completado</option>
-                                <option value="cancelado">Cancelado</option>
-                            </select>
+                            <span :class="estadoClase(cita.estado)">{{ cita.estado }}</span>
                         </td>
                         <td class="px-4 py-3 flex space-x-2">
                             <button @click="abrirModalDetalles(cita)" class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 transition duration-300">
@@ -90,32 +85,6 @@
                 </div>
             </div>
         </div>
-        <div v-if="mostrarModalEvidencias" class="fixed inset-0 bg-gray-800 bg-opacity-50 flex justify-center items-center">
-            <div class="bg-white p-6 rounded-lg shadow-lg w-96">
-                <h3 class="text-xl font-semibold mb-4">Evidencias de Completado</h3>
-                <textarea v-model="evidencias" class="w-full border rounded px-3 py-2 mb-4" placeholder="Ingrese las evidencias"></textarea>
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700">Foto del Equipo</label>
-                    <input type="file" @change="handleFileUpload($event, 'equipo')" class="mt-1 block w-full border rounded px-3 py-2">
-                </div>
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700">Foto de la Hoja de Servicio</label>
-                    <input type="file" @change="handleFileUpload($event, 'hoja_servicio')" class="mt-1 block w-full border rounded px-3 py-2">
-                </div>
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700">Foto de Identificación del Cliente</label>
-                    <input type="file" @change="handleFileUpload($event, 'identificacion')" class="mt-1 block w-full border rounded px-3 py-2">
-                </div>
-                <div class="flex justify-end space-x-4">
-                    <button @click="cerrarModalEvidencias" class="bg-gray-300 text-black px-4 py-2 rounded hover:bg-gray-400">
-                        Cancelar
-                    </button>
-                    <button @click="confirmarEvidencias" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
-                        Confirmar
-                    </button>
-                </div>
-            </div>
-        </div>
     </div>
 </template>
 
@@ -145,16 +114,8 @@ const notyf = new Notyf({
 
 const mostrarModal = ref(false);
 const mostrarModalDetalles = ref(false);
-const mostrarModalEvidencias = ref(false);
 const idCitaAEliminar = ref(null);
 const citaSeleccionada = ref(null);
-const citaCompletar = ref(null);
-const evidencias = ref('');
-const files = ref({
-    equipo: null,
-    hoja_servicio: null,
-    identificacion: null
-});
 const filtroCliente = ref('');
 const filtroTecnico = ref('');
 const filtroTipoServicio = ref('');
@@ -213,115 +174,6 @@ const eliminarCita = async () => {
         console.error('Error inesperado:', error);
         notyf.error('Ocurrió un error inesperado.');
         cerrarModal();
-    }
-};
-
-const handleEstadoChange = (id, nuevoEstado) => {
-    if (nuevoEstado === 'completado') {
-        citaCompletar.value = id;
-        mostrarModalEvidencias.value = true;
-    } else {
-        cambiarEstado(id, nuevoEstado);
-    }
-};
-
-const cambiarEstado = async (id, nuevoEstado) => {
-    try {
-        console.log(`Enviando solicitud para cambiar el estado de la cita ${id} a ${nuevoEstado}`);
-
-        // Encuentra la cita que se va a actualizar
-        const cita = citas.find(c => c.id === id);
-
-        if (cita) {
-            // Envía todos los datos de la cita, incluyendo el nuevo estado
-            await router.put(route('citas.update', id), {
-                ...cita,
-                estado: nuevoEstado,
-                evidencias: evidencias.value,
-                files: files.value
-            }, {
-                onSuccess: () => {
-                    notyf.success('El estado de la cita ha sido actualizado exitosamente.');
-                    // Actualizar el estado en el frontend
-                    cita.estado = nuevoEstado;
-                },
-                onError: (error) => {
-                    console.error('Error al actualizar el estado de la cita:', error);
-                    notyf.error('Hubo un error al actualizar el estado de la cita.');
-                },
-            });
-        } else {
-            console.error('Cita no encontrada');
-            notyf.error('La cita no fue encontrada.');
-        }
-    } catch (error) {
-        console.error('Error inesperado:', error);
-        notyf.error('Ocurrió un error inesperado.');
-    }
-};
-
-const cerrarModalEvidencias = () => {
-    mostrarModalEvidencias.value = false;
-    citaCompletar.value = null;
-    evidencias.value = '';
-    files.value = {
-        equipo: null,
-        hoja_servicio: null,
-        identificacion: null
-    };
-};
-
-const confirmarEvidencias = async () => {
-    if (evidencias.value.trim() !== '' && files.value.equipo && files.value.hoja_servicio && files.value.identificacion) {
-        try {
-            const formData = new FormData();
-            formData.append('estado', 'completado');
-            formData.append('evidencias', evidencias.value);
-            formData.append('foto_equipo', files.value.equipo);
-            formData.append('foto_hoja_servicio', files.value.hoja_servicio);
-            formData.append('foto_identificacion', files.value.identificacion);
-
-            // Verifica que los datos se estén agregando correctamente al FormData
-            for (let [key, value] of formData.entries()) {
-                console.log(key, value);
-            }
-
-            // Asegúrate de que la solicitud se envíe con el encabezado correcto
-            await router.put(route('citas.updateIndex', citaCompletar.value), formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data'
-                },
-                onSuccess: () => {
-                    notyf.success('La cita ha sido completada exitosamente.');
-                    cerrarModalEvidencias();
-                    // Actualizar el estado en el frontend
-                    const cita = citas.find(c => c.id === citaCompletar.value);
-                    if (cita) {
-                        cita.estado = 'completado';
-                    }
-                },
-                onError: (error) => {
-                    console.error('Error al completar la cita:', error);
-                    notyf.error('Hubo un error al completar la cita.');
-                },
-            });
-        } catch (error) {
-            console.error('Error inesperado:', error);
-            notyf.error('Ocurrió un error inesperado.');
-        }
-    } else {
-        notyf.error('Debes ingresar las evidencias y adjuntar todas las fotos antes de confirmar.');
-    }
-};
-
-
-
-
-
-const handleFileUpload = (event, tipo) => {
-    const file = event.target.files[0];
-    if (file) {
-        files.value[tipo] = file;
     }
 };
 
