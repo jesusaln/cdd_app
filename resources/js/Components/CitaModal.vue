@@ -43,6 +43,7 @@
                         <label class="block text-gray-700 text-sm font-bold mb-1">Problema Reportado</label>
                         <p>{{ cita.problema_reportado }}</p>
                     </div>
+
                     <div class="mb-2">
                         <label class="block text-gray-700 text-sm font-bold mb-1">Estado</label>
                         <p>{{ formatearEstado(cita.estado) }}</p>
@@ -51,8 +52,10 @@
                         <label class="block text-gray-700 text-sm font-bold mb-1">Técnico</label>
                         <p>{{ cita.tecnico.nombre }}</p>
                     </div>
+
                 </div>
             </div>
+
 
             <!-- Fotos -->
             <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -91,7 +94,14 @@
                     >
                     <p v-else class="text-gray-700">No hay foto de identificación disponible</p>
                 </div>
+                         <!-- Evidencias -->
+<div class="mt-6">
+    <label class="block text-gray-700 text-sm font-bold mb-1">Evidencias</label>
+    <p v-if="cita.evidencias" class="text-gray-700 whitespace-pre-wrap">{{ cita.evidencias }}</p>
+    <p v-else class="text-gray-700">No hay evidencias disponibles</p>
+</div>
             </div>
+
 
             <!-- Botón Cerrar -->
             <div class="flex justify-end mt-4">

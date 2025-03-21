@@ -123,6 +123,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // Citas
     Route::resource('citas', CitaController::class)->names('citas');
     Route::put('/citas/{id}', [CitaController::class, 'update']);
+    Route::put('/citas/{id}/update-index', [CitaController::class, 'updateIndex'])->name('citas.updateIndex');
 
 
     // Carros

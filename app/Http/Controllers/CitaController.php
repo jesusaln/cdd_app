@@ -8,6 +8,7 @@ use App\Models\Cliente;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class CitaController extends Controller
 {
@@ -151,7 +152,49 @@ class CitaController extends Controller
         ]);
     }
 
-    /**
-     * Guardar archivos y conservar los existentes si no se suben nuevos.
-     */
+    public function updateIndex(Request $request, $id)
+    {
+        // Validar los datos recibidos
+        $validated = $request->validate([
+            'estado' => 'required|string',
+            'evidencias' => 'required|string',
+            'foto_equipo' => 'required|file|mimes:jpeg,png,jpg|max:2048', // Máximo 2MB
+            'foto_hoja_servicio' => 'required|file|mimes:jpeg,png,jpg|max:2048',
+            'foto_identificacion' => 'required|file|mimes:jpeg,png,jpg|max:2048',
+        ]);
+
+        // Buscar la cita por ID
+        $cita = Cita::findOrFail($id);
+
+        // Actualizar los campos específicos
+        $cita->estado = $validated['estado'];
+        $cita->evidencias = $validated['evidencias'];
+
+        // Guardar las fotos si se proporcionan
+        if ($request->hasFile('foto_equipo')) {
+            if ($cita->foto_equipo) {
+                Storage::disk('public')->delete($cita->foto_equipo);
+            }
+            $cita->foto_equipo = $request->file('foto_equipo')->store('fotos', 'public');
+        }
+
+        if ($request->hasFile('foto_hoja_servicio')) {
+            if ($cita->foto_hoja_servicio) {
+                Storage::disk('public')->delete($cita->foto_hoja_servicio);
+            }
+            $cita->foto_hoja_servicio = $request->file('foto_hoja_servicio')->store('fotos', 'public');
+        }
+
+        if ($request->hasFile('foto_identificacion')) {
+            if ($cita->foto_identificacion) {
+                Storage::disk('public')->delete($cita->foto_identificacion);
+            }
+            $cita->foto_identificacion = $request->file('foto_identificacion')->store('fotos', 'public');
+        }
+
+        // Guardar los cambios
+        $cita->save();
+
+        return response()->json(['message' => 'Cita actualizada exitosamente'], 200);
+    }
 }

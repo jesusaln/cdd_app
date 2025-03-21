@@ -2,13 +2,11 @@
     <Head title="Citas" />
     <div>
         <h1 class="text-2xl font-semibold mb-6">Citas</h1>
-
         <div class="mb-4">
             <Link :href="route('citas.create')" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-300">
                 Crear Cita
             </Link>
         </div>
-
         <div class="mb-4 flex space-x-4">
             <input v-model="filtroCliente" type="text" placeholder="Buscar por cliente" class="border rounded px-3 py-2">
             <input v-model="filtroTecnico" type="text" placeholder="Buscar por técnico" class="border rounded px-3 py-2">
@@ -29,7 +27,6 @@
             </select>
             <input v-model="filtroFechaTrabajo" type="date" placeholder="Fecha de trabajo" class="border rounded px-3 py-2">
         </div>
-
         <div v-if="citasFiltradas.length > 0" class="overflow-x-auto bg-white rounded-lg shadow-md">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
@@ -49,7 +46,6 @@
                         <td class="px-4 py-3 text-sm text-gray-700">{{ cita.id }}</td>
                         <td class="px-4 py-3 text-sm text-gray-700">{{ formatearFechaHora(cita.created_at) }}</td>
                         <td class="px-4 py-3 text-sm text-gray-700">{{ cita.tecnico.nombre + ' ' + cita.tecnico.apellido }}</td>
-
                         <td class="px-4 py-3 text-sm text-gray-700">{{ cita.cliente.nombre_razon_social }}</td>
                         <td class="px-4 py-3 text-sm text-gray-700">{{ formatearTipoServicio(cita.tipo_servicio) }}</td>
                         <td class="px-4 py-3 text-sm text-gray-700">{{ formatearFechaHora(cita.fecha_hora) }}</td>
@@ -76,13 +72,10 @@
                 </tbody>
             </table>
         </div>
-
         <div v-else class="text-center text-gray-500 mt-4">
             No hay citas registradas.
         </div>
-
         <CitaModal :show="mostrarModalDetalles" :cita="citaSeleccionada" @close="cerrarModalDetalles" />
-
         <div v-if="mostrarModal" class="fixed inset-0 bg-gray-800 bg-opacity-50 flex justify-center items-center">
             <div class="bg-white p-6 rounded-lg shadow-lg w-96">
                 <h3 class="text-xl font-semibold mb-4">¿Estás seguro de eliminar esta cita?</h3>
@@ -97,7 +90,6 @@
                 </div>
             </div>
         </div>
-
         <div v-if="mostrarModalEvidencias" class="fixed inset-0 bg-gray-800 bg-opacity-50 flex justify-center items-center">
             <div class="bg-white p-6 rounded-lg shadow-lg w-96">
                 <h3 class="text-xl font-semibold mb-4">Evidencias de Completado</h3>
@@ -279,14 +271,52 @@ const cerrarModalEvidencias = () => {
     };
 };
 
-const confirmarEvidencias = () => {
+const confirmarEvidencias = async () => {
     if (evidencias.value.trim() !== '' && files.value.equipo && files.value.hoja_servicio && files.value.identificacion) {
-        cambiarEstado(citaCompletar.value, 'completado');
-        cerrarModalEvidencias();
+        try {
+            const formData = new FormData();
+            formData.append('estado', 'completado');
+            formData.append('evidencias', evidencias.value);
+            formData.append('foto_equipo', files.value.equipo);
+            formData.append('foto_hoja_servicio', files.value.hoja_servicio);
+            formData.append('foto_identificacion', files.value.identificacion);
+
+            // Verifica que los datos se estén agregando correctamente al FormData
+            for (let [key, value] of formData.entries()) {
+                console.log(key, value);
+            }
+
+            // Asegúrate de que la solicitud se envíe con el encabezado correcto
+            await router.put(route('citas.updateIndex', citaCompletar.value), formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                },
+                onSuccess: () => {
+                    notyf.success('La cita ha sido completada exitosamente.');
+                    cerrarModalEvidencias();
+                    // Actualizar el estado en el frontend
+                    const cita = citas.find(c => c.id === citaCompletar.value);
+                    if (cita) {
+                        cita.estado = 'completado';
+                    }
+                },
+                onError: (error) => {
+                    console.error('Error al completar la cita:', error);
+                    notyf.error('Hubo un error al completar la cita.');
+                },
+            });
+        } catch (error) {
+            console.error('Error inesperado:', error);
+            notyf.error('Ocurrió un error inesperado.');
+        }
     } else {
         notyf.error('Debes ingresar las evidencias y adjuntar todas las fotos antes de confirmar.');
     }
 };
+
+
+
+
 
 const handleFileUpload = (event, tipo) => {
     const file = event.target.files[0];
