@@ -118,12 +118,17 @@ class CitaController extends Controller
                     $file = $request->file($field);
                     $path = $file->store('citas', 'public'); // Guarda el archivo en el disco "public"
                     $filePaths[$field] = $path;
+
+                    // Eliminar el archivo anterior si existe
+                    if (!empty($existingFiles[$field])) {
+                        Storage::disk('public')->delete($existingFiles[$field]);
+                    }
                 } catch (\Exception $e) {
                     \Log::error("Error al guardar el archivo {$field}: " . $e->getMessage());
-                    $filePaths[$field] = null; // Maneja el error asignando `null`
+                    $filePaths[$field] = null; // Manejar el error asignando `null`
                 }
             } else {
-                $filePaths[$field] = $existingFiles[$field] ?? null; // Conserva el archivo existente
+                $filePaths[$field] = $existingFiles[$field] ?? null; // Conservar el archivo existente
             }
         }
         return $filePaths;

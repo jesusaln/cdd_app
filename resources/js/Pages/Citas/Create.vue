@@ -70,7 +70,7 @@
                     <option v-for="tecnico in tecnicos" :key="tecnico.id" :value="tecnico.id">{{ tecnico.nombre }}</option>
                 </select>
             </div>
-            <div class="mb-4">
+            <!-- <div class="mb-4">
                 <label class="block text-gray-700 text-sm font-bold mb-2">Evidencias (Opcional)</label>
                 <textarea v-model="form.evidencias" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"></textarea>
             </div>
@@ -85,7 +85,7 @@
             <div class="mb-4">
                 <label class="block text-gray-700 text-sm font-bold mb-2">Foto de Identificación del Cliente (Opcional)</label>
                 <input type="file" @change="handleFotoIdentificacionChange" accept="image/*" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-            </div>
+            </div> -->
             <div class="flex items-center justify-between">
                 <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-300">
                     Crear Cita

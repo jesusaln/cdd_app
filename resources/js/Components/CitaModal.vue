@@ -65,7 +65,7 @@
                         v-if="cita.foto_equipo"
                         :src="generarUrl(cita.foto_equipo)"
                         alt="Foto del Equipo"
-                        class="w-64 h-auto mt-2 rounded-lg"
+                        class="w-50 h-20 mt-2 rounded-lg"
                         @error="handleImageError($event, 'equipo')"
                     >
                     <p v-else class="text-gray-700">No hay foto del equipo disponible</p>
@@ -77,7 +77,7 @@
                         v-if="cita.foto_hoja_servicio"
                         :src="generarUrl(cita.foto_hoja_servicio)"
                         alt="Foto de la Hoja de Servicio"
-                        class="w-64 h-auto mt-2 rounded-lg"
+                        class="w-50 h-20 mt-2 rounded-lg"
                         @error="handleImageError($event, 'hoja')"
                     >
                     <p v-else class="text-gray-700">No hay foto de la hoja de servicio disponible</p>
@@ -89,7 +89,7 @@
                         v-if="cita.foto_identificacion"
                         :src="generarUrl(cita.foto_identificacion)"
                         alt="Foto de Identificación del Cliente"
-                        class="w-64 h-auto mt-2 rounded-lg"
+                        class="w-50 h-20 mt-2 rounded-lg"
                         @error="handleImageError($event, 'identificacion')"
                     >
                     <p v-else class="text-gray-700">No hay foto de identificación disponible</p>
