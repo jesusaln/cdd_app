@@ -49,14 +49,19 @@ class ClienteController extends Controller
             ]);
 
             $cliente = Cliente::create($request->all());
-            //event(new ClientCreated($cliente));
+            // event(new ClientCreated($cliente)); // ⚠️ Comenta esta línea para descartar que falle el evento
 
             return redirect()->route('clientes.index')->with('success', 'Cliente creado correctamente.');
         } catch (\Exception $e) {
-            Log::error('Error al crear cliente: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Error al crear el cliente: ' . $e->getMessage());
+            return response()->json([
+                'error' => $e->getMessage(),
+                'linea' => $e->getLine(),
+                'archivo' => $e->getFile()
+            ], 500);
         }
     }
+
+
     public function edit(Cliente $cliente)
     {
         return Inertia::render('Clientes/Edit', [
