@@ -78,14 +78,14 @@ class CategoriaController extends Controller
 
             // Verificar si tiene productos relacionados antes de eliminar
             if ($categoria->productos()->exists()) {
-                return back()->withErrors(['error' => 'No se puede eliminar la categoría porque tiene productos asociados.']);
+                return redirect()->route('categorias.index')->withErrors(['error' => 'No se puede eliminar la categoría porque tiene productos asociados.']);
             }
 
             $categoria->delete();
 
-            return back()->with('success', 'La categoría ha sido eliminada exitosamente.');
+            return redirect()->route('categorias.index');
         } catch (\Exception $e) {
-            return back()->withErrors(['error' => 'Hubo un error al intentar eliminar la categoría.']);
+            return redirect()->route('categorias.index');
         }
     }
 }

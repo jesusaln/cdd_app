@@ -142,7 +142,8 @@ class ProductoController extends Controller
 
         $producto->delete();
 
-        return redirect()->route('productos.index')->with('success', 'Producto eliminado correctamente.');
+        // Elimina la notificación en el controlador
+        return redirect()->route('productos.index');
     }
     // ProductoController.php
     public function show($id)

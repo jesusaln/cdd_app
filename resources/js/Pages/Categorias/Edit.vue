@@ -69,7 +69,7 @@ const form = useForm({
 const submit = () => {
     form.put(route('categorias.update', props.categoria.id), {
         onSuccess: () => {
-            alert('Categoría actualizada correctamente.');
+
         },
         onError: (errors) => {
             console.error('Error al actualizar:', errors);

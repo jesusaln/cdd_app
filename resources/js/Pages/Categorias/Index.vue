@@ -62,8 +62,8 @@
 </template>
 
 <script setup>
-import { Head, Link, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { ref, watchEffect } from 'vue';
 import { Notyf } from 'notyf';
 import 'notyf/notyf.min.css';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -71,8 +71,9 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 // Define el layout del dashboard
 defineOptions({ layout: AppLayout });
 
-// Recibe las categorías como prop
-defineProps({ categorias: Array });
+// Recibe las categorías como prop, asegurando un valor predeterminado si no se pasa
+const { categorias: initialCategorias = [] } = defineProps({ categorias: Array });
+const categorias = ref([...initialCategorias]); // Hacerlo reactivo
 
 // Configuración personalizada de Notyf
 const notyf = new Notyf({
@@ -86,6 +87,7 @@ const notyf = new Notyf({
 
 const isConfirmOpen = ref(false);
 const categoriaAEliminar = ref(null);
+const isNotificationShown = ref(false); // Para evitar notificaciones duplicadas
 
 // Función para abrir el modal de confirmación
 const confirmarEliminacion = (categoria) => {
@@ -108,10 +110,13 @@ const eliminarCategoriaConfirmado = async () => {
             preserveState: true,
             onSuccess: () => {
                 notyf.success('La categoría ha sido eliminada exitosamente.');
+
+                // Eliminar la categoría del arreglo en el frontend de manera reactiva
+                categorias.value = categorias.value.filter(categoria => categoria.id !== categoriaAEliminar.value.id);
+
                 cancelarEliminacion();
             },
             onError: (errors) => {
-                console.log('Errores:', errors); // Debug en la consola
                 if (errors.error) {
                     notyf.error(errors.error);
                 } else {
@@ -120,8 +125,25 @@ const eliminarCategoriaConfirmado = async () => {
             },
         });
     } catch (error) {
-        console.error('Error inesperado:', error);
         notyf.error('Ocurrió un error inesperado.');
+    } finally {
+        // Reiniciar el estado de notificación después de mostrar una notificación
+        setTimeout(() => {
+            isNotificationShown.value = false;
+        }, 3000); // Ajusta este tiempo según la duración de la notificación
     }
 };
+
+// Usamos watchEffect para observar los mensajes flash de éxito y error
+const page = usePage();
+watchEffect(() => {
+    if (page.props.flash?.success && !isNotificationShown.value) {
+        notyf.success(page.props.flash.success);
+        isNotificationShown.value = true; // Evita que la notificación se repita
+    }
+    if (page.props.flash?.error && !isNotificationShown.value) {
+        notyf.error(page.props.flash.error);
+        isNotificationShown.value = true; // Evita que la notificación se repita
+    }
+});
 </script>
