@@ -1,106 +1,106 @@
 <template>
     <Head title="Editar Venta" />
-    <div class="ventas-edit">
-      <h1 class="text-2xl font-semibold mb-6">Editar Venta</h1>
+    <div class="ventas-edit max-w-4xl mx-auto p-6 bg-gray-50 rounded-lg shadow-md">
+      <h1 class="text-2xl font-semibold mb-6 text-center">Editar Venta #{{ props.venta.id }}</h1>
       <form @submit.prevent="actualizarVenta" class="space-y-6">
         <!-- Búsqueda de cliente -->
-        <div class="form-group">
-          <label for="buscarCliente" class="block text-sm font-medium text-gray-700">Buscar Cliente</label>
+        <div class="form-group relative">
+          <label for="buscarCliente" class="block text-sm font-medium text-gray-700">Cliente</label>
           <input
             v-model="buscarCliente"
             type="text"
             placeholder="Buscar cliente..."
+            @input="debouncedBuscarCliente"
+            @keydown.enter.prevent="seleccionarPrimerCliente"
             @focus="mostrarClientes = true"
             @blur="ocultarClientesDespuesDeTiempo"
             class="mt-1 block w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500"
           />
-          <ul v-if="mostrarClientes && clientesFiltrados.length > 0" class="absolute z-10 bg-white border rounded-md shadow-md w-full max-h-48 overflow-y-auto">
+          <ul v-if="mostrarClientes && clientesFiltrados.length > 0" class="absolute z-10 bg-white border rounded-md shadow-md w-full max-h-48 overflow-y-auto mt-1">
             <li
               v-for="cliente in clientesFiltrados"
               :key="cliente.id"
               @click="seleccionarCliente(cliente)"
+              @keydown.enter="seleccionarCliente(cliente)"
+              tabindex="0"
               class="px-4 py-2 cursor-pointer hover:bg-gray-100"
             >
               {{ cliente.nombre_razon_social }}
             </li>
           </ul>
-          <div v-if="clientesFiltrados.length === 0 && buscarCliente" class="text-red-500 text-sm mt-2">
-            No se encontraron clientes.
-          </div>
+          <p v-if="!form.cliente_id && form.errors.cliente_id" class="text-red-500 text-sm mt-1">{{ form.errors.cliente_id }}</p>
         </div>
 
         <!-- Búsqueda de productos -->
-        <div class="form-group">
-          <label for="buscarProducto" class="block text-sm font-medium text-gray-700">Buscar Producto</label>
+        <div class="form-group relative">
+          <label for="buscarProducto" class="block text-sm font-medium text-gray-700">Agregar Producto</label>
           <input
             v-model="buscarProducto"
             type="text"
             placeholder="Buscar producto..."
+            @input="debouncedBuscarProducto"
+            @keydown.enter.prevent="agregarPrimerProducto"
             @focus="mostrarProductos = true"
             @blur="ocultarProductosDespuesDeTiempo"
             class="mt-1 block w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500"
           />
-          <ul v-if="mostrarProductos && productosFiltrados.length > 0" class="absolute z-10 bg-white border rounded-md shadow-md w-full max-h-48 overflow-y-auto">
+          <ul v-if="mostrarProductos && productosFiltrados.length > 0" class="absolute z-10 bg-white border rounded-md shadow-md w-full max-h-48 overflow-y-auto mt-1">
             <li
               v-for="producto in productosFiltrados"
               :key="producto.id"
               @click="agregarProducto(producto)"
+              @keydown.enter="agregarProducto(producto)"
+              tabindex="0"
               class="px-4 py-2 cursor-pointer hover:bg-gray-100"
             >
-              {{ producto.nombre }}
+              {{ producto.nombre }} (Disponible: {{ adjustedStock[producto.id] ?? producto.stock }})
             </li>
           </ul>
-          <div v-if="productosFiltrados.length === 0 && buscarProducto" class="text-red-500 text-sm mt-2">
-            No se encontraron productos.
-          </div>
         </div>
 
         <!-- Lista de productos seleccionados -->
         <div v-if="selectedProducts.length > 0" class="mt-4">
-          <h3 class="text-lg font-medium mb-4">Productos Seleccionados</h3>
-          <div v-for="(productoId, index) in selectedProducts" :key="index" class="flex items-center justify-between bg-white border rounded-md shadow-sm p-4 mb-4">
-            <div class="flex items-center space-x-4 w-full">
-              <span class="font-medium text-gray-800 w-1/3">{{ getProductById(productoId)?.nombre }}</span>
-              <div class="flex flex-col w-1/4">
-                <label for="cantidad" class="text-sm font-medium text-gray-700">Cantidad</label>
-                <input
-                  v-model.number="quantities[productoId]"
-                  type="number"
-                  class="px-4 py-2 border rounded-md mt-1 w-full"
-                  min="1"
-                  @input="calcularTotal"
-                />
-              </div>
-              <div class="flex flex-col w-1/4">
-                <label for="precio_venta" class="text-sm font-medium text-gray-700">Precio de Venta</label>
-                <input
-                  v-model.number="prices[productoId]"
-                  type="number"
-                  class="px-4 py-2 border rounded-md mt-1 w-full"
-                  min="0"
-                  @input="calcularTotal"
-                />
-              </div>
-              <div class="flex flex-col w-1/4">
-                <label for="subtotal" class="text-sm font-medium text-gray-700">Subtotal</label>
-                <input
-                  :value="(quantities[productoId] * prices[productoId]).toFixed(2)"
-                  type="text"
-                  class="px-4 py-2 border rounded-md mt-1 w-full bg-gray-100 cursor-not-allowed"
-                  readonly
-                />
-              </div>
-            </div>
-            <button
-              type="button"
-              @click="eliminarProducto(productoId)"
-              class="text-red-500 hover:text-red-700 ml-4"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
+          <h3 class="text-lg font-medium mb-4 text-center">Productos Seleccionados</h3>
+          <table class="w-full border-collapse bg-white shadow-md rounded-md">
+            <thead>
+              <tr class="bg-gray-100">
+                <th class="px-4 py-2 text-center font-medium text-gray-700">Producto</th>
+                <th class="px-4 py-2 text-center font-medium text-gray-700">Cantidad</th>
+                <th class="px-4 py-2 text-center font-medium text-gray-700">Precio Unitario</th>
+                <th class="px-4 py-2 text-center font-medium text-gray-700">Subtotal</th>
+                <th class="px-4 py-2 text-center font-medium text-gray-700">Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(productoId, index) in selectedProducts" :key="index" class="border-t">
+                <td class="px-4 py-2 text-center">{{ getProductById(productoId)?.nombre }}</td>
+                <td class="px-4 py-2 text-center">
+                  <input
+                    v-model.number="quantities[productoId]"
+                    type="number"
+                    class="w-16 px-2 py-1 border rounded-md text-center"
+                    min="1"
+                    :max="getProductById(productoId)?.stock + (originalQuantities[productoId] || 0)"
+                    @input="adjustStock(productoId)"
+                  />
+                </td>
+                <td class="px-4 py-2 text-center">
+                  <input
+                    v-model.number="prices[productoId]"
+                    type="number"
+                    class="w-20 px-2 py-1 border rounded-md text-center"
+                    min="0"
+                    step="0.01"
+                    @input="calcularTotal"
+                  />
+                </td>
+                <td class="px-4 py-2 text-center">{{ (quantities[productoId] * prices[productoId]).toFixed(2) }}</td>
+                <td class="px-4 py-2 text-center">
+                  <button type="button" @click="eliminarProducto(productoId)" class="text-red-500 hover:text-red-700">✕</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         <!-- Total -->
@@ -116,15 +116,14 @@
 
         <!-- Botones -->
         <div class="flex justify-end space-x-4">
-          <Link :href="route('ventas.index')" class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">
-            Cancelar
-          </Link>
+          <Link :href="route('ventas.index')" class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">Cancelar</Link>
           <button
             type="submit"
-            class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 disabled:bg-gray-400"
-            :disabled="!form.cliente_id || selectedProducts.length === 0"
+            class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
+            :disabled="!form.cliente_id || selectedProducts.length === 0 || form.processing"
           >
-            Guardar Cambios
+            <span v-if="form.processing">Guardando...</span>
+            <span v-else>Guardar Cambios</span>
           </button>
         </div>
       </form>
@@ -135,10 +134,9 @@
   import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
   import { Head, useForm, Link } from '@inertiajs/vue3';
   import AppLayout from '@/Layouts/AppLayout.vue';
+  import debounce from 'lodash/debounce';
 
-
-// Define el layout del dashboard
-defineOptions({ layout: AppLayout });
+  defineOptions({ layout: AppLayout });
 
   const props = defineProps({
     venta: Object,
@@ -147,119 +145,170 @@ defineOptions({ layout: AppLayout });
   });
 
   const form = useForm({
-    cliente_id: props.venta.cliente_id,
-    total: props.venta.total,
-    productos: props.venta.productos,
+    cliente_id: props.venta.cliente_id || '',
+    total: props.venta.total || 0,
+    productos: props.venta.productos || [],
   });
 
-  const buscarCliente = ref(props.venta.cliente ? props.venta.cliente.nombre_razon_social : '');
+  const buscarCliente = ref(props.venta.cliente?.nombre_razon_social || '');
   const buscarProducto = ref('');
   const mostrarClientes = ref(false);
   const mostrarProductos = ref(false);
-  const selectedProducts = ref(props.venta.productos.map(p => p.id));
-  const quantities = ref(props.venta.productos.reduce((acc, p) => {
-    acc[p.id] = p.pivot.cantidad; // Usar pivot para obtener la cantidad
-    return acc;
-  }, {}));
-  const prices = ref(props.venta.productos.reduce((acc, p) => {
-    acc[p.id] = p.pivot.precio; // Usar pivot para obtener el precio
-    return acc;
-  }, {}));
-  const clienteSeleccionado = ref(props.venta.cliente ? props.venta.cliente.nombre_razon_social : null);
+  const selectedProducts = ref(props.venta.productos.map(p => p.id) || []);
+  const quantities = ref(
+    props.venta.productos.reduce((acc, p) => {
+      acc[p.id] = p.pivot.cantidad;
+      return acc;
+    }, {})
+  );
+  const prices = ref(
+    props.venta.productos.reduce((acc, p) => {
+      acc[p.id] = p.pivot.precio;
+      return acc;
+    }, {})
+  );
+  const originalQuantities = ref(
+    props.venta.productos.reduce((acc, p) => {
+      acc[p.id] = p.pivot.cantidad;
+      return acc;
+    }, {})
+  );
+  const adjustedStock = ref({}); // Stock ajustado en el frontend
 
-  const clientesFiltrados = computed(() => {
-    if (!buscarCliente.value) return [];
-    return props.clientes.filter((cliente) =>
-      cliente.nombre_razon_social.toLowerCase().includes(buscarCliente.value.toLowerCase())
-    );
-  });
+  // Debounce para búsquedas
+  const debouncedBuscarCliente = debounce(() => {}, 300);
+  const debouncedBuscarProducto = debounce(() => {}, 300);
 
-  const productosFiltrados = computed(() => {
-    if (!buscarProducto.value) return [];
-    return props.productos.filter((producto) =>
-      producto.nombre.toLowerCase().includes(buscarProducto.value.toLowerCase())
-    );
-  });
+  const clientesFiltrados = computed(() =>
+    buscarCliente.value
+      ? props.clientes.filter(cliente =>
+          cliente.nombre_razon_social.toLowerCase().includes(buscarCliente.value.toLowerCase())
+        )
+      : []
+  );
 
-  const getProductById = (id) => {
-    if (!props.productos) {
-      console.error('La lista de productos no está disponible.');
-      return {};
-    }
-    const producto = props.productos.find((producto) => producto.id === id);
-    if (producto) {
-      return producto;
-    }
-    console.error(`Producto con id ${id} no encontrado.`);
-    return {};
-  };
+  const productosFiltrados = computed(() =>
+    buscarProducto.value
+      ? props.productos.filter(
+          producto =>
+            producto.nombre.toLowerCase().includes(buscarProducto.value.toLowerCase()) &&
+            !selectedProducts.value.includes(producto.id) &&
+            (adjustedStock.value[producto.id] ?? producto.stock) > 0
+        )
+      : []
+  );
+
+  const getProductById = (id) => props.productos.find(producto => producto.id === id) || { nombre: 'Producto no encontrado', stock: 0 };
 
   const calcularTotal = () => {
-    let total = 0;
-    for (const id of selectedProducts.value) {
-      const cantidad = Number.parseFloat(quantities.value[id]) || 0;
-      const precio = Number.parseFloat(prices.value[id]) || 0;
-      total += cantidad * precio;
-    }
-    form.total = total.toFixed(2);
+    form.total = selectedProducts.value
+      .reduce((sum, id) => sum + ((quantities.value[id] || 0) * (prices.value[id] || 0)), 0)
+      .toFixed(2);
   };
 
-  watch(quantities, calcularTotal, { deep: true });
+  const adjustStock = (productoId) => {
+    const producto = getProductById(productoId);
+    const originalQty = originalQuantities.value[productoId] || 0;
+    const newQty = quantities.value[productoId] || 0;
+    const stockBase = producto.stock + originalQty; // Stock disponible antes de cambios
+    adjustedStock.value[productoId] = stockBase - newQty; // Ajustar stock en frontend
+    calcularTotal();
+  };
 
   const seleccionarCliente = (cliente) => {
     form.cliente_id = cliente.id;
     buscarCliente.value = cliente.nombre_razon_social;
-    clienteSeleccionado.value = cliente.nombre_razon_social;
     mostrarClientes.value = false;
   };
 
   const agregarProducto = (producto) => {
-    if (!selectedProducts.value.includes(producto.id)) {
+    if (!selectedProducts.value.includes(producto.id) && (adjustedStock.value[producto.id] ?? producto.stock) > 0) {
       selectedProducts.value.push(producto.id);
       quantities.value[producto.id] = 1;
       prices.value[producto.id] = producto.precio_venta || 0;
+      originalQuantities.value[producto.id] = 0; // Nuevo producto, no tiene cantidad original
+      adjustStock(producto.id);
+    } else if ((adjustedStock.value[producto.id] ?? producto.stock) <= 0) {
+      alert(`El producto ${producto.nombre} no tiene stock disponible.`);
     }
     buscarProducto.value = '';
     mostrarProductos.value = false;
-    calcularTotal();
   };
 
   const eliminarProducto = (productoId) => {
     selectedProducts.value = selectedProducts.value.filter(id => id !== productoId);
     delete quantities.value[productoId];
     delete prices.value[productoId];
+    delete adjustedStock.value[productoId]; // Restaurar stock al eliminar
+    delete originalQuantities.value[productoId];
     calcularTotal();
   };
 
-  const ocultarClientesDespuesDeTiempo = (event) => {
-    setTimeout(() => {
-      if (!event.relatedTarget || !event.relatedTarget.classList.contains('cliente-item')) {
-        mostrarClientes.value = false;
-      }
-    }, 300);
+  const seleccionarPrimerCliente = () => {
+    if (clientesFiltrados.value.length > 0) seleccionarCliente(clientesFiltrados.value[0]);
   };
 
-  const ocultarProductosDespuesDeTiempo = (event) => {
-    setTimeout(() => {
-      if (!event.relatedTarget || !event.relatedTarget.classList.contains('producto-item')) {
-        mostrarProductos.value = false;
-      }
-    }, 300);
+  const agregarPrimerProducto = () => {
+    if (productosFiltrados.value.length > 0) agregarProducto(productosFiltrados.value[0]);
   };
+
+  const actualizarVenta = () => {
+    form.productos = selectedProducts.value.map(id => ({
+      id,
+      cantidad: quantities.value[id] || 1,
+      precio: prices.value[id] || 0,
+      original_cantidad: originalQuantities.value[id] || 0, // Enviar cantidad original para comparación
+    }));
+
+    // Validar stock antes de enviar
+    for (const producto of form.productos) {
+      const stockDisponible = getProductById(producto.id).stock + (producto.original_cantidad || 0);
+      if (producto.cantidad > stockDisponible) {
+        alert(`La cantidad de ${getProductById(producto.id).nombre} excede el stock disponible (${stockDisponible}).`);
+        return;
+      }
+    }
+
+    form.put(route('ventas.update', props.venta.id), {
+      onSuccess: () => {
+        localStorage.removeItem('ventaEnProgreso');
+        form.reset('total');
+        adjustedStock.value = {}; // Limpiar stock ajustado tras guardar
+      },
+      onError: (error) => {
+        console.error('Error al actualizar la venta:', error);
+      },
+    });
+  };
+
+  const ocultarClientesDespuesDeTiempo = () => {
+    setTimeout(() => {
+      mostrarClientes.value = false;
+    }, 200);
+  };
+  const ocultarProductosDespuesDeTiempo = () => setTimeout(() => {
+    mostrarProductos.value = false;
+  }, 200);
 
   onMounted(() => {
+    // Inicializar stock ajustado con las cantidades originales
+    for (const productoId of selectedProducts.value) {
+      adjustStock(productoId);
+    }
+    calcularTotal();
     const savedData = localStorage.getItem('ventaEnProgreso');
     if (savedData) {
       const parsedData = JSON.parse(savedData);
       form.cliente_id = parsedData.cliente_id;
-      clienteSeleccionado.value = parsedData.cliente_nombre;
       buscarCliente.value = parsedData.cliente_nombre;
       selectedProducts.value = parsedData.selectedProducts;
       quantities.value = parsedData.quantities;
       prices.value = parsedData.prices;
+      for (const productoId of selectedProducts.value) {
+        adjustStock(productoId);
+      }
       calcularTotal();
     }
-
     window.addEventListener('beforeunload', handleBeforeUnload);
   });
 
@@ -269,33 +318,56 @@ defineOptions({ layout: AppLayout });
 
   const handleBeforeUnload = (event) => {
     if (form.dirty) {
-      const confirmationMessage = 'Tienes cambios no guardados. ¿Estás seguro de que quieres salir?';
-      event.returnValue = confirmationMessage;
-      return confirmationMessage;
+      localStorage.setItem('ventaEnProgreso', JSON.stringify({
+        cliente_id: form.cliente_id,
+        cliente_nombre: buscarCliente.value,
+        selectedProducts: selectedProducts.value,
+        quantities: quantities.value,
+        prices: prices.value,
+      }));
+      event.preventDefault();
+      event.returnValue = 'Tienes cambios no guardados. ¿Seguro que quieres salir?';
     }
-  };
-
-  const actualizarVenta = () => {
-    form.productos = selectedProducts.value.map((productoId) => ({
-      id: productoId,
-      cantidad: quantities.value[productoId] || 1,
-      precio: prices.value[productoId] || 0,
-    }));
-
-    form.put(route('ventas.update', props.venta.id), {
-      onSuccess: () => {
-        localStorage.removeItem('ventaEnProgreso');
-        selectedProducts.value = [];
-        quantities.value = {};
-        prices.value = {};
-      },
-      onError: (error) => {
-        console.error('Error al actualizar la venta:', error);
-      },
-    });
   };
   </script>
 
   <style scoped>
-  /* Aquí van tus estilos personalizados */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th, td {
+    padding: 8px 16px;
+    text-align: center;
+    vertical-align: middle;
+  }
+
+  th {
+    background-color: #f3f4f6;
+    font-weight: 600;
+  }
+
+  tr {
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .form-group {
+    margin-bottom: 1.5rem;
+  }
+
+  button:disabled {
+    background-color: #d1d5db;
+    cursor: not-allowed;
+  }
   </style>

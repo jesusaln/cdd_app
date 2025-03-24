@@ -7,6 +7,7 @@ use App\Models\Cliente;
 use App\Models\Producto;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\DB;
 
 class VentaController extends Controller
 {
@@ -138,24 +139,55 @@ class VentaController extends Controller
             'productos.*.id' => 'required|exists:productos,id',
             'productos.*.cantidad' => 'required|integer|min:1',
             'productos.*.precio' => 'required|numeric|min:0',
+            'productos.*.original_cantidad' => 'nullable|integer|min:0', // Añadido para comparar cantidades originales
         ]);
 
-        // Actualizar la venta
-        $venta->update([
-            'cliente_id' => $validatedData['cliente_id'],
-            'total' => array_sum(array_map(function ($producto) {
+        // Ejecutar en una transacción para garantizar integridad
+        DB::transaction(function () use ($venta, $validatedData) {
+            // Calcular el total
+            $total = array_sum(array_map(function ($producto) {
                 return $producto['cantidad'] * $producto['precio'];
-            }, $validatedData['productos'])),
-        ]);
+            }, $validatedData['productos']));
 
-        // Sincronizar los productos de la venta
-        $venta->productos()->sync([]); // Eliminar todos los productos actuales
-        foreach ($validatedData['productos'] as $productoData) {
-            $venta->productos()->attach($productoData['id'], [
-                'cantidad' => $productoData['cantidad'],
-                'precio' => $productoData['precio'],
+            // Actualizar datos de la venta
+            $venta->update([
+                'cliente_id' => $validatedData['cliente_id'],
+                'total' => $total,
             ]);
-        }
+
+            // Obtener los productos actuales de la venta para comparar
+            $productosActuales = $venta->productos()
+                ->get()
+                ->pluck('pivot.cantidad', 'id')
+                ->all();
+
+            // Preparar los nuevos productos para sincronizar
+            $syncData = [];
+            foreach ($validatedData['productos'] as $productoData) {
+                $productoId = $productoData['id'];
+                $nuevaCantidad = $productoData['cantidad'];
+                $originalCantidad = $productoData['original_cantidad'] ?? ($productosActuales[$productoId] ?? 0);
+
+                // Calcular diferencia para ajustar el stock
+                $diferencia = $nuevaCantidad - $originalCantidad;
+                if ($diferencia != 0) {
+                    $producto = Producto::find($productoId);
+                    if ($producto->stock - $diferencia < 0) {
+                        throw new \Exception("Stock insuficiente para el producto: {$producto->nombre}");
+                    }
+                    $producto->stock -= $diferencia; // Descontar o aumentar stock
+                    $producto->save();
+                }
+
+                $syncData[$productoId] = [
+                    'cantidad' => $nuevaCantidad,
+                    'precio' => $productoData['precio'],
+                ];
+            }
+
+            // Sincronizar los productos (reemplaza los existentes)
+            $venta->productos()->sync($syncData);
+        });
 
         // Redirigir con un mensaje de éxito
         return redirect()->route('ventas.index')->with('success', 'Venta actualizada exitosamente.');
