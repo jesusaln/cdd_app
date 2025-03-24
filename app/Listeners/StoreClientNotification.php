@@ -10,7 +10,7 @@ class StoreClientNotification
     public function handle(ClientCreated $event)
     {
         // Verifica si ya existe una notificación para este cliente
-     /*
+        /*
     if (!Notification::where('data->client_id', $event->cliente->id)->exists()) {
         Notification::create([
             'type' => 'new_client',
@@ -22,4 +22,5 @@ class StoreClientNotification
         ]);
     }
     */
+    }
 }
