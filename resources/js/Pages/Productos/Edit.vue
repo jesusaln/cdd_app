@@ -181,7 +181,7 @@ const form = useForm({
 const submit = () => {
     form.put(route('productos.update', props.producto.id), {
         onSuccess: () => {
-            alert('Producto actualizado correctamente.');
+            //alert('Producto actualizado correctamente.');
         },
         onError: (errors) => {
             console.error('Error al actualizar el producto:', errors);

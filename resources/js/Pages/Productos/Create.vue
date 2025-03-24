@@ -182,6 +182,7 @@
 import { Head, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
+
 // Define el layout del dashboard
 defineOptions({ layout: AppLayout });
 
@@ -192,6 +193,8 @@ const props = defineProps({
     proveedores: Array,
     almacenes: Array,
 });
+
+
 
 // Lista de unidades de medida
 const unidadesMedida = [
@@ -222,7 +225,7 @@ const form = useForm({
     precio_compra: '',
     precio_venta: '',
     impuesto: '16',
-    unidad_medida: '',  // Se mantiene vacío para que sea seleccionado por el usuario
+    unidad_medida: 'Piezas',  // Se mantiene vacío para que sea seleccionado por el usuario
     fecha_vencimiento: '',
     tipo_producto: 'fisico',
     imagen: null,

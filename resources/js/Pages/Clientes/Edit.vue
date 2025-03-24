@@ -24,12 +24,20 @@
                 </select>
             </div>
 
-            <!-- RFC -->
-            <div>
-                <label for="rfc" class="block text-sm font-medium text-gray-700">RFC</label>
-                <input v-model="form.rfc" type="text" id="rfc" :maxlength="form.tipo_persona === 'fisica' ? 13 : 12" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" @input="validarRFC" required />
-                <p v-if="form.errors.rfc" class="text-red-500 text-sm">{{ form.errors.rfc }}</p>
-            </div>
+           <!-- RFC -->
+<div>
+    <label for="rfc" class="block text-sm font-medium text-gray-700">RFC</label>
+    <input
+        v-model="form.rfc"
+        type="text"
+        id="rfc"
+        :maxlength="form.tipo_persona === 'fisica' ? 13 : 12"
+        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+        @input="validarRFC; convertirAMayusculas('rfc')"
+        required
+    />
+    <p v-if="form.errors.rfc" class="text-red-500 text-sm">{{ form.errors.rfc }}</p>
+</div>
 
             <!-- Régimen Fiscal -->
             <div>
@@ -188,15 +196,16 @@ const validarRFC = () => {
     const rfcRegexFisica = /^[A-ZÑ&]{4}\d{6}[A-Z0-9]{3}$/;
     const rfcRegexMoral = /^[A-ZÑ&]{3}\d{6}[A-Z0-9]{3}$/;
 
-    const rfcValue = form.rfc.toUpperCase();
+    // Convertir el valor del RFC a mayúsculas
+    form.rfc = form.rfc.toUpperCase();
 
     if (form.tipo_persona === 'fisica') {
-        if (rfcValue.length !== 13 || !rfcRegexFisica.test(rfcValue)) {
+        if (form.rfc.length !== 13 || !rfcRegexFisica.test(form.rfc)) {
             form.setError('rfc', 'El RFC debe tener 13 caracteres y ser válido para una persona física.');
             return;
         }
     } else if (form.tipo_persona === 'moral') {
-        if (rfcValue.length !== 12 || !rfcRegexMoral.test(rfcValue)) {
+        if (form.rfc.length !== 12 || !rfcRegexMoral.test(form.rfc)) {
             form.setError('rfc', 'El RFC debe tener 12 caracteres y ser válido para una persona moral.');
             return;
         }
