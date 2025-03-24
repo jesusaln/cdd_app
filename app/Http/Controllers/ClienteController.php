@@ -12,7 +12,6 @@ class ClienteController extends Controller
 {
     public function index(Request $request)
     {
-        // Obtiene los clientes con paginación (10 por página por defecto)
         $clientes = Cliente::paginate(10);
         $clientesCount = Cliente::count();
 
@@ -22,7 +21,6 @@ class ClienteController extends Controller
         ]);
     }
 
-    // Método para mostrar el formulario de creación de clientes
     public function create()
     {
         return Inertia::render('Clientes/Create');
@@ -49,18 +47,22 @@ class ClienteController extends Controller
             ]);
 
             $cliente = Cliente::create($request->all());
-            // event(new ClientCreated($cliente)); // ⚠️ Comenta esta línea para descartar que falle el evento
+            // event(new ClientCreated($cliente)); // Descomenta si necesitas el evento
 
-            return redirect()->route('clientes.index')->with('success', 'Cliente creado correctamente.');
+            return redirect()->route('clientes.index')
+                ->with('success', 'Cliente creado correctamente');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->back()
+                ->with('error', 'Errores en el formulario')
+                ->withErrors($e->errors())
+                ->withInput();
         } catch (\Exception $e) {
-            return response()->json([
-                'error' => $e->getMessage(),
-                'linea' => $e->getLine(),
-                'archivo' => $e->getFile()
-            ], 500);
+            // En lugar de JSON, devolvemos una redirección con mensaje flash
+            return redirect()->back()
+                ->with('error', 'Hubo un problema al crear el cliente: ' . $e->getMessage())
+                ->withInput();
         }
     }
-
 
     public function edit(Cliente $cliente)
     {
@@ -73,7 +75,7 @@ class ClienteController extends Controller
     {
         $validated = $request->validate([
             'nombre_razon_social' => 'required|string|max:255',
-            'rfc' => 'nullable|string|max:20|unique:clientes,rfc,' . $cliente->id, // Added unique rule for rfc, ignoring the current client
+            'rfc' => 'nullable|string|max:20|unique:clientes,rfc,' . $cliente->id,
             'regimen_fiscal' => 'nullable|string|max:255',
             'uso_cfdi' => 'nullable|string|max:255',
             'email' => 'nullable|email|max:255|unique:clientes,email,' . $cliente->id,
@@ -90,7 +92,8 @@ class ClienteController extends Controller
 
         $cliente->update($validated);
 
-        return redirect()->route('clientes.index')->with('success', 'Cliente actualizado correctamente.');
+        return redirect()->route('clientes.index')
+            ->with('success', 'Cliente actualizado correctamente');
     }
 
     public function destroy($id)
@@ -98,7 +101,8 @@ class ClienteController extends Controller
         $cliente = Cliente::findOrFail($id);
         $cliente->delete();
 
-        return redirect()->route('clientes.index')->with('success', 'Cliente eliminado correctamente.');
+        return redirect()->route('clientes.index')
+            ->with('success', 'Cliente eliminado correctamente');
     }
 
     public function checkEmail(Request $request)

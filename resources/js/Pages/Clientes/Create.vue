@@ -220,7 +220,6 @@
 import { Head, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
-// Define el layout del dashboard
 defineOptions({ layout: AppLayout });
 
 // Listas predefinidas
@@ -250,16 +249,22 @@ const form = useForm({
     numero_interior: '',
     colonia: '',
     codigo_postal: '83000',
-    municipio: 'HERMOSILLO', // Valor predeterminado
-    estado: 'SONORA',       // Valor predeterminado
-    pais: 'MEXICO'          // Valor predeterminado
+    municipio: 'HERMOSILLO',
+    estado: 'SONORA',
+    pais: 'MEXICO'
 });
 
 // Función para enviar el formulario
 const submit = () => {
     form.post(route('clientes.store'), {
+        preserveScroll: true,
+        preserveState: true,
         onSuccess: () => {
             form.reset(); // Limpia el formulario después de guardar
+            // No añadimos notificación aquí, dejamos que el backend maneje el mensaje flash
+        },
+        onError: (errors) => {
+            console.error('Error al crear:', errors);
         },
     });
 };
@@ -273,13 +278,11 @@ const convertirAMayusculas = (campo) => {
 
 // Validación del RFC
 const validarRFC = () => {
-    const rfcRegexFisica = /^[A-ZÑ&]{4}\d{6}[A-Z0-9]{3}$/; // Expresión regular para RFC de persona física
-    const rfcRegexMoral = /^[A-ZÑ&]{3}\d{6}[A-Z0-9]{3}$/; // Expresión regular para RFC de persona moral
+    const rfcRegexFisica = /^[A-ZÑ&]{4}\d{6}[A-Z0-9]{3}$/;
+    const rfcRegexMoral = /^[A-ZÑ&]{3}\d{6}[A-Z0-9]{3}$/;
 
-    // Convertir el RFC a mayúsculas para validar
     const rfcValue = form.rfc.toUpperCase();
 
-    // Verificar longitud y formato según el tipo de persona
     if (form.tipo_persona === 'fisica') {
         if (rfcValue.length !== 13 || !rfcRegexFisica.test(rfcValue)) {
             form.setError('rfc', 'El RFC debe tener 13 caracteres y ser válido para una persona física.');
@@ -292,7 +295,6 @@ const validarRFC = () => {
         }
     }
 
-    // Si pasa todas las validaciones, limpiar el error
     form.clearErrors('rfc');
 };
 
@@ -301,6 +303,8 @@ const validarTelefono = () => {
     const telefonoRegex = /^\d{10}$/;
     if (!telefonoRegex.test(form.telefono)) {
         form.setError('telefono', 'El teléfono debe tener 10 dígitos.');
+    } else {
+        form.clearErrors('telefono');
     }
 };
 </script>
