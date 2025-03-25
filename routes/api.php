@@ -3,12 +3,13 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\ClienteController;
-use App\Http\Controllers\CategoriaController;
-use App\Http\Controllers\MarcaController;
-use App\Http\Controllers\ProveedorController;
-use App\Http\Controllers\AlmacenController;
+use App\Http\Controllers\Api\CategoriaController;
+use App\Http\Controllers\Api\MarcaController;
+use App\Http\Controllers\Api\ProveedorController; // Ensure this class exists in the specified namespace
+use App\Http\Controllers\Api\AlmacenController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ProductoController;
+use App\Http\Controllers\Api\CotizacionController;
 
 
 
@@ -27,6 +28,16 @@ Route::get('/create-token', [AuthController::class, 'createToken'])->middleware(
 
 // Verificar correo electrónico
 Route::get('/check-email', [ClienteController::class, 'checkEmail']);
+
+// Cotizaciones
+
+
+Route::get('/cotizaciones', [CotizacionController::class, 'index']);       // GET /api/cotizaciones
+Route::get('/cotizaciones/{id}', [CotizacionController::class, 'show']);  // GET /api/cotizaciones/{id}
+Route::post('/cotizaciones', [CotizacionController::class, 'store']);     // POST /api/cotizaciones
+Route::put('/cotizaciones/{id}', [CotizacionController::class, 'update']); // PUT /api/cotizaciones/{id}
+Route::delete('/cotizaciones/{id}', [CotizacionController::class, 'destroy']); // DELETE /api/cotizaciones/{id}
+
 
 
 Route::apiResource('categorias', CategoriaController::class);
