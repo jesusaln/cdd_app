@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\ProductoController;
 use App\Http\Controllers\Api\CotizacionController;
 use App\Models\Pedido;
 use App\Http\Controllers\Api\PedidoController;
+use App\Http\Controllers\Api\VentaController;
 
 // Ruta protegida por Sanctum
 Route::get('/user', function (Request $request) {
@@ -38,6 +39,9 @@ Route::put('/cotizaciones/{id}', [CotizacionController::class, 'update']); // PU
 Route::delete('/cotizaciones/{id}', [CotizacionController::class, 'destroy']); // DELETE /api/cotizaciones/{id}
 
 Route::apiResource('pedidos', PedidoController::class);
+Route::apiResource('ventas', VentaController::class);
+
+
 
 Route::apiResource('categorias', CategoriaController::class);
 Route::apiResource('marcas', MarcaController::class);
