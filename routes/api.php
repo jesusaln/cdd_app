@@ -7,8 +7,10 @@ use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\MarcaController;
 use App\Http\Controllers\ProveedorController;
 use App\Http\Controllers\AlmacenController;
-use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ProductoController;
+
+
 
 
 // Ruta protegida por Sanctum
@@ -26,24 +28,18 @@ Route::get('/create-token', [AuthController::class, 'createToken'])->middleware(
 // Verificar correo electrónico
 Route::get('/check-email', [ClienteController::class, 'checkEmail']);
 
-// Categorías
-Route::get('/categorias', [CategoriaController::class, 'index'])->name('api.categorias.index');
-Route::get('/categorias/{id}', [CategoriaController::class, 'show'])->name('api.categorias.show');
 
-// Marcas
-Route::get('/marcas', [MarcaController::class, 'index'])->name('api.marcas.index');
-Route::get('/marcas/{id}', [MarcaController::class, 'show'])->name('api.marcas.show');
-
-// Proveedores
-Route::get('/proveedores', [ProveedorController::class, 'index'])->name('api.proveedores.index');
-Route::get('/proveedores/{id}', [ProveedorController::class, 'show'])->name('api.proveedores.show');
-
-// Almacenes
-Route::get('/almacenes', [AlmacenController::class, 'index'])->name('api.almacenes.index');
-Route::get('/almacenes/{id}', [AlmacenController::class, 'show'])->name('api.almacenes.show');
+Route::apiResource('categorias', CategoriaController::class);
+Route::apiResource('marcas', MarcaController::class);
+Route::apiResource('proveedores', ProveedorController::class);
+Route::apiResource('almacenes', AlmacenController::class);
 
 // Productos
-Route::get('/productos/{id}', [ProductoController::class, 'show'])->name('api.productos.show');
+Route::get('/productos', [ProductoController::class, 'index'])->name('api.productos.index'); // Obtener todos los productos
+Route::post('/productos', [ProductoController::class, 'store'])->name('api.productos.store'); // Crear un nuevo producto
+Route::get('/productos/{id}', [ProductoController::class, 'show'])->name('api.productos.show'); // Obtener un producto específico
+Route::put('/productos/{id}', [ProductoController::class, 'update'])->name('api.productos.update'); // Actualizar un producto
+Route::delete('/productos/{id}', [ProductoController::class, 'destroy'])->name('api.productos.destroy'); // Eliminar un producto
 
 // Clientes
 Route::get('/clientes', [ClienteController::class, 'index'])->name('api.clientes.index'); // Obtener todos los clientes

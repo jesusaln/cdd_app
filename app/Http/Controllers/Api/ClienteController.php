@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Cliente;
 use Illuminate\Http\Request;
 use App\Events\ClientCreated;
+use Illuminate\Validation\ValidationException;
 
 class ClienteController extends Controller
 {
@@ -23,32 +24,47 @@ class ClienteController extends Controller
      */
     public function store(Request $request)
     {
-        // Validar los datos del formulario
-        $validated = $request->validate([
-            'nombre_razon_social' => 'required|string|max:255',
-            'rfc' => 'nullable|string|max:20',
-            'regimen_fiscal' => 'nullable|string|max:255',
-            'uso_cfdi' => 'nullable|string|max:255',
-            'email' => 'nullable|email|max:255|unique:clientes,email',
-            'telefono' => 'nullable|string|max:20',
-            'calle' => 'nullable|string|max:255',
-            'numero_exterior' => 'nullable|string|max:20',
-            'numero_interior' => 'nullable|string|max:20',
-            'colonia' => 'nullable|string|max:255',
-            'codigo_postal' => 'nullable|string|max:10',
-            'municipio' => 'nullable|string|max:255',
-            'estado' => 'nullable|string|max:255',
-            'pais' => 'nullable|string|max:255',
-        ]);
+        try {
+            // Validar los datos del formulario
+            $validated = $request->validate([
+                'nombre_razon_social' => 'required|string|max:255',
+                'tipo_persona' => 'required|in:fisica,moral', // Agregar tipo_persona
+                'rfc' => 'required|string|max:20|unique:clientes,rfc', // Hacer rfc requerido y único
+                'regimen_fiscal' => 'nullable|string|max:255',
+                'uso_cfdi' => 'nullable|string|max:255',
+                'email' => 'nullable|email|max:255|unique:clientes,email',
+                'telefono' => 'nullable|string|max:20',
+                'calle' => 'nullable|string|max:255',
+                'numero_exterior' => 'nullable|string|max:20',
+                'numero_interior' => 'nullable|string|max:20',
+                'colonia' => 'nullable|string|max:255',
+                'codigo_postal' => 'nullable|string|max:10',
+                'municipio' => 'nullable|string|max:255',
+                'estado' => 'nullable|string|max:255',
+                'pais' => 'nullable|string|max:255',
+            ]);
 
-        // Crear el cliente
-        $cliente = Cliente::create($validated);
+            // Crear el cliente
+            $cliente = Cliente::create($validated);
 
-        // Emitir evento si es necesario
-        event(new ClientCreated($cliente));
+            // Emitir evento si es necesario
+            event(new ClientCreated($cliente));
 
-        // Devolver respuesta JSON
-        return response()->json($cliente, 201);
+            // Devolver respuesta JSON
+            return response()->json($cliente, 201);
+        } catch (ValidationException $e) {
+            // Manejar errores de validación
+            return response()->json([
+                'message' => 'Errores de validación',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            // Manejar errores inesperados
+            return response()->json([
+                'message' => 'Error interno del servidor',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
