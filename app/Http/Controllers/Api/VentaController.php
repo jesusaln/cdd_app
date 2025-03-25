@@ -5,18 +5,42 @@ namespace App\Http\Controllers\Api;
 use App\Models\Venta;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class VentaController extends Controller
 {
     /**
      * Muestra una lista de todas las ventas en formato JSON.
      */
-    public function index()
+    public function index(Request $request)
     {
         try {
-            $ventas = Venta::with(['cliente', 'productos'])->get();
+            $nombreCliente = $request->query('cliente');
+            $limit = $request->query('limit', 10);
+
+            Log::info('Solicitud completa:', [
+                'url' => $request->fullUrl(),
+                'params' => $request->all(),
+                'cliente' => $nombreCliente,
+            ]);
+
+            $query = Venta::with(['cliente', 'productos']);
+
+            if ($nombreCliente) {
+                $query->whereIn('cliente_id', function ($subQuery) use ($nombreCliente) {
+                    $subQuery->select('id')
+                        ->from('clientes')
+                        ->where('nombre_razon_social', 'LIKE', '%' . $nombreCliente . '%');
+                });
+                Log::info('Filtro aplicado para cliente: ' . $nombreCliente);
+            }
+
+            $ventas = $query->orderByDesc('created_at')->limit($limit)->get();
+
+            Log::info('Ventas encontradas: ' . $ventas->count());
             return response()->json($ventas, 200);
         } catch (\Exception $e) {
+            Log::info('Error: ' . $e->getMessage());
             return response()->json(['error' => 'Error al obtener las ventas: ' . $e->getMessage()], 500);
         }
     }
