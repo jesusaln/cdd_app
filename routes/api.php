@@ -13,6 +13,8 @@ use App\Http\Controllers\Api\CotizacionController;
 use App\Models\Pedido;
 use App\Http\Controllers\Api\PedidoController;
 use App\Http\Controllers\Api\VentaController;
+use App\Http\Controllers\Api\CitaController;
+use App\Http\Controllers\Api\TecnicoController;
 
 // Ruta protegida por Sanctum
 Route::get('/user', function (Request $request) {
@@ -40,7 +42,8 @@ Route::delete('/cotizaciones/{id}', [CotizacionController::class, 'destroy']); /
 
 Route::apiResource('pedidos', PedidoController::class);
 Route::apiResource('ventas', VentaController::class);
-
+Route::apiResource('citas', CitaController::class); // Ensure this class exists in the specified namespace
+Route::apiResource('tecnicos', TecnicoController::class);
 
 
 Route::apiResource('categorias', CategoriaController::class);
