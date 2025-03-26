@@ -37,7 +37,13 @@ class CitaController extends Controller
             'estado' => 'required|string|in:pendiente,en_proceso,completado,cancelado',
         ]);
 
+        // Crear la cita
         $cita = Cita::create($validated);
+
+        // Cargar las relaciones de cliente y técnico
+        $cita->load('cliente', 'tecnico');
+
+        // Devolver la cita con las relaciones incluidas
         return response()->json(['message' => 'Cita creada exitosamente.', 'cita' => $cita]);
     }
 
