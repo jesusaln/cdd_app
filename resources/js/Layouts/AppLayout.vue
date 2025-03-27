@@ -144,6 +144,7 @@ import { Link, usePage } from '@inertiajs/vue3';
 import { library } from '@fortawesome/fontawesome-svg-core';
 import {
     faCalendar,
+    faWrench,
     faTools,
     faCarAlt,
     faChartBar,
@@ -165,7 +166,7 @@ import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { router } from '@inertiajs/vue3';
 import axios from 'axios';
 
-library.add(faCalendar, faTools, faCarAlt, faChartBar, faCartShopping, faCircle, faHome, faUsers, faBox, faTags, faTrademark, faTruck, faWarehouse, faFileAlt, faTruckLoading, faDollarSign, faUser);
+library.add(faCalendar, faWrench, faTools, faCarAlt, faChartBar, faCartShopping, faCircle, faHome, faUsers, faBox, faTags, faTrademark, faTruck, faWarehouse, faFileAlt, faTruckLoading, faDollarSign, faUser);
 
 // Acceder a los datos del usuario desde las propiedades de la página de Inertia
 const { props } = usePage();

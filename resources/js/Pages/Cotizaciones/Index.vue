@@ -9,12 +9,16 @@
         <Link :href="route('cotizaciones.create')" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-300">
           Crear Cotización
         </Link>
-        <input
-          v-model="searchTerm"
-          type="text"
-          placeholder="Buscar por cliente o producto"
-          class="px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+        <div class="flex flex-col">
+          <label for="searchTerm" class="sr-only">Buscar por cliente, producto o servicio</label>
+          <input
+            id="searchTerm"
+            v-model="searchTerm"
+            type="text"
+            placeholder="Buscar por cliente, producto o servicio"
+            class="px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
       </div>
 
       <!-- Tabla de cotizaciones -->
@@ -24,7 +28,7 @@
             <tr>
               <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
               <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th>
-              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Productos</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Productos/Servicios</th>
               <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
               <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
             </tr>
@@ -35,8 +39,8 @@
               <td class="px-4 py-3 text-sm text-gray-700">{{ cotizacion.cliente.nombre_razon_social }}</td>
               <td class="px-4 py-3 text-sm text-gray-700">
                 <ul>
-                  <li v-for="producto in cotizacion.productos" :key="producto.id">
-                    {{ producto.nombre }} - ${{ producto.pivot.precio }} (Cantidad: {{ producto.pivot.cantidad }})
+                  <li v-for="item in cotizacion.productos" :key="item.id" :class="item.tipo === 'producto' ? 'text-blue-600' : 'text-green-600'">
+                    {{ item.tipo === 'producto' ? '[Producto]' : '[Servicio]' }} {{ item.nombre }} - ${{ item.pivot.precio }} (Cantidad: {{ item.pivot.cantidad }})
                   </li>
                 </ul>
               </td>
@@ -99,21 +103,18 @@
     </div>
   </template>
 
+
   <script setup>
   import { Head, Link, router } from '@inertiajs/vue3';
   import { ref, computed } from 'vue';
   import { Notyf } from 'notyf';
   import 'notyf/notyf.min.css';
-
-  import { generarPDF } from '@/Utils/pdfGenerator';  // Asegúrate de que la ruta sea correcta
-  import Show from './Show.vue'; // Asegúrate de que la ruta sea correcta
-
-
+  import { generarPDF } from '@/Utils/pdfGenerator';
+  import Show from './Show.vue';
   import AppLayout from '@/Layouts/AppLayout.vue';
 
-
-// Define el layout del dashboard
-defineOptions({ layout: AppLayout });
+  // Define el layout del dashboard
+  defineOptions({ layout: AppLayout });
 
   // Propiedades
   const props = defineProps({ cotizaciones: Array });
@@ -123,8 +124,6 @@ defineOptions({ layout: AppLayout });
   const cotizacionIdToDelete = ref(null);
   const showDetailsDialog = ref(false);
   const selectedCotizacion = ref(null);
-
-
 
   // Configuración de Notyf para notificaciones
   const notyf = new Notyf({ duration: 3000, position: { x: 'right', y: 'top' } });
@@ -136,7 +135,11 @@ defineOptions({ layout: AppLayout });
   const cotizacionesFiltradas = computed(() => {
     return cotizaciones.value.filter(cotizacion => {
       return cotizacion.cliente.nombre_razon_social.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
-             cotizacion.productos.some(producto => producto.nombre.toLowerCase().includes(searchTerm.value.toLowerCase()));
+             cotizacion.productos.some(item =>
+               item.nombre.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
+               (item.tipo === 'producto' && 'producto'.includes(searchTerm.value.toLowerCase())) ||
+               (item.tipo === 'servicio' && 'servicio'.includes(searchTerm.value.toLowerCase()))
+             );
     });
   });
 
@@ -195,13 +198,10 @@ defineOptions({ layout: AppLayout });
     try {
       await router.post(`/cotizaciones/${cotizacionData.id}/convertir-a-pedido`, {
         onSuccess: () => {
-          // Mostrar alerta de éxito
           alert('Conversión correcta. ¿Deseas ir al índice de pedidos?');
-          // Opcional: Cerrar el diálogo de detalles
           cerrarDetalles();
         },
         onError: (errors) => {
-          // Manejar el error, por ejemplo, mostrar una notificación de error
           console.error('Error al convertir la cotización a pedido:', errors);
         }
       });
@@ -217,5 +217,11 @@ defineOptions({ layout: AppLayout });
   </script>
 
   <style scoped>
-  /* Aquí van tus estilos personalizados */
+  /* Estilos personalizados */
+  .text-blue-600 {
+    color: #2563eb; /* Color para productos */
+  }
+  .text-green-600 {
+    color: #16a34a; /* Color para servicios */
+  }
   </style>

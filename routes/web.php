@@ -23,6 +23,7 @@ use App\Http\Controllers\MantenimientoController;
 use App\Http\Controllers\CitaController;
 use App\Http\Controllers\PanelController;
 use App\Http\Controllers\EmpresasController;
+use App\Http\Controllers\ServicioController;
 
 use App\Http\Controllers\InventarioController;
 
@@ -96,6 +97,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
 
     // Ventas
     Route::resource('ventas', VentaController::class)->names('ventas');
+
+    // Servicios
+    Route::resource('servicios', ServicioController::class)->names('servicios');
 
 
     // Usuarios

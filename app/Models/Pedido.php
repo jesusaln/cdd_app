@@ -36,7 +36,13 @@ class Pedido extends Model
      */
     public function productos()
     {
-        return $this->belongsToMany(Producto::class, 'pedido_producto')
-            ->withPivot('cantidad', 'precio'); // Asegura que los campos estén en la tabla pivote
+        return $this->morphedByMany(Producto::class, 'pedible', 'pedido_producto')
+            ->withPivot('precio', 'cantidad');
+    }
+
+    public function servicios()
+    {
+        return $this->morphedByMany(Servicio::class, 'pedible', 'pedido_producto')
+            ->withPivot('precio', 'cantidad');
     }
 }

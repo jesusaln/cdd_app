@@ -53,25 +53,35 @@ class Producto extends Model
         return $this->belongsTo(Almacen::class);
     }
 
-    // Relación con cotizaciones
-    public function cotizaciones()
-    {
-        return $this->belongsToMany(Cotizacion::class, 'cotizacion_producto')
-            ->withPivot('precio', 'cantidad');
-    }
+    
 
     public function compras()
     {
         return $this->belongsToMany(Compra::class)->withPivot('cantidad', 'precio');
     }
 
-    public function ventas()
-    {
-        return $this->belongsToMany(Venta::class)->withPivot('cantidad', 'precio');
-    }
 
     public function inventarios()
     {
         return $this->hasMany(Inventario::class);
     }
+
+    public function pedidos()
+{
+    return $this->morphToMany(Pedido::class, 'pedible', 'pedido_producto')
+        ->withPivot('precio', 'cantidad');
+}
+
+public function ventas()
+{
+    return $this->morphToMany(Venta::class, 'vendible', 'venta_producto')
+        ->withPivot('precio', 'cantidad');
+}
+
+public function cotizaciones()
+{
+    return $this->morphToMany(Cotizacion::class, 'cotizable', 'cotizacion_producto')
+        ->withPivot('precio', 'cantidad');
+
+}
 }

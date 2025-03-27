@@ -16,9 +16,13 @@ class CreatePedidoProductoTable extends Migration
         Schema::create('pedido_producto', function (Blueprint $table) {
             $table->id(); // ID de la relación
             $table->foreignId('pedido_id')->constrained('pedidos')->onDelete('cascade'); // Relación con el pedido
-            $table->foreignId('producto_id')->constrained('productos')->onDelete('cascade'); // Relación con el producto
-            $table->decimal('precio', 8, 2); // Precio del producto en el pedido
-            $table->integer('cantidad')->default(1); // Cantidad del producto en el pedido
+
+            // Campos polimórficos
+            $table->unsignedBigInteger('pedible_id');
+            $table->string('pedible_type');
+
+            $table->decimal('precio', 8, 2); // Precio del producto o servicio en el pedido
+            $table->integer('cantidad')->default(1); // Cantidad del producto o servicio en el pedido
             $table->timestamps(); // Columnas created_at y updated_at
         });
     }

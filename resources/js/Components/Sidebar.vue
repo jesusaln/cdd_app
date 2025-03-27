@@ -9,6 +9,7 @@
                 <NavLink href="/clientes" icon="users">Clientes</NavLink>
                 <NavLink href="/citas" icon="calendar">Citas</NavLink>
                 <NavLink href="/productos" icon="box">Productos</NavLink>
+                <NavLink href="/servicios" icon="wrench">Servicios</NavLink>
                 <NavLink href="/categorias" icon="tags">Categorías</NavLink>
                 <NavLink href="/marcas" icon="trademark">Marcas</NavLink>
                 <NavLink href="/proveedores" icon="truck">Proveedores</NavLink>

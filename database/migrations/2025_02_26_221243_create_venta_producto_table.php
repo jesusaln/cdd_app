@@ -12,11 +12,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('venta_producto', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('venta_id')->constrained()->onDelete('cascade'); // Relación con la venta
-            $table->foreignId('producto_id')->constrained()->onDelete('cascade'); // Relación con el producto
-            $table->integer('cantidad'); // Cantidad del producto en la venta
-            $table->decimal('precio', 8, 2); // Precio del producto en la venta
+            $table->id(); // ID de la relación
+            $table->foreignId('venta_id')->constrained('ventas')->onDelete('cascade'); // Relación con la venta
+
+            // Campos polimórficos
+            $table->unsignedBigInteger('vendible_id');
+            $table->string('vendible_type');
+
+            $table->integer('cantidad'); // Cantidad del producto o servicio en la venta
+            $table->decimal('precio', 8, 2); // Precio del producto o servicio en la venta
             $table->timestamps(); // Columnas created_at y updated_at
         });
     }

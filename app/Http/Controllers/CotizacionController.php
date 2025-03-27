@@ -6,6 +6,7 @@ use App\Models\Cotizacion;
 use App\Models\Pedido;
 use App\Models\Cliente;
 use App\Models\Producto;
+use App\Models\Servicio;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
@@ -19,7 +20,37 @@ class CotizacionController extends Controller
      */
     public function index()
     {
-        $cotizaciones = Cotizacion::with('cliente', 'productos')->get();
+        $cotizaciones = Cotizacion::with(['cliente', 'productos', 'servicios'])->get()->map(function ($cotizacion) {
+            $items = $cotizacion->productos->map(function ($producto) {
+                return [
+                    'id' => $producto->id,
+                    'nombre' => $producto->nombre,
+                    'tipo' => 'producto',
+                    'pivot' => [
+                        'cantidad' => $producto->pivot->cantidad,
+                        'precio' => $producto->pivot->precio,
+                    ],
+                ];
+            })->merge($cotizacion->servicios->map(function ($servicio) {
+                return [
+                    'id' => $servicio->id,
+                    'nombre' => $servicio->nombre,
+                    'tipo' => 'servicio',
+                    'pivot' => [
+                        'cantidad' => $servicio->pivot->cantidad,
+                        'precio' => $servicio->pivot->precio,
+                    ],
+                ];
+            }));
+
+            return [
+                'id' => $cotizacion->id,
+                'cliente' => $cotizacion->cliente,
+                'productos' => $items, // Ahora incluye productos y servicios
+                'total' => $cotizacion->total,
+            ];
+        });
+
         return Inertia::render('Cotizaciones/Index', [
             'cotizaciones' => $cotizaciones,
         ]);
@@ -34,9 +65,11 @@ class CotizacionController extends Controller
     {
         $clientes = Cliente::all();
         $productos = Producto::all();
+        $servicios = Servicio::all();
         return Inertia::render('Cotizaciones/Create', [
             'clientes' => $clientes,
             'productos' => $productos,
+            'servicios' => $servicios,
         ]);
     }
 
@@ -52,7 +85,8 @@ class CotizacionController extends Controller
         $validatedData = $request->validate([
             'cliente_id' => 'required|exists:clientes,id',
             'productos' => 'required|array',
-            'productos.*.id' => 'required|exists:productos,id',
+            'productos.*.id' => 'required|integer',
+            'productos.*.tipo' => 'required|in:producto,servicio',
             'productos.*.cantidad' => 'required|integer|min:1',
             'productos.*.precio' => 'required|numeric|min:0',
         ]);
@@ -60,17 +94,24 @@ class CotizacionController extends Controller
         // Crear la cotización
         $cotizacion = Cotizacion::create([
             'cliente_id' => $validatedData['cliente_id'],
-            'total' => array_sum(array_map(function ($producto) {
-                return $producto['cantidad'] * $producto['precio'];
+            'total' => array_sum(array_map(function ($item) {
+                return $item['cantidad'] * $item['precio'];
             }, $validatedData['productos'])),
         ]);
 
-        // Asociar los productos a la cotización
-        foreach ($validatedData['productos'] as $productoData) {
-            $cotizacion->productos()->attach($productoData['id'], [
-                'cantidad' => $productoData['cantidad'],
-                'precio' => $productoData['precio'],
-            ]);
+        // Asociar productos y servicios a la cotización
+        foreach ($validatedData['productos'] as $itemData) {
+            if ($itemData['tipo'] === 'producto') {
+                $cotizacion->productos()->attach($itemData['id'], [
+                    'cantidad' => $itemData['cantidad'],
+                    'precio' => $itemData['precio'],
+                ]);
+            } elseif ($itemData['tipo'] === 'servicio') {
+                $cotizacion->servicios()->attach($itemData['id'], [
+                    'cantidad' => $itemData['cantidad'],
+                    'precio' => $itemData['precio'],
+                ]);
+            }
         }
 
         // Redirigir con un mensaje de éxito
@@ -85,9 +126,36 @@ class CotizacionController extends Controller
      */
     public function show($id)
     {
-        $cotizacion = Cotizacion::with('cliente', 'productos')->findOrFail($id);
+        $cotizacion = Cotizacion::with(['cliente', 'productos', 'servicios'])->findOrFail($id);
+        $items = $cotizacion->productos->map(function ($producto) {
+            return [
+                'id' => $producto->id,
+                'nombre' => $producto->nombre,
+                'tipo' => 'producto',
+                'pivot' => [
+                    'cantidad' => $producto->pivot->cantidad,
+                    'precio' => $producto->pivot->precio,
+                ],
+            ];
+        })->merge($cotizacion->servicios->map(function ($servicio) {
+            return [
+                'id' => $servicio->id,
+                'nombre' => $servicio->nombre,
+                'tipo' => 'servicio',
+                'pivot' => [
+                    'cantidad' => $servicio->pivot->cantidad,
+                    'precio' => $servicio->pivot->precio,
+                ],
+            ];
+        }));
+
         return Inertia::render('Cotizaciones/Show', [
-            'cotizacion' => $cotizacion,
+            'cotizacion' => [
+                'id' => $cotizacion->id,
+                'cliente' => $cotizacion->cliente,
+                'productos' => $items,
+                'total' => $cotizacion->total,
+            ],
         ]);
     }
 
@@ -99,13 +167,44 @@ class CotizacionController extends Controller
      */
     public function edit($id)
     {
-        $cotizacion = Cotizacion::with('cliente', 'productos')->findOrFail($id);
+        $cotizacion = Cotizacion::with(['cliente', 'productos', 'servicios'])->findOrFail($id);
+        $items = $cotizacion->productos->map(function ($producto) {
+            return [
+                'id' => $producto->id,
+                'nombre' => $producto->nombre,
+                'tipo' => 'producto',
+                'pivot' => [
+                    'cantidad' => $producto->pivot->cantidad,
+                    'precio' => $producto->pivot->precio,
+                ],
+            ];
+        })->merge($cotizacion->servicios->map(function ($servicio) {
+            return [
+                'id' => $servicio->id,
+                'nombre' => $servicio->nombre,
+                'tipo' => 'servicio',
+                'pivot' => [
+                    'cantidad' => $servicio->pivot->cantidad,
+                    'precio' => $servicio->pivot->precio,
+                ],
+            ];
+        }));
+
         $clientes = Cliente::all();
         $productos = Producto::all();
+        $servicios = Servicio::all();
+
         return Inertia::render('Cotizaciones/Edit', [
-            'cotizacion' => $cotizacion,
+            'cotizacion' => [
+                'id' => $cotizacion->id,
+                'cliente_id' => $cotizacion->cliente_id,
+                'cliente' => $cotizacion->cliente,
+                'productos' => $items,
+                'total' => $cotizacion->total,
+            ],
             'clientes' => $clientes,
             'productos' => $productos,
+            'servicios' => $servicios,
         ]);
     }
 
@@ -124,7 +223,8 @@ class CotizacionController extends Controller
         $validatedData = $request->validate([
             'cliente_id' => 'required|exists:clientes,id',
             'productos' => 'required|array',
-            'productos.*.id' => 'required|exists:productos,id',
+            'productos.*.id' => 'required|integer',
+            'productos.*.tipo' => 'required|in:producto,servicio',
             'productos.*.cantidad' => 'required|integer|min:1',
             'productos.*.precio' => 'required|numeric|min:0',
         ]);
@@ -132,18 +232,26 @@ class CotizacionController extends Controller
         // Actualizar la cotización
         $cotizacion->update([
             'cliente_id' => $validatedData['cliente_id'],
-            'total' => array_sum(array_map(function ($producto) {
-                return $producto['cantidad'] * $producto['precio'];
+            'total' => array_sum(array_map(function ($item) {
+                return $item['cantidad'] * $item['precio'];
             }, $validatedData['productos'])),
         ]);
 
-        // Sincronizar los productos de la cotización
-        $cotizacion->productos()->sync([]); // Eliminar todos los productos actuales
-        foreach ($validatedData['productos'] as $productoData) {
-            $cotizacion->productos()->attach($productoData['id'], [
-                'cantidad' => $productoData['cantidad'],
-                'precio' => $productoData['precio'],
-            ]);
+        // Sincronizar productos y servicios
+        $cotizacion->productos()->sync([]); // Eliminar productos actuales
+        $cotizacion->servicios()->sync([]); // Eliminar servicios actuales
+        foreach ($validatedData['productos'] as $itemData) {
+            if ($itemData['tipo'] === 'producto') {
+                $cotizacion->productos()->attach($itemData['id'], [
+                    'cantidad' => $itemData['cantidad'],
+                    'precio' => $itemData['precio'],
+                ]);
+            } elseif ($itemData['tipo'] === 'servicio') {
+                $cotizacion->servicios()->attach($itemData['id'], [
+                    'cantidad' => $itemData['cantidad'],
+                    'precio' => $itemData['precio'],
+                ]);
+            }
         }
 
         // Redirigir con un mensaje de éxito
@@ -159,10 +267,11 @@ class CotizacionController extends Controller
     public function destroy($id)
     {
         $cotizacion = Cotizacion::findOrFail($id);
+        $cotizacion->productos()->detach(); // Desasociar productos
+        $cotizacion->servicios()->detach(); // Desasociar servicios
         $cotizacion->delete();
         return redirect()->route('cotizaciones.index')->with('success', 'Cotización eliminada exitosamente.');
     }
-
 
     /**
      * Convertir una cotización en un pedido.
@@ -172,8 +281,7 @@ class CotizacionController extends Controller
      */
     public function convertirAPedido($id)
     {
-        // Validar la cotización
-        $cotizacion = Cotizacion::with('cliente', 'productos')->findOrFail($id);
+        $cotizacion = Cotizacion::with(['cliente', 'productos', 'servicios'])->findOrFail($id);
 
         // Crear un nuevo pedido
         $pedido = new Pedido();
@@ -181,15 +289,21 @@ class CotizacionController extends Controller
         $pedido->total = $cotizacion->total;
         $pedido->save();
 
-        // Asociar los productos al pedido
+        // Asociar productos y servicios al pedido
         foreach ($cotizacion->productos as $producto) {
             $pedido->productos()->attach($producto->id, [
                 'cantidad' => $producto->pivot->cantidad,
                 'precio' => $producto->pivot->precio,
             ]);
         }
+        foreach ($cotizacion->servicios as $servicio) {
+            $pedido->servicios()->attach($servicio->id, [
+                'cantidad' => $servicio->pivot->cantidad,
+                'precio' => $servicio->pivot->precio,
+            ]);
+        }
 
-        // Opcional: Marcar la cotización como convertida o eliminarla
+        // Opcional: Eliminar la cotización después de convertirla
         // $cotizacion->delete();
 
         return redirect()->route('pedidos.index')->with('success', 'Cotización convertida a pedido exitosamente.');

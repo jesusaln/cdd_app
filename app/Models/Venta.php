@@ -40,9 +40,17 @@ class Venta extends Model
      */
     public function productos()
     {
-        return $this->belongsToMany(Producto::class, 'venta_producto')
-            ->withPivot('cantidad', 'precio'); // Asegura que los campos estén en la tabla pivote
+        return $this->morphedByMany(Producto::class, 'vendible', 'venta_producto')
+            ->withPivot('precio', 'cantidad');
     }
+
+    public function servicios()
+    {
+        return $this->morphedByMany(Servicio::class, 'vendible', 'venta_producto')
+            ->withPivot('precio', 'cantidad');
+    }
+
+
 
     public function calcularCostoTotal()
     {

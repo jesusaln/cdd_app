@@ -26,9 +26,15 @@ class Cotizacion extends Model
         return $this->belongsTo(Cliente::class);
     }
 
-    // Relación con los productos
     public function productos()
     {
-        return $this->belongsToMany(Producto::class)->withPivot('cantidad', 'precio');
+        return $this->morphedByMany(Producto::class, 'cotizable', 'cotizacion_producto')
+            ->withPivot('precio', 'cantidad');
+    }
+
+    public function servicios()
+    {
+        return $this->morphedByMany(Servicio::class, 'cotizable', 'cotizacion_producto')
+            ->withPivot('precio', 'cantidad');
     }
 }
