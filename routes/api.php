@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\PedidoController;
 use App\Http\Controllers\Api\VentaController;
 use App\Http\Controllers\Api\CitaController;
 use App\Http\Controllers\Api\TecnicoController;
+use App\Http\Controllers\Api\ServicioController;
 
 // Ruta protegida por Sanctum
 Route::get('/user', function (Request $request) {
@@ -44,6 +45,7 @@ Route::apiResource('pedidos', PedidoController::class);
 Route::apiResource('ventas', VentaController::class);
 Route::apiResource('citas', CitaController::class); // Ensure this class exists in the specified namespace
 Route::apiResource('tecnicos', TecnicoController::class);
+Route::apiResource('servicios', ServicioController::class);
 
 
 Route::apiResource('categorias', CategoriaController::class);
