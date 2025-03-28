@@ -259,17 +259,11 @@ const submit = () => {
     form.post(route('clientes.store'), {
         preserveScroll: true,
         preserveState: true,
-        onSuccess: () => {
-            form.reset(); // Limpia el formulario después de guardar
-            // No añadimos notificación aquí, dejamos que el backend maneje el mensaje flash
-        },
-        onError: (errors) => {
-            console.error('Error al crear:', errors);
-        },
+        onSuccess: () => form.reset(),
+        onError: (errors) => console.error('Error al crear:', errors),
     });
 };
 
-// Método para convertir a mayúsculas
 const convertirAMayusculas = (campo) => {
     if (form[campo]) {
         form[campo] = form[campo].toUpperCase();
@@ -281,15 +275,16 @@ const validarRFC = () => {
     const rfcRegexFisica = /^[A-ZÑ&]{4}\d{6}[A-Z0-9]{3}$/;
     const rfcRegexMoral = /^[A-ZÑ&]{3}\d{6}[A-Z0-9]{3}$/;
 
-    const rfcValue = form.rfc.toUpperCase();
+    // Convertir el valor del RFC a mayúsculas
+    form.rfc = form.rfc.toUpperCase();
 
     if (form.tipo_persona === 'fisica') {
-        if (rfcValue.length !== 13 || !rfcRegexFisica.test(rfcValue)) {
+        if (form.rfc.length !== 13 || !rfcRegexFisica.test(form.rfc)) {
             form.setError('rfc', 'El RFC debe tener 13 caracteres y ser válido para una persona física.');
             return;
         }
     } else if (form.tipo_persona === 'moral') {
-        if (rfcValue.length !== 12 || !rfcRegexMoral.test(rfcValue)) {
+        if (form.rfc.length !== 12 || !rfcRegexMoral.test(form.rfc)) {
             form.setError('rfc', 'El RFC debe tener 12 caracteres y ser válido para una persona moral.');
             return;
         }
@@ -297,6 +292,7 @@ const validarRFC = () => {
 
     form.clearErrors('rfc');
 };
+
 
 // Validación del teléfono
 const validarTelefono = () => {

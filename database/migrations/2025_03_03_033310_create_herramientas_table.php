@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('nombre');
             $table->string('numero_serie')->unique();
             $table->string('foto')->nullable();
-            $table->foreignId('tecnico_id')->nullable()->constrained('users')->onDelete('set null');
+            $table->foreignId('tecnico_id')->nullable()->constrained('tecnicos')->onDelete('set null');
             $table->timestamps();
         });
     }
