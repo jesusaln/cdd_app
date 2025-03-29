@@ -40,6 +40,11 @@ class Pedido extends Model
             ->withPivot('precio', 'cantidad');
     }
 
+    /**
+     * Relación con los servicios.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     */
     public function servicios()
     {
         return $this->morphedByMany(Servicio::class, 'pedible', 'pedido_producto')

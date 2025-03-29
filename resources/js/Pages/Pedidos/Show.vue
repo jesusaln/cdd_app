@@ -1,10 +1,8 @@
 <template>
     <Head title="Mostrar Pedido" />
     <div class="pedidos-show">
-      <!-- Título de la página -->
       <h1 class="text-2xl font-semibold mb-6">Detalles del Pedido</h1>
 
-      <!-- Verificar si pedido no es null -->
       <div v-if="pedido" class="bg-white rounded-lg shadow-md p-6">
         <div class="mb-4">
           <h2 class="text-lg font-medium text-gray-700">Cliente</h2>
@@ -31,7 +29,6 @@
         <p>Cargando detalles del pedido...</p>
       </div>
 
-      <!-- Botones de acción -->
       <div v-if="pedido" class="mt-6 flex space-x-4">
         <Link :href="route('pedidos.edit', pedido.id)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
           Editar
@@ -39,12 +36,11 @@
         <button @click="eliminarPedido(pedido.id)" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
           Eliminar
         </button>
-        <button @click="convertirAVenta(pedido.id)" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+        <button @click="$emit('convertir-a-venta', pedido)" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
           Enviar a Ventas
         </button>
       </div>
 
-      <!-- Spinner de carga -->
       <div v-if="loading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
@@ -57,14 +53,12 @@
   import { Notyf } from 'notyf';
   import 'notyf/notyf.min.css';
 
-  // Propiedades
-  const props = defineProps({ pedido: Object });
-  const loading = ref(false);
+  defineProps({ pedido: Object });
+  defineEmits(['convertir-a-venta']); // Declarar el evento
 
-  // Configuración de Notyf para notificaciones
+  const loading = ref(false);
   const notyf = new Notyf({ duration: 3000, position: { x: 'right', y: 'top' } });
 
-  // Función para eliminar un pedido
   const eliminarPedido = async (id) => {
     loading.value = true;
     if (confirm('¿Estás seguro de que deseas eliminar este pedido?')) {
@@ -82,25 +76,6 @@
       } finally {
         loading.value = false;
       }
-    }
-  };
-
-  // Función para enviar a ventas
-  const convertirAVenta = async (id) => {
-    loading.value = true;
-    try {
-      await router.post(`/pedidos/${id}/enviar-a-ventas`, {}, {
-        onSuccess: () => {
-          notyf.success('Pedido enviado a ventas exitosamente.');
-          // Aquí puedes actualizar el estado del pedido o realizar otras acciones necesarias
-        },
-        onError: () => notyf.error('Error al enviar el pedido a ventas.')
-      });
-    } catch (error) {
-      notyf.error('Ocurrió un error inesperado.');
-      console.error('Error al enviar el pedido a ventas:', error);
-    } finally {
-      loading.value = false;
     }
   };
   </script>

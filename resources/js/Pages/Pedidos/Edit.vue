@@ -1,17 +1,16 @@
 <template>
-    <Head title="Editar Pedido" />
+    <Head title="Editar Pedidos" />
     <div class="pedidos-edit">
-      <h1 class="text-2xl font-semibold mb-6">Editar Pedido #{{ props.pedido.id }}</h1>
+      <h1 class="text-2xl font-semibold mb-6">Editar Pedido</h1>
       <form @submit.prevent="actualizarPedido" class="space-y-6">
         <!-- Búsqueda de cliente -->
-        <div class="form-group relative">
-          <label for="buscarCliente" class="block text-sm font-medium text-gray-700">Cliente</label>
+        <div class="form-group">
+          <label for="buscarCliente" class="block text-sm font-medium text-gray-700">Buscar Cliente</label>
           <input
+            id="buscarCliente"
             v-model="buscarCliente"
             type="text"
             placeholder="Buscar cliente..."
-            @input="debouncedBuscarCliente"
-            @keydown.enter.prevent="seleccionarPrimerCliente"
             @focus="mostrarClientes = true"
             @blur="ocultarClientesDespuesDeTiempo"
             class="mt-1 block w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500"
@@ -21,91 +20,99 @@
               v-for="cliente in clientesFiltrados"
               :key="cliente.id"
               @click="seleccionarCliente(cliente)"
-              @keydown.enter="seleccionarCliente(cliente)"
-              tabindex="0"
-              class="px-4 py-2 cursor-pointer hover:bg-gray-100 cliente-item"
+              class="px-4 py-2 cursor-pointer hover:bg-gray-100"
             >
               {{ cliente.nombre_razon_social }}
             </li>
           </ul>
-          <p v-if="!form.cliente_id && form.errors.cliente_id" class="text-red-500 text-sm mt-1">{{ form.errors.cliente_id }}</p>
+          <div v-if="clientesFiltrados.length === 0 && buscarCliente" class="text-red-500 text-sm mt-2">
+            No se encontraron clientes.
+          </div>
         </div>
 
-        <!-- Búsqueda de productos -->
-        <div class="form-group relative">
-          <label for="buscarProducto" class="block text-sm font-medium text-gray-700">Agregar Producto</label>
+        <!-- Búsqueda de productos y servicios -->
+        <div class="form-group">
+          <label for="buscarProducto" class="block text-sm font-medium text-gray-700">Buscar Producto/Servicio</label>
           <input
+            id="buscarProducto"
             v-model="buscarProducto"
             type="text"
-            placeholder="Buscar producto..."
-            @input="debouncedBuscarProducto"
-            @keydown.enter.prevent="agregarPrimerProducto"
+            placeholder="Buscar producto/servicio..."
             @focus="mostrarProductos = true"
             @blur="ocultarProductosDespuesDeTiempo"
             class="mt-1 block w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500"
           />
           <ul v-if="mostrarProductos && productosFiltrados.length > 0" class="absolute z-10 bg-white border rounded-md shadow-md w-full max-h-48 overflow-y-auto">
             <li
-              v-for="producto in productosFiltrados"
-              :key="producto.id"
-              @click="agregarProducto(producto)"
-              @keydown.enter="agregarProducto(producto)"
-              tabindex="0"
-              class="px-4 py-2 cursor-pointer hover:bg-gray-100 producto-item"
+              v-for="item in productosFiltrados"
+              :key="item.id"
+              @click="agregarProducto(item)"
+              class="px-4 py-2 cursor-pointer hover:bg-gray-100"
             >
-              {{ producto.nombre }} (Stock: {{ producto.stock }})
+              {{ item.nombre }} ({{ item.tipo }}) (Disponible: {{ item.stock || 'N/A' }})
             </li>
           </ul>
+          <div v-if="productosFiltrados.length === 0 && buscarProducto" class="text-red-500 text-sm mt-2">
+            No se encontraron productos/servicios.
+          </div>
         </div>
 
-        <!-- Lista de productos seleccionados -->
-        <div v-if="selectedProducts.length > 0" class="mt-4">
-          <h3 class="text-lg font-medium mb-4">Productos Seleccionados</h3>
-          <table class="w-full border-collapse bg-white shadow-md rounded-md">
-            <thead>
-              <tr class="bg-gray-100">
-                <th class="px-4 py-2 text-left">Producto</th>
-                <th class="px-4 py-2">Cantidad</th>
-                <th class="px-4 py-2">Precio Unitario</th>
-                <th class="px-4 py-2">Subtotal</th>
-                <th class="px-4 py-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(productoId, index) in selectedProducts" :key="index" class="border-t">
-                <td class="px-4 py-2">{{ getProductById(productoId)?.nombre }}</td>
-                <td class="px-4 py-2">
-                  <input
-                    v-model.number="quantities[productoId]"
-                    type="number"
-                    class="w-16 px-2 py-1 border rounded-md"
-                    min="1"
-                    @input="calcularTotal"
-                  />
-                </td>
-                <td class="px-4 py-2">
-                  <input
-                    v-model.number="prices[productoId]"
-                    type="number"
-                    class="w-20 px-2 py-1 border rounded-md"
-                    min="0"
-                    step="0.01"
-                    @input="calcularTotal"
-                  />
-                </td>
-                <td class="px-4 py-2">{{ (quantities[productoId] * prices[productoId]).toFixed(2) }}</td>
-                <td class="px-4 py-2">
-                  <button type="button" @click="eliminarProducto(productoId)" class="text-red-500 hover:text-red-700">✕</button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <!-- Lista de productos y servicios seleccionados -->
+        <div v-if="selectedProducts.length > 0 && props.productos && props.servicios" class="mt-4">
+          <h3 class="text-lg font-medium mb-4">Productos/Servicios Seleccionados</h3>
+          <div v-for="(entry, index) in selectedProducts" :key="index" class="flex items-center justify-between bg-white border rounded-md shadow-sm p-4 mb-4">
+            <div class="flex items-center space-x-4 w-full">
+              <span class="font-medium text-gray-800 w-1/3">{{ getProductById(entry)?.nombre || 'Item no encontrado' }}</span>
+              <div class="flex flex-col w-1/4">
+                <label :for="`cantidad-${entry.tipo}-${entry.id}`" class="text-sm font-medium text-gray-700">Cantidad</label>
+                <input
+                  :id="`cantidad-${entry.tipo}-${entry.id}`"
+                  v-model.number="quantities[`${entry.tipo}-${entry.id}`]"
+                  type="number"
+                  class="px-4 py-2 border rounded-md mt-1 w-full"
+                  min="1"
+                  @input="calcularTotal"
+                />
+              </div>
+              <div class="flex flex-col w-1/4">
+                <label :for="`precio-${entry.tipo}-${entry.id}`" class="text-sm font-medium text-gray-700">Precio de Venta</label>
+                <input
+                  :id="`precio-${entry.tipo}-${entry.id}`"
+                  v-model.number="prices[`${entry.tipo}-${entry.id}`]"
+                  type="number"
+                  class="px-4 py-2 border rounded-md mt-1 w-full"
+                  min="0"
+                  @input="calcularTotal"
+                />
+              </div>
+              <div class="flex flex-col w-1/4">
+                <label :for="`subtotal-${entry.tipo}-${entry.id}`" class="text-sm font-medium text-gray-700">Subtotal</label>
+                <input
+                  :id="`subtotal-${entry.tipo}-${entry.id}`"
+                  :value="(quantities[`${entry.tipo}-${entry.id}`] * prices[`${entry.tipo}-${entry.id}`]).toFixed(2)"
+                  type="text"
+                  class="px-4 py-2 border rounded-md mt-1 w-full bg-gray-100 cursor-not-allowed"
+                  readonly
+                />
+              </div>
+            </div>
+            <button
+              type="button"
+              @click="eliminarProducto(entry)"
+              class="text-red-500 hover:text-red-700 ml-4"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <!-- Total -->
         <div class="form-group">
           <label for="total" class="block text-sm font-medium text-gray-700">Total</label>
           <input
+            id="total"
             v-model="form.total"
             type="text"
             readonly
@@ -115,14 +122,15 @@
 
         <!-- Botones -->
         <div class="flex justify-end space-x-4">
-          <Link :href="route('pedidos.index')" class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">Cancelar</Link>
+          <Link :href="route('pedidos.index')" class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">
+            Cancelar
+          </Link>
           <button
             type="submit"
-            class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
-            :disabled="!form.cliente_id || selectedProducts.length === 0 || form.processing"
+            class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 disabled:bg-gray-400"
+            :disabled="!form.cliente_id || selectedProducts.length === 0"
           >
-            <span v-if="form.processing">Guardando...</span>
-            <span v-else>Guardar Cambios</span>
+            Guardar Cambios
           </button>
         </div>
       </form>
@@ -133,139 +141,210 @@
   import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
   import { Head, useForm, Link } from '@inertiajs/vue3';
   import AppLayout from '@/Layouts/AppLayout.vue';
-  import debounce from 'lodash/debounce';
 
   // Define el layout del dashboard
   defineOptions({ layout: AppLayout });
 
   const props = defineProps({
     pedido: Object,
-    clientes: Array,
-    productos: Array,
+    clientes: {
+      type: Array,
+      default: () => [],
+    },
+    productos: {
+      type: Array,
+      default: () => [],
+    },
+    servicios: {
+      type: Array,
+      default: () => [],
+    },
   });
 
   const form = useForm({
-    cliente_id: props.pedido.cliente_id || '',
-    total: props.pedido.total || 0,
-    productos: props.pedido.productos || [],
+    cliente_id: props.pedido?.cliente_id || '',
+    total: props.pedido?.total || 0,
+    productos: [],
   });
 
-  const buscarCliente = ref(props.pedido.cliente?.nombre_razon_social || '');
+  const buscarCliente = ref(props.pedido?.cliente?.nombre_razon_social || '');
   const buscarProducto = ref('');
   const mostrarClientes = ref(false);
   const mostrarProductos = ref(false);
-  const selectedProducts = ref(props.pedido.productos.map(p => p.id) || []);
+
+  const selectedProducts = ref(
+    props.pedido?.productos?.map(item => ({
+      id: item.id,
+      tipo: item.tipo || 'producto', // Compatibilidad con datos antiguos
+    })) || []
+  );
+
   const quantities = ref(
-    props.pedido.productos.reduce((acc, p) => {
-      acc[p.id] = p.pivot.cantidad;
+    props.pedido?.productos?.reduce((acc, item) => {
+      acc[`${item.tipo || 'producto'}-${item.id}`] = item.pivot?.cantidad || item.cantidad || 1;
       return acc;
-    }, {})
+    }, {}) || {}
   );
+
   const prices = ref(
-    props.pedido.productos.reduce((acc, p) => {
-      acc[p.id] = p.pivot.precio;
+    props.pedido?.productos?.reduce((acc, item) => {
+      acc[`${item.tipo || 'producto'}-${item.id}`] = item.pivot?.precio || item.precio || item.precio_venta || 0;
       return acc;
-    }, {})
+    }, {}) || {}
   );
 
-  // Debounce para búsquedas
-  const debouncedBuscarCliente = debounce(() => {}, 300);
-  const debouncedBuscarProducto = debounce(() => {}, 300);
+  const clienteSeleccionado = ref(props.pedido?.cliente?.nombre_razon_social || null);
 
-  const clientesFiltrados = computed(() =>
-    buscarCliente.value
-      ? props.clientes.filter(cliente =>
-          cliente.nombre_razon_social.toLowerCase().includes(buscarCliente.value.toLowerCase())
-        )
-      : []
-  );
+  const clientesFiltrados = computed(() => {
+    if (!buscarCliente.value) return [];
+    return props.clientes.filter((cliente) =>
+      cliente.nombre_razon_social.toLowerCase().includes(buscarCliente.value.toLowerCase())
+    );
+  });
 
-  const productosFiltrados = computed(() =>
-    buscarProducto.value
-      ? props.productos.filter(
-          producto =>
-            producto.nombre.toLowerCase().includes(buscarProducto.value.toLowerCase()) &&
-            !selectedProducts.value.includes(producto.id)
-        )
-      : []
-  );
+  const productosFiltrados = computed(() => {
+    if (!buscarProducto.value) return [];
+    const productosYServicios = [
+      ...(props.productos || []).map(producto => ({
+        ...producto,
+        tipo: 'producto',
+      })),
+      ...(props.servicios || []).map(servicio => ({
+        ...servicio,
+        tipo: 'servicio',
+      })),
+    ];
 
-  const getProductById = (id) => props.productos.find(producto => producto.id === id) || { nombre: 'Producto no encontrado' };
+    return productosYServicios.filter(item =>
+      item.nombre.toLowerCase().includes(buscarProducto.value.toLowerCase()) ||
+      (item.codigo?.toLowerCase().includes(buscarProducto.value.toLowerCase())) ||
+      (item.numero_de_serie?.toLowerCase().includes(buscarProducto.value.toLowerCase())) ||
+      (item.codigo_barras?.toLowerCase().includes(buscarProducto.value.toLowerCase()))
+    );
+  });
+
+  const getProductById = (entry) => {
+    if (!entry || !entry.id || !entry.tipo) {
+      console.error('Entrada inválida para getProductById:', entry);
+      return null;
+    }
+    if (entry.tipo === 'producto') {
+      if (!Array.isArray(props.productos)) {
+        console.error('props.productos no es un array:', props.productos);
+        return null;
+      }
+      const producto = props.productos.find((p) => p.id === entry.id);
+      return producto || null;
+    }
+    if (entry.tipo === 'servicio') {
+      if (!Array.isArray(props.servicios)) {
+        console.error('props.servicios no es un array:', props.servicios);
+        return null;
+      }
+      const servicio = props.servicios.find((s) => s.id === entry.id);
+      return servicio || null;
+    }
+    console.error(`No se encontró item con ID: ${entry.id} y tipo: ${entry.tipo}`);
+    return null;
+  };
 
   const calcularTotal = () => {
-    form.total = selectedProducts.value
-      .reduce((sum, id) => sum + ((quantities.value[id] || 0) * (prices.value[id] || 0)), 0)
-      .toFixed(2);
+    let total = 0;
+    for (const entry of selectedProducts.value) {
+      const key = `${entry.tipo}-${entry.id}`;
+      const cantidad = Number.parseFloat(quantities.value[key]) || 0;
+      const precio = Number.parseFloat(prices.value[key]) || 0;
+      total += cantidad * precio;
+    }
+    form.total = total.toFixed(2);
   };
+
+  watch(quantities, calcularTotal, { deep: true });
+  watch(prices, calcularTotal, { deep: true });
 
   const seleccionarCliente = (cliente) => {
     form.cliente_id = cliente.id;
     buscarCliente.value = cliente.nombre_razon_social;
+    clienteSeleccionado.value = cliente.nombre_razon_social;
     mostrarClientes.value = false;
   };
 
-  const agregarProducto = (producto) => {
-    if (!selectedProducts.value.includes(producto.id)) {
-      selectedProducts.value.push(producto.id);
-      quantities.value[producto.id] = 1;
-      prices.value[producto.id] = producto.precio_venta || 0;
-      calcularTotal();
+  const agregarProducto = (item) => {
+    console.log('Item seleccionado:', item);
+    const itemEntry = { id: item.id, tipo: item.tipo };
+    const exists = selectedProducts.value.some(
+      (entry) => entry.id === item.id && entry.tipo === item.tipo
+    );
+    if (!exists) {
+      selectedProducts.value.push(itemEntry);
+      quantities.value[`${item.tipo}-${item.id}`] = 1;
+      prices.value[`${item.tipo}-${item.id}`] = item.tipo === 'producto' ? (item.precio_venta || 0) : (item.precio || 0);
+      console.log('Precio asignado:', prices.value[`${item.tipo}-${item.id}`]);
     }
     buscarProducto.value = '';
     mostrarProductos.value = false;
-  };
-
-  const eliminarProducto = (productoId) => {
-    selectedProducts.value = selectedProducts.value.filter(id => id !== productoId);
-    delete quantities.value[productoId];
-    delete prices.value[productoId];
     calcularTotal();
   };
 
-  const seleccionarPrimerCliente = () => {
-    if (clientesFiltrados.value.length > 0) seleccionarCliente(clientesFiltrados.value[0]);
+  const eliminarProducto = (entry) => {
+    selectedProducts.value = selectedProducts.value.filter(
+      (item) => !(item.id === entry.id && item.tipo === entry.tipo)
+    );
+    delete quantities.value[`${entry.tipo}-${entry.id}`];
+    delete prices.value[`${entry.tipo}-${entry.id}`];
+    calcularTotal();
   };
 
-  const agregarPrimerProducto = () => {
-    if (productosFiltrados.value.length > 0) agregarProducto(productosFiltrados.value[0]);
-  };
-
-  const actualizarPedido = () => {
-    form.productos = selectedProducts.value.map(id => ({
-      id,
-      cantidad: quantities.value[id] || 1,
-      precio: prices.value[id] || 0,
-    }));
-    form.put(route('pedidos.update', props.pedido.id), {
-      onSuccess: () => {
-        localStorage.removeItem('pedidoEnProgreso');
-        form.reset('total'); // Mantener cliente_id y productos si es necesario
-      },
-      onError: (error) => {
-        console.error('Error al actualizar el pedido:', error);
-      },
-    });
-  };
-
-  const ocultarClientesDespuesDeTiempo = () => {
+  const ocultarClientesDespuesDeTiempo = (event) => {
     setTimeout(() => {
-      mostrarClientes.value = false;
-    }, 200);
+      if (!event.relatedTarget || !event.relatedTarget.classList.contains('cliente-item')) {
+        mostrarClientes.value = false;
+      }
+    }, 300);
   };
-  const ocultarProductosDespuesDeTiempo = () => setTimeout(() => {
-    mostrarProductos.value = false;
-  }, 200);
+
+  const ocultarProductosDespuesDeTiempo = (event) => {
+    setTimeout(() => {
+      if (!event.relatedTarget || !event.relatedTarget.classList.contains('producto-item')) {
+        mostrarProductos.value = false;
+      }
+    }, 300);
+  };
+
+  watch(
+    [() => form.cliente_id, selectedProducts, quantities, prices, clienteSeleccionado],
+    () => {
+      const dataToSave = {
+        cliente_id: form.cliente_id,
+        cliente_nombre: clienteSeleccionado.value,
+        selectedProducts: selectedProducts.value,
+        quantities: quantities.value,
+        prices: prices.value,
+      };
+      localStorage.setItem('pedidoEnProgreso', JSON.stringify(dataToSave));
+    },
+    { deep: true }
+  );
 
   onMounted(() => {
-    calcularTotal(); // Calcular el total inicial
+    console.log('Pedido inicial:', props.pedido);
+    console.log('Clientes:', props.clientes);
+    console.log('Productos:', props.productos);
+    console.log('Servicios:', props.servicios);
     const savedData = localStorage.getItem('pedidoEnProgreso');
     if (savedData) {
       const parsedData = JSON.parse(savedData);
+      console.log('Datos cargados desde localStorage:', parsedData);
       form.cliente_id = parsedData.cliente_id;
+      clienteSeleccionado.value = parsedData.cliente_nombre;
       buscarCliente.value = parsedData.cliente_nombre;
-      selectedProducts.value = parsedData.selectedProducts;
-      quantities.value = parsedData.quantities;
-      prices.value = parsedData.prices;
+      selectedProducts.value = Array.isArray(parsedData.selectedProducts)
+        ? parsedData.selectedProducts.filter(
+            (entry) => entry && typeof entry === 'object' && 'id' in entry && 'tipo' in entry
+          )
+        : selectedProducts.value;
+      quantities.value = parsedData.quantities || quantities.value;
+      prices.value = parsedData.prices || prices.value;
       calcularTotal();
     }
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -277,19 +356,34 @@
 
   const handleBeforeUnload = (event) => {
     if (form.dirty) {
-      localStorage.setItem('pedidoEnProgreso', JSON.stringify({
-        cliente_id: form.cliente_id,
-        cliente_nombre: buscarCliente.value,
-        selectedProducts: selectedProducts.value,
-        quantities: quantities.value,
-        prices: prices.value,
-      }));
-      event.preventDefault();
-      event.returnValue = 'Tienes cambios no guardados. ¿Seguro que quieres salir?';
+      const confirmationMessage = 'Tienes cambios no guardados. ¿Estás seguro de que quieres salir?';
+      event.returnValue = confirmationMessage;
+      return confirmationMessage;
     }
+  };
+
+  const actualizarPedido = () => {
+    form.productos = selectedProducts.value.map((entry) => ({
+      id: entry.id,
+      tipo: entry.tipo,
+      cantidad: quantities.value[`${entry.tipo}-${entry.id}`] || 1,
+      precio: prices.value[`${entry.tipo}-${entry.id}`] || 0,
+    }));
+
+    form.put(route('pedidos.update', props.pedido.id), {
+      onSuccess: () => {
+        localStorage.removeItem('pedidoEnProgreso');
+        console.log('Pedido actualizado con éxito');
+      },
+      onError: (error) => {
+        console.error('Error al actualizar el pedido:', error);
+      },
+    });
   };
   </script>
 
   <style scoped>
-  /* Estilos personalizados opcionales */
+  .form-group {
+    margin-bottom: 1rem;
+  }
   </style>

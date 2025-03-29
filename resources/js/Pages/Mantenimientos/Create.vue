@@ -6,8 +6,9 @@
         <form @submit.prevent="submit">
             <div class="mb-4">
                 <label class="block text-gray-700 text-sm font-bold mb-2">Carro</label>
-                <select v-model="form.carro_id" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
-                    <option v-for="carro in carros" :key="carro.id" :value="carro.id">{{ carro.marca }} {{ carro.modelo }}</option>
+                <select v-model="form.carro_id" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required @change="updateKilometraje">
+                    <option value="" disabled>Selecciona un carro</option>
+                    <option v-for="carro in carros" :key="carro.id" :value="carro.id">{{ carro.marca }} {{ carro.modelo }} (Kilometraje: {{ carro.kilometraje }})</option>
                 </select>
             </div>
             <div class="mb-4">
@@ -36,6 +37,11 @@
                 <input v-model="form.proximo_mantenimiento" type="date" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
             </div>
             <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Kilometraje Actual</label>
+                <input v-model="form.kilometraje" type="number" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                <p class="text-sm text-gray-500 mt-1">El kilometraje debe ser mayor o igual al actual del carro.</p>
+            </div>
+            <div class="mb-4">
                 <label class="block text-gray-700 text-sm font-bold mb-2">Notas</label>
                 <textarea v-model="form.notas" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"></textarea>
             </div>
@@ -55,11 +61,10 @@ import { Notyf } from 'notyf';
 import 'notyf/notyf.min.css';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
-
 // Define el layout del dashboard
 defineOptions({ layout: AppLayout });
 
-defineProps({ carros: Array });
+const props = defineProps({ carros: Array });
 
 const notyf = new Notyf({
     duration: 3000,
@@ -72,12 +77,23 @@ const notyf = new Notyf({
 
 const form = reactive({
     carro_id: '',
-    tipo: '', // Asegúrate de que este campo esté presente
+    tipo: '',
     otro_servicio: '',
     fecha: '',
     proximo_mantenimiento: '',
     notas: '',
+    kilometraje: '', // Nuevo campo para el kilometraje
 });
+
+// Función para actualizar el kilometraje cuando se selecciona un carro
+const updateKilometraje = () => {
+    const selectedCarro = props.carros.find(carro => carro.id === form.carro_id);
+    if (selectedCarro) {
+        form.kilometraje = selectedCarro.kilometraje;
+    } else {
+        form.kilometraje = '';
+    }
+};
 
 const handleServiceChange = () => {
     if (form.tipo !== 'Otro servicio') {
@@ -96,6 +112,7 @@ const submit = async () => {
                 form.fecha = '';
                 form.proximo_mantenimiento = '';
                 form.notas = '';
+                form.kilometraje = ''; // Limpiar el campo de kilometraje
             },
             onError: (error) => {
                 console.error('Error al crear el mantenimiento:', error);

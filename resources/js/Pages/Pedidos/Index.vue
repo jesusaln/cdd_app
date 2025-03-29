@@ -9,12 +9,16 @@
         <Link :href="route('pedidos.create')" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-300">
           Crear Pedido
         </Link>
-        <input
-          v-model="searchTerm"
-          type="text"
-          placeholder="Buscar por cliente o producto"
-          class="px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+        <div class="flex flex-col">
+          <label for="searchTerm" class="sr-only">Buscar por cliente, producto o servicio</label>
+          <input
+            id="searchTerm"
+            v-model="searchTerm"
+            type="text"
+            placeholder="Buscar por cliente, producto o servicio"
+            class="px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
       </div>
 
       <!-- Tabla de pedidos -->
@@ -24,9 +28,8 @@
             <tr>
               <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
               <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th>
-              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Productos</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Productos/Servicios</th>
               <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
-              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
               <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
             </tr>
           </thead>
@@ -36,13 +39,12 @@
               <td class="px-4 py-3 text-sm text-gray-700">{{ pedido.cliente.nombre_razon_social }}</td>
               <td class="px-4 py-3 text-sm text-gray-700">
                 <ul>
-                  <li v-for="producto in pedido.productos" :key="producto.id">
-                    {{ producto.nombre }} - ${{ producto.pivot.precio }} (Cantidad: {{ producto.pivot.cantidad }})
+                  <li v-for="item in pedido.productos" :key="item.id" :class="item.tipo === 'producto' ? 'text-blue-600' : 'text-green-600'">
+                    {{ item.tipo === 'producto' ? '[Producto]' : '[Servicio]' }} {{ item.nombre }} - ${{ item.pivot.precio }} (Cantidad: {{ item.pivot.cantidad }})
                   </li>
                 </ul>
               </td>
               <td class="px-4 py-3 text-sm text-gray-700">${{ pedido.total }}</td>
-              <td class="px-4 py-3 text-sm text-gray-700">{{ pedido.estado }}</td>
               <td class="px-4 py-3 flex space-x-2">
                 <button @click="editarPedido(pedido.id)" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">
                   Editar
@@ -53,7 +55,7 @@
                 <button @click="verDetalles(pedido)" class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600">
                   Ver Detalles
                 </button>
-                <button @click="generarPDFPedido(pedido)" class="bg-purple-500 text-white px-4 py-2 rounded-md hover:bg-purple-600">
+                <button @click="generarPDFVenta(pedido)" class="bg-purple-500 text-white px-4 py-2 rounded-md hover:bg-purple-600">
                   Generar PDF
                 </button>
               </td>
@@ -90,7 +92,7 @@
       <!-- Diálogo para mostrar detalles del pedido -->
       <div v-if="showDetailsDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white p-6 rounded-lg shadow-lg w-1/2">
-          <Show :pedido="selectedPedido" />
+          <Show :pedido="selectedPedido" @convertir-a-venta="handleConvertirAVenta" />
           <div class="flex justify-end mt-4">
             <button @click="cerrarDetalles" class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">
               Cerrar
@@ -106,14 +108,12 @@
   import { ref, computed } from 'vue';
   import { Notyf } from 'notyf';
   import 'notyf/notyf.min.css';
-
-  import { generarPDF } from '@/Utils/pdfGenerator'; // Asegúrate de que la ruta sea correcta
-  import Show from './Show.vue'; // Asegúrate de que la ruta sea correcta
+  import { generarPDF } from '@/Utils/pdfGenerator';
+  import Show from './Show.vue';
   import AppLayout from '@/Layouts/AppLayout.vue';
 
-
-// Define el layout del dashboard
-defineOptions({ layout: AppLayout });
+  // Define el layout del dashboard
+  defineOptions({ layout: AppLayout });
 
   // Propiedades
   const props = defineProps({ pedidos: Array });
@@ -134,7 +134,11 @@ defineOptions({ layout: AppLayout });
   const pedidosFiltrados = computed(() => {
     return pedidos.value.filter(pedido => {
       return pedido.cliente.nombre_razon_social.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
-             pedido.productos.some(producto => producto.nombre.toLowerCase().includes(searchTerm.value.toLowerCase()));
+             pedido.productos.some(item =>
+               item.nombre.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
+               (item.tipo === 'producto' && 'producto'.includes(searchTerm.value.toLowerCase())) ||
+               (item.tipo === 'servicio' && 'servicio'.includes(searchTerm.value.toLowerCase()))
+             );
     });
   });
 
@@ -188,12 +192,35 @@ defineOptions({ layout: AppLayout });
     showDetailsDialog.value = false;
   };
 
+  // Función para manejar la conversión a venta
+  const handleConvertirAVenta = async (pedidoData) => {
+    try {
+      await router.post(`/pedidos/${pedidoData.id}/enviar-a-ventas`, {
+        onSuccess: () => {
+          alert('Conversión correcta. ¿Deseas ir al índice de ventas?');
+          cerrarDetalles();
+        },
+        onError: (errors) => {
+          console.error('Error al convertir el pedido a venta:', errors);
+        }
+      });
+    } catch (error) {
+      console.error('Ocurrió un error inesperado:', error);
+    }
+  };
+
   // Función para generar el PDF del pedido
-  const generarPDFPedido = (pedido) => {
+  const generarPDFVenta = (pedido) => {
     generarPDF('Pedido', pedido);
   };
   </script>
 
   <style scoped>
-  /* Aquí van tus estilos personalizados */
+  /* Estilos personalizados */
+  .text-blue-600 {
+    color: #2563eb; /* Color para productos */
+  }
+  .text-green-600 {
+    color: #16a34a; /* Color para servicios */
+  }
   </style>

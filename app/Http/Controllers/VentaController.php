@@ -5,215 +5,292 @@ namespace App\Http\Controllers;
 use App\Models\Venta;
 use App\Models\Cliente;
 use App\Models\Producto;
+use App\Models\Servicio;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class VentaController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
     public function index()
     {
-        $ventas = Venta::with('cliente', 'productos')->get();
+        $ventas = Venta::with(['cliente', 'productos', 'servicios'])->get()->map(function ($venta) {
+            $productos = $venta->productos->map(function ($producto) {
+                return [
+                    'id' => $producto->id,
+                    'nombre' => $producto->nombre,
+                    'tipo' => 'producto',
+                    'pivot' => [
+                        'cantidad' => $producto->pivot->cantidad,
+                        'precio' => $producto->pivot->precio,
+                    ],
+                ];
+            });
+
+            $servicios = $venta->servicios->map(function ($servicio) {
+                return [
+                    'id' => $servicio->id,
+                    'nombre' => $servicio->nombre,
+                    'tipo' => 'servicio',
+                    'pivot' => [
+                        'cantidad' => $servicio->pivot->cantidad,
+                        'precio' => $servicio->pivot->precio,
+                    ],
+                ];
+            });
+
+            $items = collect($productos->all())->merge($servicios->all());
+
+            return [
+                'id' => $venta->id,
+                'cliente' => $venta->cliente,
+                'productos' => $items,
+                'total' => $venta->total,
+            ];
+        });
+
         return Inertia::render('Ventas/Index', [
             'ventas' => $ventas,
         ]);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
     public function create()
     {
         $clientes = Cliente::all();
         $productos = Producto::all();
+        $servicios = Servicio::all();
+
         return Inertia::render('Ventas/Create', [
             'clientes' => $clientes,
             'productos' => $productos,
+            'servicios' => $servicios,
         ]);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
     public function store(Request $request)
     {
-        // Validar los datos de entrada
+        // Validar los datos de entrada, incluyendo tipo
         $validatedData = $request->validate([
             'cliente_id' => 'required|exists:clientes,id',
             'productos' => 'required|array',
-            'productos.*.id' => 'required|exists:productos,id',
+            'productos.*.id' => 'required|integer',
+            'productos.*.tipo' => 'required|in:producto,servicio',
             'productos.*.cantidad' => 'required|integer|min:1',
             'productos.*.precio' => 'required|numeric|min:0',
         ]);
 
-        // Verificar si hay suficiente stock
-        foreach ($validatedData['productos'] as $productoData) {
-            $producto = Producto::findOrFail($productoData['id']);
-            if ($producto->stock < $productoData['cantidad']) {
-                return redirect()->back()->withErrors(['stock' => 'No hay suficiente stock para el producto: ' . $producto->nombre]);
+        // Verificar stock para productos
+        foreach ($validatedData['productos'] as $itemData) {
+            if ($itemData['tipo'] === 'producto') {
+                $producto = Producto::find($itemData['id']);
+                if (!$producto) {
+                    return redirect()->back()->withErrors(['id' => "El ID {$itemData['id']} no corresponde a un producto válido."]);
+                }
+                if ($producto->stock < $itemData['cantidad']) {
+                    return redirect()->back()->withErrors(['stock' => "No hay suficiente stock para el producto: {$producto->nombre}"]);
+                }
+            } elseif ($itemData['tipo'] === 'servicio') {
+                $servicio = Servicio::find($itemData['id']);
+                if (!$servicio) {
+                    return redirect()->back()->withErrors(['id' => "El ID {$itemData['id']} no corresponde a un servicio válido."]);
+                }
             }
         }
 
         // Crear la venta
         $venta = Venta::create([
             'cliente_id' => $validatedData['cliente_id'],
-            'total' => array_sum(array_map(function ($producto) {
-                return $producto['cantidad'] * $producto['precio'];
+            'total' => array_sum(array_map(function ($item) {
+                return $item['cantidad'] * $item['precio'];
             }, $validatedData['productos'])),
         ]);
 
-        // Asociar los productos a la venta y actualizar el inventario
-        foreach ($validatedData['productos'] as $productoData) {
-            $producto = Producto::findOrFail($productoData['id']);
-            $producto->stock -= $productoData['cantidad']; // Restar la cantidad del stock
-            $producto->save();
-
-            $venta->productos()->attach($productoData['id'], [
-                'cantidad' => $productoData['cantidad'],
-                'precio' => $productoData['precio'],
-            ]);
+        // Asociar productos y servicios a la venta
+        foreach ($validatedData['productos'] as $itemData) {
+            if ($itemData['tipo'] === 'producto') {
+                $producto = Producto::find($itemData['id']);
+                if ($producto) {
+                    $producto->stock -= $itemData['cantidad'];
+                    $producto->save();
+                    $venta->productos()->attach($itemData['id'], [
+                        'cantidad' => $itemData['cantidad'],
+                        'precio' => $itemData['precio'],
+                    ]);
+                }
+            } elseif ($itemData['tipo'] === 'servicio') {
+                $servicio = Servicio::find($itemData['id']);
+                if ($servicio) {
+                    $venta->servicios()->attach($itemData['id'], [
+                        'cantidad' => $itemData['cantidad'],
+                        'precio' => $itemData['precio'],
+                    ]);
+                }
+            }
         }
 
-        // Redirigir con un mensaje de éxito
         return redirect()->route('ventas.index')->with('success', 'Venta creada exitosamente.');
     }
 
-
-    /**
-     * Display the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
     public function show($id)
     {
-        $venta = Venta::with('cliente', 'productos')->findOrFail($id);
+        $venta = Venta::with('cliente', 'productos', 'servicios')->findOrFail($id);
+        $productos = $venta->productos->map(function ($producto) {
+            return [
+                'id' => $producto->id,
+                'nombre' => $producto->nombre,
+                'tipo' => 'producto',
+                'pivot' => [
+                    'cantidad' => $producto->pivot->cantidad,
+                    'precio' => $producto->pivot->precio,
+                ],
+            ];
+        });
+        $servicios = $venta->servicios->map(function ($servicio) {
+            return [
+                'id' => $servicio->id,
+                'nombre' => $servicio->nombre,
+                'tipo' => 'servicio',
+                'pivot' => [
+                    'cantidad' => $servicio->pivot->cantidad,
+                    'precio' => $servicio->pivot->precio,
+                ],
+            ];
+        });
+        $items = collect($productos->all())->merge($servicios->all());
+
         return Inertia::render('Ventas/Show', [
-            'venta' => $venta,
+            'venta' => [
+                'id' => $venta->id,
+                'cliente' => $venta->cliente,
+                'productos' => $items,
+                'total' => $venta->total,
+            ],
         ]);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
     public function edit($id)
     {
-        $venta = Venta::with('cliente', 'productos')->findOrFail($id);
+        $venta = Venta::with('cliente', 'productos', 'servicios')->findOrFail($id);
+        $productos = $venta->productos->map(function ($producto) {
+            return [
+                'id' => $producto->id,
+                'nombre' => $producto->nombre,
+                'tipo' => 'producto',
+                'pivot' => [
+                    'cantidad' => $producto->pivot->cantidad,
+                    'precio' => $producto->pivot->precio,
+                ],
+            ];
+        });
+        $servicios = $venta->servicios->map(function ($servicio) {
+            return [
+                'id' => $servicio->id,
+                'nombre' => $servicio->nombre,
+                'tipo' => 'servicio',
+                'pivot' => [
+                    'cantidad' => $servicio->pivot->cantidad,
+                    'precio' => $servicio->pivot->precio,
+                ],
+            ];
+        });
+        $items = collect($productos->all())->merge($servicios->all());
+
         $clientes = Cliente::all();
-        $productos = Producto::all();
+        $productosDisponibles = Producto::all();
+        $serviciosDisponibles = Servicio::all();
+
         return Inertia::render('Ventas/Edit', [
-            'venta' => $venta,
+            'venta' => [
+                'id' => $venta->id,
+                'cliente' => $venta->cliente,
+                'productos' => $items,
+                'total' => $venta->total,
+            ],
             'clientes' => $clientes,
-            'productos' => $productos,
+            'productos' => $productosDisponibles,
+            'servicios' => $serviciosDisponibles,
         ]);
     }
 
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
     public function update(Request $request, $id)
     {
         $venta = Venta::findOrFail($id);
 
-        // Validar los datos de entrada
         $validatedData = $request->validate([
             'cliente_id' => 'required|exists:clientes,id',
             'productos' => 'required|array',
-            'productos.*.id' => 'required|exists:productos,id',
+            'productos.*.id' => 'required|integer',
+            'productos.*.tipo' => 'required|in:producto,servicio',
             'productos.*.cantidad' => 'required|integer|min:1',
             'productos.*.precio' => 'required|numeric|min:0',
-            'productos.*.original_cantidad' => 'nullable|integer|min:0', // Añadido para comparar cantidades originales
+            'productos.*.original_cantidad' => 'nullable|integer|min:0',
         ]);
 
-        // Ejecutar en una transacción para garantizar integridad
         DB::transaction(function () use ($venta, $validatedData) {
-            // Calcular el total
-            $total = array_sum(array_map(function ($producto) {
-                return $producto['cantidad'] * $producto['precio'];
+            $total = array_sum(array_map(function ($item) {
+                return $item['cantidad'] * $item['precio'];
             }, $validatedData['productos']));
 
-            // Actualizar datos de la venta
             $venta->update([
                 'cliente_id' => $validatedData['cliente_id'],
                 'total' => $total,
             ]);
 
-            // Obtener los productos actuales de la venta para comparar
-            $productosActuales = $venta->productos()
-                ->get()
-                ->pluck('pivot.cantidad', 'id')
-                ->all();
+            $productosActuales = $venta->productos()->get()->pluck('pivot.cantidad', 'id')->all();
+            $serviciosActuales = $venta->servicios()->get()->pluck('pivot.cantidad', 'id')->all();
 
-            // Preparar los nuevos productos para sincronizar
-            $syncData = [];
-            foreach ($validatedData['productos'] as $productoData) {
-                $productoId = $productoData['id'];
-                $nuevaCantidad = $productoData['cantidad'];
-                $originalCantidad = $productoData['original_cantidad'] ?? ($productosActuales[$productoId] ?? 0);
-
-                // Calcular diferencia para ajustar el stock
-                $diferencia = $nuevaCantidad - $originalCantidad;
-                if ($diferencia != 0) {
-                    $producto = Producto::find($productoId);
-                    if ($producto->stock - $diferencia < 0) {
-                        throw new \Exception("Stock insuficiente para el producto: {$producto->nombre}");
+            $syncProductos = [];
+            $syncServicios = [];
+            foreach ($validatedData['productos'] as $itemData) {
+                if ($itemData['tipo'] === 'producto') {
+                    $producto = Producto::find($itemData['id']);
+                    if ($producto) {
+                        $originalCantidad = $productosActuales[$itemData['id']] ?? 0;
+                        $diferencia = $itemData['cantidad'] - $originalCantidad;
+                        if ($diferencia != 0) {
+                            if ($producto->stock - $diferencia < 0) {
+                                throw new \Exception("Stock insuficiente para el producto: {$producto->nombre}");
+                            }
+                            $producto->stock -= $diferencia;
+                            $producto->save();
+                        }
+                        $syncProductos[$itemData['id']] = [
+                            'cantidad' => $itemData['cantidad'],
+                            'precio' => $itemData['precio'],
+                        ];
                     }
-                    $producto->stock -= $diferencia; // Descontar o aumentar stock
-                    $producto->save();
+                } elseif ($itemData['tipo'] === 'servicio') {
+                    $servicio = Servicio::find($itemData['id']);
+                    if ($servicio) {
+                        $syncServicios[$itemData['id']] = [
+                            'cantidad' => $itemData['cantidad'],
+                            'precio' => $itemData['precio'],
+                        ];
+                    }
                 }
-
-                $syncData[$productoId] = [
-                    'cantidad' => $nuevaCantidad,
-                    'precio' => $productoData['precio'],
-                ];
             }
 
-            // Sincronizar los productos (reemplaza los existentes)
-            $venta->productos()->sync($syncData);
+            $venta->productos()->sync($syncProductos);
+            $venta->servicios()->sync($syncServicios);
         });
 
-        // Redirigir con un mensaje de éxito
         return redirect()->route('ventas.index')->with('success', 'Venta actualizada exitosamente.');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
     public function destroy($id)
     {
-        // Encontrar la venta por ID
-        $venta = Venta::with('productos')->findOrFail($id);
+        $venta = Venta::with('productos', 'servicios')->findOrFail($id);
 
-        // Recorrer los productos asociados a la venta y devolver la cantidad al inventario
         foreach ($venta->productos as $producto) {
-            $producto->stock += $producto->pivot->cantidad; // Sumar la cantidad vendida al stock
+            $producto->stock += $producto->pivot->cantidad;
             $producto->save();
         }
 
-        // Eliminar la venta
+        $venta->productos()->detach();
+        $venta->servicios()->detach();
         $venta->delete();
 
-        // Redirigir con un mensaje de éxito
         return redirect()->route('ventas.index')->with('success', 'Venta eliminada exitosamente.');
     }
 }

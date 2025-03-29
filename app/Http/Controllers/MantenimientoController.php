@@ -23,20 +23,43 @@ class MantenimientoController extends Controller
         return Inertia::render('Mantenimientos/Create', ['carros' => $carros]);
     }
 
-    // Guardar un nuevo mantenimiento
+    // Crear un nuevo mantenimiento
     public function store(Request $request)
     {
         $validated = $request->validate([
             'carro_id' => 'required|exists:carros,id',
             'tipo' => 'required|string|max:255',
+            'otro_servicio' => 'nullable|string|max:255',
             'fecha' => 'required|date',
             'proximo_mantenimiento' => 'required|date',
             'notas' => 'nullable|string',
+            'kilometraje' => 'required|integer|min:0', // Validación del kilometraje
         ]);
 
-        Mantenimiento::create($validated);
+        // Obtener el carro asociado
+        $carro = Carro::findOrFail($validated['carro_id']);
 
-        return redirect()->route('mantenimientos.index')->with('success', 'Mantenimiento creado exitosamente.');
+        // Validar que el kilometraje sea mayor o igual al actual
+        if ($validated['kilometraje'] < $carro->kilometraje) {
+            return back()->withErrors(['kilometraje' => 'El kilometraje debe ser mayor o igual al actual del carro.'])
+                ->withInput();
+        }
+
+        // Actualizar el kilometraje del carro
+        $carro->update(['kilometraje' => $validated['kilometraje']]);
+
+        // Crear el registro de mantenimiento
+        Mantenimiento::create([
+            'carro_id' => $validated['carro_id'],
+            'tipo' => $validated['tipo'],
+            'otro_servicio' => $validated['otro_servicio'] ?? null,
+            'fecha' => $validated['fecha'],
+            'proximo_mantenimiento' => $validated['proximo_mantenimiento'],
+            'notas' => $validated['notas'] ?? null,
+            'kilometraje' => $validated['kilometraje'], // Guardar el kilometraje en el mantenimiento
+        ]);
+
+        return redirect()->route('mantenimientos.index')->with('success', 'Mantenimiento registrado exitosamente.');
     }
 
     // Mostrar formulario para editar un mantenimiento

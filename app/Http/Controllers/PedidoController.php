@@ -5,15 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\Pedido;
 use App\Models\Cliente;
 use App\Models\Producto;
+use App\Models\Servicio;
 use App\Models\Venta;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Log;
 
 class PedidoController extends Controller
 {
-
     /**
      * Convertir un pedido en una venta.
      *
@@ -23,16 +22,15 @@ class PedidoController extends Controller
     public function enviarAVentas($id)
     {
         // Validar el pedido
-        $pedido = Pedido::with('cliente', 'productos')->findOrFail($id);
+        $pedido = Pedido::with('cliente', 'productos', 'servicios')->findOrFail($id);
 
         // Crear una nueva venta
         $venta = new Venta();
         $venta->cliente_id = $pedido->cliente_id;
         $venta->total = $pedido->total;
-        //$venta->fecha_venta = now(); // Fecha actual de la venta
         $venta->save();
 
-        // Asociar los productos a la venta
+        // Asociar los productos y servicios a la venta
         foreach ($pedido->productos as $producto) {
             $venta->productos()->attach($producto->id, [
                 'cantidad' => $producto->pivot->cantidad,
@@ -43,14 +41,18 @@ class PedidoController extends Controller
             $producto->decrement('stock', $producto->pivot->cantidad);
         }
 
+        foreach ($pedido->servicios as $servicio) {
+            $venta->servicios()->attach($servicio->id, [
+                'cantidad' => $servicio->pivot->cantidad,
+                'precio' => $servicio->pivot->precio,
+            ]);
+        }
+
         // Opcional: Marcar el pedido como convertido o eliminarlo
         // $pedido->delete();
 
         return redirect()->route('ventas.index')->with('success', 'Pedido convertido a venta exitosamente.');
     }
-
-
-
 
     /**
      * Display a listing of the resource.
@@ -59,7 +61,42 @@ class PedidoController extends Controller
      */
     public function index()
     {
-        $pedidos = Pedido::with('cliente', 'productos')->get();
+        $pedidos = Pedido::with(['cliente', 'productos', 'servicios'])->get()->map(function ($pedido) {
+            $productos = $pedido->productos->map(function ($producto) {
+                return [
+                    'id' => $producto->id,
+                    'nombre' => $producto->nombre,
+                    'tipo' => 'producto',
+                    'pivot' => [
+                        'cantidad' => $producto->pivot->cantidad,
+                        'precio' => $producto->pivot->precio,
+                    ],
+                ];
+            });
+
+            $servicios = $pedido->servicios->map(function ($servicio) {
+                return [
+                    'id' => $servicio->id,
+                    'nombre' => $servicio->nombre,
+                    'tipo' => 'servicio',
+                    'pivot' => [
+                        'cantidad' => $servicio->pivot->cantidad,
+                        'precio' => $servicio->pivot->precio,
+                    ],
+                ];
+            });
+
+            // Combinar productos y servicios usando collect y all()
+            $items = collect($productos->all())->merge($servicios->all());
+
+            return [
+                'id' => $pedido->id,
+                'cliente' => $pedido->cliente,
+                'productos' => $items,
+                'total' => $pedido->total,
+            ];
+        });
+
         return Inertia::render('Pedidos/Index', [
             'pedidos' => $pedidos,
         ]);
@@ -74,9 +111,11 @@ class PedidoController extends Controller
     {
         $clientes = Cliente::all();
         $productos = Producto::all();
+        $servicios = Servicio::all();
         return Inertia::render('Pedidos/Create', [
             'clientes' => $clientes,
             'productos' => $productos,
+            'servicios' => $servicios,
         ]);
     }
 
@@ -92,7 +131,8 @@ class PedidoController extends Controller
         $validatedData = $request->validate([
             'cliente_id' => 'required|exists:clientes,id',
             'productos' => 'required|array',
-            'productos.*.id' => 'required|exists:productos,id',
+            'productos.*.id' => 'required|integer',
+            'productos.*.tipo' => 'required|in:producto,servicio',
             'productos.*.cantidad' => 'required|integer|min:1',
             'productos.*.precio' => 'required|numeric|min:0',
         ]);
@@ -100,17 +140,24 @@ class PedidoController extends Controller
         // Crear el pedido
         $pedido = Pedido::create([
             'cliente_id' => $validatedData['cliente_id'],
-            'total' => array_sum(array_map(function ($producto) {
-                return $producto['cantidad'] * $producto['precio'];
+            'total' => array_sum(array_map(function ($item) {
+                return $item['cantidad'] * $item['precio'];
             }, $validatedData['productos'])),
         ]);
 
-        // Asociar los productos al pedido
-        foreach ($validatedData['productos'] as $productoData) {
-            $pedido->productos()->attach($productoData['id'], [
-                'cantidad' => $productoData['cantidad'],
-                'precio' => $productoData['precio'],
-            ]);
+        // Asociar productos y servicios al pedido
+        foreach ($validatedData['productos'] as $itemData) {
+            if ($itemData['tipo'] === 'producto') {
+                $pedido->productos()->attach($itemData['id'], [
+                    'cantidad' => $itemData['cantidad'],
+                    'precio' => $itemData['precio'],
+                ]);
+            } elseif ($itemData['tipo'] === 'servicio') {
+                $pedido->servicios()->attach($itemData['id'], [
+                    'cantidad' => $itemData['cantidad'],
+                    'precio' => $itemData['precio'],
+                ]);
+            }
         }
 
         // Redirigir con un mensaje de éxito
@@ -125,9 +172,36 @@ class PedidoController extends Controller
      */
     public function show($id)
     {
-        $pedido = Pedido::with('cliente', 'productos')->findOrFail($id);
+        $pedido = Pedido::with(['cliente', 'productos', 'servicios'])->findOrFail($id);
+        $items = $pedido->productos->map(function ($producto) {
+            return [
+                'id' => $producto->id,
+                'nombre' => $producto->nombre,
+                'tipo' => 'producto',
+                'pivot' => [
+                    'cantidad' => $producto->pivot->cantidad,
+                    'precio' => $producto->pivot->precio,
+                ],
+            ];
+        })->merge($pedido->servicios->map(function ($servicio) {
+            return [
+                'id' => $servicio->id,
+                'nombre' => $servicio->nombre,
+                'tipo' => 'servicio',
+                'pivot' => [
+                    'cantidad' => $servicio->pivot->cantidad,
+                    'precio' => $servicio->pivot->precio,
+                ],
+            ];
+        }));
+
         return Inertia::render('Pedidos/Show', [
-            'pedido' => $pedido,
+            'pedido' => [
+                'id' => $pedido->id,
+                'cliente' => $pedido->cliente,
+                'productos' => $items,
+                'total' => $pedido->total,
+            ],
         ]);
     }
 
@@ -139,15 +213,61 @@ class PedidoController extends Controller
      */
     public function edit($id)
     {
-        $pedido = Pedido::with('cliente', 'productos')->findOrFail($id);
-        $clientes = Cliente::all();
-        $productos = Producto::all();
-        return Inertia::render('Pedidos/Edit', [
-            'pedido' => $pedido,
-            'clientes' => $clientes,
-            'productos' => $productos,
-        ]);
+        try {
+            $pedido = Pedido::with(['cliente', 'productos', 'servicios'])->findOrFail($id);
+
+            $items = $pedido->productos->map(function ($producto) {
+                if (!$producto instanceof \App\Models\Producto || !$producto->pivot) {
+                    Log::error('Producto inválido o pivot faltante para el producto ID: ' . ($producto->id ?? 'null'));
+                    return null;
+                }
+                return [
+                    'id' => $producto->id,
+                    'nombre' => $producto->nombre,
+                    'tipo' => 'producto',
+                    'pivot' => [
+                        'cantidad' => $producto->pivot->cantidad,
+                        'precio' => $producto->pivot->precio,
+                    ],
+                ];
+            })->merge($pedido->servicios->map(function ($servicio) {
+                if (!$servicio instanceof \App\Models\Servicio || !$servicio->pivot) {
+                    Log::error('Servicio inválido o pivot faltante para el servicio ID: ' . ($servicio->id ?? 'null'));
+                    return null;
+                }
+                return [
+                    'id' => $servicio->id,
+                    'nombre' => $servicio->nombre,
+                    'tipo' => 'servicio',
+                    'pivot' => [
+                        'cantidad' => $servicio->pivot->cantidad,
+                        'precio' => $servicio->pivot->precio,
+                    ],
+                ];
+            }))->filter(fn($item) => $item !== null);
+
+            $clientes = Cliente::all();
+            $productos = Producto::all();
+            $servicios = Servicio::all();
+
+            return Inertia::render('Pedidos/Edit', [
+                'pedido' => [
+                    'id' => $pedido->id,
+                    'cliente_id' => $pedido->cliente_id,
+                    'cliente' => $pedido->cliente,
+                    'productos' => $items,
+                    'total' => $pedido->total,
+                ],
+                'clientes' => $clientes,
+                'productos' => $productos,
+                'servicios' => $servicios,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error en PedidoController@edit: ' . $e->getMessage());
+            throw $e;
+        }
     }
+
 
     /**
      * Update the specified resource in storage.
@@ -164,7 +284,8 @@ class PedidoController extends Controller
         $validatedData = $request->validate([
             'cliente_id' => 'required|exists:clientes,id',
             'productos' => 'required|array',
-            'productos.*.id' => 'required|exists:productos,id',
+            'productos.*.id' => 'required|integer',
+            'productos.*.tipo' => 'required|in:producto,servicio',
             'productos.*.cantidad' => 'required|integer|min:1',
             'productos.*.precio' => 'required|numeric|min:0',
         ]);
@@ -172,18 +293,26 @@ class PedidoController extends Controller
         // Actualizar el pedido
         $pedido->update([
             'cliente_id' => $validatedData['cliente_id'],
-            'total' => array_sum(array_map(function ($producto) {
-                return $producto['cantidad'] * $producto['precio'];
+            'total' => array_sum(array_map(function ($item) {
+                return $item['cantidad'] * $item['precio'];
             }, $validatedData['productos'])),
         ]);
 
-        // Sincronizar los productos del pedido
-        $pedido->productos()->sync([]); // Eliminar todos los productos actuales
-        foreach ($validatedData['productos'] as $productoData) {
-            $pedido->productos()->attach($productoData['id'], [
-                'cantidad' => $productoData['cantidad'],
-                'precio' => $productoData['precio'],
-            ]);
+        // Sincronizar productos y servicios
+        $pedido->productos()->sync([]); // Eliminar productos actuales
+        $pedido->servicios()->sync([]); // Eliminar servicios actuales
+        foreach ($validatedData['productos'] as $itemData) {
+            if ($itemData['tipo'] === 'producto') {
+                $pedido->productos()->attach($itemData['id'], [
+                    'cantidad' => $itemData['cantidad'],
+                    'precio' => $itemData['precio'],
+                ]);
+            } elseif ($itemData['tipo'] === 'servicio') {
+                $pedido->servicios()->attach($itemData['id'], [
+                    'cantidad' => $itemData['cantidad'],
+                    'precio' => $itemData['precio'],
+                ]);
+            }
         }
 
         // Redirigir con un mensaje de éxito
@@ -199,6 +328,8 @@ class PedidoController extends Controller
     public function destroy($id)
     {
         $pedido = Pedido::findOrFail($id);
+        $pedido->productos()->detach(); // Desasociar productos
+        $pedido->servicios()->detach(); // Desasociar servicios
         $pedido->delete();
         return redirect()->route('pedidos.index')->with('success', 'Pedido eliminado exitosamente.');
     }
