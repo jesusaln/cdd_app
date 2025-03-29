@@ -24,33 +24,16 @@ use App\Http\Controllers\CitaController;
 use App\Http\Controllers\PanelController;
 use App\Http\Controllers\EmpresasController;
 use App\Http\Controllers\ServicioController;
-
 use App\Http\Controllers\InventarioController;
-
-
-
 
 Route::get('/productos/{id}/inventario', [ProductoController::class, 'showInventario'])->name('productos.inventario');
 Route::resource('inventario', InventarioController::class);
 
-
-
 Route::get('/empresas', [EmpresasController::class, 'index'])->name('empresas.index');
-
-
-
-
-
-// Route::get('/empresa.index', function () {
-//     return Inertia::render('Index');
-// })->name('/empresa.index');
-
-
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
         'canLogin' => Route::has('login'),
-        //'canRegister' => Route::has('register'),
         'laravelVersion' => Application::VERSION,
         'phpVersion' => PHP_VERSION,
     ]);
@@ -58,85 +41,44 @@ Route::get('/', function () {
 
 // Rutas protegidas por autenticación
 Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified'])->group(function () {
-    // Ruta principal para el panel
     Route::get('/panel', [PanelController::class, 'index'])->name('panel');
 
-
-    // Redirigir dashboard a panel
     Route::get('/dashboard', function () {
         return redirect()->route('panel');
     })->name('dashboard');
 
-    // Clientes
     Route::resource('clientes', ClienteController::class)->names('clientes');
-
-    // Productos
     Route::resource('productos', ProductoController::class)->names('productos');
 
-    // Proveedores
-    Route::resource('proveedores', ProveedorController::class)->names('proveedores');
+    // Proveedores corregidos
+    Route::resource('proveedores', ProveedorController::class)
+        ->names('proveedores')
+        ->parameters(['proveedores' => 'proveedor']);
+    // Elimina la línea duplicada: Route::put('/proveedores/{proveedor}', ...)
 
-    // Categorías
     Route::resource('categorias', CategoriaController::class)->names('categorias');
-
-    // Marcas
     Route::resource('marcas', MarcaController::class)->names('marcas');
-
-    // Almacenes
     Route::resource('almacenes', AlmacenController::class)->names('almacenes');
     Route::delete('/almacenes/{id}', [AlmacenController::class, 'destroy'])->name('almacenes.destroy');
-
-
-    // Cotizaciones
     Route::resource('cotizaciones', CotizacionController::class)->names('cotizaciones');
     Route::post('/cotizaciones/{id}/convertir-a-pedido', [CotizacionController::class, 'convertirAPedido'])->name('cotizaciones.convertir-a-pedido');
-
-    // Pedidos
     Route::resource('pedidos', PedidoController::class)->names('pedidos');
     Route::post('/pedidos/{id}/enviar-a-ventas', [PedidoController::class, 'enviarAVentas'])->name('pedidos.enviarAVentas');
-
-    // Ventas
     Route::resource('ventas', VentaController::class)->names('ventas');
-
-    // Servicios
     Route::resource('servicios', ServicioController::class)->names('servicios');
-
-
-    // Usuarios
     Route::resource('usuarios', UserController::class)->names('usuarios');
-
-    // Perfil de usuario autenticado
     Route::get('/perfil', [UserController::class, 'profile'])->name('perfil');
-
-    // Ver detalle de un usuario (sólo admins pueden ver otros usuarios)
     Route::get('/usuario/{id}', [UserController::class, 'show'])->name('usuarios.show');
-
-    // Compras
     Route::resource('compras', CompraController::class)->names('compras');
-
-    // Reportes
     Route::get('/reportes', [ReporteController::class, 'index'])->name('reportes.index');
     Route::resource('reportes', ReporteController::class);
-
-    // Herramientas
     Route::resource('herramientas', HerramientaController::class)->names('herramientas');
-
-    // Tecnicos
     Route::resource('tecnicos', TecnicoController::class)->names('tecnicos');
-
-    // Citas
     Route::resource('citas', CitaController::class)->names('citas');
     Route::put('/citas/{id}', [CitaController::class, 'update']);
     Route::patch('/citas/{id}/update-index', [CitaController::class, 'updateIndex'])->name('citas.updateIndex');
-
-
-    // Carros
     Route::resource('carros', CarroController::class)->names('carros');
-
-    // Mantenimientos
     Route::resource('mantenimientos', MantenimientoController::class)->names('mantenimientos');
-
-    // Notificaciones
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::post('/notifications/mark-as-read', [NotificationController::class, 'markAsRead']);
 });

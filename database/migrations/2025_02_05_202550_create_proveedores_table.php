@@ -12,18 +12,26 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('proveedores', function (Blueprint $table) {
-            $table->id();
-            $table->string('nombre');
-            $table->string('rfc')->nullable();
-            $table->string('contacto')->nullable();
-            $table->string('telefono')->nullable();
-            $table->string('email')->unique();
-            $table->string('direccion')->nullable();
-            $table->string('codigo_postal')->nullable();
-            $table->string('municipio')->nullable();
-            $table->string('estado')->nullable();
-            $table->string('pais')->nullable();
-            $table->timestamps();
+            $table->id(); // ID autoincremental
+            $table->string('nombre_razon_social'); // Nombre o razón social
+            $table->string('tipo_persona'); // Tipo de persona (Física o Moral)
+            $table->string('contacto')->nullable(); // Tipo de identificación (INE, Pasaporte, etc.)
+            $table->string('tel_contacto')->nullable(); // Número de identificación
+            $table->string('curp')->nullable(); // CURP (opcional)
+            $table->string('rfc', 13); // RFC (13 caracteres máximo)
+            $table->string('regimen_fiscal'); // Clave del régimen fiscal
+            $table->string('uso_cfdi'); // Clave de uso del CFDI
+            $table->string('email'); // Correo electrónico (único)
+            $table->string('telefono')->nullable(); // Teléfono (opcional)
+            $table->string('calle'); // Calle
+            $table->string('numero_exterior'); // Número exterior
+            $table->string('numero_interior')->nullable(); // Número interior (opcional)
+            $table->string('colonia'); // Colonia
+            $table->string('codigo_postal', 5); // Código postal (5 dígitos)
+            $table->string('municipio'); // Municipio o alcaldía
+            $table->string('estado'); // Estado
+            $table->string('pais')->default('México'); // País (por defecto, México)
+            $table->timestamps(); // Columnas created_at y updated_at
         });
     }
 

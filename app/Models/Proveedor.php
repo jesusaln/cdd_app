@@ -13,17 +13,21 @@ class Proveedor extends Model
 
     // Campos que pueden ser asignados masivamente
     protected $fillable = [
-        'nombre',
+        'nombre_razon_social',
+        'tipo_persona',
         'rfc',
-        'contacto',
-        'telefono',
+        'regimen_fiscal',
+        'uso_cfdi',
         'email',
-        'direccion',
+        'telefono',
+        'calle',
+        'numero_exterior',
+        'numero_interior',
+        'colonia',
         'codigo_postal',
         'municipio',
         'estado',
         'pais',
-
     ];
 
     /**
