@@ -61,18 +61,20 @@
                     </select>
                     <div v-if="form.errors.marca_id" class="text-red-500">{{ form.errors.marca_id }}</div>
                 </div>
+<!-- Proveedor -->
+<div>
+    <label for="proveedor_id" class="block text-sm font-medium text-gray-700">Proveedor</label>
+    <select v-model="form.proveedor_id" id="proveedor_id" class="input">
+        <option value="">Selecciona un proveedor</option>
+        <option v-for="proveedor in props.proveedores" :key="proveedor.id" :value="proveedor.id">
+            {{ proveedor.nombre_razon_social }}
+        </option>
+    </select>
+    <div v-if="form.errors && form.errors.proveedor_id" class="text-red-500">
+        {{ form.errors.proveedor_id }}
+    </div>
+</div>
 
-                <!-- Proveedor -->
-                <div>
-                    <label for="proveedor_id" class="block text-sm font-medium text-gray-700">Proveedor</label>
-                    <select v-model="form.proveedor_id" id="proveedor_id" class="input">
-                        <option value="">Selecciona un proveedor</option>
-                        <option v-for="proveedor in proveedores" :key="proveedor.id" :value="proveedor.id">
-                            {{ proveedor.nombre }}
-                        </option>
-                    </select>
-                    <div v-if="form.errors.proveedor_id" class="text-red-500">{{ form.errors.proveedor_id }}</div>
-                </div>
 
                 <!-- Almacén -->
                 <div>
@@ -232,6 +234,7 @@ const form = useForm({
     estado: 'activo',
 });
 
+
 // Enviar formulario
 const submit = () => {
     form.post(route('productos.store'), {
@@ -252,7 +255,14 @@ const handleImageUpload = (event) => {
     padding: 8px;
     border: 1px solid #ccc;
     border-radius: 4px;
+    color: #000 !important; /* Forzar color negro para el texto del select */
 }
+
+.input option {
+    color: #000 !important; /* Forzar color negro para las opciones */
+    background-color: #fff !important; /* Fondo blanco para las opciones */
+}
+
 .btn {
     background-color: blue;
     color: white;
@@ -260,6 +270,7 @@ const handleImageUpload = (event) => {
     border-radius: 4px;
     cursor: pointer;
 }
+
 .grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);

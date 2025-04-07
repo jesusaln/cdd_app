@@ -24,7 +24,7 @@
               @click="seleccionarProveedor(proveedor)"
               class="px-4 py-2 cursor-pointer hover:bg-gray-100"
             >
-              {{ proveedor.nombre }}
+              {{ proveedor.nombre_razon_social }}
             </li>
           </ul>
           <p v-if="!proveedoresFiltrados.length && buscarProveedor && mostrarProveedores" class="text-red-500 text-sm mt-1">
@@ -53,7 +53,10 @@
               @click="agregarProducto(producto)"
               class="px-4 py-2 cursor-pointer hover:bg-gray-100"
             >
-              {{ producto.nombre }} (Disponible: {{ producto.stock }})
+              <span>{{ producto.nombre }}</span>
+              <span :class="producto.stock <= 5 ? 'text-red-500' : 'text-gray-500'">
+                (Disponible: {{ producto.stock }})
+              </span>
             </li>
           </ul>
           <p v-if="!productosFiltrados.length && buscarProducto && mostrarProductos" class="text-red-500 text-sm mt-1">
@@ -133,10 +136,10 @@
   import { ref, computed, watch, onMounted } from 'vue';
   import { Head, useForm, Link } from '@inertiajs/vue3';
   import AppLayout from '@/Layouts/AppLayout.vue';
+  import { debounce } from 'lodash';
 
-
-// Define el layout del dashboard
-defineOptions({ layout: AppLayout });
+  // Define el layout del dashboard
+  defineOptions({ layout: AppLayout });
 
   const props = defineProps({ proveedores: Array, productos: Array });
   const form = useForm({ proveedor_id: '', total: 0, productos: [] });
@@ -152,7 +155,7 @@ defineOptions({ layout: AppLayout });
   const proveedoresFiltrados = computed(() =>
     buscarProveedor.value
       ? props.proveedores.filter((proveedor) =>
-          proveedor.nombre.toLowerCase().includes(buscarProveedor.value.toLowerCase())
+          proveedor.nombre_razon_social.toLowerCase().includes(buscarProveedor.value.toLowerCase())
         )
       : []
   );
@@ -170,23 +173,28 @@ defineOptions({ layout: AppLayout });
   const getProductById = (id) => props.productos.find((producto) => producto.id === id);
 
   // Calcular el total
-  const calcularTotal = () => {
-    form.total = selectedProducts.value.reduce(
-      (sum, id) => sum + (quantities.value[id] * prices.value[id] || 0),
-      0
-    ).toFixed(2);
-  };
+  const calcularTotal = debounce(() => {
+    form.total = selectedProducts.value.reduce((sum, id) => {
+      const cantidad = Number.parseFloat(quantities.value[id]) || 0;
+      const precio = Number.parseFloat(prices.value[id]) || 0;
+      return sum + (cantidad * precio);
+    }, 0).toFixed(2);
+  }, 300);
 
   // Seleccionar proveedor
   const seleccionarProveedor = (proveedor) => {
     form.proveedor_id = proveedor.id;
-    buscarProveedor.value = proveedor.nombre;
+    buscarProveedor.value = proveedor.nombre_razon_social;
     mostrarProveedores.value = false;
   };
 
   // Agregar producto
   const agregarProducto = (producto) => {
     if (!selectedProducts.value.includes(producto.id)) {
+      if (producto.stock <= 0) {
+        alert(`No hay stock disponible para el producto "${producto.nombre}".`);
+        return;
+      }
       selectedProducts.value.push(producto.id);
       quantities.value[producto.id] = 1;
       prices.value[producto.id] = producto.precio_compra || 0;
@@ -198,10 +206,12 @@ defineOptions({ layout: AppLayout });
 
   // Eliminar producto
   const eliminarProducto = (productoId) => {
-    selectedProducts.value = selectedProducts.value.filter((id) => id !== productoId);
-    delete quantities.value[productoId];
-    delete prices.value[productoId];
-    calcularTotal();
+    if (selectedProducts.value.includes(productoId)) {
+      selectedProducts.value = selectedProducts.value.filter((id) => id !== productoId);
+      delete quantities.value[productoId];
+      delete prices.value[productoId];
+      calcularTotal();
+    }
   };
 
   // Crear compra
@@ -213,14 +223,37 @@ defineOptions({ layout: AppLayout });
     }));
     form.post(route('compras.store'), {
       onSuccess: () => {
-        // Limpiar el formulario después de guardar
         form.reset();
         selectedProducts.value = [];
         quantities.value = {};
         prices.value = {};
       },
+      onError: (errors) => {
+        console.error('Errores al guardar:', errors);
+      },
     });
   };
+
+  // Ocultar listas después de un tiempo
+  const ocultarProveedoresDespuesDeTiempo = debounce(() => {
+    mostrarProveedores.value = false;
+  }, 200);
+
+  const ocultarProductosDespuesDeTiempo = debounce(() => {
+    mostrarProductos.value = false;
+  }, 200);
+
+  // Validar stock al cambiar la cantidad
+  watch(quantities, (newQuantities) => {
+    for (const [id, cantidad] of Object.entries(newQuantities)) {
+      const producto = getProductById(Number(id));
+      if (producto && cantidad > producto.stock) {
+        alert(`La cantidad excede el stock disponible para "${producto.nombre}".`);
+        quantities.value[id] = producto.stock; // Restringe al máximo disponible
+      }
+    }
+    calcularTotal();
+  });
   </script>
 
   <style scoped>

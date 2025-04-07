@@ -32,7 +32,7 @@
           <tbody class="divide-y divide-gray-200">
             <tr v-for="compra in comprasFiltradas" :key="compra.id" class="hover:bg-gray-100">
               <td class="px-4 py-3 text-sm text-gray-700">{{ compra.id }}</td>
-              <td class="px-4 py-3 text-sm text-gray-700">{{ compra.proveedor.nombre }}</td>
+              <td class="px-4 py-3 text-sm text-gray-700">{{ compra.proveedor.nombre_razon_social }}</td>
               <td class="px-4 py-3 text-sm text-gray-700">
                 <ul>
                   <li v-for="producto in compra.productos" :key="producto.id">
@@ -131,8 +131,8 @@ defineOptions({ layout: AppLayout });
   // Filtrado de compras
   const comprasFiltradas = computed(() => {
     return compras.value.filter(compra => {
-      return compra.proveedor.nombre.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
-             compra.productos.some(producto => producto.nombre.toLowerCase().includes(searchTerm.value.toLowerCase()));
+      return compra.proveedor.nombre_razon_social.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
+             compra.productos.some(producto => producto.nombre_razon_social.toLowerCase().includes(searchTerm.value.toLowerCase()));
     });
   });
 

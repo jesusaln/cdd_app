@@ -24,7 +24,7 @@
               @click="seleccionarProveedor(proveedor)"
               class="px-4 py-2 cursor-pointer hover:bg-gray-100"
             >
-              {{ proveedor.nombre }}
+              {{ proveedor.nombre_razon_social }}
             </li>
           </ul>
           <p v-if="!proveedoresFiltrados.length && buscarProveedor && mostrarProveedores" class="text-red-500 text-sm mt-1">
@@ -128,144 +128,147 @@
       </form>
     </div>
   </template>
-<script setup>
-import { ref, computed, onMounted } from 'vue';
-import { Head, useForm, Link } from '@inertiajs/vue3';
-import AppLayout from '@/Layouts/AppLayout.vue';
 
+  <script setup>
+  import { ref, computed, onMounted } from 'vue';
+  import { Head, useForm, Link } from '@inertiajs/vue3';
+  import AppLayout from '@/Layouts/AppLayout.vue';
+  import { debounce } from 'lodash';
 
-// Define el layout del dashboard
-defineOptions({ layout: AppLayout });
+  // Define el layout del dashboard
+  defineOptions({ layout: AppLayout });
 
-// Props recibidos desde el backend
-const props = defineProps({
-  proveedores: Array,
-  productos: Array,
-  compra: Object, // Datos de la compra a editar
-});
-
-// Formulario reactivo
-const form = useForm({
-  proveedor_id: props.compra?.proveedor_id || '',
-  total: props.compra?.total || 0,
-  productos: [],
-});
-
-// Variables reactivas
-const buscarProveedor = ref('');
-const buscarProducto = ref('');
-const mostrarProveedores = ref(false);
-const mostrarProductos = ref(false);
-const selectedProducts = ref([]);
-const quantities = ref({});
-const prices = ref({});
-
-// Filtrar proveedores
-const proveedoresFiltrados = computed(() =>
-  buscarProveedor.value
-    ? props.proveedores.filter((proveedor) =>
-        proveedor.nombre.toLowerCase().includes(buscarProveedor.value.toLowerCase())
-      )
-    : []
-);
-
-// Filtrar productos
-const productosFiltrados = computed(() =>
-  buscarProducto.value
-    ? props.productos.filter((producto) =>
-        producto.nombre.toLowerCase().includes(buscarProducto.value.toLowerCase())
-      )
-    : []
-);
-
-// Obtener producto por ID
-const getProductById = (id) => props.productos.find((producto) => producto.id === id);
-
-// Calcular el total
-const calcularTotal = () => {
-  form.total = selectedProducts.value.reduce(
-    (sum, id) => sum + (quantities.value[id] * prices.value[id] || 0),
-    0
-  ).toFixed(2);
-};
-
-// Seleccionar proveedor
-const seleccionarProveedor = (proveedor) => {
-  form.proveedor_id = proveedor.id;
-  buscarProveedor.value = proveedor.nombre; // Usar solo "nombre"
-  mostrarProveedores.value = false;
-};
-
-// Agregar producto
-const agregarProducto = (producto) => {
-  if (!selectedProducts.value.includes(producto.id)) {
-    selectedProducts.value.push(producto.id);
-    quantities.value[producto.id] = 1;
-    prices.value[producto.id] = producto.precio_compra || 0;
-  }
-  buscarProducto.value = '';
-  mostrarProductos.value = false;
-  calcularTotal();
-};
-
-// Eliminar producto
-const eliminarProducto = (productoId) => {
-  selectedProducts.value = selectedProducts.value.filter((id) => id !== productoId);
-  delete quantities.value[productoId];
-  delete prices.value[productoId];
-  calcularTotal();
-};
-
-// Guardar cambios
-const guardarCambios = () => {
-  form.productos = selectedProducts.value.map((id) => ({
-    id,
-    cantidad: quantities.value[id] || 1,
-    precio: prices.value[id] || 0,
-  }));
-
-  form.put(route('compras.update', props.compra.id), {
-    onSuccess: () => {
-      // Limpiar el formulario después de guardar
-      form.reset();
-      selectedProducts.value = [];
-      quantities.value = {};
-      prices.value = {};
-    },
+  // Props recibidos desde el backend
+  const props = defineProps({
+    proveedores: Array,
+    productos: Array,
+    compra: Object,
   });
-};
 
-// Ocultar listas después de un tiempo
-const ocultarProveedoresDespuesDeTiempo = () => {
-  setTimeout(() => {
+  // Formulario reactivo
+  const form = useForm({
+    proveedor_id: props.compra?.proveedor_id || '',
+    total: props.compra?.total || 0,
+    productos: [],
+  });
+
+  // Variables reactivas
+  const buscarProveedor = ref('');
+  const buscarProducto = ref('');
+  const mostrarProveedores = ref(false);
+  const mostrarProductos = ref(false);
+  const selectedProducts = ref([]);
+  const quantities = ref({});
+  const prices = ref({});
+
+  // Filtrar proveedores
+  const proveedoresFiltrados = computed(() =>
+    buscarProveedor.value
+      ? props.proveedores.filter((proveedor) =>
+          proveedor.nombre_razon_social.toLowerCase().includes(buscarProveedor.value.toLowerCase())
+        )
+      : []
+  );
+
+  // Filtrar productos
+  const productosFiltrados = computed(() =>
+    buscarProducto.value
+      ? props.productos.filter((producto) =>
+          producto.nombre.toLowerCase().includes(buscarProducto.value.toLowerCase())
+        )
+      : []
+  );
+
+  // Obtener producto por ID
+  const getProductById = (id) => props.productos.find((producto) => producto.id === id);
+
+  // Calcular el total
+  const calcularTotal = debounce(() => {
+    form.total = selectedProducts.value.reduce((sum, id) => {
+      const cantidad = Number.parseFloat(quantities.value[id]) || 0;
+      const precio = Number.parseFloat(prices.value[id]) || 0;
+      return sum + (cantidad * precio);
+    }, 0).toFixed(2);
+  }, 300);
+
+  // Seleccionar proveedor
+  const seleccionarProveedor = (proveedor) => {
+    form.proveedor_id = proveedor.id;
+    buscarProveedor.value = proveedor.nombre_razon_social;
+    mostrarProveedores.value = false;
+  };
+
+  // Agregar producto
+  const agregarProducto = (producto) => {
+    if (!selectedProducts.value.includes(producto.id)) {
+      selectedProducts.value.push(producto.id);
+      quantities.value[producto.id] = 1;
+      prices.value[producto.id] = producto.precio_compra || 0;
+    }
+    buscarProducto.value = '';
+    mostrarProductos.value = false;
+    calcularTotal();
+  };
+
+  // Eliminar producto
+  const eliminarProducto = (productoId) => {
+    if (selectedProducts.value.includes(productoId)) {
+      selectedProducts.value = selectedProducts.value.filter((id) => id !== productoId);
+      delete quantities.value[productoId];
+      delete prices.value[productoId];
+      calcularTotal();
+    }
+  };
+
+  // Guardar cambios
+  const guardarCambios = () => {
+    form.productos = selectedProducts.value.map((id) => ({
+      id,
+      cantidad: quantities.value[id] || 1,
+      precio: prices.value[id] || 0,
+    }));
+
+    form.put(route('compras.update', props.compra.id), {
+      onSuccess: () => {
+        form.reset();
+        selectedProducts.value = [];
+        quantities.value = {};
+        prices.value = {};
+      },
+      onError: (errors) => {
+        console.error('Errores al guardar:', errors);
+      },
+    });
+  };
+
+  // Ocultar listas después de un tiempo
+  const ocultarProveedoresDespuesDeTiempo = debounce(() => {
     mostrarProveedores.value = false;
   }, 200);
-};
 
-const ocultarProductosDespuesDeTiempo = () => {
-  setTimeout(() => {
+  const ocultarProductosDespuesDeTiempo = debounce(() => {
     mostrarProductos.value = false;
   }, 200);
-};
 
-// Cargar datos iniciales si se está editando una compra existente
-onMounted(() => {
-  if (props.compra) {
-    const proveedorSeleccionado = props.proveedores.find(
-      (proveedor) => proveedor.id === props.compra.proveedor_id
-    );
-    if (proveedorSeleccionado) {
-      form.proveedor_id = proveedorSeleccionado.id;
-      buscarProveedor.value = proveedorSeleccionado.nombre; // Usar solo "nombre"
+  // Cargar datos iniciales si se está editando una compra existente
+  onMounted(() => {
+    if (props.compra?.proveedor_id) {
+      const proveedorSeleccionado = props.proveedores.find(
+        (proveedor) => proveedor.id === props.compra.proveedor_id
+      );
+      if (proveedorSeleccionado) {
+        form.proveedor_id = proveedorSeleccionado.id;
+        buscarProveedor.value = proveedorSeleccionado.nombre_razon_social;
+      }
+
+      if (Array.isArray(props.compra.productos)) {
+        for (const producto of props.compra.productos) {
+          selectedProducts.value.push(producto.id);
+          quantities.value[producto.id] = producto.pivot.cantidad || 1;
+          prices.value[producto.id] = producto.pivot.precio || 0;
+        }
+        calcularTotal();
+      }
     }
-
-    for (const producto of props.compra.productos) {
-      selectedProducts.value.push(producto.id);
-      quantities.value[producto.id] = producto.pivot.cantidad;
-      prices.value[producto.id] = producto.pivot.precio;
-    }
-
-    calcularTotal();
-  }
-});
-</script>
+  });
+  </script>

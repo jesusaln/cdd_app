@@ -67,7 +67,9 @@
             <div class="mb-4">
                 <label class="block text-gray-700 text-sm font-bold mb-2">Técnico</label>
                 <select v-model="form.tecnico_id" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
-                    <option v-for="tecnico in tecnicos" :key="tecnico.id" :value="tecnico.id">{{ tecnico.nombre }}</option>
+                    <option v-for="tecnico in tecnicos" :key="tecnico.id" :value="tecnico.id">
+  {{ tecnico.nombre }} {{ tecnico.apellido }}
+</option>
                 </select>
             </div>
             <!-- <div class="mb-4">

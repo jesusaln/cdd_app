@@ -31,7 +31,7 @@ class ProductoController extends Controller
         return Inertia::render('Productos/Create', [
             'categorias' => Categoria::select('id', 'nombre')->get(),
             'marcas' => Marca::select('id', 'nombre')->get(),
-            'proveedores' => Proveedor::select('id', 'nombre')->get(),
+            'proveedores' => Proveedor::select('id', 'nombre_razon_social')->get(), // Usa 'nombre_razon_social'
             'almacenes' => Almacen::select('id', 'nombre')->get(), // Corrección aquí
         ]);
     }

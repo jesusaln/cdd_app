@@ -10,52 +10,34 @@ use Inertia\Inertia;
 
 class CompraController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
     public function index()
     {
         $compras = Compra::with('proveedor', 'productos')->get();
-        return Inertia::render('Compras/Index', [
-            'compras' => $compras,
-        ]);
+        return Inertia::render('Compras/Index', ['compras' => $compras]);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
     public function create()
     {
         $proveedores = Proveedor::all();
         $productos = Producto::all();
-        return Inertia::render('Compras/Create', [
-            'proveedores' => $proveedores,
-            'productos' => $productos,
-        ]);
+        return Inertia::render('Compras/Create', ['proveedores' => $proveedores, 'productos' => $productos]);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function store(Request $request)
+    private function validateCompraRequest(Request $request)
     {
-        // Validar los datos de entrada
-        $validatedData = $request->validate([
+        return $request->validate([
             'proveedor_id' => 'required|exists:proveedores,id',
             'productos' => 'required|array',
             'productos.*.id' => 'required|exists:productos,id',
-            'productos.*.cantidad' => 'required|integer|min:1', // Asegúrate de que este campo exista en el frontend
+            'productos.*.cantidad' => 'required|integer|min:1',
             'productos.*.precio' => 'required|numeric|min:0',
         ]);
+    }
 
-        // Crear la compra
+    public function store(Request $request)
+    {
+        $validatedData = $this->validateCompraRequest($request);
+
         $compra = Compra::create([
             'proveedor_id' => $validatedData['proveedor_id'],
             'total' => array_sum(array_map(function ($producto) {
@@ -63,75 +45,47 @@ class CompraController extends Controller
             }, $validatedData['productos'])),
         ]);
 
-        // Asociar los productos a la compra y actualizar el inventario
         foreach ($validatedData['productos'] as $productoData) {
-            // Actualizar el inventario (usando el campo "stock")
             $producto = Producto::findOrFail($productoData['id']);
-            $producto->stock += $productoData['cantidad']; // Incrementar el stock
+            $producto->stock += $productoData['cantidad'];
             $producto->save();
 
-            // Asociar los productos a la compra
             $compra->productos()->attach($productoData['id'], [
                 'cantidad' => $productoData['cantidad'],
                 'precio' => $productoData['precio'],
             ]);
         }
 
-        // Redirigir con un mensaje de éxito
         return redirect()->route('compras.index')->with('success', 'Compra creada exitosamente.');
     }
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
     public function show($id)
     {
         $compra = Compra::with('proveedor', 'productos')->findOrFail($id);
-        return Inertia::render('Compras/Show', [
-            'compra' => $compra,
-        ]);
+        return Inertia::render('Compras/Show', ['compra' => $compra]);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
     public function edit($id)
     {
         $compra = Compra::with('proveedor', 'productos')->findOrFail($id);
         $proveedores = Proveedor::all();
         $productos = Producto::all();
-        return Inertia::render('Compras/Edit', [
-            'compra' => $compra,
-            'proveedores' => $proveedores,
-            'productos' => $productos,
-        ]);
+        return Inertia::render('Compras/Edit', ['compra' => $compra, 'proveedores' => $proveedores, 'productos' => $productos]);
     }
 
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
     public function update(Request $request, $id)
     {
         $compra = Compra::findOrFail($id);
+        $validatedData = $this->validateCompraRequest($request);
 
-        // Validar los datos de entrada
-        $validatedData = $request->validate([
-            'proveedor_id' => 'required|exists:proveedores,id',
-            'productos' => 'required|array',
-            'productos.*.id' => 'required|exists:productos,id',
-            'productos.*.cantidad' => 'required|integer|min:1',
-            'productos.*.precio' => 'required|numeric|min:0',
-        ]);
+        // Restar cantidades antiguas del stock
+        foreach ($compra->productos as $producto) {
+            $producto->stock -= $producto->pivot->cantidad;
+            if ($producto->stock < 0) {
+                throw new \Exception("El stock del producto '{$producto->nombre}' no puede ser negativo.");
+            }
+            $producto->save();
+        }
 
         // Actualizar la compra
         $compra->update([
@@ -141,45 +95,41 @@ class CompraController extends Controller
             }, $validatedData['productos'])),
         ]);
 
-        // Sincronizar los productos de la compra
-        $compra->productos()->sync([]); // Eliminar todos los productos actuales
+        // Agregar cantidades nuevas al stock
+        $syncData = [];
         foreach ($validatedData['productos'] as $productoData) {
-            // Actualizar el inventario
             $producto = Producto::findOrFail($productoData['id']);
-            $producto->cantidad += $productoData['cantidad']; // Aumentar la cantidad en el inventario
+            $producto->stock += $productoData['cantidad'];
+            if ($producto->stock < 0) {
+                throw new \Exception("El stock del producto '{$producto->nombre}' no puede ser negativo.");
+            }
             $producto->save();
 
-            // Asociar los productos a la compra
-            $compra->productos()->attach($productoData['id'], [
+            $syncData[$productoData['id']] = [
                 'cantidad' => $productoData['cantidad'],
                 'precio' => $productoData['precio'],
-            ]);
+            ];
         }
 
-        // Redirigir con un mensaje de éxito
+        $compra->productos()->sync($syncData);
+
         return redirect()->route('compras.index')->with('success', 'Compra actualizada exitosamente.');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
     public function destroy($id)
     {
         $compra = Compra::with('productos')->findOrFail($id);
 
-        // Recorrer los productos asociados a la compra y restar la cantidad del inventario
         foreach ($compra->productos as $producto) {
-            $producto->stock -= $producto->pivot->cantidad; // Restar la cantidad del stock
+            $producto->stock -= $producto->pivot->cantidad;
+            if ($producto->stock < 0) {
+                throw new \Exception("El stock del producto '{$producto->nombre}' no puede ser negativo.");
+            }
             $producto->save();
         }
 
-        // Eliminar la compra
         $compra->delete();
 
-        // Redirigir con un mensaje de éxito
         return redirect()->route('compras.index')->with('success', 'Compra eliminada exitosamente.');
     }
 }

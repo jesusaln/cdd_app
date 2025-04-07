@@ -13,6 +13,7 @@
             placeholder="Buscar cliente..."
             @focus="mostrarClientes = true"
             @blur="ocultarClientesDespuesDeTiempo"
+            autocomplete="off"
             class="mt-1 block w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500"
           />
           <ul v-if="mostrarClientes && clientesFiltrados.length > 0" class="absolute z-10 bg-white border rounded-md shadow-md w-full max-h-48 overflow-y-auto">
@@ -40,6 +41,7 @@
             placeholder="Buscar producto/servicio..."
             @focus="mostrarProductos = true"
             @blur="ocultarProductosDespuesDeTiempo"
+            autocomplete="off"
             class="mt-1 block w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500"
           />
           <ul v-if="mostrarProductos && productosFiltrados.length > 0" class="absolute z-10 bg-white border rounded-md shadow-md w-full max-h-48 overflow-y-auto">
