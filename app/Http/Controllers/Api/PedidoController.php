@@ -14,12 +14,39 @@ class PedidoController extends Controller
     public function index()
     {
         try {
-            $pedidos = Pedido::with(['cliente', 'productos'])->get();
+            $pedidos = Pedido::with(['cliente', 'productos', 'servicios'])->get()->map(function ($pedido) {
+                $items = collect($pedido->productos->map(function ($producto) {
+                    return [
+                        'id' => $producto->id,
+                        'nombre' => $producto->nombre,
+                        'tipo' => 'producto',
+                        'cantidad' => $producto->pivot->cantidad,
+                        'precio' => $producto->pivot->precio,
+                    ];
+                }))->merge(collect($pedido->servicios->map(function ($servicio) {
+                    return [
+                        'id' => $servicio->id,
+                        'nombre' => $servicio->nombre,
+                        'tipo' => 'servicio',
+                        'cantidad' => $servicio->pivot->cantidad,
+                        'precio' => $servicio->pivot->precio,
+                    ];
+                })));
+
+                return [
+                    'id' => $pedido->id,
+                    'cliente' => $pedido->cliente,
+                    'items' => $items,
+                    'total' => $pedido->total,
+                ];
+            });
+
             return response()->json($pedidos, 200);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Error al obtener los pedidos: ' . $e->getMessage()], 500);
         }
     }
+
 
     /**
      * Muestra los detalles de un pedido específico.
@@ -27,12 +54,38 @@ class PedidoController extends Controller
     public function show($id)
     {
         try {
-            $pedido = Pedido::with(['cliente', 'productos'])->findOrFail($id);
-            return response()->json($pedido, 200);
+            $pedido = Pedido::with(['cliente', 'productos', 'servicios'])->findOrFail($id);
+
+            // Asegúrate de que productos y servicios sean colecciones
+            $items = collect($pedido->productos)->map(function ($producto) {
+                return [
+                    'id' => $producto->id,
+                    'nombre' => $producto->nombre,
+                    'tipo' => 'producto',
+                    'cantidad' => $producto->pivot->cantidad,
+                    'precio' => $producto->pivot->precio,
+                ];
+            })->merge(collect($pedido->servicios)->map(function ($servicio) {
+                return [
+                    'id' => $servicio->id,
+                    'nombre' => $servicio->nombre,
+                    'tipo' => 'servicio',
+                    'cantidad' => $servicio->pivot->cantidad,
+                    'precio' => $servicio->pivot->precio,
+                ];
+            }));
+
+            return response()->json([
+                'id' => $pedido->id,
+                'cliente' => $pedido->cliente,
+                'items' => $items,
+                'total' => $pedido->total,
+            ], 200);
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Error al obtener el pedido: ' . $e->getMessage()], 404);
+            return response()->json(['error' => 'Error al obtener la cotización: ' . $e->getMessage()], 404);
         }
     }
+
 
     /**
      * Crea un nuevo pedido.
@@ -43,31 +96,41 @@ class PedidoController extends Controller
             // Validar los datos de entrada
             $validatedData = $request->validate([
                 'cliente_id' => 'required|exists:clientes,id',
-                'total' => 'required|numeric|min:0',
-                'productos' => 'required|array', // Lista de productos
-                'productos.*.producto_id' => 'required|exists:productos,id',
-                'productos.*.cantidad' => 'required|integer|min:1',
-                'productos.*.precio' => 'required|numeric|min:0',
+                'items' => 'required|array',
+                'items.*.id' => 'required|integer',
+                'items.*.tipo' => 'required|in:producto,servicio',
+                'items.*.cantidad' => 'required|integer|min:1',
+                'items.*.precio' => 'required|numeric|min:0',
             ]);
 
             // Crear el pedido
             $pedido = Pedido::create([
                 'cliente_id' => $validatedData['cliente_id'],
-                'total' => $validatedData['total'],
+                'total' => array_sum(array_map(function ($item) {
+                    return $item['cantidad'] * $item['precio'];
+                }, $validatedData['items'])),
             ]);
 
-            // Asociar productos al pedido (usando una tabla pivote)
+            // Asociar productos y servicios
             $productos = [];
-            foreach ($validatedData['productos'] as $producto) {
-                $productos[$producto['producto_id']] = [
-                    'cantidad' => $producto['cantidad'],
-                    'precio' => $producto['precio'],
-                ];
+            $servicios = [];
+            foreach ($validatedData['items'] as $item) {
+                if ($item['tipo'] === 'producto') {
+                    $productos[$item['id']] = [
+                        'cantidad' => $item['cantidad'],
+                        'precio' => $item['precio'],
+                    ];
+                } elseif ($item['tipo'] === 'servicio') {
+                    $servicios[$item['id']] = [
+                        'cantidad' => $item['cantidad'],
+                        'precio' => $item['precio'],
+                    ];
+                }
             }
             $pedido->productos()->sync($productos);
+            $pedido->servicios()->sync($servicios);
 
-            // Devolver el pedido creado con relaciones cargadas
-            return response()->json($pedido->load(['cliente', 'productos']), 201);
+            return response()->json($pedido->load(['cliente', 'productos', 'servicios']), 201);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Error al crear el pedido: ' . $e->getMessage()], 400);
         }
@@ -79,37 +142,52 @@ class PedidoController extends Controller
     public function update(Request $request, $id)
     {
         try {
-            // Buscar el pedido por ID
             $pedido = Pedido::findOrFail($id);
 
             // Validar los datos de entrada
             $validatedData = $request->validate([
                 'cliente_id' => 'sometimes|exists:clientes,id',
-                'total' => 'sometimes|numeric|min:0',
-                'productos' => 'sometimes|array',
-                'productos.*.producto_id' => 'required_with:productos|exists:productos,id',
-                'productos.*.cantidad' => 'required_with:productos|integer|min:1',
-                'productos.*.precio' => 'required_with:productos|numeric|min:0',
+                'items' => 'sometimes|array',
+                'items.*.id' => 'required_with:items|integer',
+                'items.*.tipo' => 'required_with:items|in:producto,servicio',
+                'items.*.cantidad' => 'required_with:items|integer|min:1',
+                'items.*.precio' => 'required_with:items|numeric|min:0',
             ]);
 
-            // Actualizar los campos principales del pedido
-            $pedido->update($validatedData);
+            // Actualizar campos principales
+            $updateData = [];
+            if (isset($validatedData['cliente_id'])) {
+                $updateData['cliente_id'] = $validatedData['cliente_id'];
+            }
+            if (isset($validatedData['items'])) {
+                $updateData['total'] = array_sum(array_map(function ($item) {
+                    return $item['cantidad'] * $item['precio'];
+                }, $validatedData['items']));
+            }
+            $pedido->update($updateData);
 
-            // Actualizar productos si se proporcionan
-            if (isset($validatedData['productos'])) {
+            // Actualizar productos y servicios si se proporcionan
+            if (isset($validatedData['items'])) {
                 $productos = [];
-                foreach ($validatedData['productos'] as $producto) {
-                    $productos[$producto['producto_id']] = [
-                        'cantidad' => $producto['cantidad'],
-                        'precio' => $producto['precio'],
-                    ];
+                $servicios = [];
+                foreach ($validatedData['items'] as $item) {
+                    if ($item['tipo'] === 'producto') {
+                        $productos[$item['id']] = [
+                            'cantidad' => $item['cantidad'],
+                            'precio' => $item['precio'],
+                        ];
+                    } elseif ($item['tipo'] === 'servicio') {
+                        $servicios[$item['id']] = [
+                            'cantidad' => $item['cantidad'],
+                            'precio' => $item['precio'],
+                        ];
+                    }
                 }
-                // Sincronizar productos con el pedido
                 $pedido->productos()->sync($productos);
+                $pedido->servicios()->sync($servicios);
             }
 
-            // Devolver el pedido actualizado con relaciones cargadas
-            return response()->json($pedido->load(['cliente', 'productos']), 200);
+            return response()->json($pedido->load(['cliente', 'productos', 'servicios']), 200);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Error al actualizar el pedido: ' . $e->getMessage()], 400);
         }
@@ -122,7 +200,8 @@ class PedidoController extends Controller
     {
         try {
             $pedido = Pedido::findOrFail($id);
-            $pedido->productos()->detach(); // Eliminar relaciones con productos
+            $pedido->productos()->detach();
+            $pedido->servicios()->detach();
             $pedido->delete();
 
             return response()->json(['message' => 'Pedido eliminado con éxito'], 200);
