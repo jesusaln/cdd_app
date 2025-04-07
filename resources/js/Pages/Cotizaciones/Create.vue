@@ -139,10 +139,8 @@
     </div>
   </template>
 
-
-
   <script setup>
-  import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
+  import { ref, computed, watch, onMounted } from 'vue';
   import { Head, useForm, Link } from '@inertiajs/vue3';
   import AppLayout from '@/Layouts/AppLayout.vue';
 
@@ -285,54 +283,11 @@
     }, 300);
   };
 
-  watch(
-    [() => form.cliente_id, selectedProducts, quantities, prices, clienteSeleccionado],
-    () => {
-      const dataToSave = {
-        cliente_id: form.cliente_id,
-        cliente_nombre: clienteSeleccionado.value,
-        selectedProducts: selectedProducts.value,
-        quantities: quantities.value,
-        prices: prices.value,
-      };
-      localStorage.setItem('cotizacionEnProgreso', JSON.stringify(dataToSave));
-    },
-    { deep: true }
-  );
-
   onMounted(() => {
     console.log('Clientes:', props.clientes);
     console.log('Productos:', props.productos);
     console.log('Servicios:', props.servicios);
-    const savedData = localStorage.getItem('cotizacionEnProgreso');
-    if (savedData) {
-      const parsedData = JSON.parse(savedData);
-      console.log('Datos cargados desde localStorage:', parsedData);
-      form.cliente_id = parsedData.cliente_id;
-      clienteSeleccionado.value = parsedData.cliente_nombre;
-      buscarCliente.value = parsedData.cliente_nombre;
-      selectedProducts.value = Array.isArray(parsedData.selectedProducts)
-        ? parsedData.selectedProducts.filter(
-            (entry) => entry && typeof entry === 'object' && 'id' in entry && 'tipo' in entry
-          )
-        : [];
-      quantities.value = parsedData.quantities || {};
-      prices.value = parsedData.prices || {};
-      calcularTotal();
-    }
-    window.addEventListener('beforeunload', handleBeforeUnload);
   });
-
-  onBeforeUnmount(() => {
-    window.removeEventListener('beforeunload', handleBeforeUnload);
-  });
-
-  const handleBeforeUnload = (event) => {
-    if (form.cliente_id || selectedProducts.value.length > 0) {
-      event.preventDefault();
-      event.returnValue = '';
-    }
-  };
 
   const crearCotizacion = () => {
     form.productos = selectedProducts.value.map((entry) => ({
@@ -344,7 +299,6 @@
 
     form.post(route('cotizaciones.store'), {
       onSuccess: () => {
-        localStorage.removeItem('cotizacionEnProgreso');
         selectedProducts.value = [];
         quantities.value = {};
         prices.value = {};
@@ -353,17 +307,6 @@
         console.error('Error al crear la cotización:', error);
       },
     });
-  };
-
-  const formatearLocalStorage = () => {
-    localStorage.removeItem('cotizacionEnProgreso');
-    form.cliente_id = '';
-    clienteSeleccionado.value = null;
-    buscarCliente.value = '';
-    selectedProducts.value = [];
-    quantities.value = {};
-    prices.value = {};
-    calcularTotal();
   };
   </script>
 
