@@ -11,7 +11,7 @@ class CotizacionController extends Controller
     /**
      * Muestra una lista de todas las cotizaciones en formato JSON.
      */
-    public function index()
+    public function Index()
     {
         try {
             $cotizaciones = Cotizacion::with(['cliente', 'productos', 'servicios'])->get()->map(function ($cotizacion) {
@@ -38,6 +38,8 @@ class CotizacionController extends Controller
                     'cliente' => $cotizacion->cliente,
                     'items' => $items,
                     'total' => $cotizacion->total,
+                    'fecha' => $cotizacion->created_at->format('Y-m-d'), // Incluir la fecha de creación
+
                 ];
             });
 
@@ -78,6 +80,7 @@ class CotizacionController extends Controller
                 'cliente' => $cotizacion->cliente,
                 'items' => $items,
                 'total' => $cotizacion->total,
+                'fecha' => $cotizacion->created_at->format('Y-m-d'), // Incluir la fecha de creación
             ], 200);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Error al obtener la cotización: ' . $e->getMessage()], 404);

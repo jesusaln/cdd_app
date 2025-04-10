@@ -10,6 +10,8 @@ use App\Models\Servicio;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
+use Carbon\Carbon;
+
 
 class CotizacionController extends Controller
 {
@@ -18,6 +20,8 @@ class CotizacionController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
+
+
     public function index()
     {
         $cotizaciones = Cotizacion::with(['cliente', 'productos', 'servicios'])->get()->map(function ($cotizacion) {
@@ -43,12 +47,12 @@ class CotizacionController extends Controller
                 ];
             }));
 
-
             return [
                 'id' => $cotizacion->id,
                 'cliente' => $cotizacion->cliente,
-                'productos' => $items, // Ahora incluye productos y servicios
+                'productos' => $items,
                 'total' => $cotizacion->total,
+                'fecha' => Carbon::parse($cotizacion->created_at)->format('Y-m-d'), // 👈 Agregado
             ];
         });
 
@@ -56,6 +60,7 @@ class CotizacionController extends Controller
             'cotizaciones' => $cotizaciones,
         ]);
     }
+
 
     /**
      * Show the form for creating a new resource.

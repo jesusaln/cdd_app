@@ -1,7 +1,7 @@
 import { jsPDF } from "jspdf";
 
-
 export const generarPDF = (tipoDocumento, data) => {
+  console.log("Objeto data:", data); // Para diagnóstico
   const doc = new jsPDF();
   doc.setFont("helvetica", "normal");
 
@@ -34,7 +34,10 @@ export const generarPDF = (tipoDocumento, data) => {
   doc.setFont("helvetica", "bold");
   doc.text("Fecha:", 140, 60);
   doc.setFont("helvetica", "normal");
-  doc.text(new Date().toLocaleDateString(), 160, 60);
+  const fecha = data.fecha && !Number.isNaN(new Date(data.fecha).getTime())
+    ? new Date(data.fecha).toLocaleDateString()
+    : "Fecha no disponible";
+  doc.text(fecha, 160, 60);
   doc.line(14, 65, 190, 65); // Línea divisoria
 
   // Datos del cliente en dos columnas
@@ -42,8 +45,7 @@ export const generarPDF = (tipoDocumento, data) => {
     ["Cliente", data.cliente.nombre_razon_social],
     ["Dirección", `${data.cliente.calle} ${data.cliente.numero_exterior}${data.cliente.numero_interior ? `, Int. ${data.cliente.numero_interior}` : ''} `],
     ["RFC", data.cliente.rfc],
-    ["Colonia", data.cliente.colonia,],
-
+    ["Colonia", data.cliente.colonia],
     ["Rég. Fiscal", data.cliente.regimen_fiscal],
     ["Uso CFDI", data.cliente.uso_cfdi],
     ["Email", data.cliente.email],
@@ -75,7 +77,7 @@ export const generarPDF = (tipoDocumento, data) => {
     }
   });
 
-  doc.line(14, yPos + 2, 190, yPos + 2); // Línea divisoria debajo de la información del cliente
+  doc.line(14, yPos + 2, 190, yPos + 2);
   yPos += 10;
 
   // Tabla de productos
@@ -99,7 +101,6 @@ export const generarPDF = (tipoDocumento, data) => {
     yPos += 6;
   }
 
-  // Línea divisoria después de productos
   doc.line(14, yPos + 2, 190, yPos + 2);
   yPos += 10;
 
