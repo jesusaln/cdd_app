@@ -21,7 +21,7 @@ class CotizacionController extends Controller
     public function index()
     {
         $cotizaciones = Cotizacion::with(['cliente', 'productos', 'servicios'])->get()->map(function ($cotizacion) {
-            $items = $cotizacion->productos->map(function ($producto) {
+            $items = collect($cotizacion->productos)->map(function ($producto) {
                 return [
                     'id' => $producto->id,
                     'nombre' => $producto->nombre,
@@ -31,7 +31,7 @@ class CotizacionController extends Controller
                         'precio' => $producto->pivot->precio,
                     ],
                 ];
-            })->merge($cotizacion->servicios->map(function ($servicio) {
+            })->merge(collect($cotizacion->servicios)->map(function ($servicio) {
                 return [
                     'id' => $servicio->id,
                     'nombre' => $servicio->nombre,
@@ -42,6 +42,7 @@ class CotizacionController extends Controller
                     ],
                 ];
             }));
+
 
             return [
                 'id' => $cotizacion->id,

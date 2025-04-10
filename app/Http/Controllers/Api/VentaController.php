@@ -24,7 +24,7 @@ class VentaController extends Controller
                 'cliente' => $nombreCliente,
             ]);
 
-            $query = Venta::with(['cliente', 'productos']);
+            $query = Venta::with(['cliente', 'productos', 'servicios']); // Añadimos servicios
 
             if ($nombreCliente) {
                 $query->whereIn('cliente_id', function ($subQuery) use ($nombreCliente) {
@@ -35,7 +35,32 @@ class VentaController extends Controller
                 Log::info('Filtro aplicado para cliente: ' . $nombreCliente);
             }
 
-            $ventas = $query->orderByDesc('created_at')->limit($limit)->get();
+            $ventas = $query->orderByDesc('created_at')->limit($limit)->get()->map(function ($venta) {
+                $items = collect($venta->productos->map(function ($producto) {
+                    return [
+                        'id' => $producto->id,
+                        'nombre' => $producto->nombre,
+                        'tipo' => 'producto',
+                        'cantidad' => $producto->pivot->cantidad,
+                        'precio' => $producto->pivot->precio,
+                    ];
+                }))->merge(collect($venta->servicios->map(function ($servicio) {
+                    return [
+                        'id' => $servicio->id,
+                        'nombre' => $servicio->nombre,
+                        'tipo' => 'servicio',
+                        'cantidad' => $servicio->pivot->cantidad,
+                        'precio' => $servicio->pivot->precio,
+                    ];
+                })));
+
+                return [
+                    'id' => $venta->id,
+                    'cliente' => $venta->cliente,
+                    'items' => $items,
+                    'total' => $venta->total,
+                ];
+            });
 
             Log::info('Ventas encontradas: ' . $ventas->count());
             return response()->json($ventas, 200);
@@ -48,13 +73,14 @@ class VentaController extends Controller
     public function create()
     {
         try {
-            // Cargar datos adicionales si son necesarios (por ejemplo, clientes y productos)
             $clientes = \App\Models\Cliente::all();
             $productos = \App\Models\Producto::all();
+            $servicios = \App\Models\Servicio::all(); // Añadimos servicios
 
             return response()->json([
                 'clientes' => $clientes,
                 'productos' => $productos,
+                'servicios' => $servicios,
             ], 200);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Error al cargar datos para nueva venta: ' . $e->getMessage()], 500);
@@ -64,11 +90,38 @@ class VentaController extends Controller
     /**
      * Muestra los detalles de una venta específica.
      */
+    /**
+     * Muestra los detalles de una venta específica.
+     */
     public function show($id)
     {
         try {
-            $venta = Venta::with(['cliente', 'productos'])->findOrFail($id);
-            return response()->json($venta, 200);
+            $venta = Venta::with(['cliente', 'productos', 'servicios'])->findOrFail($id);
+
+            $items = collect($venta->productos)->map(function ($producto) {
+                return [
+                    'id' => $producto->id,
+                    'nombre' => $producto->nombre,
+                    'tipo' => 'producto',
+                    'cantidad' => $producto->pivot->cantidad,
+                    'precio' => $producto->pivot->precio,
+                ];
+            })->merge(collect($venta->servicios)->map(function ($servicio) {
+                return [
+                    'id' => $servicio->id,
+                    'nombre' => $servicio->nombre,
+                    'tipo' => 'servicio',
+                    'cantidad' => $servicio->pivot->cantidad,
+                    'precio' => $servicio->pivot->precio,
+                ];
+            }));
+
+            return response()->json([
+                'id' => $venta->id,
+                'cliente' => $venta->cliente,
+                'items' => $items,
+                'total' => $venta->total,
+            ], 200);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Error al obtener la venta: ' . $e->getMessage()], 404);
         }
@@ -83,38 +136,46 @@ class VentaController extends Controller
             // Validar los datos de entrada
             $validatedData = $request->validate([
                 'cliente_id' => 'required|exists:clientes,id',
-                'total' => 'required|numeric|min:0',
-                'productos' => 'required|array', // Lista de productos
-                'productos.*.producto_id' => 'required|exists:productos,id',
-                'productos.*.cantidad' => 'required|integer|min:1',
-                'productos.*.precio' => 'required|numeric|min:0',
+                'items' => 'required|array',
+                'items.*.id' => 'required|integer',
+                'items.*.tipo' => 'required|in:producto,servicio',
+                'items.*.cantidad' => 'required|integer|min:1',
+                'items.*.precio' => 'required|numeric|min:0',
             ]);
 
             // Crear la venta
             $venta = Venta::create([
                 'cliente_id' => $validatedData['cliente_id'],
-                'total' => $validatedData['total'],
+                'total' => array_sum(array_map(function ($item) {
+                    return $item['cantidad'] * $item['precio'];
+                }, $validatedData['items'])),
             ]);
 
-            // Asociar productos a la venta (usando una tabla pivote)
+            // Asociar productos y servicios
             $productos = [];
-            foreach ($validatedData['productos'] as $producto) {
-                $productos[$producto['producto_id']] = [
-                    'cantidad' => $producto['cantidad'],
-                    'precio' => $producto['precio'],
-                ];
-
-                // Descontar la cantidad del inventario del producto
-                $productoModel = \App\Models\Producto::find($producto['producto_id']);
-                if ($productoModel) {
-                    $productoModel->decrement('stock', $producto['cantidad']);
+            $servicios = [];
+            foreach ($validatedData['items'] as $item) {
+                if ($item['tipo'] === 'producto') {
+                    $productos[$item['id']] = [
+                        'cantidad' => $item['cantidad'],
+                        'precio' => $item['precio'],
+                    ];
+                    // Descontar stock
+                    $productoModel = \App\Models\Producto::find($item['id']);
+                    if ($productoModel) {
+                        $productoModel->decrement('stock', $item['cantidad']);
+                    }
+                } elseif ($item['tipo'] === 'servicio') {
+                    $servicios[$item['id']] = [
+                        'cantidad' => $item['cantidad'],
+                        'precio' => $item['precio'],
+                    ];
                 }
             }
-
             $venta->productos()->sync($productos);
+            $venta->servicios()->sync($servicios);
 
-            // Devolver la venta creada con relaciones cargadas
-            return response()->json($venta->load(['cliente', 'productos']), 201);
+            return response()->json($venta->load(['cliente', 'productos', 'servicios']), 201);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Error al crear la venta: ' . $e->getMessage()], 400);
         }
@@ -126,48 +187,63 @@ class VentaController extends Controller
     public function update(Request $request, $id)
     {
         try {
-            // Buscar la venta por ID
-            $venta = Venta::with('productos')->findOrFail($id);
+            $venta = Venta::with(['productos', 'servicios'])->findOrFail($id);
 
             // Validar los datos de entrada
             $validatedData = $request->validate([
                 'cliente_id' => 'sometimes|exists:clientes,id',
-                'total' => 'sometimes|numeric|min:0',
-                'productos' => 'sometimes|array',
-                'productos.*.producto_id' => 'required_with:productos|exists:productos,id',
-                'productos.*.cantidad' => 'required_with:productos|integer|min:1',
-                'productos.*.precio' => 'required_with:productos|numeric|min:0',
+                'items' => 'sometimes|array',
+                'items.*.id' => 'required_with:items|integer',
+                'items.*.tipo' => 'required_with:items|in:producto,servicio',
+                'items.*.cantidad' => 'required_with:items|integer|min:1',
+                'items.*.precio' => 'required_with:items|numeric|min:0',
             ]);
 
-            // Revertir las cantidades previas antes de actualizar
+            // Revertir stock de productos previos
             foreach ($venta->productos as $producto) {
                 $pivot = $venta->productos()->where('producto_id', $producto->id)->first()->pivot;
-                $producto->increment('stock', $pivot->cantidad); // Revertir el descuento anterior
+                $producto->increment('stock', $pivot->cantidad);
             }
 
-            // Actualizar los campos principales de la venta
-            $venta->update($validatedData);
+            // Actualizar campos principales
+            $updateData = [];
+            if (isset($validatedData['cliente_id'])) {
+                $updateData['cliente_id'] = $validatedData['cliente_id'];
+            }
+            if (isset($validatedData['items'])) {
+                $updateData['total'] = array_sum(array_map(function ($item) {
+                    return $item['cantidad'] * $item['precio'];
+                }, $validatedData['items']));
+            }
+            $venta->update($updateData);
 
-            // Actualizar productos si se proporcionan
-            if (isset($validatedData['productos'])) {
+            // Actualizar productos y servicios si se proporcionan
+            if (isset($validatedData['items'])) {
                 $productos = [];
-                foreach ($validatedData['productos'] as $producto) {
-                    $productos[$producto['producto_id']] = [
-                        'cantidad' => $producto['cantidad'],
-                        'precio' => $producto['precio'],
-                    ];
-
-                    // Descontar la nueva cantidad del inventario del producto
-                    $productoModel = \App\Models\Producto::find($producto['producto_id']);
-                    if ($productoModel) {
-                        $productoModel->decrement('stock', $producto['cantidad']);
+                $servicios = [];
+                foreach ($validatedData['items'] as $item) {
+                    if ($item['tipo'] === 'producto') {
+                        $productos[$item['id']] = [
+                            'cantidad' => $item['cantidad'],
+                            'precio' => $item['precio'],
+                        ];
+                        // Descontar stock
+                        $productoModel = \App\Models\Producto::find($item['id']);
+                        if ($productoModel) {
+                            $productoModel->decrement('stock', $item['cantidad']);
+                        }
+                    } elseif ($item['tipo'] === 'servicio') {
+                        $servicios[$item['id']] = [
+                            'cantidad' => $item['cantidad'],
+                            'precio' => $item['precio'],
+                        ];
                     }
                 }
                 $venta->productos()->sync($productos);
+                $venta->servicios()->sync($servicios);
             }
 
-            // Devolver la venta actualizada con relaciones cargadas
-            return response()->json($venta->load(['cliente', 'productos']), 200);
+            return response()->json($venta->load(['cliente', 'productos', 'servicios']), 200);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Error al actualizar la venta: ' . $e->getMessage()], 400);
         }
@@ -179,15 +255,16 @@ class VentaController extends Controller
     public function destroy($id)
     {
         try {
-            $venta = Venta::with('productos')->findOrFail($id);
+            $venta = Venta::with(['productos', 'servicios'])->findOrFail($id);
 
-            // Revertir las cantidades descontadas al eliminar la venta
+            // Revertir stock de productos
             foreach ($venta->productos as $producto) {
                 $pivot = $venta->productos()->where('producto_id', $producto->id)->first()->pivot;
                 $producto->increment('stock', $pivot->cantidad);
             }
 
-            $venta->productos()->detach(); // Eliminar relaciones con productos
+            $venta->productos()->detach();
+            $venta->servicios()->detach();
             $venta->delete();
 
             return response()->json(['message' => 'Venta eliminada con éxito'], 200);
