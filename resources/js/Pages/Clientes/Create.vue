@@ -7,205 +7,170 @@
             <div v-if="form.errors.email" class="text-red-500 col-span-2">{{ form.errors.email }}</div>
             <div class="space-y-4 col-span-2">
                 <!-- Nombre/Razón Social -->
-                <div>
-                    <label for="nombre_razon_social" class="block text-sm font-medium text-gray-700">Nombre/Razón Social</label>
-                    <input
-                        v-model="form.nombre_razon_social"
-                        type="text"
-                        id="nombre_razon_social"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                        @blur="convertirAMayusculas('nombre_razon_social')"
-                    />
-                    <p v-if="form.errors.nombre_razon_social" class="text-red-500 text-sm">{{ form.errors.nombre_razon_social }}</p>
-                </div>
+                <FormField
+                    v-model="form.nombre_razon_social"
+                    label="Nombre/Razón Social"
+                    type="text"
+                    id="nombre_razon_social"
+                    :error="form.errors.nombre_razon_social"
+                    @blur="convertirAMayusculas('nombre_razon_social')"
+                />
             </div>
 
             <!-- Tipo de Persona -->
-            <div>
-                <label for="tipo_persona" class="block text-sm font-medium text-gray-700">Tipo de Persona</label>
-                <select
-                    v-model="form.tipo_persona"
-                    id="tipo_persona"
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                    @change="validarRFC"
-                    required
-                >
-                    <option value="" disabled>Selecciona el tipo de persona</option>
-                    <option value="fisica">Persona Física</option>
-                    <option value="moral">Persona Moral</option>
-                </select>
-            </div>
+            <FormField
+                v-model="form.tipo_persona"
+                label="Tipo de Persona"
+                type="select"
+                id="tipo_persona"
+                :options="[{value: '', text: 'Selecciona el tipo de persona', disabled: true}, {value: 'fisica', text: 'Persona Física'}, {value: 'moral', text: 'Persona Moral'}]"
+                :error="form.errors.tipo_persona"
+                @change="validarRFC"
+                required
+            />
 
             <!-- RFC -->
-            <div>
-                <label for="rfc" class="block text-sm font-medium text-gray-700">RFC</label>
-                <input
-                    v-model="form.rfc"
-                    type="text"
-                    id="rfc"
-                    :maxlength="form.tipo_persona === 'fisica' ? 13 : 12"
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                    @input="validarRFC"
-                    required
-                />
-                <p v-if="form.errors.rfc" class="text-red-500 text-sm">{{ form.errors.rfc }}</p>
-            </div>
+            <FormField
+                v-model="form.rfc"
+                label="RFC"
+                type="text"
+                id="rfc"
+                :maxlength="form.tipo_persona === 'fisica' ? 13 : 12"
+                :error="form.errors.rfc"
+                @input="validarRFC"
+                @blur="convertirAMayusculas('rfc')"
+                required
+            />
 
             <!-- Régimen Fiscal -->
-            <div>
-                <label for="regimen_fiscal" class="block text-sm font-medium text-gray-700">Régimen Fiscal</label>
-                <select
-                    v-model="form.regimen_fiscal"
-                    id="regimen_fiscal"
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                    required
-                >
-                    <option value="" disabled>Selecciona un régimen fiscal</option>
-                    <option v-for="regimen in regimenesFiscales" :key="regimen" :value="regimen">{{ regimen }}</option>
-                </select>
-            </div>
+            <FormField
+                v-model="form.regimen_fiscal"
+                label="Régimen Fiscal"
+                type="select"
+                id="regimen_fiscal"
+                :options="[{value: '', text: 'Selecciona un régimen fiscal', disabled: true}, ...regimenesFiscales.map(regimen => ({value: regimen, text: regimen}))]"
+                :error="form.errors.regimen_fiscal"
+                required
+            />
 
             <!-- Uso CFDI -->
-            <div>
-                <label for="uso_cfdi" class="block text-sm font-medium text-gray-700">Uso CFDI</label>
-                <select
-                    v-model="form.uso_cfdi"
-                    id="uso_cfdi"
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                    required
-                >
-                    <option value="" disabled>Selecciona un uso CFDI</option>
-                    <option v-for="uso in usosCFDI" :key="uso" :value="uso">{{ uso }}</option>
-                </select>
-                <p v-if="form.errors.uso_cfdi" class="text-red-500 text-sm">{{ form.errors.uso_cfdi }}</p>
-            </div>
+            <FormField
+                v-model="form.uso_cfdi"
+                label="Uso CFDI"
+                type="select"
+                id="uso_cfdi"
+                :options="[{value: '', text: 'Selecciona un uso CFDI', disabled: true}, ...usosCFDI.map(uso => ({value: uso, text: uso}))]"
+                :error="form.errors.uso_cfdi"
+                required
+            />
 
             <!-- Email -->
-            <div>
-                <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
-                <input
-                    v-model="form.email"
-                    type="email"
-                    id="email"
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                    required
-                />
-                <p v-if="form.errors.email" class="text-red-500 text-sm">{{ form.errors.email }}</p>
-            </div>
+            <FormField
+                v-model="form.email"
+                label="Email"
+                type="email"
+                id="email"
+                :error="form.errors.email"
+                required
+            />
 
             <!-- Teléfono -->
-            <div>
-                <label for="telefono" class="block text-sm font-medium text-gray-700">Teléfono</label>
-                <input
-                    v-model="form.telefono"
-                    type="text"
-                    id="telefono"
-                    maxlength="10"
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                    @input="validarTelefono"
-                    required
-                />
-                <p v-if="form.errors.telefono" class="text-red-500 text-sm">{{ form.errors.telefono }}</p>
-            </div>
+            <FormField
+                v-model="form.telefono"
+                label="Teléfono"
+                type="text"
+                id="telefono"
+                maxlength="10"
+                :error="form.errors.telefono"
+                @input="validarTelefono"
+                @blur="convertirAMayusculas('telefono')"
+                required
+            />
 
             <!-- Calle -->
-            <div>
-                <label for="calle" class="block text-sm font-medium text-gray-700">Calle</label>
-                <input
-                    v-model="form.calle"
-                    type="text"
-                    id="calle"
-                    maxlength="40"
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                    @blur="convertirAMayusculas('calle')"
-                    required
-                />
-                <p v-if="form.errors.calle" class="text-red-500 text-sm">{{ form.errors.calle }}</p>
-            </div>
+            <FormField
+                v-model="form.calle"
+                label="Calle"
+                type="text"
+                id="calle"
+                maxlength="40"
+                :error="form.errors.calle"
+                @blur="convertirAMayusculas('calle')"
+                required
+            />
 
             <!-- Número Exterior -->
-            <div>
-                <label for="numero_exterior" class="block text-sm font-medium text-gray-700">Número Exterior</label>
-                <input
-                    v-model="form.numero_exterior"
-                    type="text"
-                    id="numero_exterior"
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                    required
-                />
-            </div>
+            <FormField
+                v-model="form.numero_exterior"
+                label="Número Exterior"
+                type="text"
+                id="numero_exterior"
+                :error="form.errors.numero_exterior"
+                @blur="convertirAMayusculas('numero_exterior')"
+                required
+            />
 
             <!-- Número Interior -->
-            <div>
-                <label for="numero_interior" class="block text-sm font-medium text-gray-700">Número Interior</label>
-                <input
-                    v-model="form.numero_interior"
-                    type="text"
-                    id="numero_interior"
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                />
-            </div>
+            <FormField
+                v-model="form.numero_interior"
+                label="Número Interior"
+                type="text"
+                id="numero_interior"
+                :error="form.errors.numero_interior"
+                @blur="convertirAMayusculas('numero_interior')"
+            />
 
             <!-- Colonia -->
-            <div>
-                <label for="colonia" class="block text-sm font-medium text-gray-700">Colonia</label>
-                <input
-                    v-model="form.colonia"
-                    type="text"
-                    id="colonia"
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                    @blur="convertirAMayusculas('colonia')"
-                    required
-                />
-            </div>
+            <FormField
+                v-model="form.colonia"
+                label="Colonia"
+                type="text"
+                id="colonia"
+                :error="form.errors.colonia"
+                @blur="convertirAMayusculas('colonia')"
+                required
+            />
 
             <!-- Código Postal -->
-            <div>
-                <label for="codigo_postal" class="block text-sm font-medium text-gray-700">Código Postal</label>
-                <input
-                    v-model="form.codigo_postal"
-                    type="text"
-                    id="codigo_postal"
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                    required
-                />
-            </div>
+            <FormField
+                v-model="form.codigo_postal"
+                label="Código Postal"
+                type="text"
+                id="codigo_postal"
+                :error="form.errors.codigo_postal"
+                @blur="convertirAMayusculas('codigo_postal')"
+                required
+            />
 
             <!-- Municipio -->
-            <div>
-                <label for="municipio" class="block text-sm font-medium text-gray-700">Municipio</label>
-                <input
-                    v-model="form.municipio"
-                    type="text"
-                    id="municipio"
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                    readonly
-                />
-            </div>
+            <FormField
+                v-model="form.municipio"
+                label="Municipio"
+                type="text"
+                id="municipio"
+                readonly
+                @blur="convertirAMayusculas('municipio')"
+            />
 
             <!-- Estado -->
-            <div>
-                <label for="estado" class="block text-sm font-medium text-gray-700">Estado</label>
-                <input
-                    v-model="form.estado"
-                    type="text"
-                    id="estado"
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                    readonly
-                />
-            </div>
+            <FormField
+                v-model="form.estado"
+                label="Estado"
+                type="text"
+                id="estado"
+                readonly
+                @blur="convertirAMayusculas('estado')"
+            />
 
             <!-- País -->
-            <div>
-                <label for="pais" class="block text-sm font-medium text-gray-700">País</label>
-                <input
-                    v-model="form.pais"
-                    type="text"
-                    id="pais"
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                    readonly
-                />
-            </div>
+            <FormField
+                v-model="form.pais"
+                label="País"
+                type="text"
+                id="pais"
+                readonly
+                @blur="convertirAMayusculas('pais')"
+            />
 
             <div class="mt-6 col-span-2">
                 <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">
@@ -219,6 +184,7 @@
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import FormField from '@/Components/FormField.vue';
 
 defineOptions({ layout: AppLayout });
 
@@ -264,8 +230,9 @@ const submit = () => {
     });
 };
 
+// Función para convertir a mayúsculas
 const convertirAMayusculas = (campo) => {
-    if (form[campo]) {
+    if (form[campo] && campo !== 'email') {
         form[campo] = form[campo].toUpperCase();
     }
 };
@@ -292,7 +259,6 @@ const validarRFC = () => {
 
     form.clearErrors('rfc');
 };
-
 
 // Validación del teléfono
 const validarTelefono = () => {

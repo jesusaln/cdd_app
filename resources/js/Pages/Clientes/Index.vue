@@ -1,5 +1,5 @@
 <template>
-    <Head title="Clientes" />
+     <Head title="Clientes" />
     <div>
         <h1 class="text-2xl font-semibold mb-6">{{ titulo }}</h1>
         <div>
@@ -21,13 +21,13 @@
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th v-for="header in headers" :key="header" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                            <th v-for="header in headers" :key="header" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 {{ header }}
                             </th>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-200">
+                    <tbody class="bg-white divide-y divide-gray-200">
                         <tr v-for="cliente in clientesFiltrados" :key="cliente.id" class="hover:bg-gray-100">
                             <td class="px-4 py-3 text-sm text-gray-700">{{ cliente.nombre_razon_social }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700">{{ cliente.rfc }}</td>
@@ -60,39 +60,31 @@
                 No hay clientes registrados.
             </div>
 
-            <div v-if="loading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-            </div>
+            <LoadingSpinner :loading="loading" />
 
             <ClienteModal :cliente="clienteSeleccionado" :isOpen="isModalOpen" @close="closeModal" />
 
-            <div v-if="isConfirmOpen" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-                <div class="bg-white p-6 rounded-lg shadow-lg w-96">
-                    <h2 class="text-xl font-semibold mb-4">Confirmar eliminación</h2>
-                    <p class="text-gray-700 mb-4">¿Estás seguro de que deseas eliminar el cliente <strong>{{ clienteAEliminar?.nombre_razon_social }}</strong>?</p>
-                    <div class="flex justify-end space-x-4">
-                        <button @click="isConfirmOpen = false" class="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500 transition">
-                            Cancelar
-                        </button>
-                        <button @click="eliminarClienteConfirmado" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition">
-                            Eliminar
-                        </button>
-                    </div>
-                </div>
-            </div>
+            <ConfirmModal
+                :isOpen="isConfirmOpen"
+                title="Confirmar eliminación"
+                message="¿Estás seguro de que deseas eliminar el cliente?"
+                :itemName="clienteAEliminar?.nombre_razon_social"
+                @cancel="isConfirmOpen = false"
+                @confirm="eliminarClienteConfirmado"
+            />
         </div>
     </div>
 </template>
 
 <script setup>
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { ref, computed, watch } from 'vue';
+import { ref, computed } from 'vue';
 import { Notyf } from 'notyf';
 import 'notyf/notyf.min.css';
 import ClienteModal from '@/Components/ClienteModal.vue';
+import ConfirmModal from '@/Components/ConfirmModal.vue';
+import LoadingSpinner from '@/Components/LoadingSpinner.vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import { watchEffect } from 'vue';
-
 
 defineOptions({ layout: AppLayout });
 
@@ -113,7 +105,6 @@ const isModalOpen = ref(false);
 const isConfirmOpen = ref(false);
 const clienteAEliminar = ref(null);
 
-// Configuración de Notyf
 const notyf = new Notyf({
     duration: 3000,
     position: { x: 'right', y: 'top' },
@@ -123,21 +114,8 @@ const notyf = new Notyf({
     ],
 });
 
-watchEffect(() => {
-    if (page.props.flash?.success) {
-        console.log('Mensaje de éxito:', page.props.flash.success);
-        notyf.success(page.props.flash.success);
-    }
-    if (page.props.flash?.error) {
-        console.log('Mensaje de error:', page.props.flash.error);
-        notyf.error(page.props.flash.error);
-    }
-});
-
-
-
 const clientesFiltrados = computed(() => {
-    if (props.clientes?.data) { // Ajustado para paginación
+    if (props.clientes?.data) {
         return props.clientes.data.filter(cliente => {
             return cliente.nombre_razon_social.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
                    cliente.rfc?.toLowerCase().includes(searchTerm.value.toLowerCase());
@@ -168,20 +146,15 @@ const eliminarClienteConfirmado = () => {
         preserveScroll: true,
         preserveState: true,
         onSuccess: () => {
-            if (!page.props.flash?.success) { // Verifica si el mensaje de éxito ya está configurado
-                notyf.success('Cliente eliminado exitosamente.');
-            }
+            notyf.success('Cliente eliminado exitosamente.');
             isConfirmOpen.value = false;
             loading.value = false;
         },
         onError: () => {
-            if (!page.props.flash?.error) { // Verifica si el mensaje de error ya está configurado
-                notyf.error('Error al eliminar el cliente.');
-            }
+            notyf.error('Error al eliminar el cliente.');
             isConfirmOpen.value = false;
             loading.value = false;
         },
     });
 };
-
 </script>
