@@ -8,7 +8,7 @@ return [
         'capacitor://localhost', // Apps móviles con Capacitor
     ],
     'allowed_origins_patterns' => [
-        'file://*', // Para WebView en algunos dispositivos
+        '^file:\/\/', // Más seguro y compatible con regex para file://
     ],
     'allowed_headers' => ['*'], // Permite todos los encabezados
     'exposed_headers' => [], // Deja vacío si no necesitas exponer encabezados específicos
