@@ -18,7 +18,7 @@ class Kernel extends HttpKernel
         \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
         \Illuminate\Foundation\Http\Middleware\TrimStrings::class,
         \App\Http\Middleware\HandleInertiaRequests::class, // Necesario para Inertia
-        \App\Http\Middleware\CorsMiddleware::class,
+        // eliminado \App\Http\Middleware\CorsMiddleware::class,
     ];
 
     /**
@@ -41,6 +41,7 @@ class Kernel extends HttpKernel
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
             \Illuminate\Routing\Middleware\ThrottleRequests::class . ':api',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \App\Http\Middleware\CorsMiddleware::class, // Añadido aquí para que se aplique solo a las rutas API
         ],
     ];
 
