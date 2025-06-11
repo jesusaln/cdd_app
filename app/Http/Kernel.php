@@ -18,6 +18,7 @@ class Kernel extends HttpKernel
         \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
         \Illuminate\Foundation\Http\Middleware\TrimStrings::class,
         \App\Http\Middleware\HandleInertiaRequests::class, // Necesario para Inertia
+        \App\Http\Middleware\DebugCorsMiddleware::class, // Middleware para debuggear CORS
         // eliminado \App\Http\Middleware\CorsMiddleware::class,
     ];
 
