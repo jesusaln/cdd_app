@@ -1,17 +1,25 @@
 <?php
 return [
-    'paths' => ['api/*'], // Asegúrate de que esta ruta coincida con la estructura de tu API
-    'allowed_methods' => ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Especifica los métodos permitidos
+    'paths' => ['api/*'],
+
+    'allowed_methods' => ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+
     'allowed_origins' => [
-        'http://localhost:8100', // Desarrollo local
-        'https://climasdeldesierto.laravel.cloud', // Producción
-        'capacitor://localhost', // Apps móviles con Capacitor
+        'http://localhost:8100',
+        'capacitor://localhost',
+        'file://',
     ],
+
     'allowed_origins_patterns' => [
-        'file://*', // Para WebView en algunos dispositivos
+        '^https?:\/\/.*\.climasdeldesierto\.laravel\.cloud$', // Acepta HTTP y HTTPS con subdominios
+        '^https?:\/\/climasdeldesierto\.laravel\.cloud$',     // También acepta el dominio raíz
     ],
-    'allowed_headers' => ['*'], // Permite todos los encabezados
-    'exposed_headers' => [], // Deja vacío si no necesitas exponer encabezados específicos
-    'max_age' => 86400, // Puedes ajustar este valor según tus necesidades de caché
-    'supports_credentials' => false, // Cambia a true si necesitas manejar credenciales
+
+    'allowed_headers' => ['*'],
+
+    'exposed_headers' => [],
+
+    'max_age' => 86400,
+
+    'supports_credentials' => false,
 ];
