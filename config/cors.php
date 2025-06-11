@@ -1,13 +1,15 @@
 <?php
 return [
-    'paths' => ['api/*'], // Rutas protegidas por CORS
-    'allowed_methods' => ['*'], // Métodos HTTP permitidos
+    'paths' => ['api/*'],
+    'allowed_methods' => ['*'],
     'allowed_origins' => [
-        'https://climasdeldesierto.laravel.cloud',
-        'http://localhost:8100',
+        'http://localhost:8100',                // Para desarrollo local
+        'https://climasdeldesierto.laravel.cloud', // Producción
+        'capacitor://localhost',                // Para apps móviles con Capacitor
+        'file://',                              // Para WebView en algunos dispositivos
     ],
-    'allowed_headers' => ['*'], // Encabezados permitidos
+    'allowed_headers' => ['*'],
     'exposed_headers' => [],
     'max_age' => 0,
-    'supports_credentials' => false, // Habilita credenciales si es necesario
+    'supports_credentials' => false,
 ];
