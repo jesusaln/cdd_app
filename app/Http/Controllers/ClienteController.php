@@ -7,6 +7,7 @@ use App\Models\Cliente;
 use Illuminate\Http\Request;
 use App\Events\ClientCreated;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 
 class ClienteController extends Controller
 {
@@ -29,9 +30,20 @@ class ClienteController extends Controller
     public function store(Request $request)
     {
         try {
-            $request->validate([
+            Log::info('Datos recibidos:', $request->all());
+
+            $validator = Validator::make($request->all(), [
                 'nombre_razon_social' => 'required|string|max:255',
-                'rfc' => 'nullable|string|max:20|unique:clientes,rfc',
+                'rfc' => [
+                    'nullable',
+                    'string',
+                    'max:20',
+                    function ($attribute, $value, $fail) {
+                        if ($value !== 'XAXX010101000' && Cliente::where('rfc', $value)->exists()) {
+                            $fail('The ' . $attribute . ' has already been taken.');
+                        }
+                    },
+                ],
                 'regimen_fiscal' => 'nullable|string|max:255',
                 'uso_cfdi' => 'nullable|string|max:255',
                 'email' => 'nullable|email|max:255|unique:clientes,email',
@@ -46,18 +58,22 @@ class ClienteController extends Controller
                 'pais' => 'nullable|string|max:255',
             ]);
 
+            if ($validator->fails()) {
+                Log::error('Errores de validación:', $validator->errors()->toArray());
+                return redirect()->back()
+                    ->withErrors($validator)
+                    ->withInput();
+            }
+
             $cliente = Cliente::create($request->all());
+            Log::info('Cliente creado:', $cliente->toArray());
+
             // event(new ClientCreated($cliente)); // Descomenta si necesitas el evento
 
             return redirect()->route('clientes.index')
                 ->with('success', 'Cliente creado correctamente');
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return redirect()->back()
-                ->with('error', 'Errores en el formulario')
-                ->withErrors($e->errors())
-                ->withInput();
         } catch (\Exception $e) {
-            // En lugar de JSON, devolvemos una redirección con mensaje flash
+            Log::error('Error al crear el cliente: ' . $e->getMessage());
             return redirect()->back()
                 ->with('error', 'Hubo un problema al crear el cliente: ' . $e->getMessage())
                 ->withInput();

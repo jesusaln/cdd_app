@@ -6,6 +6,18 @@
         <form @submit.prevent="submit" class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div v-if="form.errors.email" class="text-red-500 col-span-2">{{ form.errors.email }}</div>
             <div class="space-y-4 col-span-2">
+                <!-- ¿Requiere Factura? -->
+                <div class="flex items-center space-x-4">
+                    <label class="inline-flex items-center">
+                        <input type="radio" class="form-radio" v-model="form.requiere_factura" value="si" @change="handleFacturaChange">
+                        <span class="ml-2">Sí requiere factura</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="radio" class="form-radio" v-model="form.requiere_factura" value="no" @change="handleFacturaChange">
+                        <span class="ml-2">No requiere factura</span>
+                    </label>
+                </div>
+
                 <!-- Nombre/Razón Social -->
                 <FormField
                     v-model="form.nombre_razon_social"
@@ -26,7 +38,8 @@
                 :options="[{value: '', text: 'Selecciona el tipo de persona', disabled: true}, {value: 'fisica', text: 'Persona Física'}, {value: 'moral', text: 'Persona Moral'}]"
                 :error="form.errors.tipo_persona"
                 @change="validarRFC"
-                required
+                :required="form.requiere_factura === 'si'"
+                :disabled="form.requiere_factura === 'no'"
             />
 
             <!-- RFC -->
@@ -39,7 +52,8 @@
                 :error="form.errors.rfc"
                 @input="validarRFC"
                 @blur="convertirAMayusculas('rfc')"
-                required
+                :required="form.requiere_factura === 'si'"
+                :disabled="form.requiere_factura === 'no'"
             />
 
             <!-- Régimen Fiscal -->
@@ -48,9 +62,10 @@
                 label="Régimen Fiscal"
                 type="select"
                 id="regimen_fiscal"
-                :options="[{value: '', text: 'Selecciona un régimen fiscal', disabled: true}, ...regimenesFiscales.map(regimen => ({value: regimen, text: regimen}))]"
+                :options="[{value: '', text: 'Selecciona un régimen fiscal', disabled: true}, {value: '616', text: 'Sin obligaciones fiscales'}, ...regimenesFiscales.map(regimen => ({value: regimen, text: regimen}))]"
                 :error="form.errors.regimen_fiscal"
-                required
+                :required="form.requiere_factura === 'si'"
+                :disabled="form.requiere_factura === 'no'"
             />
 
             <!-- Uso CFDI -->
@@ -59,9 +74,10 @@
                 label="Uso CFDI"
                 type="select"
                 id="uso_cfdi"
-                :options="[{value: '', text: 'Selecciona un uso CFDI', disabled: true}, ...usosCFDI.map(uso => ({value: uso, text: uso}))]"
+                :options="[{value: '', text: 'Selecciona un uso CFDI', disabled: true}, {value: 'G03', text: 'Gastos en general'}, ...usosCFDI.map(uso => ({value: uso, text: uso}))]"
                 :error="form.errors.uso_cfdi"
-                required
+                :required="form.requiere_factura === 'si'"
+                :disabled="form.requiere_factura === 'no'"
             />
 
             <!-- Email -->
@@ -80,7 +96,7 @@
                 label="Teléfono"
                 type="text"
                 id="telefono"
-                maxlength="10"
+                :maxlength="10"
                 :error="form.errors.telefono"
                 @input="validarTelefono"
                 @blur="convertirAMayusculas('telefono')"
@@ -93,7 +109,7 @@
                 label="Calle"
                 type="text"
                 id="calle"
-                maxlength="40"
+                :maxlength="40"
                 :error="form.errors.calle"
                 @blur="convertirAMayusculas('calle')"
                 required
@@ -190,6 +206,7 @@ defineOptions({ layout: AppLayout });
 
 // Listas predefinidas
 const regimenesFiscales = [
+    'Sin obligaciones fiscales', // Añadido aquí
     'Persona Física con Actividad Empresarial',
     'Régimen General de Ley Personas Morales',
     'Régimen Simplificado de Confianza'
@@ -203,8 +220,9 @@ const usosCFDI = [
 
 // Formulario para crear un cliente
 const form = useForm({
+    requiere_factura: 'si',
     nombre_razon_social: '',
-    tipo_persona: '',
+    tipo_persona: 'fisica',
     rfc: '',
     regimen_fiscal: '',
     uso_cfdi: '',
@@ -220,13 +238,41 @@ const form = useForm({
     pais: 'MEXICO'
 });
 
+// Función para manejar el cambio en la selección de factura
+const handleFacturaChange = () => {
+    if (form.requiere_factura === 'no') {
+        form.tipo_persona = 'fisica';
+        form.rfc = 'XAXX010101000';
+        form.regimen_fiscal = '616'; // Sin obligaciones fiscales
+        form.nombre_razon_social = 'PÚBLICO EN GENERAL';
+        form.uso_cfdi = 'G03'; // Gastos en general
+        form.calle = 'CALLE GENERICA';
+        form.colonia = 'COLONIA GENERICA';
+    } else {
+        form.rfc = '';
+        form.regimen_fiscal = '';
+        form.nombre_razon_social = '';
+        form.uso_cfdi = '';
+        form.calle = '';
+        form.colonia = '';
+    }
+};
+
 // Función para enviar el formulario
 const submit = () => {
     form.post(route('clientes.store'), {
         preserveScroll: true,
-        preserveState: true,
-        onSuccess: () => form.reset(),
-        onError: (errors) => console.error('Error al crear:', errors),
+        onSuccess: () => {
+            form.reset();
+            form.requiere_factura = 'si';
+            form.tipo_persona = 'fisica';
+        },
+        onError: (errors) => {
+            if (form.rfc === 'XAXX010101000' && errors.rfc) {
+                form.clearErrors('rfc');
+            }
+            console.error('Error al crear:', errors);
+        },
     });
 };
 
@@ -242,8 +288,12 @@ const validarRFC = () => {
     const rfcRegexFisica = /^[A-ZÑ&]{4}\d{6}[A-Z0-9]{3}$/;
     const rfcRegexMoral = /^[A-ZÑ&]{3}\d{6}[A-Z0-9]{3}$/;
 
-    // Convertir el valor del RFC a mayúsculas
     form.rfc = form.rfc.toUpperCase();
+
+    if (form.rfc === 'XAXX010101000') {
+        form.clearErrors('rfc');
+        return;
+    }
 
     if (form.tipo_persona === 'fisica') {
         if (form.rfc.length !== 13 || !rfcRegexFisica.test(form.rfc)) {
