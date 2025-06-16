@@ -75,15 +75,21 @@ class ProductoController extends Controller
     /**
      * Muestra el formulario para editar un producto existente.
      */
-    public function edit(Producto $producto)
+    // Asegúrate de que en tu controlador tengas:
+    public function edit($id)
     {
+        $producto = Producto::findOrFail($id);
+        $categorias = Categoria::all();
+        $marcas = Marca::all();
+        $proveedores = Proveedor::all(); // ← Verificar que esté presente
+        $almacenes = Almacen::all();
+
         return Inertia::render('Productos/Edit', [
             'producto' => $producto,
-            'categorias' => Categoria::all(), // Asegúrate de que esto devuelve un array
-            'marcas' => Marca::all(),
-            'proveedores' => Proveedor::all(),
-            'almacenes' => Almacen::all(),
-
+            'categorias' => $categorias,
+            'marcas' => $marcas,
+            'proveedores' => Proveedor::all(['id', 'nombre_razon_social']), // ← Verificar que se pase
+            'almacenes' => $almacenes,
         ]);
     }
 
