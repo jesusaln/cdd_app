@@ -194,11 +194,11 @@
                     </span>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {{ cliente.regimen_fiscal }}
-                  </td>
+    {{ cliente.regimen_fiscal_nombre }}
+</td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {{ cliente.uso_cfdi }}
-                  </td>
+    {{ cliente.uso_cfdi_nombre }}
+</td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {{ cliente.telefono }}
                   </td>
