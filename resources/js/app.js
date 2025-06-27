@@ -7,7 +7,19 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 
 // Importación de FontAwesome
-import { library } from '@fortawesome/fontawesome-svg-core';
+import { library } from '@fortawesome/fontawesome-svg-core'
+import {
+  faCog,
+  faChevronLeft,
+  faTachometerAlt,
+  faCalendarAlt,
+  faCar,
+  faUserCog,
+  faToolbox
+} from '@fortawesome/free-solid-svg-icons'
+
+// Agregar los iconos a la librería ANTES de montar la app
+library.add(faCog, faChevronLeft, faTachometerAlt, faCalendarAlt, faCar, faUserCog, faToolbox)
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import { faUsers, faBox, faTags, faTrademark, faTruck } from '@fortawesome/free-solid-svg-icons';
 
