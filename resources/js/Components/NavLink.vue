@@ -2,19 +2,31 @@
     <li>
         <Link
             :href="href"
-            class="group flex items-center px-4 py-3 text-gray-300 transition-all duration-200 ease-in-out hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800"
+            class="group relative flex items-center py-3 text-gray-300 transition-all duration-200 ease-in-out hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800"
             :class="{
+                // Clases para el estado activo y colapsado
                 'bg-gray-700 text-white border-r-2 border-blue-500': isActive,
-                'hover:pl-6': !isActive
+                'px-4': !collapsed, // Padding normal cuando está expandido
+                'px-4 justify-center': collapsed, // Centrar y mismo padding horizontal cuando está colapsado
+                'hover:pl-6': !isActive && !collapsed, // Efecto hover solo cuando no está activo y expandido
             }"
             :aria-current="isActive ? 'page' : undefined"
+            @mouseenter="showTooltip($event)"
+            @mouseleave="hideTooltip"
         >
             <FontAwesomeIcon
                 :icon="iconObject"
-                class="mr-3 h-5 w-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110"
-                :class="{ 'text-blue-400': isActive }"
+                class="flex-shrink-0 transition-transform duration-200"
+                :class="{
+                    'mr-3 h-5 w-5 group-hover:scale-110': !collapsed, // Espacio y tamaño normal para el icono cuando está expandido
+                    'h-6 w-6': collapsed, // Ícono ligeramente más grande cuando está colapsado para mejor visibilidad
+                    'text-blue-400': isActive,
+                }"
             />
-            <span class="font-medium truncate">
+            <span
+                v-if="!collapsed"
+                class="font-medium truncate transition-opacity duration-300 ease-in-out"
+            >
                 <slot />
             </span>
         </Link>
@@ -39,6 +51,11 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    // Nueva prop para saber si el sidebar está colapsado
+    collapsed: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const page = usePage();
@@ -52,10 +69,13 @@ const isActive = computed(() => {
     }
 
     // Para rutas raíz, usar coincidencia exacta
+    // Si la URL actual es solo '/', solo el NavLink con href='/' será activo.
     if (props.href === '/') {
         return currentUrl === '/';
     }
 
+    // Para otras rutas, verificar si la URL actual comienza con el href del enlace.
+    // Esto permite que /productos/1 sea activo si href es /productos.
     return currentUrl.startsWith(props.href);
 });
 
@@ -68,18 +88,38 @@ const iconObject = computed(() => {
 
     // Si es un string, procesarlo inteligentemente
     if (typeof props.icon === 'string') {
-        // Si ya tiene el prefijo fa-, usarlo directamente
+        // Si ya tiene el prefijo 'fa-', usarlo directamente
         if (props.icon.startsWith('fa-')) {
-            return props.icon;
+            // Eliminar 'fa-' si está presente y el NavLink lo gestionará con el prefijo 'fas'
+            // Esto es para que FontAwesomeIcon pueda manejar ['fas', 'icon-name']
+            const iconName = props.icon.replace('fa-', '');
+            return ['fas', iconName];
         }
 
-        // Si es solo el nombre del icono, agregar el prefijo solid
+        // Si es solo el nombre del icono, agregar el prefijo 'fas' (solid) por defecto
         return ['fas', props.icon];
     }
 
-    // Fallback
+    // Fallback: icono de círculo sólido por defecto si el formato es desconocido
     return ['fas', 'circle'];
 });
+
+// Emitir eventos para el tooltip
+const emit = defineEmits(['show-tooltip', 'hide-tooltip']);
+
+const showTooltip = (event) => {
+    if (props.collapsed) {
+        // Obtenemos el texto del slot, que es el contenido del NavLink
+        const slotContent = event.target.querySelector('span') ? event.target.querySelector('span').textContent : '';
+        emit('show-tooltip', event, slotContent.trim());
+    }
+};
+
+const hideTooltip = () => {
+    if (props.collapsed) {
+        emit('hide-tooltip');
+    }
+};
 </script>
 
 <style scoped>
@@ -88,14 +128,14 @@ const iconObject = computed(() => {
     transition: border-color 0.2s ease-in-out;
 }
 
-/* Efecto de hover mejorado */
-.group:hover .fa-icon {
-    transform: scale(1.1);
-}
+/* Ajuste para el efecto de hover "hover:pl-6" */
+/* Cuando el sidebar está expandido y el enlace no está activo, queremos el efecto de desplazamiento. */
+/* Esto se maneja con la clase 'hover:pl-6' en Tailwind. */
+/* Si necesitas más control o un efecto diferente al hover por defecto, puedes añadirlo aquí. */
 
 /* Mejora la accesibilidad con focus visible */
 .group:focus-visible {
-    outline: 2px solid #3b82f6;
+    outline: 2px solid #3b82f6; /* color-blue-500 */
     outline-offset: 2px;
 }
 </style>
