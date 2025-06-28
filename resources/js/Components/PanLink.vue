@@ -1,14 +1,13 @@
 <template>
-    <li>
-        <Link
-            :href="href"
-            class="flex items-center p-4 hover:bg-white"
-            :class="{ 'bg-white': isActive }"
-        >
-
-            <slot />
-        </Link>
-    </li>
+  <li>
+    <Link
+      :href="href"
+      class="flex items-center p-4 transition-colors duration-200"
+    >
+      <FontAwesomeIcon v-if="icon" :icon="formattedIcon" class="mr-3" />
+      <slot />
+    </Link>
+  </li>
 </template>
 
 <script setup>
@@ -17,14 +16,14 @@ import { Link, usePage } from "@inertiajs/vue3";
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 
 const props = defineProps({
-    href: {
-        type: String,
-        required: true,
-    },
-    icon: {
-        type: String,
-        default: 'circle', // Ícono predeterminado si no se pasa uno
-    },
+  href: {
+    type: String,
+    required: true,
+  },
+  icon: {
+    type: String,
+    default: null, // No mostrar icono por defecto
+  },
 });
 
 const page = usePage();
@@ -34,6 +33,6 @@ const isActive = computed(() => page.url.startsWith(props.href));
 
 // Formatear el ícono para que sea compatible con FontAwesomeIcon
 const formattedIcon = computed(() => {
-    return `fa-solid fa-${props.icon}`;
+  return ['fas', props.icon]; // Asegúrate de que el formato sea compatible con FontAwesomeIcon
 });
 </script>

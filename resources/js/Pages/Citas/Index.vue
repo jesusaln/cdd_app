@@ -769,6 +769,10 @@ const tipoServicioClase = (tipo) => {
 
 // Mostrar mensaje flash si existe
 onMounted(() => {
+
+     ordenPor.value = 'created_at';
+  ordenDireccion.value = 'desc';
+
   if (props.flash?.success) {
     notyf.success(props.flash.success);
   }

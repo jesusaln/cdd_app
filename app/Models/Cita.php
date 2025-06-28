@@ -26,13 +26,14 @@ class Cita extends Model
         'foto_identificacion',
     ];
 
-    public function tecnico()
-    {
-        return $this->belongsTo(Tecnico::class);
-    }
-
     public function cliente()
     {
         return $this->belongsTo(Cliente::class);
+    }
+
+    public function tecnico()
+    {
+        // Asegúrate que el modelo Tecnico existe y es el correcto
+        return $this->belongsTo(Tecnico::class);
     }
 }
