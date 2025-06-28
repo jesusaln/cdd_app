@@ -61,7 +61,6 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits } from 'vue';
 
 // Define las props que este componente puede recibir.
 defineProps({
