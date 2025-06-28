@@ -89,16 +89,7 @@
   </PanLink>
 </div>
 
-    <!-- Actividad Reciente -->
-    <div class="mt-8 bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
-      <h3 class="text-xl font-bold text-gray-900 mb-4">Actividad Reciente</h3>
-      <ul class="space-y-2">
-        <li v-for="(activity, index) in recentActivity" :key="index" class="flex items-center text-gray-700">
-          <FontAwesomeIcon :icon="activity.icon" class="text-gray-500 mr-2" />
-          <span v-html="activity.text"></span> <span class="text-sm text-gray-500">({{ activity.timestamp }})</span>
-        </li>
-      </ul>
-    </div>
+
   </div>
 </template>
 

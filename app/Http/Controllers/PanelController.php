@@ -34,8 +34,8 @@ class PanelController extends Controller
         $clientesNuevosCount = Cliente::where('created_at', '>=', $startOfMonth)->count();
 
         // Productos con Bajo Stock
-        $productosBajoStock = Producto::select('nombre', 'stock')
-            ->where('stock', '<=', 5)
+        $productosBajoStock = Producto::select('nombre', 'stock', 'stock_minimo')
+            ->whereColumn('stock', '<=', 'stock_minimo') // <-- ¡CAMBIO CLAVE AQUÍ!
             ->get();
         $productosBajoStockCount = $productosBajoStock->count();
         $productosBajoStockNombres = $productosBajoStock->pluck('nombre')->toArray();
