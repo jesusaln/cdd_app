@@ -50,8 +50,8 @@ class CitaController extends Controller
                 'after:now',
                 function ($attribute, $value, $fail) {
                     $fecha = Carbon::parse($value);
-                    if ($fecha->isWeekend()) {
-                        $fail('No se pueden programar citas en fines de semana.');
+                    if ($fecha->isSunday()) { // Cambiado de isWeekend() a isSunday()
+                        $fail('No se pueden programar citas los domingos.');
                     }
                     if ($fecha->hour < 8 || $fecha->hour > 18) {
                         $fail('Las citas deben programarse entre las 8:00 AM y 6:00 PM.');
@@ -135,11 +135,11 @@ class CitaController extends Controller
                     if ($fecha->isPast() && $cita->estado === 'pendiente') {
                         $fail('No se puede programar una cita pendiente en el pasado.');
                     }
-                    if ($fecha->isWeekend()) {
-                        $fail('No se pueden programar citas en fines de semana.');
+                    if ($fecha->isSunday()) { // Cambiado de isWeekend() a isSunday()
+                        $fail('No se pueden programar citas los domingos.');
                     }
-                    if ($fecha->hour < 8 || $fecha->hour > 18) {
-                        $fail('Las citas deben programarse entre las 8:00 AM y 6:00 PM.');
+                    if ($fecha->hour < 6 || $fecha->hour > 20) {
+                        $fail('Las citas deben programarse entre las 6:00 AM y 8:00 PM.');
                     }
                 }
             ],

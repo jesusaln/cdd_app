@@ -143,6 +143,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { Head, useForm, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import { router } from '@inertiajs/vue3';
 
 // Define el layout del dashboard
 defineOptions({ layout: AppLayout });
@@ -157,6 +158,12 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+errors: Object,
+  jetstream: Object,
+  auth: Object,
+  errorBags: Object,
+  flash: Object
+
 });
 
 const form = useForm({

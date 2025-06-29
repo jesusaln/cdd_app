@@ -429,8 +429,7 @@
 <script setup>
 import { Head, router } from '@inertiajs/vue3';
 import { reactive, ref, computed, onMounted, onUnmounted } from 'vue';
-import { Notyf } from 'notyf';
-import 'notyf/notyf.min.css';
+import { notyf } from '@/Utils/notyf'; // Importar desde archivo global
 import AppLayout from '@/Layouts/AppLayout.vue';
 
 defineOptions({ layout: AppLayout });
@@ -452,36 +451,6 @@ const props = defineProps({
     type: Object,
     default: () => ({})
   },
-});
-
-// Configuración de notificaciones mejorada
-const notyf = new Notyf({
-  duration: 4000,
-  position: { x: 'right', y: 'top' },
-  dismissible: true,
-  ripple: true,
-  types: [
-    {
-      type: 'success',
-      background: 'linear-gradient(135deg, #10b981, #059669)',
-      icon: { className: 'fas fa-check-circle', tagName: 'i', color: '#fff' }
-    },
-    {
-      type: 'error',
-      background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-      icon: { className: 'fas fa-exclamation-circle', tagName: 'i', color: '#fff' }
-    },
-    {
-      type: 'warning',
-      background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-      icon: { className: 'fas fa-exclamation-triangle', tagName: 'i', color: '#fff' }
-    },
-    {
-      type: 'info',
-      background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-      icon: { className: 'fas fa-info-circle', tagName: 'i', color: '#fff' }
-    }
-  ],
 });
 
 // Estados reactivos
@@ -539,7 +508,7 @@ const form = reactive({
   foto_identificacion_url: props.cita?.foto_identificacion ? `/storage/${props.cita.foto_identificacion}` : null,
 });
 
-// Variables reactivas (agregar después de const form = reactive...)
+// Variables reactivas para búsqueda de clientes
 const clienteSearch = ref('');
 const showClienteDropdown = ref(false);
 const filteredClientes = ref([]);
@@ -735,14 +704,6 @@ const validateForm = () => {
     }
   }
 
-  // Validar email si existe en cliente (asumiendo que está en la data)
-  if (form.cliente_id && form.email) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(form.email)) {
-      errors.push('El formato del email no es válido');
-    }
-  }
-
   if (errors.length > 0) {
     notyf.error(`❌ ${errors[0]}`);
     return false;
@@ -827,7 +788,11 @@ const submit = async () => {
       preserveScroll: true,
       preserveState: false,
       onStart: () => {
-        notyf.info('📤 Enviando datos...');
+        try {
+          notyf.info('📤 Enviando datos...');
+        } catch (error) {
+          console.error('Error en notyf.info:', error);
+        }
       },
       onSuccess: (page) => {
         hasUnsavedChanges.value = false;
@@ -836,7 +801,7 @@ const submit = async () => {
 
         // Opcional: redirigir después de un delay
         setTimeout(() => {
-          router.get(route('citas.show', props.cita.id));
+          router.get(route('citas.index', props.cita.id));
         }, 1500);
       },
       onError: (errors) => {
@@ -947,8 +912,6 @@ const resetForm = () => {
     hasUnsavedChanges.value = false;
     notyf.success('Formulario restablecido');
   }
-
-
 };
 
 const duplicateAppointment = () => {

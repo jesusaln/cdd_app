@@ -376,10 +376,11 @@ class OrdenCompraController extends Controller
     /**
      * Marca una orden de compra como recibida, actualiza el stock y crea un registro de compra.
      *
+     * @param  \Illuminate\Http\Request  $request
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function recibirOrden($id)
+    public function recibirOrden(Request $request, $id)
     {
         // Inicia una transacción para asegurar que el stock y la creación de la compra se actualicen correctamente
         DB::beginTransaction();
@@ -389,61 +390,118 @@ class OrdenCompraController extends Controller
 
             // Solo procesar si la orden está pendiente para evitar duplicados o errores lógicos
             if ($ordenCompra->estado !== 'pendiente') {
-                // Si la orden ya no está pendiente, hacemos rollback de la transacción que acabamos de iniciar
                 DB::rollBack();
                 return redirect()->back()->with('error', 'La orden de compra ya ha sido procesada o no está en estado pendiente.');
             }
 
             // Prepara los datos para la creación de la Compra y la actualización del stock
             $productosParaCompra = []; // Para adjuntar a la nueva Compra
+
             foreach ($ordenCompra->productos as $producto) {
-                $prodModel = Producto::find($producto->id); // Busca el modelo Producto para actualizar su stock
+                // Verifica que el pivot existe y tiene los datos necesarios
+                if (!$producto->pivot || !isset($producto->pivot->cantidad) || !isset($producto->pivot->precio)) {
+                    Log::error('Datos de pivot faltantes para producto ID: ' . $producto->id . ' en orden ID: ' . $ordenCompra->id);
+                    continue;
+                }
+
+                $prodModel = Producto::find($producto->id);
                 if ($prodModel) {
                     // Incrementa el stock del producto con la cantidad recibida
-                    $prodModel->increment('stock', $producto->pivot->cantidad);
+                    $cantidadRecibida = (int) $producto->pivot->cantidad;
+                    $precioUnitario = (float) $producto->pivot->precio;
+
+                    $prodModel->increment('stock', $cantidadRecibida);
+
                     // Prepara los datos para la tabla pivote de la nueva Compra
                     $productosParaCompra[$producto->id] = [
-                        'cantidad' => $producto->pivot->cantidad,
-                        'precio' => $producto->pivot->precio,
+                        'cantidad' => $cantidadRecibida,
+                        'precio' => $precioUnitario,
                     ];
+
+                    Log::info("Stock actualizado para producto ID {$producto->id}: +{$cantidadRecibida} unidades");
                 } else {
-                    // Registra una advertencia si no se encuentra un producto (esto no debería ocurrir si las FK están bien)
                     Log::warning('Producto no encontrado para incrementar stock en orden de compra ID: ' . $ordenCompra->id . ', Producto ID: ' . $producto->id);
                 }
             }
 
-            // Opcional: Si los servicios también deben registrarse en 'compras', necesitarías:
-            // 1. Una tabla pivote `compra_servicio`
-            // 2. Una relación `servicios()` en el modelo `Compra`
-            // Por ahora, solo los productos se pasarán a la `Compra`.
-
             // Crea un nuevo registro en la tabla `compras`
             $compra = Compra::create([
                 'proveedor_id' => $ordenCompra->proveedor_id,
-                'total' => $ordenCompra->total, // El total de la OrdenCompra se usa para la nueva Compra
-                'fecha_compra' => now(), // Registra la fecha actual como fecha de la compra
-                // Puedes añadir otros campos de la OrdenCompra a Compra si son relevantes,
-                // por ejemplo: 'observaciones' => $ordenCompra->observaciones,
+                'total' => $ordenCompra->total,
+                'fecha_compra' => now(),
             ]);
 
             // Adjunta los productos a la Compra recién creada a través de la tabla pivote `compra_producto`
             if (!empty($productosParaCompra)) {
                 $compra->productos()->attach($productosParaCompra);
+                Log::info("Compra creada con ID {$compra->id} y productos adjuntados");
             }
 
             // Actualiza el estado de la OrdenCompra a "recibida"
-            $ordenCompra->estado = 'recibida';
-            $ordenCompra->fecha_recepcion = now(); // Opcional: registrar la fecha exacta de recepción
-            $ordenCompra->save();
+            $ordenCompra->update([
+                'estado' => 'recibida',
+                'fecha_recepcion' => now()
+            ]);
+
+            Log::info("Orden de compra ID {$ordenCompra->id} marcada como recibida");
 
             // Confirma todas las operaciones de la transacción si no hubo errores
             DB::commit();
-            return redirect()->route('ordenescompra.index')->with('success', 'Orden de compra marcada como recibida, stock actualizado y registro de compra creado exitosamente.');
+
+            // Retorna una respuesta JSON si es una petición AJAX, o redirección normal
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Orden de compra recibida exitosamente',
+                    'orden' => [
+                        'id' => $ordenCompra->id,
+                        'estado' => $ordenCompra->estado,
+                        'fecha_recepcion' => $ordenCompra->fecha_recepcion->format('d/m/Y H:i')
+                    ]
+                ]);
+            }
+
+            return redirect()->route('ordenescompra.index')
+                ->with('success', 'Orden de compra marcada como recibida, stock actualizado y registro de compra creado exitosamente.');
         } catch (\Exception $e) {
             // Si ocurre algún error, se revierte toda la transacción para mantener la integridad de los datos
             DB::rollBack();
-            Log::error('Error al recibir la orden de compra, actualizar stock o crear compra: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Ocurrió un error al procesar la recepción de la orden de compra. Por favor, inténtalo de nuevo.');
+            Log::error('Error al recibir la orden de compra: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error al procesar la orden de compra'
+                ], 500);
+            }
+
+            return redirect()->back()
+                ->with('error', 'Ocurrió un error al procesar la recepción de la orden de compra. Por favor, inténtalo de nuevo.');
+        }
+    }
+
+    /**
+     * Obtiene el estado actual de una orden de compra (útil para AJAX)
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getEstado($id)
+    {
+        try {
+            $ordenCompra = OrdenCompra::findOrFail($id);
+
+            return response()->json([
+                'success' => true,
+                'estado' => $ordenCompra->estado,
+                'fecha_recepcion' => $ordenCompra->fecha_recepcion ? $ordenCompra->fecha_recepcion->format('d/m/Y H:i') : null
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener el estado de la orden'
+            ], 404);
         }
     }
 }
