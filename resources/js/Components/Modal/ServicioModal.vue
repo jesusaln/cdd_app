@@ -1,147 +1,144 @@
 <template>
-    <div v-if="isOpen" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg shadow-lg w-11/12 md:w-1/2 lg:w-2/3 p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-semibold">Detalles del Servicio</h2>
-                <button @click="closeModal" class="text-gray-500 hover:text-gray-700">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <!-- Usamos una grid para mostrar los detalles en dos columnas -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
+  <Teleport to="body">
+    <Transition name="modal">
+      <div v-if="isOpen" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" @click.self="closeModal">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden" role="dialog" aria-modal="true">
+          <!-- Header del modal -->
+          <div class="flex justify-between items-center p-6 border-b border-gray-200 bg-gray-50">
+            <h2 class="text-2xl font-semibold text-gray-800">Detalles del Servicio</h2>
+            <button @click="closeModal" class="text-gray-400 hover:text-gray-600 transition-colors p-2 rounded-full hover:bg-gray-200" aria-label="Cerrar modal">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <!-- Contenido del modal con scroll -->
+          <div class="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+            <div class="space-y-6">
+              <!-- Información General -->
+              <div class="bg-blue-50 rounded-lg p-4">
+                <h3 class="text-lg font-medium text-blue-800 mb-4 flex items-center">
+                  <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Información General
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
                     <label class="block text-sm font-medium text-gray-700">Nombre</label>
                     <p class="mt-1 block w-full rounded-md bg-gray-100 p-2">{{ servicio.nombre }}</p>
-                </div>
-                <div>
+                  </div>
+                  <div>
                     <label class="block text-sm font-medium text-gray-700">Descripción</label>
                     <p class="mt-1 block w-full rounded-md bg-gray-100 p-2">{{ servicio.descripcion }}</p>
-                </div>
-                <div>
+                  </div>
+                  <div>
                     <label class="block text-sm font-medium text-gray-700">Código</label>
                     <p class="mt-1 block w-full rounded-md bg-gray-100 p-2">{{ servicio.codigo }}</p>
-                </div>
-                <div>
+                  </div>
+                  <div>
                     <label class="block text-sm font-medium text-gray-700">Categoría</label>
-                    <p class="mt-1 block w-full rounded-md bg-gray-100 p-2">{{ servicio.categoria_id || 'No disponible' }}</p>
-
+                    <p class="mt-1 block w-full rounded-md bg-gray-100 p-2">{{ categoriaNombre || 'Cargando...' }}</p>
+                  </div>
                 </div>
-                <div>
+              </div>
+
+              <!-- Detalles del Servicio -->
+              <div class="bg-green-50 rounded-lg p-4">
+                <h3 class="text-lg font-medium text-green-800 mb-4 flex items-center">
+                  <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c1.654 0 3-1.346 3-3s-1.346-3-3-3-3 1.346-3 3 1.346 3 3 3zm0 2c-2.21 0-4 1.79-4 4v1h8v-1c0-2.21-1.79-4-4-4zm0 8c2.21 0 4-1.79 4-4h-8c0 2.21 1.79 4 4 4z" />
+                  </svg>
+                  Detalles del Servicio
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
                     <label class="block text-sm font-medium text-gray-700">Precio</label>
                     <p class="mt-1 block w-full rounded-md bg-gray-100 p-2">{{ servicio.precio }}</p>
-                </div>
-                <div>
+                  </div>
+                  <div>
                     <label class="block text-sm font-medium text-gray-700">Duración (minutos)</label>
                     <p class="mt-1 block w-full rounded-md bg-gray-100 p-2">{{ servicio.duracion }}</p>
-                </div>
-                <div>
+                  </div>
+                  <div>
                     <label class="block text-sm font-medium text-gray-700">Estado</label>
                     <p class="mt-1 block w-full rounded-md bg-gray-100 p-2">{{ servicio.estado }}</p>
+                  </div>
                 </div>
+              </div>
             </div>
-            <div class="mt-6 flex justify-end">
-                <button @click="closeModal" class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">
-                    Cerrar
-                </button>
+          </div>
+
+          <!-- Footer del modal -->
+          <div class="px-6 py-4 bg-gray-50 border-t border-gray-200">
+            <div class="flex justify-end space-x-3">
+              <button @click="closeModal" class="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors">
+                Cerrar
+              </button>
             </div>
+          </div>
         </div>
-    </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <script setup>
-import { defineProps, defineEmits, onMounted } from 'vue';
+import { defineProps, defineEmits, ref, onMounted } from 'vue';
 
 const props = defineProps({
-    servicio: Object,
-    isOpen: Boolean
+  servicio: Object,
+  isOpen: Boolean
 });
 
 const emit = defineEmits(['close']);
 
 const closeModal = () => {
-    emit('close');
+  emit('close');
 };
 
-// Depuración: Verifica la estructura del objeto servicio
+const categoriaNombre = ref('Cargando...');
+
+// Función para obtener el nombre de la categoría desde el backend
+const fetchCategoriaNombre = async (categoriaId) => {
+  try {
+    const response = await fetch(`/api/categorias/${categoriaId}`); // Ajusta la URL según tu API
+    if (!response.ok) {
+      throw new Error('No se pudo obtener la categoría');
+    }
+    const data = await response.json();
+    categoriaNombre.value = data.nombre; // Asume que la respuesta tiene un campo 'nombre'
+  } catch (error) {
+    console.error('Error al obtener la categoría:', error);
+    categoriaNombre.value = 'No disponible';
+  }
+};
+
+// Llama a fetchCategoriaNombre cuando el modal se abre
 onMounted(() => {
-    console.log("Servicio recibido:", props.servicio);
+  if (props.servicio && props.servicio.categoria_id) {
+    fetchCategoriaNombre(props.servicio.categoria_id);
+  }
 });
 </script>
 
 <style scoped>
-.fixed {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+.modal-enter-active, .modal-leave-active {
+  transition: opacity 0.3s ease;
 }
 
-.bg-opacity-50 {
-    background-color: rgba(0, 0, 0, 0.5);
+.modal-enter-from, .modal-leave-to {
+  opacity: 0;
 }
 
-.z-50 {
-    z-index: 50;
+.modal-enter-active .bg-white,
+.modal-leave-active .bg-white {
+  transition: transform 0.3s ease;
 }
 
-.rounded-lg {
-    border-radius: 0.5rem;
-}
-
-.shadow-lg {
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-}
-
-.grid-cols-1 {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-}
-
-.sm\:grid-cols-2 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.gap-4 {
-    gap: 1rem;
-}
-
-.text-gray-500 {
-    color: #6b7280;
-}
-
-.hover\:text-gray-700:hover {
-    color: #374151;
-}
-
-.bg-gray-100 {
-    background-color: #f3f4f6;
-}
-
-.rounded-md {
-    border-radius: 0.375rem;
-}
-
-.p-2 {
-    padding: 0.5rem;
-}
-
-.w-full {
-    width: 100%;
-}
-
-.h-auto {
-    height: auto;
-}
-
-.mt-1 {
-    margin-top: 0.25rem;
-}
-
-.mb-4 {
-    margin-bottom: 1rem;
-}
-
-.font-semibold {
-    font-weight: 600;
+.modal-enter-from .bg-white,
+.modal-leave-to .bg-white {
+  transform: scale(0.95);
 }
 </style>

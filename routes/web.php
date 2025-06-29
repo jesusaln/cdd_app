@@ -25,6 +25,11 @@ use App\Http\Controllers\PanelController;
 use App\Http\Controllers\EmpresasController;
 use App\Http\Controllers\ServicioController;
 use App\Http\Controllers\InventarioController;
+use App\Http\Controllers\OrdenCompraController;
+
+Route::resource('ordenescompra', OrdenCompraController::class);
+// Ruta específica para marcar como recibida
+Route::post('ordenescompra/{id}/recibir', [OrdenCompraController::class, 'recibirOrden'])->name('ordenescompra.recibir');
 
 Route::get('/productos/{id}/inventario', [ProductoController::class, 'showInventario'])->name('productos.inventario');
 Route::resource('inventario', InventarioController::class);

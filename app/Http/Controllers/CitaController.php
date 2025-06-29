@@ -9,6 +9,9 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use Carbon\Carbon;
 
 class CitaController extends Controller
 {
@@ -17,10 +20,9 @@ class CitaController extends Controller
      */
     public function index()
     {
-        $citas = Cita::with('tecnico', 'cliente')->get();
+        $citas = Cita::with('tecnico', 'cliente')->orderBy('fecha_hora', 'desc')->get();
         return Inertia::render('Citas/Index', ['citas' => $citas]);
     }
-
 
     /**
      * Mostrar formulario para crear una nueva cita.
@@ -37,31 +39,71 @@ class CitaController extends Controller
      */
     public function store(Request $request)
     {
-        // Validar los datos recibidos
+        // Validar los datos recibidos con mejoras
         $validated = $request->validate([
             'tecnico_id' => 'required|exists:tecnicos,id',
             'cliente_id' => 'required|exists:clientes,id',
             'tipo_servicio' => 'required|string|max:255',
-            'fecha_hora' => 'required|date',
-            'descripcion' => 'nullable|string',
+            'fecha_hora' => [
+                'required',
+                'date',
+                'after:now',
+                function ($attribute, $value, $fail) {
+                    $fecha = Carbon::parse($value);
+                    if ($fecha->isWeekend()) {
+                        $fail('No se pueden programar citas en fines de semana.');
+                    }
+                    if ($fecha->hour < 8 || $fecha->hour > 18) {
+                        $fail('Las citas deben programarse entre las 8:00 AM y 6:00 PM.');
+                    }
+                }
+            ],
+            'descripcion' => 'nullable|string|max:1000',
             'tipo_equipo' => 'required|string|max:255',
             'marca_equipo' => 'required|string|max:255',
             'modelo_equipo' => 'required|string|max:255',
-            'problema_reportado' => 'nullable|string',
+            'problema_reportado' => 'nullable|string|max:1000',
             'estado' => 'required|string|in:pendiente,en_proceso,completado,cancelado',
-            'evidencias' => 'nullable|string',
-            'foto_equipo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'foto_hoja_servicio' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'foto_identificacion' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'evidencias' => 'nullable|string|max:2000',
+            'foto_equipo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+            'foto_hoja_servicio' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+            'foto_identificacion' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+        ], [
+            'tecnico_id.required' => 'Debe seleccionar un técnico.',
+            'cliente_id.required' => 'Debe seleccionar un cliente.',
+            'fecha_hora.after' => 'La fecha debe ser posterior a la actual.',
+            '*.max:5120' => 'La imagen no debe superar los 5MB.',
         ]);
 
-        // Guardar archivos y obtener sus rutas
-        $filePaths = $this->saveFiles($request, ['foto_equipo', 'foto_hoja_servicio', 'foto_identificacion']);
+        try {
+            DB::beginTransaction();
 
-        // Crear la cita con los datos validados y las rutas de los archivos
-        $cita = Cita::create(array_merge($validated, $filePaths));
+            // Verificar disponibilidad del técnico
+            $this->verificarDisponibilidadTecnico(
+                $validated['tecnico_id'],
+                $validated['fecha_hora']
+            );
 
-        return redirect()->route('citas.index')->with('success', 'Cita creada exitosamente.');
+            // Guardar archivos y obtener sus rutas
+            $filePaths = $this->saveFiles($request, ['foto_equipo', 'foto_hoja_servicio', 'foto_identificacion']);
+
+            // Crear la cita con los datos validados y las rutas de los archivos
+            $cita = Cita::create(array_merge($validated, $filePaths));
+
+            DB::commit();
+
+            return redirect()->route('citas.index')->with('success', 'Cita creada exitosamente.');
+        } catch (ValidationException $e) {
+            DB::rollBack();
+            throw $e;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al crear cita: ' . $e->getMessage());
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', 'Error al crear la cita. Por favor, intente nuevamente.');
+        }
     }
 
     /**
@@ -84,32 +126,80 @@ class CitaController extends Controller
             'tecnico_id' => 'sometimes|required|exists:tecnicos,id',
             'cliente_id' => 'sometimes|required|exists:clientes,id',
             'tipo_servicio' => 'sometimes|required|string|max:255',
-            'fecha_hora' => 'sometimes|required|date',
-            'descripcion' => 'nullable|string',
+            'fecha_hora' => [
+                'sometimes',
+                'required',
+                'date',
+                function ($attribute, $value, $fail) use ($cita) {
+                    $fecha = Carbon::parse($value);
+                    if ($fecha->isPast() && $cita->estado === 'pendiente') {
+                        $fail('No se puede programar una cita pendiente en el pasado.');
+                    }
+                    if ($fecha->isWeekend()) {
+                        $fail('No se pueden programar citas en fines de semana.');
+                    }
+                    if ($fecha->hour < 8 || $fecha->hour > 18) {
+                        $fail('Las citas deben programarse entre las 8:00 AM y 6:00 PM.');
+                    }
+                }
+            ],
+            'descripcion' => 'nullable|string|max:1000',
             'tipo_equipo' => 'sometimes|required|string|max:255',
             'marca_equipo' => 'sometimes|required|string|max:255',
             'modelo_equipo' => 'sometimes|required|string|max:255',
-            'problema_reportado' => 'nullable|string',
+            'problema_reportado' => 'nullable|string|max:1000',
             'estado' => 'sometimes|required|string|in:pendiente,en_proceso,completado,cancelado',
-            'evidencias' => 'nullable|string',
-            'foto_equipo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'foto_hoja_servicio' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'foto_identificacion' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'evidencias' => 'nullable|string|max:2000',
+            'foto_equipo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+            'foto_hoja_servicio' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+            'foto_identificacion' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
         ]);
 
-        // Guardar archivos y obtener sus rutas (conservando los archivos existentes si no se suben nuevos)
-        $filePaths = $this->saveFiles($request, ['foto_equipo', 'foto_hoja_servicio', 'foto_identificacion'], [
-            'foto_equipo' => $cita->foto_equipo,
-            'foto_hoja_servicio' => $cita->foto_hoja_servicio,
-            'foto_identificacion' => $cita->foto_identificacion,
-        ]);
+        try {
+            DB::beginTransaction();
 
-        // Actualizar la cita con los datos validados y las rutas de los archivos
-        $cita->update(array_merge($validated, $filePaths));
+            // Verificar disponibilidad del técnico si cambió
+            if (
+                isset($validated['tecnico_id']) &&
+                ($validated['tecnico_id'] != $cita->tecnico_id ||
+                    isset($validated['fecha_hora']) && $validated['fecha_hora'] != $cita->fecha_hora)
+            ) {
+                $this->verificarDisponibilidadTecnico(
+                    $validated['tecnico_id'],
+                    $validated['fecha_hora'] ?? $cita->fecha_hora,
+                    $cita->id
+                );
+            }
 
-        return redirect()->route('citas.index')->with('success', 'Cita actualizada exitosamente.');
+            // Guardar archivos y obtener sus rutas (conservando los archivos existentes si no se suben nuevos)
+            $filePaths = $this->saveFiles($request, ['foto_equipo', 'foto_hoja_servicio', 'foto_identificacion'], [
+                'foto_equipo' => $cita->foto_equipo,
+                'foto_hoja_servicio' => $cita->foto_hoja_servicio,
+                'foto_identificacion' => $cita->foto_identificacion,
+            ]);
+
+            // Actualizar la cita con los datos validados y las rutas de los archivos
+            $cita->update(array_merge($validated, $filePaths));
+
+            DB::commit();
+
+            return redirect()->route('citas.index')->with('success', 'Cita actualizada exitosamente.');
+        } catch (ValidationException $e) {
+            DB::rollBack();
+            throw $e;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al actualizar cita: ' . $e->getMessage());
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', 'Error al actualizar la cita. Por favor, intente nuevamente.');
+        }
     }
 
+    /**
+     * Método mejorado para guardar archivos
+     */
     private function saveFiles(Request $request, array $fileFields, $existingFiles = [])
     {
         $filePaths = [];
@@ -117,7 +207,13 @@ class CitaController extends Controller
             if ($request->hasFile($field)) {
                 try {
                     $file = $request->file($field);
-                    $path = $file->store('citas', 'public'); // Guarda el archivo en el disco "public"
+
+                    // Generar nombre único para evitar conflictos
+                    $originalName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+                    $extension = $file->getClientOriginalExtension();
+                    $filename = $originalName . '_' . now()->format('YmdHis') . '_' . substr(str_shuffle('0123456789abcdefghijklmnopqrstuvwxyz'), 0, 6) . '.' . $extension;
+
+                    $path = $file->storeAs('citas', $filename, 'public');
                     $filePaths[$field] = $path;
 
                     // Eliminar el archivo anterior si existe
@@ -126,7 +222,7 @@ class CitaController extends Controller
                     }
                 } catch (\Exception $e) {
                     Log::error("Error al guardar el archivo {$field}: " . $e->getMessage());
-                    $filePaths[$field] = null; // Manejar el error asignando `null`
+                    $filePaths[$field] = $existingFiles[$field] ?? null;
                 }
             } else {
                 $filePaths[$field] = $existingFiles[$field] ?? null; // Conservar el archivo existente
@@ -136,13 +232,58 @@ class CitaController extends Controller
     }
 
     /**
+     * Verificar disponibilidad del técnico
+     */
+    private function verificarDisponibilidadTecnico(int $tecnicoId, string $fechaHora, ?int $excludeId = null): void
+    {
+        $query = Cita::where('tecnico_id', $tecnicoId)
+            ->where('fecha_hora', $fechaHora)
+            ->where('estado', '!=', 'cancelado');
+
+        if ($excludeId) {
+            $query->where('id', '!=', $excludeId);
+        }
+
+        if ($query->exists()) {
+            throw ValidationException::withMessages([
+                'fecha_hora' => 'El técnico ya tiene una cita programada en esta fecha y hora.'
+            ]);
+        }
+    }
+
+    /**
      * Eliminar una cita existente.
      */
     public function destroy(Cita $cita)
     {
-        $cita->delete();
+        try {
+            DB::beginTransaction();
 
-        return redirect()->route('citas.index')->with('success', 'Cita eliminada exitosamente.');
+            // Eliminar archivos asociados
+            $archivos = [
+                $cita->foto_equipo,
+                $cita->foto_hoja_servicio,
+                $cita->foto_identificacion
+            ];
+
+            foreach ($archivos as $archivo) {
+                if ($archivo && Storage::disk('public')->exists($archivo)) {
+                    Storage::disk('public')->delete($archivo);
+                }
+            }
+
+            $cita->delete();
+
+            DB::commit();
+
+            return redirect()->route('citas.index')->with('success', 'Cita eliminada exitosamente.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al eliminar cita: ' . $e->getMessage());
+            return redirect()
+                ->back()
+                ->with('error', 'Error al eliminar la cita.');
+        }
     }
 
     /**
@@ -158,6 +299,9 @@ class CitaController extends Controller
         ]);
     }
 
+    /**
+     * Método original mantenido para compatibilidad completa
+     */
     public function updateIndex(Request $request, $id)
     {
         $cita = Cita::findOrFail($id);
@@ -172,6 +316,5 @@ class CitaController extends Controller
 
         // Devolver una respuesta compatible con Inertia
         return redirect()->back()->with('success', 'Estado actualizado correctamente');
-        return redirect()->route('citas.index')->with('success', 'Cita creada exitosamente.');
     }
 }

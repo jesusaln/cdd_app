@@ -119,6 +119,9 @@
                         <NavLink href="/compras" icon="cart-shopping" :collapsed="isSidebarCollapsed">
                             Compras a Proveedores
                         </NavLink>
+                        <NavLink href="/ordenescompra" icon="file-invoice-dollar" :collapsed="isSidebarCollapsed">
+                            Órdenes de Compra
+                        </NavLink>
                         <NavLink href="/proveedores" icon="truck" :collapsed="isSidebarCollapsed">
                             Proveedores
                         </NavLink>
