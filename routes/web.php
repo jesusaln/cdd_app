@@ -53,6 +53,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     })->name('dashboard');
 
     Route::resource('clientes', ClienteController::class)->names('clientes');
+    Route::get('/clientes/check-email', [ClienteController::class, 'checkEmail'])->name('clientes.checkEmail');
+
+    Route::put('/clientes/{cliente}/toggle', [ClienteController::class, 'toggle'])->name('clientes.toggle');
     Route::resource('productos', ProductoController::class)->names('productos');
 
     // Proveedores corregidos

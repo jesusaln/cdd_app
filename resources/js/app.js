@@ -8,35 +8,10 @@ import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 
 // Importación de FontAwesome
 import { library } from '@fortawesome/fontawesome-svg-core'
-import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'; // Importar el componente Vue de FontAwesome
+import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 
-// Importa *todos* los iconos 'solid' que utilizas en tu aplicación.
-// Asegúrate de que 'faFileInvoiceDollar' esté en esta lista.
+// Importar iconos existentes
 import {
-    faCog,
-    faChevronLeft,
-    faTachometerAlt,
-    faCalendarAlt,
-    faCar,
-    faUserCog,
-    faToolbox,
-    faUsers,
-    faBox,
-    faTags,
-    faTrademark,
-    faTruck,
-    faChartBar, // Icono para Reportes Largos
-    faFileAlt, // Icono para Cotizaciones
-    faDollarSign, // Icono para Ventas Realizadas
-    faCartShopping, // Icono para Compras a Proveedores
-    faFileInvoiceDollar, // <--- ¡ESTE ES EL ICONO QUE FALTABA Y SE HA AÑADIDO!
-    faWarehouse, // Icono para Almacenes
-    faWrench // Icono para Servicios
-} from '@fortawesome/free-solid-svg-icons'
-
-// Agregar todos los iconos necesarios a la librería global de FontAwesome
-// Es crucial que todos los iconos que uses en tu HTML estén añadidos aquí.
-library.add(
     faCog,
     faChevronLeft,
     faTachometerAlt,
@@ -53,9 +28,71 @@ library.add(
     faFileAlt,
     faDollarSign,
     faCartShopping,
-    faFileInvoiceDollar, // <--- ¡Añadido a la librería!
+    faFileInvoiceDollar,
     faWarehouse,
-    faWrench
+    faWrench,
+    // ICONOS FALTANTES PARA EL FORMULARIO DE CLIENTE
+    faUser,                    // Para "Información General"
+    faMapMarkerAlt,           // Para "Dirección"
+    faInfoCircle,             // Para "Información Adicional"
+    faExclamationTriangle,    // Para alertas de error
+    faCheckCircle,            // Para confirmaciones y validaciones
+    faSpinner,                // Para estados de carga
+    faCheck,                  // Para botón de submit
+    faRedo,                   // Para botón de limpiar
+    faSave,                   // Para guardar borrador
+    faExclamationCircle,      // Para validaciones de RFC
+    faEnvelope,               // Para email (opcional)
+    faPhone,                  // Para teléfono (opcional)
+    faHome,                   // Para dirección (opcional)
+    faEdit,                   // Para editar (opcional)
+    faPlus,                   // Para crear nuevo (opcional)
+    faTimes,                  // Para cerrar/cancelar (opcional)
+    faEye,                    // Para mostrar (opcional)
+    faEyeSlash                // Para ocultar (opcional)
+} from '@fortawesome/free-solid-svg-icons'
+
+// Agregar todos los iconos a la librería
+library.add(
+    // Iconos existentes
+    faCog,
+    faChevronLeft,
+    faTachometerAlt,
+    faCalendarAlt,
+    faCar,
+    faUserCog,
+    faToolbox,
+    faUsers,
+    faBox,
+    faTags,
+    faTrademark,
+    faTruck,
+    faChartBar,
+    faFileAlt,
+    faDollarSign,
+    faCartShopping,
+    faFileInvoiceDollar,
+    faWarehouse,
+    faWrench,
+    // Iconos nuevos para el formulario
+    faUser,
+    faMapMarkerAlt,
+    faInfoCircle,
+    faExclamationTriangle,
+    faCheckCircle,
+    faSpinner,
+    faCheck,
+    faRedo,
+    faSave,
+    faExclamationCircle,
+    faEnvelope,
+    faPhone,
+    faHome,
+    faEdit,
+    faPlus,
+    faTimes,
+    faEye,
+    faEyeSlash
 );
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
@@ -68,7 +105,7 @@ createInertiaApp({
 
         app.use(plugin)
             .use(ZiggyVue)
-            .component('font-awesome-icon', FontAwesomeIcon) // Registrar globalmente FontAwesome
+            .component('font-awesome-icon', FontAwesomeIcon)
             .mount(el);
     },
     progress: {

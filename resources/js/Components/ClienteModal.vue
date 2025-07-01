@@ -106,7 +106,7 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits, computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import {  computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import ClientField from './ClientField.vue'; // Ajusta la ruta de importación según sea necesario
 
 const props = defineProps({

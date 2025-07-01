@@ -33,11 +33,12 @@
             </h2>
           </div>
           <div class="p-6">
-            <!-- Componente de búsqueda -->
+            <!-- Componente de búsqueda de clientes -->
             <BuscarCliente
               :clientes="clientes"
-              :form="form"
+              :cliente-seleccionado="clienteSeleccionado"
               @cliente-seleccionado="onClienteSeleccionado"
+              @crear-nuevo-cliente="crearNuevoCliente"
             />
 
             <!-- Información del cliente seleccionado - Visible y destacada -->
@@ -62,6 +63,7 @@
               </div>
 
               <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Nombre -->
                 <div class="space-y-2">
                   <div class="flex items-center text-sm font-medium text-blue-700">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -69,9 +71,10 @@
                     </svg>
                     Nombre
                   </div>
-                  <div class="text-lg font-semibold text-gray-900">{{ clienteSeleccionado.nombre }}</div>
+                  <div class="text-lg font-semibold text-gray-900">{{ clienteSeleccionado.nombre_razon_social }}</div>
                 </div>
 
+                <!-- Email -->
                 <div class="space-y-2" v-if="clienteSeleccionado.email">
                   <div class="flex items-center text-sm font-medium text-blue-700">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -82,6 +85,7 @@
                   <div class="text-gray-900">{{ clienteSeleccionado.email }}</div>
                 </div>
 
+                <!-- Teléfono -->
                 <div class="space-y-2" v-if="clienteSeleccionado.telefono">
                   <div class="flex items-center text-sm font-medium text-blue-700">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -92,17 +96,10 @@
                   <div class="text-gray-900">{{ clienteSeleccionado.telefono }}</div>
                 </div>
 
-                <div class="space-y-2" v-if="clienteSeleccionado.empresa">
-                  <div class="flex items-center text-sm font-medium text-blue-700">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                    </svg>
-                    Empresa
-                  </div>
-                  <div class="text-gray-900">{{ clienteSeleccionado.empresa }}</div>
-                </div>
 
-                <div class="space-y-2" v-if="clienteSeleccionado.direccion">
+
+                <!-- Dirección -->
+                <div class="space-y-2" v-if="clienteSeleccionado.calle">
                   <div class="flex items-center text-sm font-medium text-blue-700">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
@@ -110,9 +107,21 @@
                     </svg>
                     Dirección
                   </div>
-                  <div class="text-gray-900">{{ clienteSeleccionado.direccion }}</div>
+                  <div class="text-gray-900">{{ clienteSeleccionado.calle }}</div>
                 </div>
 
+                <!-- Empresa -->
+                <div class="space-y-2" v-if="clienteSeleccionado.numero_exterior">
+                  <div class="flex items-center text-sm font-medium text-blue-700">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                    </svg>
+                    Numero Exterior
+                  </div>
+                  <div class="text-gray-900">{{ clienteSeleccionado.numero_exterior }}</div>
+                </div>
+
+                <!-- RFC -->
                 <div class="space-y-2" v-if="clienteSeleccionado.rfc">
                   <div class="flex items-center text-sm font-medium text-blue-700">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -156,9 +165,58 @@
               :selectedProducts="selectedProducts"
               :productos="productos"
               :servicios="servicios"
+              :quantities="quantities"
+              :prices="prices"
+              :discounts="discounts"
               @eliminar-producto="eliminarProducto"
+              @update-quantity="updateQuantity"
+              @update-discount="updateDiscount"
               @calcular-total="calcularTotal"
             />
+          </div>
+        </div>
+
+        <!-- Descuento General -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div class="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-4">
+            <h2 class="text-lg font-semibold text-white flex items-center">
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+              </svg>
+              Descuento General
+            </h2>
+          </div>
+          <div class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                  Descuento General (%)
+                </label>
+                <div class="relative">
+                  <input
+                    type="number"
+                    v-model="descuentoGeneral"
+                    @input="calcularTotal"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="0.00"
+                  />
+                  <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                    <span class="text-gray-500 text-sm">%</span>
+                  </div>
+                </div>
+              </div>
+              <div class="flex items-end">
+                <div class="text-right">
+                  <div class="text-sm text-gray-600">Descuento aplicado:</div>
+                  <div class="text-2xl font-bold text-orange-600">
+                    ${{ calcularDescuentoGeneral().toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -173,7 +231,8 @@
             </h2>
           </div>
           <div class="p-6">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Estadísticas -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
               <div class="text-center p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border border-blue-200">
                 <div class="text-3xl font-bold text-blue-600 mb-2">{{ selectedProducts.length }}</div>
                 <div class="text-sm text-blue-600 font-medium">Items Seleccionados</div>
@@ -186,9 +245,42 @@
               </div>
               <div class="text-center p-6 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border border-purple-200">
                 <div class="text-3xl font-bold text-purple-600 mb-2">
-                  ${{ parseFloat(form.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                  ${{ totales.total.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                 </div>
-                <div class="text-sm text-purple-600 font-medium">Total a Pagar</div>
+                <div class="text-sm text-purple-600 font-medium">Total Final</div>
+              </div>
+            </div>
+
+            <!-- Desglose de totales -->
+            <div class="bg-gray-50 rounded-lg p-6">
+              <h3 class="text-lg font-semibold text-gray-900 mb-4">Desglose de Precios</h3>
+              <div class="space-y-3">
+                <div class="flex justify-between items-center text-gray-700">
+                  <span>Subtotal:</span>
+                  <span class="font-semibold">${{ totales.subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+                </div>
+                <div class="flex justify-between items-center text-orange-600" v-if="totales.descuentoGeneral > 0">
+                  <span>Descuento General ({{ descuentoGeneral }}%):</span>
+                  <span class="font-semibold">-${{ totales.descuentoGeneral.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+                </div>
+                <div class="flex justify-between items-center text-orange-600" v-if="totales.descuentoItems > 0">
+                  <span>Descuentos por item:</span>
+                  <span class="font-semibold">-${{ totales.descuentoItems.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+                </div>
+                <div class="flex justify-between items-center text-gray-700">
+                  <span>Subtotal con descuentos:</span>
+                  <span class="font-semibold">${{ totales.subtotalConDescuentos.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+                </div>
+                <div class="flex justify-between items-center text-blue-600">
+                  <span>IVA (16%):</span>
+                  <span class="font-semibold">${{ totales.iva.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+                </div>
+                <div class="border-t border-gray-300 pt-3">
+                  <div class="flex justify-between items-center text-lg font-bold text-gray-900">
+                    <span>Total Final:</span>
+                    <span>${{ totales.total.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -205,20 +297,20 @@
             </svg>
             Cancelar
           </Link>
-          <button
-            type="submit"
-            :disabled="!form.cliente_id || selectedProducts.length === 0 || form.processing"
-            class="inline-flex items-center justify-center px-6 py-3 border border-transparent rounded-lg text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
-          >
-            <svg v-if="form.processing" class="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <svg v-else class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-            </svg>
-            {{ form.processing ? 'Guardando...' : 'Crear Cotización' }}
-          </button>
+     <button
+  type="submit"
+  :disabled="!form.cliente_id || selectedProducts.length === 0 || form.processing"
+  class="inline-flex items-center justify-center px-6 py-3 border border-transparent rounded-lg text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
+>
+  <svg v-if="form.processing" class="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+  </svg>
+  <svg v-else class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+  </svg>
+  {{ form.processing ? 'Guardando...' : 'Crear Cotización' }}
+</button>
         </div>
       </form>
     </div>
@@ -226,8 +318,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, watch, computed, onMounted } from 'vue';
 import { Head, useForm, Link } from '@inertiajs/vue3';
+import axios from 'axios'
 import AppLayout from '@/Layouts/AppLayout.vue';
 import BuscarCliente from '@/Components/BuscarCliente.vue';
 import BuscarProducto from '@/Components/BuscarProducto.vue';
@@ -235,6 +328,9 @@ import ProductosSeleccionados from '@/Components/ProductosSeleccionados.vue';
 
 // Define el layout del dashboard
 defineOptions({ layout: AppLayout });
+
+const emailDisponible = ref(true)
+const revisandoEmail = ref(false)
 
 const props = defineProps({
   clientes: Array,
@@ -249,7 +345,13 @@ const props = defineProps({
 });
 
 const form = useForm({
+    nombre_razon_social: '',
+    email: '',
   cliente_id: '',
+  subtotal: 0,
+  descuento_general: 0,
+  descuento_items: 0,
+  iva: 0,
   total: 0,
   productos: [],
 });
@@ -257,7 +359,12 @@ const form = useForm({
 const selectedProducts = ref([]);
 const quantities = ref({});
 const prices = ref({});
+const discounts = ref({}); // Descuentos por item
+const descuentoGeneral = ref(0); // Descuento general
 const clienteSeleccionado = ref(null);
+
+// Constante para el IVA
+const IVA_RATE = 0.16;
 
 const onClienteSeleccionado = (cliente) => {
   clienteSeleccionado.value = cliente;
@@ -267,6 +374,12 @@ const onClienteSeleccionado = (cliente) => {
 const limpiarCliente = () => {
   clienteSeleccionado.value = null;
   form.cliente_id = '';
+  form.clearError('cliente_id'); // Limpia el error específico
+};
+
+const crearNuevoCliente = (nombreBuscado) => {
+  console.log('Crear nuevo cliente con nombre:', nombreBuscado);
+  form.clearErrors(); // Limpia todos los errores del formulario
 };
 
 const agregarProducto = (item) => {
@@ -274,10 +387,23 @@ const agregarProducto = (item) => {
   const exists = selectedProducts.value.some(
     (entry) => entry.id === item.id && entry.tipo === item.tipo
   );
+
   if (!exists) {
     selectedProducts.value.push(itemEntry);
-    quantities.value[`${item.tipo}-${item.id}`] = 1;
-    prices.value[`${item.tipo}-${item.id}`] = item.tipo === 'producto' ? (item.precio_venta || 0) : (item.precio || 0);
+    const key = `${item.tipo}-${item.id}`;
+
+    // Establecer cantidad inicial de 1
+    quantities.value[key] = 1;
+
+    // Establecer precio automáticamente (no editable)
+    const precio = item.tipo === 'producto' ? (item.precio_venta || 0) : (item.precio || 0);
+    prices.value[key] = precio;
+
+    // Establecer descuento inicial de 0
+    discounts.value[key] = 0;
+
+    // Recalcular totales
+    calcularTotal();
   }
 };
 
@@ -285,217 +411,162 @@ const eliminarProducto = (entry) => {
   selectedProducts.value = selectedProducts.value.filter(
     (item) => !(item.id === entry.id && item.tipo === entry.tipo)
   );
-  delete quantities.value[`${entry.tipo}-${entry.id}`];
-  delete prices.value[`${entry.tipo}-${entry.id}`];
+  const key = `${entry.tipo}-${entry.id}`;
+  delete quantities.value[key];
+  delete prices.value[key];
+  delete discounts.value[key];
   calcularTotal();
 };
 
-const calcularTotal = (newQuantities, newPrices) => {
-  if (newQuantities) quantities.value = newQuantities;
-  if (newPrices) prices.value = newPrices;
+const updateQuantity = (key, quantity) => {
+  quantities.value[key] = quantity;
+  calcularTotal();
+};
 
-  let total = 0;
+const updateDiscount = (key, discount) => {
+  discounts.value[key] = discount;
+  calcularTotal();
+};
+
+const calcularDescuentoGeneral = () => {
+  const subtotal = calcularSubtotal();
+  return subtotal * (descuentoGeneral.value / 100);
+};
+
+const calcularSubtotal = () => {
+  let subtotal = 0;
   for (const entry of selectedProducts.value) {
     const key = `${entry.tipo}-${entry.id}`;
     const cantidad = Number.parseFloat(quantities.value[key]) || 0;
     const precio = Number.parseFloat(prices.value[key]) || 0;
-    total += cantidad * precio;
+    const descuentoItem = Number.parseFloat(discounts.value[key]) || 0;
+
+    const subtotalItem = cantidad * precio;
+    const descuentoItemMonto = subtotalItem * (descuentoItem / 100);
+    subtotal += subtotalItem - descuentoItemMonto;
   }
-  form.total = total.toFixed(2);
+  return subtotal;
+};
+
+// Computed para los totales
+const totales = computed(() => {
+  let subtotal = 0;
+  let descuentoItems = 0;
+
+  // Calcular subtotal y descuentos por item
+  for (const entry of selectedProducts.value) {
+    const key = `${entry.tipo}-${entry.id}`;
+    const cantidad = Number.parseFloat(quantities.value[key]) || 0;
+    const precio = Number.parseFloat(prices.value[key]) || 0;
+    const descuentoItem = Number.parseFloat(discounts.value[key]) || 0;
+
+    const subtotalItem = cantidad * precio;
+    const descuentoItemMonto = subtotalItem * (descuentoItem / 100);
+
+    subtotal += subtotalItem;
+    descuentoItems += descuentoItemMonto;
+  }
+
+  // Calcular descuento general
+  const subtotalConDescuentoItems = subtotal - descuentoItems;
+  const descuentoGeneralMonto = subtotalConDescuentoItems * (descuentoGeneral.value / 100);
+
+  // Calcular subtotal con todos los descuentos
+  const subtotalConDescuentos = subtotalConDescuentoItems - descuentoGeneralMonto;
+
+  // Calcular IVA
+  const iva = subtotalConDescuentos * IVA_RATE;
+
+  // Calcular total final
+  const total = subtotalConDescuentos + iva;
+
+  return {
+    subtotal: subtotal,
+    descuentoItems: descuentoItems,
+    descuentoGeneral: descuentoGeneralMonto,
+    subtotalConDescuentos: subtotalConDescuentos,
+    iva: iva,
+    total: total
+  };
+});
+
+// Verifica el email en tiempo real
+watch(() => form.email, async (nuevoEmail) => {
+  if (!nuevoEmail || nuevoEmail.length < 5) {
+    emailDisponible.value = true
+    return
+  }
+
+  revisandoEmail.value = true
+  try {
+    const response = await axios.get(route('clientes.checkEmail'), {
+      params: { email: nuevoEmail }
+    })
+    emailDisponible.value = !response.data.exists
+  } catch (error) {
+    console.error('Error al verificar el email:', error)
+    emailDisponible.value = true // fallback
+  } finally {
+    revisandoEmail.value = false
+  }
+})
+
+const calcularTotal = () => {
+  // Actualizar el formulario con los nuevos valores
+  form.subtotal = totales.value.subtotal;
+  form.descuento_general = totales.value.descuentoGeneral;
+  form.descuento_items = totales.value.descuentoItems;
+  form.iva = totales.value.iva;
+  form.total = totales.value.total;
 };
 
 const crearCotizacion = () => {
-  form.productos = selectedProducts.value.map((entry) => ({
-    id: entry.id,
-    tipo: entry.tipo,
-    cantidad: quantities.value[`${entry.tipo}-${entry.id}`] || 1,
-    precio: prices.value[`${entry.tipo}-${entry.id}`] || 0,
-  }));
+  form.clearErrors(); // 🔄 Limpia errores previos
+
+  form.productos = selectedProducts.value.map((entry) => {
+    const key = `${entry.tipo}-${entry.id}`;
+    const cantidad = quantities.value[key] || 1;
+    const precio = prices.value[key] || 0;
+    const descuento = discounts.value[key] || 0;
+    return {
+      id: entry.id,
+      tipo: entry.tipo,
+      cantidad: cantidad,
+      precio: precio,
+      descuento: descuento,
+      subtotal: cantidad * precio,
+      descuento_monto: (cantidad * precio) * (descuento / 100)
+    };
+  });
+
+  calcularTotal();
 
   form.post(route('cotizaciones.store'), {
     onSuccess: () => {
       selectedProducts.value = [];
       quantities.value = {};
       prices.value = {};
+      discounts.value = {};
+      descuentoGeneral.value = 0;
       clienteSeleccionado.value = null;
+      form.reset();
     },
-    onError: (error) => {
-      console.error('Error al crear la cotización:', error);
+    onError: (errors) => {
+      console.error('Errores de validación:', errors);
+      alert("Hubo errores de validación. Por favor, corrige los campos.");
     },
+    // ❗ NO es necesario manipular form.processing manualmente
+    // onFinish se encarga automáticamente
   });
 };
+
 
 onMounted(() => {
   console.log('Clientes:', props.clientes);
   console.log('Productos:', props.productos);
   console.log('Servicios:', props.servicios);
+
+  // Inicializar el cálculo
+  calcularTotal();
 });
 </script>
-
-<style scoped>
-/* Animaciones para la entrada de elementos */
-@keyframes slideInFromTop {
-  from {
-    opacity: 0;
-    transform: translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slideInFromLeft {
-  from {
-    opacity: 0;
-    transform: translateX(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-/* Aplicar animaciones */
-.cotizaciones-create {
-  animation: fadeIn 0.5s ease-out;
-}
-
-/* Estilos para el cliente seleccionado */
-.cliente-seleccionado-enter-active {
-  animation: slideInFromTop 0.4s ease-out;
-}
-
-.cliente-seleccionado-leave-active {
-  animation: slideInFromTop 0.4s ease-out reverse;
-}
-
-/* Estilos para hover en tarjetas */
-.hover-card {
-  transition: all 0.3s ease;
-}
-
-.hover-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-}
-
-/* Estilos para los iconos */
-.icon-bounce {
-  transition: transform 0.3s ease;
-}
-
-.icon-bounce:hover {
-  transform: scale(1.1);
-}
-
-/* Estilos para los botones mejorados */
-.btn-enhanced {
-  position: relative;
-  overflow: hidden;
-}
-
-.btn-enhanced::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  transition: left 0.5s;
-}
-
-.btn-enhanced:hover::before {
-  left: 100%;
-}
-
-/* Estilos para las estadísticas mejoradas */
-.stat-card {
-  transition: all 0.3s ease;
-}
-
-.stat-card:hover {
-  transform: translateY(-4px) scale(1.02);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
-}
-
-/* Estilos responsivos mejorados */
-@media (max-width: 768px) {
-  .cliente-info-grid {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
-
-  .stats-grid {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
-}
-
-/* Estilos para focus mejorados */
-button:focus,
-a:focus {
-  outline: 2px solid #3B82F6;
-  outline-offset: 2px;
-}
-
-/* Estilos para el estado de carga */
-.loading-spinner {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* Estilos para elementos deshabilitados */
-.disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  pointer-events: none;
-}
-
-/* Estilos para tooltips mejorados */
-.tooltip-enhanced {
-  position: relative;
-}
-
-.tooltip-enhanced::after {
-  content: attr(title);
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.9);
-  color: white;
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.375rem;
-  font-size: 0.75rem;
-  white-space: nowrap;
-  opacity: 0;
-  visibility: hidden;
-  transition: all 0.3s ease;
-  z-index: 10;
-}
-
-.tooltip-enhanced:hover::after {
-  opacity: 1;
-  visibility: visible;
-  transform: translateX(-50%) translateY(-8px);
-}
-</style>

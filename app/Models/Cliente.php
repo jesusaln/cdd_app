@@ -25,8 +25,16 @@ class Cliente extends Model
         'municipio',
         'estado',
         'pais',
-        "tipo_persona",
+        'tipo_persona',
+        'requiere_factura',
+        'activo',
+        'notas', // ✅ faltaba
+        'acepta_marketing', // ✅ faltaba
+    ];
 
+    protected $casts = [
+        'activo' => 'boolean',
+        'acepta_marketing' => 'boolean',
     ];
 
     /**
