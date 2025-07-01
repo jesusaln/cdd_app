@@ -89,7 +89,7 @@
               :maxlength="10"
               :error="form.errors.telefono"
               placeholder="6621234567"
-              @input="validarTelefono"
+
               pattern="[0-9]{10}"
               required
             />
@@ -120,7 +120,7 @@
                 :maxlength="form.tipo_persona === 'fisica' ? 13 : 12"
                 :error="form.errors.rfc"
                 :placeholder="form.tipo_persona === 'fisica' ? 'ABCD123456EFG' : 'ABC123456EFG'"
-                @input="handleRfcInput"
+                @change="handleRfcInput"
                 @blur="validarRFC"
                 required
               />
@@ -144,7 +144,8 @@
               type="select"
               id="regimen_fiscal"
               :options="regimenesFiscalesOptions"
-              :error="form.errors.regimen_fiscal"
+              :error="Array.isArray(form.errors.regimen_fiscal) ? form.errors.regimen_fiscal[0] : form.errors.regimen_fiscal"
+              @change="form.clearErrors('regimen_fiscal')"
               required
             />
 
@@ -485,6 +486,7 @@ const handleRfcInput = (event) => {
  * @returns {boolean} True si el RFC es válido, false en caso contrario.
  */
 const validarRFC = () => {
+    form.clearErrors('rfc');
   // Si el RFC es nulo, vacío o el valor de "Público en General", es considerado válido aquí
   if (!form.rfc || form.rfc.trim() === '' || form.rfc === 'XAXX010101000') {
     form.clearErrors('rfc');
