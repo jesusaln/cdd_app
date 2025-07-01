@@ -289,6 +289,7 @@
 </template>
 
 <script setup>
+import { debounce } from 'lodash-es';
 import { Head, useForm } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue'; // Asume que este componente existe
@@ -461,7 +462,7 @@ const handleTipoPersonaChange = () => {
  * También dispara la validación si la longitud es la esperada.
  * @param {Event} event - El evento de entrada (input).
  */
-const handleRfcInput = (event) => {
+const handleRfcInput = debounce((event) => {
   // Convierte a mayúsculas y elimina caracteres no alfanuméricos (excepto & y Ñ)
   const value = event.target.value.toUpperCase().replace(/[^A-ZÑ&0-9]/g, '');
   form.rfc = value;
@@ -478,7 +479,7 @@ const handleRfcInput = (event) => {
     rfcValidationMessage.value = '';
     form.clearErrors('rfc'); // Asegura que no haya un error persistente de RFC
   }
-};
+},300); // 300 ms de debounce para evitar validaciones excesivas al escribir
 
 /**
  * Valida el formato del RFC según el tipo de persona (Física o Moral).
@@ -580,7 +581,11 @@ const convertirAMayusculas = (campo) => {
  */
 const resetForm = () => {
   // Inertia's form.reset() restablece el formulario a su estado inicial.
-  form.reset();
+  if (confirm('¿Estás seguro de que quieres limpiar el formulario?')) {
+    form.reset();
+  } else {
+    return; // Si el usuario cancela, no hace nada más
+  }
   // Se pueden restablecer explícitamente algunos valores por defecto si useForm() no los maneja así inicialmente
   form.requiere_factura = 'si';
   form.tipo_persona = 'fisica';
@@ -673,5 +678,7 @@ const submit = () => {
       }
     });
   }
+
+
 };
 </script>

@@ -514,5 +514,43 @@ const submit = () => {
       console.log('Petición de actualización finalizada.');
     }
   });
+
+  // 1. Definir los valores iniciales basados en props.cliente
+const initialValues = {
+  requiere_factura: props.cliente.requiere_factura || 'si',
+  nombre_razon_social: props.cliente.nombre_razon_social || '',
+  tipo_persona: props.cliente.tipo_persona || 'fisica',
+  rfc: props.cliente.rfc || '',
+  regimen_fiscal: props.cliente.regimen_fiscal || '',
+  uso_cfdi: props.cliente.uso_cfdi || '',
+  email: props.cliente.email || '',
+  telefono: props.cliente.telefono || '',
+  calle: props.cliente.calle || '',
+  numero_exterior: props.cliente.numero_exterior || '',
+  numero_interior: props.cliente.numero_interior || '',
+  colonia: props.cliente.colonia || '',
+  codigo_postal: props.cliente.codigo_postal || '',
+  municipio: props.cliente.municipio || '',
+  estado: props.cliente.estado || '',
+  pais: props.cliente.pais || ''
+};
+
+// 2. Función resetForm() que restaura esos valores y limpia errores
+const resetForm = () => {
+  // Restablecer cada campo a su valor inicial
+  Object.entries(initialValues).forEach(([key, value]) => {
+    form[key] = value;
+  });
+
+  // Reiniciar estados visuales de validación
+  rfcValidationStatus.value = null;
+  rfcValidationMessage.value = '';
+  showSuccessMessage.value = false;
+
+  // Limpiar errores del formulario
+  form.clearErrors();
+
+  console.log('Formulario reiniciado a valores iniciales.');
+};
 };
 </script>
