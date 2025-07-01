@@ -1,485 +1,355 @@
 <template>
-  <Head :title="'Editar Cliente: ' + cliente.nombre_razon_social" />
-  <div class="max-w-6xl mx-auto p-6">
-    <div class="bg-white shadow-lg rounded-lg">
-      <!-- Header -->
-      <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-lg">
-        <div class="flex items-center justify-between">
-          <div>
-            <h1 class="text-2xl font-bold">
-              Editar Cliente
-            </h1>
-            <p class="text-blue-100 mt-1">
-              Actualiza la información del cliente
+  <Head :title="'Editar Cliente'" />
+  <div class="max-w-4xl mx-auto p-4">
+    <div class="bg-white shadow-sm rounded-lg p-6">
+      <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-semibold text-gray-800">
+          Editar Cliente
+        </h1>
+        <div class="text-sm text-gray-500">
+          Campos obligatorios marcados con <span class="text-red-500">*</span>
+        </div>
+      </div>
+
+      <!-- Alertas globales de error -->
+      <div v-if="hasGlobalErrors" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
+        <div class="flex">
+          <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 001.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+            </svg>
+          </div>
+          <div class="ml-3">
+            <h3 class="text-sm font-medium text-red-800">Error en el formulario</h3>
+            <div class="mt-2 text-sm text-red-700">
+              <ul class="list-disc list-inside space-y-1">
+                <li v-for="(error, key) in form.errors" :key="key">{{ error }}</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Alerta de éxito -->
+      <div v-if="showSuccessMessage" class="mb-6 p-4 bg-green-50 border border-green-200 rounded-md">
+        <div class="flex">
+          <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+            </svg>
+          </div>
+          <div class="ml-3">
+            <p class="text-sm font-medium text-green-800">
+              Cliente actualizado exitosamente
             </p>
           </div>
-          <div class="text-sm text-blue-100">
-            Campos obligatorios marcados con <span class="text-red-300 font-bold">*</span>
-          </div>
         </div>
       </div>
 
-      <div class="p-6">
-        <!-- Progress Bar -->
-        <div class="mb-8">
-          <div class="flex items-center justify-between text-sm text-gray-600 mb-2">
-            <span>Progreso del formulario</span>
-            <span>{{ Math.round(formProgress) }}% completado</span>
-          </div>
-          <div class="w-full bg-gray-200 rounded-full h-2">
-            <div
-              class="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-300"
-              :style="{ width: formProgress + '%' }"
-            ></div>
+      <!-- Formulario principal -->
+      <form @submit.prevent="submit" class="space-y-8">
+        <!-- Sección: Información General -->
+        <div class="border-b border-gray-200 pb-6">
+          <h2 class="text-lg font-medium text-gray-900 mb-4">Información General</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="md:col-span-2">
+              <FormField
+                v-model="form.nombre_razon_social"
+                label="Nombre/Razón Social"
+                type="text"
+                id="nombre_razon_social"
+                :error="form.errors.nombre_razon_social"
+                @blur="convertirAMayusculas('nombre_razon_social')"
+                required
+              />
+            </div>
+
+            <FormField
+              v-model="form.email"
+              label="Email"
+              type="email"
+              id="email"
+              :error="form.errors.email"
+
+              required
+            />
+
+            <FormField
+              v-model="form.telefono"
+              label="Teléfono"
+              type="tel"
+              id="telefono"
+              :maxlength="10"
+              :error="form.errors.telefono"
+              @input="validarTelefono"
+              pattern="[0-9]{10}"
+              required
+            />
           </div>
         </div>
 
-        <!-- Alertas globales de error -->
-        <Transition
-          enter-active-class="transition duration-300 ease-out"
-          enter-from-class="transform scale-95 opacity-0"
-          enter-to-class="transform scale-100 opacity-100"
-          leave-active-class="transition duration-200 ease-in"
-          leave-from-class="transform scale-100 opacity-100"
-          leave-to-class="transform scale-95 opacity-0"
-        >
-          <div v-if="hasGlobalErrors" class="mb-6 p-4 bg-red-50 border-l-4 border-red-400 rounded-md">
-            <div class="flex">
-              <div class="flex-shrink-0">
-                <i class="fas fa-exclamation-triangle text-red-400"></i>
-              </div>
-              <div class="ml-3">
-                <h3 class="text-sm font-medium text-red-800">
-                  Se encontraron {{ Object.keys(form.errors).length }} error(es) en el formulario
-                </h3>
-                <div class="mt-2 text-sm text-red-700">
-                  <ul class="list-disc list-inside space-y-1">
-                    <!-- FIX: Display the first error message from the array -->
-                    <li v-for="(error, key) in form.errors" :key="key">{{ error[0] }}</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Transition>
+        <!-- Sección: Información Fiscal -->
+        <div class="border-b border-gray-200 pb-6">
+          <h2 class="text-lg font-medium text-gray-900 mb-4">Información Fiscal</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FormField
+              v-model="form.tipo_persona"
+              label="Tipo de Persona"
+              type="select"
+              id="tipo_persona"
+              :options="tipoPersonaOptions"
+              :error="form.errors.tipo_persona"
+              @change="handleTipoPersonaChange"
+              required
+            />
 
-        <!-- Alerta de éxito -->
-        <Transition
-          enter-active-class="transition duration-300 ease-out"
-          enter-from-class="transform translate-y-2 opacity-0"
-          enter-to-class="transform translate-y-0 opacity-100"
-          leave-active-class="transition duration-200 ease-in"
-          leave-from-class="transform translate-y-0 opacity-100"
-          leave-to-class="transform translate-y-2 opacity-0"
-        >
-          <div v-if="showSuccessMessage" class="mb-6 p-4 bg-green-50 border-l-4 border-green-400 rounded-md">
-            <div class="flex">
-              <div class="flex-shrink-0">
-                <i class="fas fa-check-circle text-green-400"></i>
-              </div>
-              <div class="ml-3">
-                <p class="text-sm font-medium text-green-800">
-                  ¡Excelente! Cliente actualizado exitosamente
-                </p>
-              </div>
-            </div>
-          </div>
-        </Transition>
-
-        <!-- Formulario principal -->
-        <form @submit.prevent="submit" class="space-y-8">
-          <!-- Sección: Información General -->
-          <div class="bg-gray-50 p-6 rounded-lg border">
-            <div class="flex items-center mb-6">
-              <i class="fas fa-user text-blue-600 mr-3 text-xl"></i>
-              <h2 class="text-xl font-semibold text-gray-900">Información General</h2>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div class="md:col-span-2">
-                <FormField
-                  v-model="form.nombre_razon_social"
-                  label="Nombre/Razón Social"
-                  type="text"
-                  id="nombre_razon_social"
-                  :error="form.errors.nombre_razon_social?.[0]"
-                  placeholder="Ingresa el nombre completo o razón social"
-                  @blur="convertirAMayusculas('nombre_razon_social')"
-                  :maxlength="255"
-                  required
-                  autocomplete="organization"
-                />
-              </div>
-
+            <div class="relative">
               <FormField
-                v-model="form.email"
-                label="Correo Electrónico"
-                type="email"
-                id="email"
-                :error="form.errors.email?.[0]"
-                placeholder="correo@ejemplo.com"
-                @blur="validarEmail"
-                required
-                autocomplete="email"
-              />
-
-              <FormField
-                v-model="form.telefono"
-                label="Teléfono"
-                type="tel"
-                id="telefono"
-                :maxlength="10"
-                :error="form.errors.telefono?.[0]"
-                placeholder="6621234567"
-                @input="formatearTelefono"
-                @blur="validarTelefono"
-                pattern="[0-9]{10}"
-                required
-                autocomplete="tel"
-              />
-            </div>
-          </div>
-
-          <!-- Sección: Información Fiscal -->
-          <div class="bg-gray-50 p-6 rounded-lg border">
-            <div class="flex items-center mb-6">
-              <i class="fas fa-file-invoice text-green-600 mr-3 text-xl"></i>
-              <h2 class="text-xl font-semibold text-gray-900">Información Fiscal</h2>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <FormField
-                v-model="form.tipo_persona"
-                label="Tipo de Persona"
-                type="select"
-                id="tipo_persona"
-                :options="tipoPersonaOptions"
-                :error="form.errors.tipo_persona?.[0]"
-                @change="handleTipoPersonaChange"
-                required
-              />
-
-              <div class="relative">
-                <FormField
-                  v-model="form.rfc"
-                  label="RFC"
-                  type="text"
-                  id="rfc"
-                  :maxlength="form.tipo_persona === 'fisica' ? 13 : 12"
-                  :error="form.errors.rfc?.[0]"
-                  :placeholder="form.tipo_persona === 'fisica' ? 'ABCD123456EFG' : 'ABC123456EFG'"
-                  @input="handleRfcInput"
-                  @blur="validarRFC"
-                  required
-                  autocomplete="off"
-                />
-                <Transition
-                  enter-active-class="transition duration-200 ease-out"
-                  enter-from-class="transform scale-95 opacity-0"
-                  enter-to-class="transform scale-100 opacity-100"
-                >
-                  <div v-if="rfcValidationStatus" class="mt-2 flex items-center">
-                    <i v-if="rfcValidationStatus === 'valid'" class="fas fa-check-circle text-green-500"></i>
-                    <i v-else class="fas fa-exclamation-circle text-red-500"></i>
-                    <span :class="rfcValidationStatus === 'valid' ? 'text-green-600' : 'text-red-600'" class="text-sm ml-2">
-                      {{ rfcValidationMessage }}
-                    </span>
-                  </div>
-                </Transition>
-              </div>
-
-              <FormField
-                v-model="form.regimen_fiscal"
-                label="Régimen Fiscal"
-                type="select"
-                id="regimen_fiscal"
-                :options="regimenesFiscalesOptions"
-                :error="form.errors.regimen_fiscal?.[0]"
-                required
-              />
-
-              <FormField
-                v-model="form.uso_cfdi"
-                label="Uso CFDI"
-                type="select"
-                id="uso_cfdi"
-                :options="usosCFDIOptions"
-                :error="form.errors.uso_cfdi?.[0]"
-                required
-              />
-            </div>
-          </div>
-
-          <!-- Sección: Dirección -->
-          <div class="bg-gray-50 p-6 rounded-lg border">
-            <div class="flex items-center mb-6">
-              <i class="fas fa-map-marker-alt text-purple-600 mr-3 text-xl"></i>
-              <h2 class="text-xl font-semibold text-gray-900">Dirección</h2>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div class="md:col-span-2">
-                <FormField
-                  v-model="form.calle"
-                  label="Calle"
-                  type="text"
-                  id="calle"
-                  :maxlength="100"
-                  :error="form.errors.calle?.[0]"
-                  placeholder="Nombre de la calle"
-                  @blur="convertirAMayusculas('calle')"
-                  required
-                  autocomplete="street-address"
-                />
-              </div>
-
-              <FormField
-                v-model="form.numero_exterior"
-                label="Número Exterior"
+                v-model="form.rfc"
+                label="RFC"
                 type="text"
-                id="numero_exterior"
-                :error="form.errors.numero_exterior?.[0]"
-                placeholder="123"
-                @blur="convertirAMayusculas('numero_exterior')"
+                id="rfc"
+                :maxlength="form.tipo_persona === 'fisica' ? 13 : 12"
+                :error="form.errors.rfc"
+                :placeholder="form.tipo_persona === 'fisica' ? 'ABCD123456EFG' : 'ABC123456EFG'"
+                @input="handleRfcInput"
+                @blur="validarRFC"
                 required
               />
-
-              <FormField
-                v-model="form.numero_interior"
-                label="Número Interior"
-                type="text"
-                id="numero_interior"
-                :error="form.errors.numero_interior?.[0]"
-                placeholder="A, B, 1, etc. (opcional)"
-                @blur="convertirAMayusculas('numero_interior')"
-              />
-
-              <FormField
-                v-model="form.colonia"
-                label="Colonia"
-                type="text"
-                id="colonia"
-                :error="form.errors.colonia?.[0]"
-                placeholder="Nombre de la colonia"
-                @blur="convertirAMayusculas('colonia')"
-                required
-              />
-
-              <FormField
-                v-model="form.codigo_postal"
-                label="Código Postal"
-                type="text"
-                id="codigo_postal"
-                :error="form.errors.codigo_postal?.[0]"
-                placeholder="12345"
-                maxlength="5"
-                @input="validarCodigoPostal"
-                @blur="buscarInfoPorCP"
-                required
-                autocomplete="postal-code"
-              />
-
-              <FormField
-                v-model="form.municipio"
-                label="Municipio"
-                type="text"
-                id="municipio"
-                :error="form.errors.municipio?.[0]"
-                placeholder="Nombre del municipio"
-                @blur="convertirAMayusculas('municipio')"
-                required
-              />
-
-              <FormField
-                v-model="form.estado"
-                label="Estado"
-                type="text"
-                id="estado"
-                :error="form.errors.estado?.[0]"
-                placeholder="Nombre del estado"
-                @blur="convertirAMayusculas('estado')"
-                required
-              />
-
-              <FormField
-                v-model="form.pais"
-                label="País"
-                type="text"
-                id="pais"
-                :error="form.errors.pais?.[0]"
-                placeholder="MÉXICO"
-                @blur="convertirAMayusculas('pais')"
-                required
-                autocomplete="country"
-              />
-            </div>
-          </div>
-
-          <!-- Sección: Información Adicional -->
-          <div class="bg-gray-50 p-6 rounded-lg border">
-            <div class="flex items-center mb-6">
-              <i class="fas fa-info-circle text-orange-600 mr-3 text-xl"></i>
-              <h2 class="text-xl font-semibold text-gray-900">Información Adicional</h2>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <FormField
-                v-model="form.notas"
-                label="Notas"
-                type="textarea"
-                id="notas"
-                :error="form.errors.notas?.[0]"
-                placeholder="Observaciones adicionales del cliente (opcional)"
-                :rows="Number(4)"
-                maxlength="500"
-              />
-
-              <div class="space-y-4">
-                <div class="flex items-center">
-                  <input
-                    id="activo"
-                    v-model="form.activo"
-                    type="checkbox"
-                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  >
-                  <label for="activo" class="ml-2 block text-sm text-gray-900">
-                    Cliente activo
-                  </label>
-                </div>
-
-                <div class="flex items-center">
-                  <input
-                    id="acepta_marketing"
-                    v-model="form.acepta_marketing"
-                    type="checkbox"
-                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  >
-                  <label for="acepta_marketing" class="ml-2 block text-sm text-gray-900">
-                    Acepta recibir comunicaciones de marketing
-                  </label>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Botones de acción -->
-          <div class="flex justify-between items-center pt-6 border-t-2 border-gray-200">
-            <button
-              type="button"
-              @click="resetForm"
-              :disabled="form.processing"
-              class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-            >
-              <i class="fas fa-undo w-4 h-4 mr-2"></i>
-              Revertir Cambios
-            </button>
-
-            <div class="flex items-center space-x-4">
-              <div v-if="!isFormValid" class="text-sm text-red-600 flex items-center">
-                <i class="fas fa-exclamation-triangle w-4 h-4 mr-1"></i>
-                Completa todos los campos obligatorios
-              </div>
-
-              <button
-                type="submit"
-                :disabled="form.processing || !isFormValid || !form.isDirty"
-                class="inline-flex items-center px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 border border-transparent rounded-md hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105"
-              >
-                <span v-if="form.processing" class="flex items-center">
-                  <i class="fas fa-spinner fa-spin w-4 h-4 mr-2"></i>
-                  Actualizando...
+              <div v-if="rfcValidationStatus" class="mt-1 flex items-center">
+                <svg v-if="rfcValidationStatus === 'valid'" class="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                </svg>
+                <svg v-else class="h-4 w-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                </svg>
+                <span :class="rfcValidationStatus === 'valid' ? 'text-green-600' : 'text-red-600'" class="text-xs ml-1">
+                  {{ rfcValidationMessage }}
                 </span>
-                <span v-else class="flex items-center">
-                  <i class="fas fa-check w-4 h-4 mr-2"></i>
-                  Actualizar Cliente
-                </span>
-              </button>
+              </div>
             </div>
+
+           <FormField
+  v-model="form.regimen_fiscal"
+  label="Régimen Fiscal"
+  type="select"
+  id="regimen_fiscal"
+  :options="regimenesFiscalesOptions"
+  :error="form.errors.regimen_fiscal"
+  @change="form.clearErrors('regimen_fiscal')"
+  required
+/>
+
+            <FormField
+              v-model="form.uso_cfdi"
+              label="Uso CFDI"
+              type="select"
+              id="uso_cfdi"
+              :options="usosCFDIOptions"
+              :error="form.errors.uso_cfdi"
+              required
+            />
           </div>
-        </form>
-      </div>
+        </div>
+
+        <!-- Sección: Dirección -->
+        <div>
+          <h2 class="text-lg font-medium text-gray-900 mb-4">Dirección</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="md:col-span-2">
+              <FormField
+                v-model="form.calle"
+                label="Calle"
+                type="text"
+                id="calle"
+                :maxlength="100"
+                :error="form.errors.calle"
+                @blur="convertirAMayusculas('calle')"
+                required
+              />
+            </div>
+
+            <FormField
+              v-model="form.numero_exterior"
+              label="Número Exterior"
+              type="text"
+              id="numero_exterior"
+              :error="form.errors.numero_exterior"
+              @blur="convertirAMayusculas('numero_exterior')"
+              required
+            />
+
+            <FormField
+              v-model="form.numero_interior"
+              label="Número Interior"
+              type="text"
+              id="numero_interior"
+              :error="form.errors.numero_interior"
+              placeholder="A, B, 1, etc. (opcional)"
+              @blur="convertirAMayusculas('numero_interior')"
+            />
+
+            <FormField
+              v-model="form.colonia"
+              label="Colonia"
+              type="text"
+              id="colonia"
+              :error="form.errors.colonia"
+              @blur="convertirAMayusculas('colonia')"
+              required
+            />
+
+            <FormField
+              v-model="form.codigo_postal"
+              label="Código Postal"
+              type="text"
+              id="codigo_postal"
+              :error="form.errors.codigo_postal"
+              maxlength="5"
+              required
+            />
+
+            <FormField
+              v-model="form.municipio"
+              label="Municipio"
+              type="text"
+              id="municipio"
+              :error="form.errors.municipio"
+              @blur="convertirAMayusculas('municipio')"
+              required
+            />
+
+            <FormField
+              v-model="form.estado"
+              label="Estado"
+              type="text"
+              id="estado"
+              :error="form.errors.estado"
+              @blur="convertirAMayusculas('estado')"
+              required
+            />
+
+            <FormField
+              v-model="form.pais"
+              label="País"
+              type="text"
+              id="pais"
+              :error="form.errors.pais"
+              @blur="convertirAMayusculas('pais')"
+              required
+            />
+          </div>
+        </div>
+
+        <!-- Botones de acción -->
+        <div class="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+          <button
+            type="button"
+            @click="resetForm"
+            :disabled="form.processing"
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Limpiar
+          </button>
+          <button
+            type="submit"
+            :disabled="form.processing || !isFormValid"
+            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <span v-if="form.processing" class="flex items-center">
+              <svg class="w-4 h-4 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Guardando...
+            </span>
+            <span v-else>Actualizar Cliente</span>
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 </template>
 
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3';
-import { computed, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import FormField from '@/Components/FormField.vue';
 
-// Define el layout por defecto para esta página
 defineOptions({ layout: AppLayout });
 
-// Definición de props
 const props = defineProps({
   cliente: {
     type: Object,
-    required: true, // En Edit, el cliente siempre debe existir
-  },
-  regimenes_fiscales: {
-    type: Array,
-    default: () => []
-  },
-  usos_cfdi: {
-    type: Array,
-    default: () => []
+    required: true
   }
 });
-
-/*
-regimenes_fisicas: {
-    type: Array,
-    default: () => ['605', '606', '607', '608', '610', '611']
-},
-*/
 
 // Estados reactivos
 const showSuccessMessage = ref(false);
 const rfcValidationStatus = ref(null);
 const rfcValidationMessage = ref('');
-const isLoadingCP = ref(false);
-const cpInfo = ref(null);
 
-// Opciones para los campos select
+// Opciones de selección para campos select/dropdowns
 const tipoPersonaOptions = [
   { value: '', text: 'Selecciona el tipo de persona', disabled: true },
   { value: 'fisica', text: 'Persona Física' },
   { value: 'moral', text: 'Persona Moral' }
 ];
 
-const regimenesFiscalesOptions = computed(() => {
-  const defaultOptions = [
-    { value: '', text: 'Selecciona un régimen fiscal', disabled: true },
-    { value: '601', text: '601 - General de Ley Personas Morales' },
-    { value: '605', text: '605 - Sueldos y Salarios e Ingresos Asimilados a Salarios' },
-    { value: '612', text: '612 - Personas Físicas con Actividades Empresariales y Profesionales' },
-    { value: '626', text: '626 - Régimen Simplificado de Confianza' },
-    // Agrega más opciones por defecto si es necesario
-  ];
+const regimenesFiscalesOptions = [
+  { value: '', text: 'Selecciona un régimen fiscal', disabled: true },
+  { value: '616', text: '616 - Sin obligaciones fiscales' },
+  { value: '601', text: '601 - General de Ley Personas Morales' },
+  { value: '605', text: '605 - Sueldos y Salarios e Ingresos Asimilados a Salarios' },
+  { value: '606', text: '606 - Arrendamiento' },
+  { value: '607', text: '607 - Régimen de Enajenación o Adquisición de Bienes' },
+  { value: '608', text: '608 - Demás ingresos' },
+  { value: '610', text: '610 - Residentes en el Extranjero sin Establecimiento Permanente en México' },
+  { value: '611', text: '611 - Ingresos por Dividendos (socios y accionistas)' },
+  { value: '612', text: '612 - Personas Físicas con Actividades Empresariales y Profesionales' },
+  { value: '614', text: '614 - Ingresos por intereses' },
+  { value: '615', text: '615 - Régimen de los ingresos por obtención de premios' },
+  { value: '621', text: '621 - Incorporación Fiscal' },
+  { value: '622', text: '622 - Actividades Agrícolas, Ganaderas, Silvícolas y Pesqueras' },
+  { value: '623', text: '623 - Opcional para Grupos de Sociedades' },
+  { value: '624', text: '624 - Coordinados' },
+  { value: '625', text: '625 - Régimen de las Actividades Empresariales con ingresos a través de Plataformas Digitales' },
+  { value: '626', text: '626 - Régimen Simplificado de Confianza' }
+];
 
-  return props.regimenes_fiscales.length > 0
-    ? [{ value: '', text: 'Selecciona un régimen fiscal', disabled: true }, ...props.regimenes_fiscales]
-    : defaultOptions;
-});
+const usosCFDIOptions = [
+  { value: '', text: 'Selecciona un uso CFDI', disabled: true },
+  { value: 'G01', text: 'G01 - Adquisición de mercancías' },
+  { value: 'G02', text: 'G02 - Devoluciones, descuentos o bonificaciones' },
+  { value: 'G03', text: 'G03 - Gastos en general' },
+  { value: 'I01', text: 'I01 - Construcciones' },
+  { value: 'I02', text: 'I02 - Mobilario y equipo de oficina por inversiones' },
+  { value: 'I03', text: 'I03 - Equipo de transporte' },
+  { value: 'I04', text: 'I04 - Equipo de cómputo y accesorios' },
+  { value: 'I05', text: 'I05 - Dados, troqueles, moldes, matrices y herramental' },
+  { value: 'I06', text: 'I06 - Comunicaciones telefónicas' },
+  { value: 'I07', text: 'I07 - Comunicaciones satelitales' },
+  { value: 'I08', text: 'I08 - Otra maquinaria y equipo' },
+  { value: 'D01', text: 'D01 - Honorarios médicos, dentales y gastos hospitalarios' },
+  { value: 'D02', text: 'D02 - Gastos médicos por incapacidad o discapacidad' },
+  { value: 'D03', text: 'D03 - Gastos funerales' },
+  { value: 'D04', text: 'D04 - Donativos' },
+  { value: 'D05', text: 'D05 - Intereses reales efectivamente pagados por créditos hipotecarios (casa habitación)' },
+  { value: 'D06', text: 'D06 - Aportaciones voluntarias al SAR' },
+  { value: 'D07', text: 'D07 - Primas por seguros de gastos médicos' },
+  { value: 'D08', text: 'D08 - Gastos de transportación escolar obligatoria' },
+  { value: 'D09', text: 'D09 - Depósitos en cuentas para el ahorro, primas que tengan como base planes de pensiones' },
+  { value: 'D10', text: 'D10 - Pagos por servicios educativos (colegiaturas)' },
+  { value: 'S01', text: 'S01 - Sin efectos fiscales' },
+  { value: 'CP01', text: 'CP01 - Pagos' },
+  { value: 'CN01', text: 'CN01 - Nómina' }
+];
 
-const usosCFDIOptions = computed(() => {
-  const defaultOptions = [
-    { value: '', text: 'Selecciona un uso CFDI', disabled: true },
-    { value: 'G01', text: 'G01 - Adquisición de mercancías' },
-    { value: 'G03', text: 'G03 - Gastos en general' },
-    { value: 'S01', text: 'S01 - Sin efectos fiscales' },
-    { value: 'CP01', text: 'CP01 - Pagos' },
-    // Agrega más opciones por defecto si es necesario
-  ];
-
-  return props.usos_cfdi.length > 0
-    ? [{ value: '', text: 'Selecciona un uso CFDI', disabled: true }, ...props.usos_cfdi]
-    : defaultOptions;
-});
-
-// Formulario de Inertia
+// Formulario de Inertia.js
 const form = useForm({
+  requiere_factura: props.cliente.requiere_factura,
   nombre_razon_social: props.cliente.nombre_razon_social,
   tipo_persona: props.cliente.tipo_persona,
   rfc: props.cliente.rfc,
@@ -494,43 +364,26 @@ const form = useForm({
   codigo_postal: props.cliente.codigo_postal,
   municipio: props.cliente.municipio,
   estado: props.cliente.estado,
-  pais: props.cliente.pais,
-  notas: props.cliente.notas || '',
-  activo: props.cliente.activo !== undefined ? props.cliente.activo : true,
-  acepta_marketing: props.cliente.acepta_marketing || false
+  pais: props.cliente.pais
 });
 
-// Propiedades computadas
+// Propiedades computadas para la UI y validación general
 const hasGlobalErrors = computed(() => {
   return Object.keys(form.errors).length > 0;
 });
 
-const formProgress = computed(() => {
-  const requiredFields = [
-    'nombre_razon_social', 'email', 'telefono', 'tipo_persona', 'rfc',
-    'regimen_fiscal', 'uso_cfdi', 'calle', 'numero_exterior', 'colonia',
-    'codigo_postal', 'municipio', 'estado', 'pais'
-  ];
-  const filledFields = requiredFields.filter(field => {
-    const value = form[field];
-    return value !== null && value !== undefined && value.toString().trim() !== '';
-  });
-  return (filledFields.length / requiredFields.length) * 100;
-});
-
 const isFormValid = computed(() => {
-  const requiredFields = [
-    'nombre_razon_social', 'email', 'telefono', 'tipo_persona', 'rfc',
-    'regimen_fiscal', 'uso_cfdi', 'calle', 'numero_exterior', 'colonia',
-    'codigo_postal', 'municipio', 'estado', 'pais'
-  ];
+  const requiredFields = ['nombre_razon_social', 'email', 'telefono', 'calle', 'numero_exterior', 'colonia', 'codigo_postal', 'municipio', 'estado', 'pais'];
+  if (form.requiere_factura === 'si') {
+    requiredFields.push('tipo_persona', 'rfc', 'regimen_fiscal', 'uso_cfdi');
+  }
   const allRequiredFieldsFilled = requiredFields.every(field =>
     form[field] !== null && form[field] !== undefined && form[field].toString().trim() !== ''
   );
   return allRequiredFieldsFilled && Object.keys(form.errors).length === 0;
 });
 
-// Funciones de validación y manejo
+// Funciones de manejo de eventos y validación
 const handleTipoPersonaChange = () => {
   form.rfc = '';
   form.clearErrors('rfc');
@@ -552,13 +405,16 @@ const handleRfcInput = (event) => {
 };
 
 const validarRFC = () => {
-  if (!form.rfc || form.rfc.trim() === '') {
+  if (!form.rfc || form.rfc.trim() === '' || form.rfc === 'XAXX010101000') {
+    form.clearErrors('rfc');
     rfcValidationStatus.value = null;
     rfcValidationMessage.value = '';
-    return false;
+    return true;
   }
+
   const rfcRegexFisica = /^[A-ZÑ&]{4}\d{6}[A-Z0-9]{3}$/;
   const rfcRegexMoral = /^[A-ZÑ&]{3}\d{6}[A-Z0-9]{3}$/;
+
   let isValid = false;
   let errorMessage = '';
 
@@ -566,13 +422,13 @@ const validarRFC = () => {
     if (form.rfc.length === 13 && rfcRegexFisica.test(form.rfc)) {
       isValid = true;
     } else {
-      errorMessage = 'RFC inválido para persona física (13 caracteres).';
+      errorMessage = 'El RFC debe tener 13 caracteres (4 letras, 6 dígitos, 3 alfanuméricos) y ser válido para una persona física.';
     }
   } else {
     if (form.rfc.length === 12 && rfcRegexMoral.test(form.rfc)) {
       isValid = true;
     } else {
-      errorMessage = 'RFC inválido para persona moral (12 caracteres).';
+      errorMessage = 'El RFC debe tener 12 caracteres (3 letras, 6 dígitos, 3 alfanuméricos) y ser válido para una persona moral.';
     }
   }
 
@@ -589,14 +445,6 @@ const validarRFC = () => {
   }
 };
 
-const formatearTelefono = (event) => {
-  const value = event.target.value.replace(/\D/g, '');
-  form.telefono = value;
-  if (value.length === 10) {
-    validarTelefono();
-  }
-};
-
 const validarTelefono = () => {
   const telefonoLimpio = form.telefono.replace(/\D/g, '');
   form.telefono = telefonoLimpio;
@@ -608,15 +456,7 @@ const validarTelefono = () => {
   return true;
 };
 
-const validarEmail = () => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(form.email)) {
-    form.setError('email', 'Ingresa un email válido.');
-    return false;
-  }
-  form.clearErrors('email');
-  return true;
-};
+
 
 const convertirAMayusculas = (campo) => {
   if (form[campo] && campo !== 'email') {
@@ -624,45 +464,24 @@ const convertirAMayusculas = (campo) => {
   }
 };
 
-const validarCodigoPostal = (event) => {
-  const value = event.target.value.replace(/\D/g, '');
-  form.codigo_postal = value;
-  if (value.length === 5) {
-    buscarInfoPorCP();
-  }
-};
-
-const buscarInfoPorCP = async () => {
-  if (form.codigo_postal.length !== 5) return;
-  isLoadingCP.value = true;
-  try {
-    // Simulación de API. Reemplazar con una llamada real si es necesario.
-    const cpData = {
-      '83000': { municipio: 'HERMOSILLO', estado: 'SONORA' },
-      '06600': { municipio: 'CUAUHTÉMOC', estado: 'CIUDAD DE MÉXICO' },
-      '64000': { municipio: 'MONTERREY', estado: 'NUEVO LEÓN' },
-      '44100': { municipio: 'GUADALAJARA', estado: 'JALISCO' }
-    };
-    const info = cpData[form.codigo_postal];
-    if (info) {
-      form.municipio = info.municipio;
-      form.estado = info.estado;
-      cpInfo.value = info;
-    }
-  } catch (error) {
-    console.error('Error al buscar información del código postal:', error);
-  } finally {
-    isLoadingCP.value = false;
-  }
-};
-
 const resetForm = () => {
-  // `form.reset()` de Inertia revierte a los valores iniciales pasados a `useForm`
   form.reset();
+  form.requiere_factura = 'si';
+  form.tipo_persona = 'fisica';
+  form.rfc = '';
+  form.regimen_fiscal = '';
+  form.uso_cfdi = '';
+  form.calle = '';
+  form.colonia = '';
+  form.numero_exterior = '';
+  form.numero_interior = '';
+  form.codigo_postal = '';
+  form.municipio = '';
+  form.estado = '';
+  form.pais = '';
   rfcValidationStatus.value = null;
   rfcValidationMessage.value = '';
   showSuccessMessage.value = false;
-  cpInfo.value = null;
   form.clearErrors();
 };
 
@@ -670,46 +489,30 @@ const submit = () => {
   showSuccessMessage.value = false;
   form.clearErrors();
 
-  // Realizar validaciones del lado del cliente antes de enviar
   const isRfcValid = validarRFC();
   const isTelefonoValid = validarTelefono();
-  const isEmailValid = validarEmail();
 
-  if (!isRfcValid || !isTelefonoValid || !isEmailValid || !isFormValid.value) {
+
+  if (!isRfcValid || !isTelefonoValid ) {
     console.warn('Falló la validación del lado del cliente. No se envió el formulario.');
-    // Opcional: mostrar un mensaje de error general
-    if (!form.hasErrors) {
-        form.setError('general', 'Por favor, corrige los errores antes de continuar.');
-    }
     return;
   }
 
-  const submitConfig = {
+  form.put(route('clientes.update', props.cliente.id), {
     preserveScroll: true,
     onSuccess: () => {
       showSuccessMessage.value = true;
-      // `form.defaults()` actualiza los valores base del formulario con los nuevos datos
-      // `form.reset()` los revierte a esos nuevos valores base.
-      form.defaults(form.data());
-      form.reset();
-
       setTimeout(() => {
         showSuccessMessage.value = false;
       }, 3000);
+      console.log('Cliente actualizado exitosamente.');
     },
     onError: (serverErrors) => {
-      console.error('Error en la petición:', serverErrors);
+      console.error('Error al actualizar cliente:', serverErrors);
+    },
+    onFinish: () => {
+      console.log('Petición de actualización finalizada.');
     }
-  };
-
-  // Para la página de edición, siempre usamos PUT/PATCH
-  form.put(route('clientes.update', props.cliente.id), submitConfig);
+  });
 };
-
-// Watchers para mejorar UX
-watch(() => form.tipo_persona, (newValue) => {
-  if (form.rfc) {
-    handleTipoPersonaChange();
-  }
-});
 </script>

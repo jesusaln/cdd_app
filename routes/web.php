@@ -47,12 +47,14 @@ Route::get('/', function () {
 // Rutas protegidas por autenticación
 Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified'])->group(function () {
     Route::get('/panel', [PanelController::class, 'index'])->name('panel');
+    //Route::post('/api/validar-rfc', [ClienteController::class, 'validarRfc']);
 
     Route::get('/dashboard', function () {
         return redirect()->route('panel');
     })->name('dashboard');
 
     Route::resource('clientes', ClienteController::class)->names('clientes');
+    Route::post('/validar-rfc', [ClienteController::class, 'validarRfc']);
     Route::get('/clientes/check-email', [ClienteController::class, 'checkEmail'])->name('clientes.checkEmail');
 
     Route::put('/clientes/{cliente}/toggle', [ClienteController::class, 'toggle'])->name('clientes.toggle');

@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use Inertia\Inertia;
 use App\Models\Cliente;
 use App\Http\Requests\StoreClienteRequest;
-use Illuminate\Support\Facades\Log;
+
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
 
 class ClienteController extends Controller
 {
@@ -185,6 +187,7 @@ class ClienteController extends Controller
         }
     }
 
+
     public function show(Cliente $cliente)
     {
         $cliente->tipo_persona_nombre = $this->getTipoPersonaNombre($cliente->tipo_persona);
@@ -231,7 +234,6 @@ class ClienteController extends Controller
                     'string',
                     'max:13',
                     'regex:/^[A-ZÑ&]{3,4}[0-9]{6}[A-Z0-9]{3}$/',
-                    // Excluir el cliente actual de la validación de unicidad
                     function ($attribute, $value, $fail) use ($cliente) {
                         if ($value !== 'XAXX010101000' && Cliente::where('rfc', $value)->where('id', '!=', $cliente->id)->exists()) {
                             $fail('El RFC ya está registrado.');
@@ -251,13 +253,7 @@ class ClienteController extends Controller
                     },
                 ],
                 'uso_cfdi' => 'required|string|in:G01,G02,G03,I01,I02,I03,I04,I05,I06,I07,I08,D01,D02,D03,D04,D05,D06,D07,D08,D09,D10,S01,CP01,CN01',
-                'email' => [
-                    'required',
-                    'email',
-                    'max:255',
-                    // Excluir el cliente actual de la validación de unicidad
-                    'unique:clientes,email,' . $cliente->id,
-                ],
+                'email' => 'required|email|max:255', // Eliminada la validación de unicidad
                 'telefono' => 'nullable|string|max:20|regex:/^[0-9+\-\s()]+$/',
                 'calle' => 'required|string|max:255',
                 'numero_exterior' => 'required|string|max:20',
@@ -290,7 +286,6 @@ class ClienteController extends Controller
             // Actualizar el cliente
             $cliente->update($validator->validated());
 
-
             Log::info('Cliente actualizado:', $cliente->toArray());
 
             return redirect()->route('clientes.index')->with('success', 'Cliente actualizado correctamente');
@@ -311,7 +306,6 @@ class ClienteController extends Controller
             'rfc.unique' => 'El RFC ya está registrado.',
             'email.required' => 'El email es obligatorio.',
             'email.email' => 'El email debe tener un formato válido.',
-            'email.unique' => 'El email ya está registrado.',
             'telefono.regex' => 'El teléfono solo debe contener números, espacios, paréntesis, guiones y el signo +.',
             'codigo_postal.required' => 'El código postal es obligatorio.',
             'codigo_postal.size' => 'El código postal debe tener 5 dígitos.',
@@ -326,6 +320,7 @@ class ClienteController extends Controller
         ];
     }
 
+
     public function destroy(Cliente $cliente)
     {
         $cliente->delete();
@@ -333,7 +328,47 @@ class ClienteController extends Controller
     }
 
 
+    /**
+     * Valida si un RFC ya existe en la base de datos
+     */
+    public function validarRfc(Request $request)
+    {
+        try {
+            $rfc = strtoupper(trim($request->input('rfc', '')));
+            $clienteId = $request->input('cliente_id');
 
+            if (empty($rfc)) {
+                return response()->json([
+                    'success' => false,
+                    'exists' => false,
+                    'message' => 'RFC requerido'
+                ], 422);
+            }
+
+            // Verificar si el RFC ya existe, excluyendo el cliente actual si es edición
+            $query = \App\Models\Cliente::where('rfc', $rfc);
+
+            if ($clienteId) {
+                $query->where('id', '!=', $clienteId);
+            }
+
+            $existe = $query->exists();
+
+            return response()->json([
+                'success' => true,
+                'exists' => $existe,
+                'message' => $existe ? 'RFC ya registrado' : 'RFC disponible'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error validando RFC: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'exists' => false,
+                'message' => 'Error interno del servidor'
+            ], 500);
+        }
+    }
 
     public function toggle(Cliente $cliente)
     {
@@ -357,12 +392,7 @@ class ClienteController extends Controller
         }
     }
 
-    // --- Endpoints de API para opciones (no necesitan cambios, ya devuelven arrays JSON) ---
-    public function checkEmail(Request $request)
-    {
-        $exists = Cliente::where('email', $request->query('email'))->exists();
-        return response()->json(['exists' => $exists]);
-    }
+
 
     public function checkRfc(Request $request)
     {

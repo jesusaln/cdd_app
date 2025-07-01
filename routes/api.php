@@ -66,6 +66,6 @@ Route::post('/clientes', [ClienteController::class, 'store'])->name('api.cliente
 Route::get('/clientes/{id}', [ClienteController::class, 'show'])->name('api.clientes.show'); // Obtener un cliente específico
 Route::put('/clientes/{id}', [ClienteController::class, 'update'])->name('api.clientes.update'); // Actualizar un cliente
 Route::delete('/clientes/{id}', [ClienteController::class, 'destroy'])->name('api.clientes.destroy'); // Eliminar un cliente
-
+Route::post('/api/validar-rfc', [ClienteController::class, 'validarRfc']);
 // Verificar si un email ya existe
 Route::get('/clientes/check-email', [ClienteController::class, 'checkEmail'])->name('api.clientes.check-email');

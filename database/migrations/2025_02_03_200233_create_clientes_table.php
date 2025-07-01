@@ -18,10 +18,10 @@ return new class extends Migration
             $table->string('tipo_identificacion')->nullable(); // Tipo de identificación (INE, Pasaporte, etc.)
             $table->string('identificacion')->nullable(); // Número de identificación
             $table->string('curp')->nullable(); // CURP (opcional)
-            $table->string('rfc', 13); // RFC (13 caracteres)
+            $table->string('rfc', 13)->unique(); // RFC (13 caracteres)
             $table->string('regimen_fiscal'); // Clave del régimen fiscal
             $table->string('uso_cfdi'); // Clave de uso del CFDI
-            $table->string('email')->unique(); // Correo electrónico (único)
+            $table->string('email'); // Correo electrónico (único)
             $table->string('telefono')->nullable(); // Teléfono (opcional)
             $table->string('calle'); // Calle
             $table->string('numero_exterior'); // Número exterior
@@ -31,6 +31,7 @@ return new class extends Migration
             $table->string('municipio'); // Municipio o alcaldía
             $table->string('estado'); // Estado
             $table->string('pais')->default('México'); // País (por defecto, México)
+            $table->boolean('activo')->default(true)->after('requiere_factura');
             $table->timestamps();
         });
     }

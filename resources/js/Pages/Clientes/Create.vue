@@ -49,48 +49,9 @@
 
       <!-- Formulario principal -->
       <form @submit.prevent="submit" class="space-y-8">
-        <!-- Sección: Tipo de Cliente -->
-        <div class="border-b border-gray-200 pb-6">
-          <h2 class="text-lg font-medium text-gray-900 mb-4">Tipo de Cliente</h2>
-          <div class="flex items-center space-x-6">
-            <label class="inline-flex items-center cursor-pointer">
-              <input
-                type="radio"
-                class="form-radio h-4 w-4 text-blue-600 focus:ring-blue-500"
-                v-model="form.requiere_factura"
-                value="si"
-                @change="handleFacturaChange"
-              >
-              <span class="ml-2 text-sm text-gray-700">Sí requiere factura</span>
-            </label>
-            <label class="inline-flex items-center cursor-pointer">
-              <input
-                type="radio"
-                class="form-radio h-4 w-4 text-blue-600 focus:ring-blue-500"
-                v-model="form.requiere_factura"
-                value="no"
-                @change="handleFacturaChange"
-              >
-              <span class="ml-2 text-sm text-gray-700">No requiere factura</span>
-            </label>
-          </div>
 
-          <!-- Información sobre "Público en General" cuando no se requiere factura -->
-          <div v-if="form.requiere_factura === 'no'" class="mt-4 p-3 bg-blue-50 rounded-md">
-            <div class="flex">
-              <div class="flex-shrink-0">
-                <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
-                </svg>
-              </div>
-              <div class="ml-3">
-                <p class="text-sm text-blue-800">
-                  Se configurará automáticamente como "Público en General" con datos fiscales predeterminados.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+
+
 
         <!-- Sección: Información General -->
         <div class="border-b border-gray-200 pb-6">
@@ -481,50 +442,7 @@ const isFormValid = computed(() => {
  * Si es 'no', establece automáticamente los datos de "Público en General".
  * Si es 'si', limpia los campos relacionados con "Público en General" para que el usuario los introduzca.
  */
-const handleFacturaChange = () => {
-  if (form.requiere_factura === 'no') {
-    // Asigna valores predeterminados para "Público en General"
-    Object.assign(form, {
-      tipo_persona: 'fisica',
-      rfc: 'XAXX010101000',
-      regimen_fiscal: '616', // Sin obligaciones fiscales
-      uso_cfdi: 'G03', // Gastos en general
-      calle: 'CALLE GENERICA',
-      colonia: 'COLONIA GENERICA',
-      numero_exterior: '0', // Puede ser un valor numérico predeterminado
-      numero_interior: '', // No aplica o vacío
-      codigo_postal: '99999', // Código postal genérico
-      municipio: 'CIUDAD GENERICA',
-      estado: 'ESTADO GENERICA',
-      pais: 'MEXICO',
-    });
-    // Limpia los errores de RFC que pudieran existir si antes era 'si'
-    form.clearErrors('rfc');
-    rfcValidationStatus.value = null;
-    rfcValidationMessage.value = '';
 
-  } else {
-    // Si vuelve a "sí requiere factura", reinicia los campos fiscales y de dirección genéricos
-    Object.assign(form, {
-      rfc: '',
-      regimen_fiscal: '',
-      uso_cfdi: '',
-      calle: '',
-      colonia: '',
-      numero_exterior: '',
-      numero_interior: '',
-      codigo_postal: '',
-      municipio: '',
-      estado: '',
-      pais: '',
-    });
-  }
-  // Limpia todos los errores de validación para evitar que queden mensajes irrelevantes
-  form.clearErrors();
-  // Reinicia los estados de validación de RFC
-  rfcValidationStatus.value = null;
-  rfcValidationMessage.value = '';
-};
 
 /**
  * Maneja el cambio en el 'tipo_persona' (Física o Moral).
@@ -696,12 +614,12 @@ const submit = () => {
 
   // 2. Ejecutar todas las validaciones del lado del cliente
   const isRfcValid = validarRFC();
-  const isTelefonoValid = validarTelefono();
-  const isEmailValid = validarEmail();
+
+
 
   // 3. Si alguna validación del lado del cliente falla, detener el envío del formulario.
   // Las funciones de validación ya habrán establecido los errores en `form.errors`.
-  if (!isRfcValid || !isTelefonoValid || !isEmailValid) {
+  if (!isRfcValid ) {
     console.warn('Falló la validación del lado del cliente. No se envió el formulario.');
     return;
   }
