@@ -32,10 +32,11 @@
               Información del Cliente
             </h2>
           </div>
-          <div class="p-6">
+          <div class="relative p-6">
             <!-- Componente de búsqueda de clientes -->
             <BuscarCliente
-              :clientes="clientes"
+             :clientes="clientes"
+
               :cliente-seleccionado="clienteSeleccionado"
               @cliente-seleccionado="onClienteSeleccionado"
               @crear-nuevo-cliente="crearNuevoCliente"
