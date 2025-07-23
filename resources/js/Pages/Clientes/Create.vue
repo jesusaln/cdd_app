@@ -49,10 +49,6 @@
 
       <!-- Formulario principal -->
       <form @submit.prevent="submit" class="space-y-8">
-
-
-
-
         <!-- Sección: Información General -->
         <div class="border-b border-gray-200 pb-6">
           <h2 class="text-lg font-medium text-gray-900 mb-4">Información General</h2>
@@ -89,7 +85,6 @@
               :maxlength="10"
               :error="form.errors.telefono"
               placeholder="6621234567"
-
               pattern="[0-9]{10}"
               required
             />
@@ -262,7 +257,7 @@
         <div class="flex justify-end space-x-4 pt-6 border-t border-gray-200">
           <button
             type="button"
-            @click="resetForm"
+            @click="confirmarYLimpiar"
             :disabled="form.processing"
             class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -292,9 +287,8 @@
 import { debounce } from 'lodash-es';
 import { Head, useForm } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
-import AppLayout from '@/Layouts/AppLayout.vue'; // Asume que este componente existe
-import FormField from '@/Components/FormField.vue'; // Asume que este componente existe y es la versión Vue
-
+import AppLayout from '@/Layouts/AppLayout.vue';
+import FormField from '@/Components/FormField.vue';
 
 // Define las opciones para el componente layout
 defineOptions({ layout: AppLayout });
@@ -327,10 +321,8 @@ const props = defineProps({
 });
 
 // --- Estados reactivos ---
-// Controla la visibilidad del mensaje de éxito
 const showSuccessMessage = ref(false);
-// Estado y mensaje de validación del RFC (para feedback visual instantáneo)
-const rfcValidationStatus = ref(null); // 'valid', 'invalid', or null
+const rfcValidationStatus = ref(null);
 const rfcValidationMessage = ref('');
 
 // --- Opciones de selección para campos select/dropdowns ---
@@ -390,7 +382,6 @@ const usosCFDIOptions = [
 ];
 
 // --- Formulario de Inertia.js ---
-// Inicializa el formulario con los datos del cliente que se está editando o valores por defecto para uno nuevo.
 const form = useForm({
   requiere_factura: props.cliente.requiere_factura,
   nombre_razon_social: props.cliente.nombre_razon_social,
@@ -410,85 +401,51 @@ const form = useForm({
   pais: props.cliente.pais
 });
 
-// --- Propiedades computadas para la UI y validación general ---
-
-// Verifica si existen errores globales en el formulario (de Inertia)
+// --- Propiedades computadas ---
 const hasGlobalErrors = computed(() => {
   return Object.keys(form.errors).length > 0;
 });
 
-// Determina si el formulario es válido para ser enviado
 const isFormValid = computed(() => {
-  // Campos obligatorios generales
   const requiredFields = ['nombre_razon_social', 'email', 'telefono', 'calle', 'numero_exterior', 'colonia', 'codigo_postal', 'municipio', 'estado', 'pais'];
 
-  // Si requiere factura, añade los campos fiscales como obligatorios
   if (form.requiere_factura === 'si') {
     requiredFields.push('tipo_persona', 'rfc', 'regimen_fiscal', 'uso_cfdi');
   }
 
-  // Comprueba que todos los campos obligatorios no estén vacíos
   const allRequiredFieldsFilled = requiredFields.every(field =>
     form[field] !== null && form[field] !== undefined && form[field].toString().trim() !== ''
   );
 
-  // El formulario es válido si todos los campos obligatorios están llenos
-  // Y si no hay errores de validación activos en el objeto 'form.errors' de Inertia
   return allRequiredFieldsFilled && Object.keys(form.errors).length === 0;
 });
 
-// --- Funciones de manejo de eventos y validación ---
-
-/**
- * Maneja el cambio en la opción 'requiere_factura'.
- * Si es 'no', establece automáticamente los datos de "Público en General".
- * Si es 'si', limpia los campos relacionados con "Público en General" para que el usuario los introduzca.
- */
-
-
-/**
- * Maneja el cambio en el 'tipo_persona' (Física o Moral).
- * Reinicia el campo RFC y su estado de validación, ya que el formato cambia.
- */
+// --- Funciones ---
 const handleTipoPersonaChange = () => {
-  form.rfc = ''; // Limpia el RFC al cambiar el tipo de persona
+  form.rfc = '';
   form.clearErrors('rfc');
   rfcValidationStatus.value = null;
   rfcValidationMessage.value = '';
 };
 
-/**
- * Procesa la entrada del RFC, lo convierte a mayúsculas y lo limpia de caracteres no válidos.
- * También dispara la validación si la longitud es la esperada.
- * @param {Event} event - El evento de entrada (input).
- */
 const handleRfcInput = debounce((event) => {
-  // Convierte a mayúsculas y elimina caracteres no alfanuméricos (excepto & y Ñ)
   const value = event.target.value.toUpperCase().replace(/[^A-ZÑ&0-9]/g, '');
   form.rfc = value;
 
-  // Determina la longitud esperada del RFC según el tipo de persona
   const expectedLength = form.tipo_persona === 'fisica' ? 13 : 12;
 
-  // Dispara la validación si la longitud coincide con la esperada
   if (value.length === expectedLength) {
     validarRFC();
   } else {
-    // Si la longitud no es la esperada, limpia el estado de validación del RFC
     rfcValidationStatus.value = null;
     rfcValidationMessage.value = '';
-    form.clearErrors('rfc'); // Asegura que no haya un error persistente de RFC
-  }
-},300); // 300 ms de debounce para evitar validaciones excesivas al escribir
-
-/**
- * Valida el formato del RFC según el tipo de persona (Física o Moral).
- * Actualiza el estado de validación y el mensaje.
- * @returns {boolean} True si el RFC es válido, false en caso contrario.
- */
-const validarRFC = () => {
     form.clearErrors('rfc');
-  // Si el RFC es nulo, vacío o el valor de "Público en General", es considerado válido aquí
+  }
+}, 300);
+
+const validarRFC = () => {
+  form.clearErrors('rfc');
+
   if (!form.rfc || form.rfc.trim() === '' || form.rfc === 'XAXX010101000') {
     form.clearErrors('rfc');
     rfcValidationStatus.value = null;
@@ -496,9 +453,8 @@ const validarRFC = () => {
     return true;
   }
 
-  // Expresiones regulares para RFC de persona física y moral
-  const rfcRegexFisica = /^[A-ZÑ&]{4}\d{6}[A-Z0-9]{3}$/; // 4 letras + 6 dígitos + 3 caracteres (homoclave)
-  const rfcRegexMoral = /^[A-ZÑ&]{3}\d{6}[A-Z0-9]{3}$/;  // 3 letras + 6 dígitos + 3 caracteres (homoclave)
+  const rfcRegexFisica = /^[A-ZÑ&]{4}\d{6}[A-Z0-9]{3}$/;
+  const rfcRegexMoral = /^[A-ZÑ&]{3}\d{6}[A-Z0-9]{3}$/;
 
   let isValid = false;
   let errorMessage = '';
@@ -509,7 +465,7 @@ const validarRFC = () => {
     } else {
       errorMessage = 'El RFC debe tener 13 caracteres (4 letras, 6 dígitos, 3 alfanuméricos) y ser válido para una persona física.';
     }
-  } else { // tipo_persona === 'moral'
+  } else {
     if (form.rfc.length === 12 && rfcRegexMoral.test(form.rfc)) {
       isValid = true;
     } else {
@@ -518,26 +474,21 @@ const validarRFC = () => {
   }
 
   if (!isValid) {
-    form.setError('rfc', errorMessage); // Establece el error en el objeto 'form' de Inertia
+    form.setError('rfc', errorMessage);
     rfcValidationStatus.value = 'invalid';
     rfcValidationMessage.value = errorMessage;
     return false;
   } else {
-    form.clearErrors('rfc'); // Limpia cualquier error anterior para este campo
+    form.clearErrors('rfc');
     rfcValidationStatus.value = 'valid';
     rfcValidationMessage.value = 'RFC válido';
     return true;
   }
 };
 
-/**
- * Valida que el campo de teléfono contenga exactamente 10 dígitos.
- * Limpia el valor para asegurar que solo haya números.
- * @returns {boolean} True si el teléfono es válido, false en caso contrario.
- */
 const validarTelefono = () => {
-  const telefonoLimpio = form.telefono.replace(/\D/g, ''); // Elimina caracteres no numéricos
-  form.telefono = telefonoLimpio; // Actualiza el modelo con el valor limpio
+  const telefonoLimpio = form.telefono.replace(/\D/g, '');
+  form.telefono = telefonoLimpio;
 
   if (telefonoLimpio.length !== 10) {
     form.setError('telefono', 'El teléfono debe tener exactamente 10 dígitos.');
@@ -548,12 +499,8 @@ const validarTelefono = () => {
   return true;
 };
 
-/**
- * Valida el formato del correo electrónico.
- * @returns {boolean} True si el email es válido, false en caso contrario.
- */
 const validarEmail = () => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; // Expresión regular básica para email
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   if (!emailRegex.test(form.email)) {
     form.setError('email', 'Ingresa un email válido.');
@@ -564,32 +511,16 @@ const validarEmail = () => {
   return true;
 };
 
-/**
- * Convierte el valor de un campo específico a mayúsculas y elimina espacios en blanco al inicio/final.
- * Se utiliza en el evento @blur de los campos de texto.
- * @param {string} campo - El nombre del campo a convertir.
- */
 const convertirAMayusculas = (campo) => {
-  if (form[campo] && campo !== 'email') { // El email no se convierte a mayúsculas
+  if (form[campo] && campo !== 'email') {
     form[campo] = form[campo].toString().toUpperCase().trim();
   }
 };
 
-/**
- * Reinicia el formulario a su estado inicial o por defecto.
- * Limpia todos los errores y mensajes de validación.
- */
 const resetForm = () => {
-  // Inertia's form.reset() restablece el formulario a su estado inicial.
-  if (confirm('¿Estás seguro de que quieres limpiar el formulario?')) {
-    form.reset();
-  } else {
-    return; // Si el usuario cancela, no hace nada más
-  }
-  // Se pueden restablecer explícitamente algunos valores por defecto si useForm() no los maneja así inicialmente
+  form.reset();
   form.requiere_factura = 'si';
   form.tipo_persona = 'fisica';
-  // Asegura que los campos que fueron autocompletados o modificados se limpien correctamente
   form.rfc = '';
   form.regimen_fiscal = '';
   form.uso_cfdi = '';
@@ -602,83 +533,64 @@ const resetForm = () => {
   form.estado = '';
   form.pais = '';
 
-  // Reinicia los estados de validación específicos (RFC, éxito)
   rfcValidationStatus.value = null;
   rfcValidationMessage.value = '';
   showSuccessMessage.value = false;
-  form.clearErrors(); // Limpia todos los errores del formulario
+  form.clearErrors();
 };
 
-/**
- * Función principal para el envío del formulario.
- * Ejecuta validaciones del lado del cliente y luego envía los datos al servidor
- * usando las capacidades de Inertia.js (POST para crear, PUT para actualizar).
- */
+const confirmarYLimpiar = () => {
+  if (confirm('¿Estás seguro de que quieres limpiar el formulario?')) {
+    resetForm();
+  }
+};
+
 const submit = () => {
-  // 1. Limpiar mensajes de éxito y errores previos del formulario para una nueva validación
   showSuccessMessage.value = false;
   form.clearErrors();
 
-  // 2. Ejecutar todas las validaciones del lado del cliente
   const isRfcValid = validarRFC();
 
-
-
-  // 3. Si alguna validación del lado del cliente falla, detener el envío del formulario.
-  // Las funciones de validación ya habrán establecido los errores en `form.errors`.
-  if (!isRfcValid ) {
+  if (!isRfcValid) {
     console.warn('Falló la validación del lado del cliente. No se envió el formulario.');
     return;
   }
 
-  // 4. Determinar si es una operación de actualización (PUT) o creación (POST)
   if (props.cliente.id) {
-    // Si 'cliente.id' existe, estamos editando un cliente existente
     form.put(route('clientes.update', props.cliente.id), {
-      preserveScroll: true, // Mantiene la posición del scroll después de la recarga/redirección
+      preserveScroll: true,
       onSuccess: () => {
         showSuccessMessage.value = true;
-        // Ocultar el mensaje de éxito después de 3 segundos
         setTimeout(() => {
           showSuccessMessage.value = false;
         }, 3000);
         console.log('Cliente actualizado exitosamente.');
       },
       onError: (serverErrors) => {
-        // Inertia.js propaga automáticamente los errores de validación de Laravel a `form.errors`.
-        // Puedes loguear los errores para depuración.
         console.error('Error al actualizar cliente:', serverErrors);
       },
       onFinish: () => {
-        // Lógica a ejecutar siempre al finalizar la petición (éxito o error)
-        // Por ejemplo, para deshabilitar un spinner global si lo hubiera.
         console.log('Petición de actualización finalizada.');
       }
     });
   } else {
-    // Si 'cliente.id' no existe, estamos creando un nuevo cliente
     form.post(route('clientes.store'), {
-      preserveScroll: true, // Mantiene la posición del scroll
+      preserveScroll: true,
       onSuccess: () => {
         showSuccessMessage.value = true;
-        // Ocultar el mensaje de éxito y resetear el formulario para una nueva entrada
         setTimeout(() => {
           showSuccessMessage.value = false;
-          resetForm(); // Limpia el formulario para que el usuario pueda añadir otro cliente
+          resetForm();
         }, 3000);
         console.log('Cliente creado exitosamente.');
       },
       onError: (serverErrors) => {
-        // Inertia.js propaga automáticamente los errores de validación de Laravel a `form.errors`.
         console.error('Error al crear cliente:', serverErrors);
       },
       onFinish: () => {
-        // Lógica a ejecutar siempre al finalizar la petición
         console.log('Petición de creación finalizada.');
       }
     });
   }
-
-
 };
 </script>
