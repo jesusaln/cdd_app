@@ -52,7 +52,17 @@ class CotizacionController extends Controller
                 'cliente' => $cotizacion->cliente,
                 'productos' => $items,
                 'total' => $cotizacion->total,
-                'fecha' => Carbon::parse($cotizacion->created_at)->format('Y-m-d'), // 👈 Agregado
+                // 🔧 SOLUCION: Enviar la fecha completa con hora
+                'fecha' => $cotizacion->created_at,
+
+                // 📊 Campos adicionales útiles (opcionales)
+                'estado' => $cotizacion->estado ?? 'pendiente',
+                'created_at' => $cotizacion->created_at,
+                'updated_at' => $cotizacion->updated_at,
+
+                // 🔍 Para búsquedas más eficientes
+                'cliente_nombre' => $cotizacion->cliente->nombre_razon_social ?? '',
+                'cliente_email' => $cotizacion->cliente->email ?? '',
             ];
         });
 
@@ -60,7 +70,6 @@ class CotizacionController extends Controller
             'cotizaciones' => $cotizaciones,
         ]);
     }
-
 
     /**
      * Show the form for creating a new resource.

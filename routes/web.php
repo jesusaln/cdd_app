@@ -54,6 +54,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     })->name('dashboard');
 
     Route::resource('clientes', ClienteController::class)->names('clientes');
+    
+
     Route::post('/validar-rfc', [ClienteController::class, 'validarRfc']);
     Route::get('/clientes/check-email', [ClienteController::class, 'checkEmail'])->name('clientes.checkEmail');
 
