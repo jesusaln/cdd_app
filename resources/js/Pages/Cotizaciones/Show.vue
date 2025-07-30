@@ -1,6 +1,5 @@
 <template>
   <Head title="Detalles de la Cotización" />
-
   <div class="cotizaciones-show min-h-screen bg-gray-50 py-8">
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
       <!-- Header con navegación -->
@@ -12,7 +11,6 @@
           <span>/</span>
           <span class="text-gray-900 font-medium">Detalles</span>
         </nav>
-
         <div class="flex items-center justify-between">
           <h1 class="text-3xl font-bold text-gray-900">
             Cotización #{{ cotizacion?.id || '...' }}
@@ -27,7 +25,6 @@
           </div>
         </div>
       </div>
-
       <!-- Contenido principal -->
       <div v-if="cotizacion" class="space-y-6">
         <!-- Información del cliente -->
@@ -69,7 +66,6 @@
             </div>
           </div>
         </div>
-
         <!-- Productos -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
@@ -128,7 +124,6 @@
             </table>
           </div>
         </div>
-
         <!-- Resumen financiero -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
@@ -160,7 +155,6 @@
             </div>
           </div>
         </div>
-
         <!-- Notas adicionales -->
         <div v-if="cotizacion.notas" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
@@ -176,7 +170,6 @@
           </div>
         </div>
       </div>
-
       <!-- Estado de carga -->
       <div v-else class="flex justify-center items-center py-12">
         <div class="text-center">
@@ -184,7 +177,6 @@
           <p class="text-gray-500">Cargando detalles de la cotización...</p>
         </div>
       </div>
-
       <!-- Botones de acción -->
       <div v-if="cotizacion" class="mt-8 flex flex-wrap gap-3 justify-end">
         <Link
@@ -196,7 +188,6 @@
           </svg>
           Editar
         </Link>
-
         <button
           @click="mostrarModalEliminacion = true"
           :disabled="loading"
@@ -207,20 +198,28 @@
           </svg>
           Eliminar
         </button>
-
         <button
           @click="enviarAPedido"
-          :disabled="loading || cotizacion.estado === 'convertido'"
+          :disabled="loading || cotizacion.estado === 'pedido'"
           class="inline-flex items-center px-4 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 focus:ring-4 focus:ring-green-200 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
           </svg>
-          {{ cotizacion.estado === 'convertido' ? 'Ya convertido' : 'Convertir a Pedido' }}
+          {{ cotizacion.estado === 'pedido' ? 'Ya convertido a Pedido' : 'Convertir a Pedido' }}
+        </button>
+        <button
+          @click="enviarAVenta"
+          :disabled="loading || cotizacion.estado === 'venta'"
+          class="inline-flex items-center px-4 py-2 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 focus:ring-4 focus:ring-purple-200 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+          </svg>
+          {{ cotizacion.estado === 'venta' ? 'Ya convertido a Venta' : 'Convertir a Venta' }}
         </button>
       </div>
     </div>
-
     <!-- Modal de confirmación de eliminación -->
     <div
       v-if="mostrarModalEliminacion"
@@ -264,7 +263,6 @@
         </div>
       </div>
     </div>
-
     <!-- Spinner de carga global -->
     <div v-if="loading && !mostrarModalEliminacion" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div class="bg-white rounded-lg p-6 shadow-xl">
@@ -279,7 +277,7 @@
 
 <script setup>
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ref, computed, defineEmits } from 'vue';
+import { ref, computed } from 'vue';
 import { Notyf } from 'notyf';
 import 'notyf/notyf.min.css';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -287,18 +285,24 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 // Define el layout del dashboard
 defineOptions({ layout: AppLayout });
 
+// Define los eventos que el componente puede emitir
+const emit = defineEmits(['convertirAPedido']);
+
 // Propiedades
 const props = defineProps({
   cotizacion: {
     type: Object,
-    default: null
+    default: () => ({
+      puede_convertir: true, // Asegúrate de que esto esté definido correctamente
+      estado: 'pendiente', // Asegúrate de que el estado esté definido correctamente
+      // ... otras propiedades
+    })
   }
 });
 
 // Variables reactivas
 const loading = ref(false);
 const mostrarModalEliminacion = ref(false);
-const emit = defineEmits(['convertir-a-pedido']);
 
 // Configuración de Notyf para notificaciones
 const notyf = new Notyf({
@@ -352,9 +356,9 @@ const formatDate = (date) => {
 const getStatusClass = (estado) => {
   const classes = {
     'pendiente': 'bg-yellow-100 text-yellow-800',
-    'aprobado': 'bg-green-100 text-green-800',
+    'pedido': 'bg-blue-100 text-blue-800',
+    'venta': 'bg-purple-100 text-purple-800',
     'rechazado': 'bg-red-100 text-red-800',
-    'convertido': 'bg-blue-100 text-blue-800',
     'vencido': 'bg-gray-100 text-gray-800'
   };
   return classes[estado] || 'bg-gray-100 text-gray-800';
@@ -363,9 +367,9 @@ const getStatusClass = (estado) => {
 const getStatusText = (estado) => {
   const texts = {
     'pendiente': 'Pendiente',
-    'aprobado': 'Aprobado',
+    'pedido': 'Convertido a Pedido',
+    'venta': 'Convertido a Venta',
     'rechazado': 'Rechazado',
-    'convertido': 'Convertido a Pedido',
     'vencido': 'Vencido'
   };
   return texts[estado] || 'Sin estado';
@@ -395,21 +399,52 @@ const confirmarEliminacion = async () => {
 };
 
 const enviarAPedido = () => {
-  if (props.cotizacion.estado === 'convertido') {
+  if (props.cotizacion.estado === 'pedido') {
     notyf.error('Esta cotización ya ha sido convertida a pedido.');
     return;
   }
-
   loading.value = true;
-  try {
-    emit('convertir-a-pedido', props.cotizacion);
-    notyf.success('Cotización enviada a pedido exitosamente.');
-  } catch (error) {
-    console.error('Error al convertir a pedido:', error);
-    notyf.error('Error al convertir la cotización a pedido.');
-  } finally {
-    loading.value = false;
+  router.post(`/cotizaciones/${props.cotizacion.id}/convertir-a-pedido`,
+    { confirmado: true },
+    {
+      preserveScroll: true,
+      onSuccess: () => {
+        notyf.success('Cotización convertida a pedido exitosamente.');
+        emit('convertirAPedido');
+      },
+      onError: (errors) => {
+        console.error('Error al convertir a pedido:', errors);
+        notyf.error('Error al convertir la cotización a pedido.');
+      },
+      onFinish: () => {
+        loading.value = false;
+      }
+    }
+  );
+};
+
+const enviarAVenta = () => {
+  if (props.cotizacion.estado === 'venta') {
+    notyf.error('Esta cotización ya ha sido convertida a venta.');
+    return;
   }
+  loading.value = true;
+  router.post(`/cotizaciones/${props.cotizacion.id}/convertir-a-venta`,
+    { confirmado: true },
+    {
+      preserveScroll: true,
+      onSuccess: () => {
+        notyf.success('Cotización convertida a venta exitosamente.');
+      },
+      onError: (errors) => {
+        console.error('Error al convertir a venta:', errors);
+        notyf.error('Error al convertir la cotización a venta.');
+      },
+      onFinish: () => {
+        loading.value = false;
+      }
+    }
+  );
 };
 </script>
 
@@ -418,29 +453,41 @@ const enviarAPedido = () => {
 .cotizaciones-show {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
-
 /* Animaciones suaves */
 .transition-all {
   transition: all 0.2s ease-in-out;
 }
-
 /* Mejora en los focus states para accesibilidad */
 button:focus, a:focus {
   outline: 2px solid transparent;
   outline-offset: 2px;
 }
-
 /* Hover effects personalizados */
 .hover\:scale-105:hover {
   transform: scale(1.05);
 }
-
 /* Sombras suaves */
 .shadow-sm {
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
-
 .shadow-xl {
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+/* Estilo para el botón de venta */
+.bg-purple-600 {
+  background-color: #7c3aed;
+}
+.hover\:bg-purple-700:hover {
+  background-color: #6d28d9;
+}
+.focus\:ring-purple-200:focus {
+  --tw-ring-color: rgba(216, 180, 254, 0.5);
+}
+/* Clases para el estado de venta */
+.bg-purple-100 {
+  background-color: #f3e8ff;
+}
+.text-purple-800 {
+  color: #6b21a8;
 }
 </style>
