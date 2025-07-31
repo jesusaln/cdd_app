@@ -59,25 +59,27 @@
           </div>
 
           <select v-model="sortBy" class="px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-  <option value="fecha-desc">Más recientes</option>
-  <option value="fecha-asc">Más antiguas</option>
-  <option value="total-desc">Mayor valor</option>
-  <option value="total-asc">Menor valor</option>
-  <option value="cliente">Por cliente</option>
-  <option value="id-desc">ID descendente</option>
-  <option value="id-asc">ID ascendente</option>
-</select>
+            <option value="fecha-desc">Más recientes</option>
+            <option value="fecha-asc">Más antiguas</option>
+            <option value="total-desc">Mayor valor</option>
+            <option value="total-asc">Menor valor</option>
+            <option value="cliente">Por cliente</option>
+            <option value="id-desc">ID descendente</option>
+            <option value="id-asc">ID ascendente</option>
+          </select>
 
-
-          <!-- Filtro por estado (opcional) -->
+          <!-- Filtro por estado -->
           <select
             v-model="filtroEstado"
             class="px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">Todos los estados</option>
             <option value="pendiente">Pendientes</option>
+            <option value="enviado_pedido">Enviado a Pedido</option>
+            <option value="enviado_venta">Enviado a Venta</option>
             <option value="aprobado">Aprobadas</option>
             <option value="rechazado">Rechazadas</option>
+            <option value="cancelado">Canceladas</option>
           </select>
         </div>
       </div>
@@ -102,7 +104,7 @@
           @click="filtroEstado = ''"
           class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-gray-200"
         >
-          Estado: {{ filtroEstado }}
+          Estado: {{ obtenerLabelEstado(filtroEstado) }}
           <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
           </svg>
@@ -127,7 +129,7 @@
             <tr>
               <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 <button @click="toggleSort('fecha')" class="flex items-center hover:text-gray-700">
-                  Fecha
+                  Fecha y Hora
                   <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
                   </svg>
@@ -154,9 +156,22 @@
               :key="cotizacion.id"
               class="hover:bg-gray-50 transition-colors duration-150"
             >
+              <!-- Columna Fecha y Hora mejorada -->
               <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-sm font-medium text-gray-900">{{ formatearFecha(cotizacion.fecha) }}</div>
-                <div class="text-sm text-gray-500">{{ formatearHora(cotizacion.fecha) }}</div>
+                <div class="flex flex-col">
+                  <div class="text-sm font-medium text-gray-900">
+                    {{ formatearFechaCompleta(cotizacion.created_at || cotizacion.fecha) }}
+                  </div>
+                  <div class="text-xs text-gray-500 flex items-center">
+                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    {{ formatearHoraCompleta(cotizacion.created_at || cotizacion.fecha) }}
+                  </div>
+                  <div class="text-xs text-gray-400 mt-1">
+                    {{ obtenerTiempoTranscurrido(cotizacion.created_at || cotizacion.fecha) }}
+                  </div>
+                </div>
               </td>
 
               <td class="px-6 py-4 whitespace-nowrap">
@@ -212,10 +227,22 @@
                 <div class="text-xs text-gray-500">{{ cotizacion.productos.length }} items</div>
               </td>
 
+              <!-- Columna Estado mejorada -->
               <td class="px-6 py-4 whitespace-nowrap">
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                  Pendiente
-                </span>
+                <div class="flex flex-col items-start">
+                  <span
+                    :class="obtenerClasesEstado(cotizacion.estado)"
+                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mb-1"
+                  >
+                    <span class="w-1.5 h-1.5 rounded-full mr-1.5" :class="obtenerColorPuntoEstado(cotizacion.estado)"></span>
+                    {{ obtenerLabelEstado(cotizacion.estado) }}
+                  </span>
+                 <div v-for="cotizacion in cotizaciones" :key="cotizacion.id">
+  <div class="text-xs text-gray-500">
+    {{ obtenerDescripcionEstado(cotizacion.estado) }}
+  </div>
+</div>
+                </div>
               </td>
 
               <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -395,7 +422,7 @@ const props = defineProps({
 
 // Estado reactivo
 const searchTerm = ref('');
-const sortBy = ref('id-desc');
+const sortBy = ref('fecha-desc');
 const filtroEstado = ref('');
 const loading = ref(false);
 const showConfirmationDialog = ref(false);
@@ -421,10 +448,10 @@ const notyf = new Notyf({
   ]
 });
 
-// Data reactiva - CORREGIDO: Mantener referencia a los datos originales
+// Data reactiva - Mantener referencia a los datos originales
 const cotizacionesOriginales = ref([...props.cotizaciones]);
 
-// Actualizar datos cuando cambien las props (útil para actualizaciones dinámicas)
+// Actualizar datos cuando cambien las props
 watch(() => props.cotizaciones, (newCotizaciones) => {
   cotizacionesOriginales.value = [...newCotizaciones];
 }, { deep: true });
@@ -463,9 +490,9 @@ const cotizacionesFiltradas = computed(() => {
   return filtered.sort((a, b) => {
     switch (sortBy.value) {
       case 'fecha-desc':
-        return new Date(b.fecha || b.created_at) - new Date(a.fecha || a.created_at);
+        return new Date(b.created_at || b.fecha) - new Date(a.created_at || a.fecha);
       case 'fecha-asc':
-        return new Date(a.fecha || a.created_at) - new Date(b.fecha || b.created_at);
+        return new Date(a.created_at || a.fecha) - new Date(b.created_at || b.fecha);
       case 'total-desc':
         return parseFloat(b.total || 0) - parseFloat(a.total || 0);
       case 'total-asc':
@@ -474,24 +501,23 @@ const cotizacionesFiltradas = computed(() => {
         const nombreA = a.cliente?.nombre_razon_social || '';
         const nombreB = b.cliente?.nombre_razon_social || '';
         return nombreA.localeCompare(nombreB);
-      case 'id-desc': // Asegúrate de que este caso esté incluido
+      case 'id-desc':
         return b.id - a.id;
       case 'id-asc':
         return a.id - b.id;
       default:
-        return b.id - a.id; // Ordenar por ID descendente por defecto
+        return new Date(b.created_at || b.fecha) - new Date(a.created_at || a.fecha);
     }
   });
 });
-
 
 // Computed para verificar si hay filtros activos
 const hayFiltrosActivos = computed(() => {
   return searchTerm.value.trim() !== '' || filtroEstado.value !== '';
 });
 
-// Métodos de formateo
-const formatearFecha = (fechaHora) => {
+// Métodos de formateo - VERSIÓN MEJORADA
+const formatearFechaCompleta = (fechaHora) => {
   const fecha = new Date(fechaHora);
   return fecha.toLocaleDateString('es-MX', {
     day: '2-digit',
@@ -500,12 +526,33 @@ const formatearFecha = (fechaHora) => {
   });
 };
 
-const formatearHora = (fechaHora) => {
+const formatearHoraCompleta = (fechaHora) => {
   const fecha = new Date(fechaHora);
   return fecha.toLocaleTimeString('es-MX', {
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
+    hour12: true
   });
+};
+
+const obtenerTiempoTranscurrido = (fechaHora) => {
+  const ahora = new Date();
+  const fecha = new Date(fechaHora);
+  const diferencia = ahora - fecha;
+
+  const minutos = Math.floor(diferencia / (1000 * 60));
+  const horas = Math.floor(diferencia / (1000 * 60 * 60));
+  const dias = Math.floor(diferencia / (1000 * 60 * 60 * 24));
+
+  if (dias > 0) {
+    return `hace ${dias} día${dias > 1 ? 's' : ''}`;
+  } else if (horas > 0) {
+    return `hace ${horas} hora${horas > 1 ? 's' : ''}`;
+  } else if (minutos > 0) {
+    return `hace ${minutos} min${minutos > 1 ? 's' : ''}`;
+  } else {
+    return 'ahora mismo';
+  }
 };
 
 const formatearMoneda = (amount) => {
@@ -515,9 +562,79 @@ const formatearMoneda = (amount) => {
   }).format(amount);
 };
 
+// Métodos para estados - VERSIÓN MEJORADA
+const obtenerClasesEstado = (estado) => {
+  const estados = {
+    'pendiente': 'bg-yellow-100 text-yellow-800',
+    'enviado_pedido': 'bg-blue-100 text-blue-800',
+    'enviado_venta': 'bg-indigo-100 text-indigo-800',
+    'aprobado': 'bg-green-100 text-green-800',
+    'rechazado': 'bg-red-100 text-red-800',
+    'cancelado': 'bg-gray-100 text-gray-800'
+  };
+  return estados[estado] || estados['pendiente'];
+};
+
+const obtenerColorPuntoEstado = (estado) => {
+  const colores = {
+    'pendiente': 'bg-yellow-400',
+    'enviado_pedido': 'bg-blue-400',
+    'enviado_venta': 'bg-indigo-400',
+    'aprobado': 'bg-green-400',
+    'rechazado': 'bg-red-400',
+    'cancelado': 'bg-gray-400'
+  };
+  return colores[estado] || colores['pendiente'];
+};
+
+const obtenerLabelEstado = (estado) => {
+  const labels = {
+    'pendiente': 'Pendiente',
+    'enviado_pedido': 'Enviado a Pedido',
+    'enviado_venta': 'Enviado a Venta',
+    'aprobado': 'Aprobada',
+    'rechazado': 'Rechazada',
+    'cancelado': 'Cancelada'
+  };
+  return labels[estado] || labels['pendiente'];
+};
+
+const obtenerDescripcionEstado = (estado) => {
+  const descripciones = {
+    'pendiente': 'Esperando respuesta',
+    'enviado_pedido': 'Convertida a pedido',
+    'enviado_venta': 'Convertida a venta',
+    'aprobado': 'Cliente aprobó',
+    'rechazado': 'Cliente rechazó',
+    'cancelado': 'Proceso cancelado'
+  };
+
+   // Log para verificar el estado recibido
+  console.log('Estado recibido:', estado);
+
+  // Obtener la descripción del estado
+  const descripcion = descripciones[estado] || descripciones['pendiente'];
+
+  // Log para verificar la descripción devuelta
+  console.log('Descripción devuelta:', descripcion);
+
+  return descripciones[estado] || descripciones['pendiente'];
+};
+
 // Métodos de navegación
 const editarCotizacion = (id) => {
   router.get(`/cotizaciones/${id}/edit`);
+};
+
+// Métodos de filtros
+const limpiarBusqueda = () => {
+  searchTerm.value = '';
+};
+
+const limpiarTodosFiltros = () => {
+  searchTerm.value = '';
+  filtroEstado.value = '';
+  sortBy.value = 'fecha-desc';
 };
 
 // Métodos de eliminación
@@ -540,7 +657,10 @@ const eliminarCotizacion = async () => {
     await router.delete(`/cotizaciones/${cotizacionIdToDelete.value}`, {
       onSuccess: () => {
         notyf.success('Cotización eliminada exitosamente');
-        cotizaciones.value = cotizaciones.value.filter(c => c.id !== cotizacionIdToDelete.value);
+        // Actualizar la lista local
+        cotizacionesOriginales.value = cotizacionesOriginales.value.filter(
+          c => c.id !== cotizacionIdToDelete.value
+        );
         showConfirmationDialog.value = false;
         cotizacionIdToDelete.value = null;
       },
@@ -571,7 +691,6 @@ const cerrarDetalles = () => {
 // Conversión a pedido
 const handleConvertirAPedido = async (cotizacionData) => {
   loading.value = true;
-
   try {
     await router.post(`/cotizaciones/${cotizacionData.id}/convertir-a-pedido`, {
       onSuccess: () => {
@@ -580,6 +699,11 @@ const handleConvertirAPedido = async (cotizacionData) => {
           router.get('/pedidos');
         }
         cerrarDetalles();
+        // Actualizar el estado local si es necesario
+        const index = cotizacionesOriginales.value.findIndex(c => c.id === cotizacionData.id);
+        if (index !== -1) {
+          cotizacionesOriginales.value[index].estado = 'enviado_pedido';
+        }
       },
       onError: (errors) => {
         console.error('Error al convertir:', errors);
@@ -593,6 +717,7 @@ const handleConvertirAPedido = async (cotizacionData) => {
     loading.value = false;
   }
 };
+
 
 // Generación de PDF
 const generarPDFVenta = async (cotizacion) => {

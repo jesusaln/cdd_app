@@ -8,8 +8,12 @@ use App\Models\Producto;
 use App\Models\Servicio;
 use App\Services\CotizacionService;
 use App\Http\Requests\CotizacionRequest;
+use App\Http\Resources\CotizacionResource;
+use App\Enums\EstadoCotizacion;
 use Inertia\Inertia;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class CotizacionController extends Controller
 {
@@ -23,13 +27,14 @@ class CotizacionController extends Controller
     public function index()
     {
         $cotizaciones = $this->cotizacionService->getAllCotizaciones()->map(function ($cotizacion) {
-            return $this->mapCotizacion($cotizacion);
+            return (new CotizacionResource($cotizacion))->resolve(); // importante: resolve() para convertirlo a array
         });
 
         return Inertia::render('Cotizaciones/Index', [
             'cotizaciones' => $cotizaciones,
         ]);
     }
+
 
     public function create()
     {
@@ -91,13 +96,19 @@ class CotizacionController extends Controller
         return redirect()->route('cotizaciones.index')->with('success', 'Cotización eliminada exitosamente.');
     }
 
-    public function convertirAPedido($id)
+    // Ejemplo en Laravel
+    public function convertirAPedido(Request $request, $id)
     {
-        $cotizacion = Cotizacion::with(['cliente', 'productos', 'servicios'])->findOrFail($id);
-        $this->cotizacionService->convertirAPedido($cotizacion);
+        $cotizacion = Cotizacion::findOrFail($id);
+        $cotizacion->estado = 'enviado_pedido';
+        $cotizacion->save();
 
-        return redirect()->route('pedidos.index')->with('success', 'Cotización convertida a pedido exitosamente.');
+        // Log para verificar el estado actualizado
+        Log::info('Estado de la cotización actualizado:', ['estado' => $cotizacion->estado]);
+
+        return response()->json(['message' => 'Cotización convertida a pedido exitosamente']);
     }
+
 
     public function convertirAVenta($id)
     {
@@ -115,14 +126,23 @@ class CotizacionController extends Controller
             return $this->mapItem($servicio, 'servicio');
         }));
 
+        $estado = $cotizacion->estado;
+
         return [
             'id' => $cotizacion->id,
             'cliente' => $cotizacion->cliente,
             'productos' => $items,
             'total' => $cotizacion->total,
             'fecha' => Carbon::parse($cotizacion->created_at)->format('Y-m-d'),
+            'estado' => [
+                'value' => $estado?->value ?? 'pendiente',
+                'label' => method_exists($estado, 'label') ? $estado->label() : 'Pendiente',
+                'color' => method_exists($estado, 'color') ? $estado->color() : 'gray',
+                'puede_convertir' => method_exists($estado, 'puedeConvertir') ? $estado->puedeConvertir() : false,
+            ],
         ];
     }
+
 
     private function mapItem($item, $tipo)
     {

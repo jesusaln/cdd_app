@@ -17,6 +17,7 @@ class CreateCotizacionesTable extends Migration
             $table->id(); // ID de la cotización
             $table->foreignId('cliente_id')->constrained()->onDelete('cascade'); // Relación con el cliente
             $table->decimal('total', 8, 2)->default(0); // Total de la cotización
+            $table->string('estado')->default('pendiente'); // <--- Aquí se guarda el estado
             $table->timestamps(); // Columnas created_at y updated_at
         });
     }

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Enums\EstadoCotizacion;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -19,6 +20,11 @@ class Cotizacion extends Model
         'cliente_id',
         'total'
     ];
+
+    protected $casts = [
+        'estado' => EstadoCotizacion::class,
+    ];
+
 
     // Relación con el cliente
     public function cliente()
