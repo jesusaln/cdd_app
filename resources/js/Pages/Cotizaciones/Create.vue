@@ -706,6 +706,7 @@ const buscarClienteRef = ref(null);
 const buscarProductoRef = ref(null);
 
 // UI states
+const mostrarNotificacionAutoguardado = ref(false);
 const mostrarVistaPrevia = ref(false);
 const mostrarPlantillas = ref(false);
 const mostrarCalculadoraMargen = ref(false);
@@ -997,7 +998,6 @@ const verificarPrecios = async () => {
   }
 };
 
-// Autosave
 const guardarBorrador = async () => {
   if (!clienteSeleccionado.value || selectedProducts.value.length === 0) return;
 
@@ -1021,7 +1021,13 @@ const guardarBorrador = async () => {
 
     await axios.post(route('cotizaciones.draft'), draftData);
     ultimoAutoguardado.value = new Date();
-    showNotification('Borrador guardado automáticamente');
+
+    // Mostrar notificación
+    mostrarNotificacionAutoguardado.value = true;
+    setTimeout(() => {
+      mostrarNotificacionAutoguardado.value = false;
+    }, 3000);
+
   } catch (error) {
     console.error('Error saving draft:', error);
     showNotification('No se pudo guardar el borrador. Inténtalo de nuevo.', 'error');

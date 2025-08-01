@@ -31,7 +31,8 @@ return new class extends Migration
             $table->string('municipio'); // Municipio o alcaldía
             $table->string('estado'); // Estado
             $table->string('pais')->default('México'); // País (por defecto, México)
-            $table->boolean('activo')->default(true)->after('requiere_factura');
+            $table->boolean('activo')->default(true); // Estado del cliente (activo/inactivo)
+
             $table->timestamps();
         });
     }

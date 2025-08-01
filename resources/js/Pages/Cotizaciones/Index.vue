@@ -229,21 +229,20 @@
 
               <!-- Columna Estado mejorada -->
               <td class="px-6 py-4 whitespace-nowrap">
-                <div class="flex flex-col items-start">
-                  <span
-                    :class="obtenerClasesEstado(cotizacion.estado)"
-                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mb-1"
-                  >
-                    <span class="w-1.5 h-1.5 rounded-full mr-1.5" :class="obtenerColorPuntoEstado(cotizacion.estado)"></span>
-                    {{ obtenerLabelEstado(cotizacion.estado) }}
-                  </span>
-                 <div v-for="cotizacion in cotizaciones" :key="cotizacion.id">
-  <div class="text-xs text-gray-500">
-    {{ obtenerDescripcionEstado(cotizacion.estado) }}
+  <div class="flex flex-col items-start">
+    <span :class="obtenerClasesEstado(cotizacion.estado)"
+          class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mb-1">
+      <span class="w-1.5 h-1.5 rounded-full mr-1.5"
+            :class="obtenerColorPuntoEstado(cotizacion.estado)"></span>
+      {{ obtenerLabelEstado(cotizacion.estado) }}
+    </span>
+
+    <!-- CORRECCIÓN: Sin loop, solo la cotización actual -->
+    <div class="text-xs text-gray-500">
+      {{ obtenerDescripcionEstado(cotizacion.estado) }}
+    </div>
   </div>
-</div>
-                </div>
-              </td>
+</td>
 
               <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div class="flex items-center justify-end space-x-2">

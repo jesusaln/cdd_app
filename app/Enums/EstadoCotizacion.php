@@ -5,15 +5,21 @@ namespace App\Enums;
 enum EstadoCotizacion: string
 {
     case Pendiente = 'pendiente';
-    case ConvertidoAPedido = 'convertido_a_pedido';
-    case ConvertidoAVenta = 'convertido_a_venta';
+    case Aprobada = 'aprobada';
+    case Rechazada = 'rechazada';
+    case Enviada = 'enviada';
+    case ConvertidaPedido = 'convertida_pedido';
+    case EnviadoPedido = 'enviado_pedido'; // Añade este nuevo estado
 
     public function label(): string
     {
         return match ($this) {
             self::Pendiente => 'Pendiente',
-            self::ConvertidoAPedido => 'Convertido a Pedido',
-            self::ConvertidoAVenta => 'Convertido a Venta',
+            self::Aprobada => 'Aprobada',
+            self::Rechazada => 'Rechazada',
+            self::Enviada => 'Enviada',
+            self::ConvertidaPedido => 'Convertida a Pedido',
+            self::EnviadoPedido => 'Enviado a Pedido',
         };
     }
 
@@ -21,31 +27,11 @@ enum EstadoCotizacion: string
     {
         return match ($this) {
             self::Pendiente => 'gray',
-            self::ConvertidoAPedido => 'blue',
-            self::ConvertidoAVenta => 'green',
-        };
-    }
-
-    public function puedeConvertir(): bool
-    {
-        return $this === self::Pendiente;
-    }
-
-    public function puedeEditar(): bool
-    {
-        return $this === self::Pendiente;
-    }
-
-    public function puedeEliminar(): bool
-    {
-        return $this === self::Pendiente;
-    }
-
-    public function siguientesEstados(): array
-    {
-        return match ($this) {
-            self::Pendiente => [self::ConvertidoAPedido, self::ConvertidoAVenta],
-            default => [],
+            self::Aprobada => 'blue',
+            self::Rechazada => 'red',
+            self::Enviada => 'purple',
+            self::ConvertidaPedido => 'green',
+            self::EnviadoPedido => 'indigo',
         };
     }
 }

@@ -1,6 +1,7 @@
 <template>
   <Head title="Panel" />
   <div class="container mx-auto px-6 py-10">
+    <!-- Tarjetas de Resumen -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
       <!-- Clientes -->
       <PanLink href="/clientes" class="group bg-white p-6 rounded-2xl shadow-lg border border-gray-200 transition-all transform hover:scale-105 hover:shadow-xl text-center flex flex-col items-center justify-center h-full">
@@ -39,9 +40,10 @@
       </PanLink>
     </div>
 
-    <!-- Alerta de Stock Bajo -->
-    <div v-if="productosBajoStockNombres.length > 0" class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
-      <div class="bg-white p-6 rounded-2xl shadow-lg border-l-8 border-red-500 flex flex-col justify-between items-start text-left md:col-span-1">
+    <!-- Sección de Alertas -->
+    <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+      <!-- Alerta de Stock Bajo -->
+      <div v-if="productosBajoStockNombres.length > 0" class="bg-white p-6 rounded-2xl shadow-lg border-l-8 border-red-500 flex flex-col justify-between items-start text-left">
         <div class="w-full">
           <div class="flex items-center mb-4">
             <FontAwesomeIcon :icon="['fas', 'exclamation-triangle']" class="h-8 w-8 text-red-600 mr-3" />
@@ -63,33 +65,58 @@
           <FontAwesomeIcon :icon="['fas', 'arrow-right']" class="ml-2" />
         </PanLink>
       </div>
+
+      <!-- Alerta de Órdenes de Compra Pendientes -->
+      <div v-if="proveedoresPedidosPendientesCount > 0" class="bg-white p-6 rounded-2xl shadow-lg border-l-8 border-amber-500 flex flex-col justify-between items-start text-left">
+        <div class="w-full">
+          <div class="flex items-center mb-4">
+            <FontAwesomeIcon :icon="['fas', 'clipboard-list']" class="h-8 w-8 text-amber-600 mr-3" />
+            <h3 class="text-2xl font-extrabold text-gray-900">Órdenes de Compra Pendientes</h3>
+          </div>
+          <p class="text-base text-gray-700 mb-4">
+            Tienes <strong>{{ proveedoresPedidosPendientesCount }} orden(es) de compra pendientes</strong> con proveedores.
+          </p>
+
+          <h4 class="text-lg font-bold text-gray-800 mb-2">Detalles de órdenes:</h4>
+          <ul class="text-gray-700 space-y-2 list-none">
+            <li v-for="orden in ordenesPendientesDetalles" :key="orden.id" class="text-base bg-gray-50 p-3 rounded-md">
+              <div class="font-medium">{{ orden.proveedor }}</div>
+              <div class="text-sm text-gray-600">Total: ${{ orden.total }}</div>
+              <div class="text-sm text-gray-600">Fecha esperada: {{ orden.fecha_recepcion }}</div>
+            </li>
+          </ul>
+        </div>
+        <PanLink href="/ordenes-compra?estado=pendiente" class="mt-6 px-6 py-2 bg-amber-500 text-white font-semibold rounded-lg shadow hover:bg-amber-600 transition-colors duration-300 transform hover:scale-105 list-none">
+          Ver Órdenes Pendientes
+          <FontAwesomeIcon :icon="['fas', 'arrow-right']" class="ml-2" />
+        </PanLink>
+      </div>
     </div>
 
-    <!-- Tarjeta: Citas del día de hoy -->
+    <!-- Citas del día de hoy -->
     <div v-if="citasHoyDetalles.length > 0" class="mt-8 bg-white p-6 rounded-2xl shadow-lg border-l-8 border-blue-500">
-  <div class="flex items-center mb-4">
-    <FontAwesomeIcon :icon="['fas', 'calendar-alt']" class="h-8 w-8 text-blue-600 mr-3" />
-    <h3 class="text-2xl font-extrabold text-gray-900">Citas del día de hoy</h3>
-  </div>
-  <p class="text-base text-gray-700 mb-4">
-    Tienes <strong>{{ citasHoyDetalles.length }} cita(s)</strong> programadas para hoy.
-  </p>
-  <ul class="space-y-2">
-    <li v-for="cita in citasHoyDetalles" :key="cita.id" class="flex items-center justify-between text-gray-800 bg-gray-50 p-3 rounded-md shadow-sm">
-      <div class="flex flex-col text-left"> <div class="font-semibold text-lg text-gray-900">Solicitud de Trabajo: {{ cita.titulo }}</div>
-        <div class="text-sm text-gray-700">Cliente: {{ cita.cliente }}</div>
-        <div class="text-sm text-gray-700">Técnico: {{ cita.tecnico }}</div>
+      <div class="flex items-center mb-4">
+        <FontAwesomeIcon :icon="['fas', 'calendar-alt']" class="h-8 w-8 text-blue-600 mr-3" />
+        <h3 class="text-2xl font-extrabold text-gray-900">Citas del día de hoy</h3>
       </div>
-      <div class="text-base font-medium text-blue-600">Hora {{ cita.hora }}</div>
-    </li>
-  </ul>
-  <PanLink href="/citas" class="mt-6 inline-block px-5 py-2 bg-blue-500 text-white font-semibold rounded-lg shadow hover:bg-blue-600 transition-colors">
-    Ver todas las citas
-    <FontAwesomeIcon :icon="['fas', 'arrow-right']" class="ml-2" />
-  </PanLink>
-</div>
-
-
+      <p class="text-base text-gray-700 mb-4">
+        Tienes <strong>{{ citasHoyDetalles.length }} cita(s)</strong> programadas para hoy.
+      </p>
+      <ul class="space-y-2">
+        <li v-for="cita in citasHoyDetalles" :key="cita.id" class="flex items-center justify-between text-gray-800 bg-gray-50 p-3 rounded-md shadow-sm">
+          <div class="flex flex-col text-left">
+            <div class="font-semibold text-lg text-gray-900">Solicitud de Trabajo: {{ cita.titulo }}</div>
+            <div class="text-sm text-gray-700">Cliente: {{ cita.cliente }}</div>
+            <div class="text-sm text-gray-700">Técnico: {{ cita.tecnico }}</div>
+          </div>
+          <div class="text-base font-medium text-blue-600">Hora {{ cita.hora }}</div>
+        </li>
+      </ul>
+      <PanLink href="/citas" class="mt-6 inline-block px-5 py-2 bg-blue-500 text-white font-semibold rounded-lg shadow hover:bg-blue-600 transition-colors">
+        Ver todas las citas
+        <FontAwesomeIcon :icon="['fas', 'arrow-right']" class="ml-2" />
+      </PanLink>
+    </div>
   </div>
 </template>
 
@@ -105,21 +132,18 @@ import {
   faTruck,
   faCalendarAlt,
   faExclamationTriangle,
-  faUserPlus,
-  faBox,
-  faCalendarCheck,
+  faClipboardList,
   faArrowRight
 } from '@fortawesome/free-solid-svg-icons';
 
+// Registrar los iconos
 library.add(
   faUsers,
   faBoxOpen,
   faTruck,
   faCalendarAlt,
   faExclamationTriangle,
-  faUserPlus,
-  faBox,
-  faCalendarCheck,
+  faClipboardList,
   faArrowRight
 );
 
@@ -136,13 +160,13 @@ const props = defineProps({
   },
   proveedoresCount: { type: Number, default: 0 },
   proveedoresPedidosPendientesCount: { type: Number, default: 0 },
-  citasCount: { type: Number, default: 0 },
-  citasHoyCount: { type: Number, default: 0 },
-  citasHoyDetalles: {
+  ordenesPendientesDetalles: {
     type: Array,
     default: () => []
   },
-  recentActivity: {
+  citasCount: { type: Number, default: 0 },
+  citasHoyCount: { type: Number, default: 0 },
+  citasHoyDetalles: {
     type: Array,
     default: () => []
   }

@@ -5,15 +5,20 @@ namespace App\Http\Controllers;
 use App\Models\Cotizacion;
 use App\Models\Cliente;
 use App\Models\Producto;
+use App\Models\Pedido;
+use App\Models\Venta;
 use App\Models\Servicio;
 use App\Services\CotizacionService;
 use App\Http\Requests\CotizacionRequest;
 use App\Http\Resources\CotizacionResource;
 use App\Enums\EstadoCotizacion;
+use App\Enums\EstadoPedido;
 use Inertia\Inertia;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redirect;
 
 class CotizacionController extends Controller
 {
@@ -26,134 +31,250 @@ class CotizacionController extends Controller
 
     public function index()
     {
-        $cotizaciones = $this->cotizacionService->getAllCotizaciones()->map(function ($cotizacion) {
-            return (new CotizacionResource($cotizacion))->resolve(); // importante: resolve() para convertirlo a array
-        });
+        $cotizaciones = $this->cotizacionService->getAllCotizaciones()
+            ->map(fn($cotizacion) => (new CotizacionResource($cotizacion))->resolve());
+        //                                                              Se añadió este ^
 
         return Inertia::render('Cotizaciones/Index', [
             'cotizaciones' => $cotizaciones,
+            'estados' => collect(EstadoCotizacion::cases())->map(fn($estado) => [
+                'value' => $estado->value,
+                'label' => $estado->label(),
+                'color' => $estado->color()
+            ]),
+            'filters' => request()->only(['search', 'estado', 'fecha_inicio', 'fecha_fin'])
         ]);
     }
 
-
     public function create()
     {
-        $clientes = Cliente::all();
-        $productos = Producto::all();
-        $servicios = Servicio::all();
-
         return Inertia::render('Cotizaciones/Create', [
-            'clientes' => $clientes,
-            'productos' => $productos,
-            'servicios' => $servicios,
+            'clientes' => Cliente::select(['id', 'nombre_razon_social'])->get(),
+            'productos' => Producto::active()->get(['id', 'nombre', 'precio_venta']),
+            'servicios' => Servicio::active()->get(['id', 'nombre', 'precio']),
+            'defaults' => [
+                'fecha' => now()->format('Y-m-d'),
+                'validez' => 30,
+                'moneda' => 'MXN'
+            ]
         ]);
     }
 
     public function store(CotizacionRequest $request)
     {
-        $cotizacion = $this->cotizacionService->createCotizacion($request->validated());
+        try {
+            $cotizacion = DB::transaction(function () use ($request) {
+                return $this->cotizacionService->createCotizacion($request->validated());
+            });
 
-        return redirect()->route('cotizaciones.index')->with('success', 'Cotización creada exitosamente.');
+            return Redirect::route('cotizaciones.show', $cotizacion->id)
+                ->with('success', 'Cotización creada exitosamente');
+        } catch (\Exception $e) {
+            Log::error('Error al crear cotización', ['error' => $e->getMessage()]);
+            return Redirect::back()
+                ->with('error', 'Error al crear la cotización: ' . $e->getMessage())
+                ->withInput();
+        }
     }
 
     public function show($id)
     {
-        $cotizacion = Cotizacion::with(['cliente', 'productos', 'servicios'])->findOrFail($id);
+        $cotizacion = Cotizacion::with([
+            'cliente',
+            'productos' => fn($query) => $query->withPivot('cantidad', 'precio', 'descuento'),
+            'servicios' => fn($query) => $query->withPivot('cantidad', 'precio', 'descuento')
+        ])->findOrFail($id);
 
         return Inertia::render('Cotizaciones/Show', [
-            'cotizacion' => $this->mapCotizacion($cotizacion),
+            'cotizacion' => $this->formatCotizacionData($cotizacion),
+            'canConvert' => $cotizacion->estado === EstadoCotizacion::Aprobada,
+            'canEdit' => $cotizacion->estado === EstadoCotizacion::Pendiente,
+            'canDelete' => $cotizacion->estado === EstadoCotizacion::Pendiente
         ]);
     }
 
     public function edit($id)
     {
-        $cotizacion = Cotizacion::with(['cliente', 'productos', 'servicios'])->findOrFail($id);
-        $clientes = Cliente::all();
-        $productos = Producto::all();
-        $servicios = Servicio::all();
+        $cotizacion = Cotizacion::with([
+            'cliente',
+            'productos' => fn($query) => $query->withPivot('cantidad', 'precio', 'descuento'),
+            'servicios' => fn($query) => $query->withPivot('cantidad', 'precio', 'descuento')
+        ])->findOrFail($id);
+
+        if ($cotizacion->estado !== EstadoCotizacion::Pendiente) {
+            return Redirect::route('cotizaciones.show', $cotizacion->id)
+                ->with('warning', 'Solo cotizaciones pendientes pueden ser editadas');
+        }
 
         return Inertia::render('Cotizaciones/Edit', [
-            'cotizacion' => array_merge($this->mapCotizacion($cotizacion), ['cliente_id' => $cotizacion->cliente_id]),
-            'clientes' => $clientes,
-            'productos' => $productos,
-            'servicios' => $servicios,
+            'cotizacion' => $this->formatCotizacionData($cotizacion),
+            'clientes' => Cliente::select(['id', 'nombre_razon_social'])->get(),
+            'productos' => Producto::active()->get(['id', 'nombre', 'precio_venta']),
+            'servicios' => Servicio::active()->get(['id', 'nombre', 'precio'])
         ]);
     }
 
     public function update(CotizacionRequest $request, $id)
     {
         $cotizacion = Cotizacion::findOrFail($id);
-        $this->cotizacionService->updateCotizacion($cotizacion, $request->validated());
 
-        return redirect()->route('cotizaciones.index')->with('success', 'Cotización actualizada exitosamente.');
+        if ($cotizacion->estado !== EstadoCotizacion::Pendiente) {
+            return Redirect::back()
+                ->with('error', 'Solo cotizaciones pendientes pueden ser actualizadas');
+        }
+
+        try {
+            DB::transaction(function () use ($request, $cotizacion) {
+                $this->cotizacionService->updateCotizacion($cotizacion, $request->validated());
+            });
+
+            return Redirect::route('cotizaciones.show', $cotizacion->id)
+                ->with('success', 'Cotización actualizada exitosamente');
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar cotización', [
+                'cotizacion_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+
+            return Redirect::back()
+                ->with('error', 'Error al actualizar la cotización: ' . $e->getMessage())
+                ->withInput();
+        }
     }
 
     public function destroy($id)
     {
         $cotizacion = Cotizacion::findOrFail($id);
-        $this->cotizacionService->deleteCotizacion($cotizacion);
 
-        return redirect()->route('cotizaciones.index')->with('success', 'Cotización eliminada exitosamente.');
+        if ($cotizacion->estado !== EstadoCotizacion::Pendiente) {
+            return Redirect::back()
+                ->with('error', 'Solo cotizaciones pendientes pueden ser eliminadas');
+        }
+
+        try {
+            DB::transaction(function () use ($cotizacion) {
+                $this->cotizacionService->deleteCotizacion($cotizacion);
+            });
+
+            return Redirect::route('cotizaciones.index')
+                ->with('success', 'Cotización eliminada exitosamente');
+        } catch (\Exception $e) {
+            Log::error('Error al eliminar cotización', [
+                'cotizacion_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+
+            return Redirect::back()
+                ->with('error', 'Error al eliminar la cotización: ' . $e->getMessage());
+        }
     }
 
-    // Ejemplo en Laravel
     public function convertirAPedido(Request $request, $id)
     {
-        $cotizacion = Cotizacion::findOrFail($id);
-        $cotizacion->estado = 'enviado_pedido';
-        $cotizacion->save();
+        $cotizacion = Cotizacion::with([
+            'cliente',
+            'productos' => fn($query) => $query->withPivot('cantidad', 'precio', 'descuento')
+        ])->findOrFail($id);
 
-        // Log para verificar el estado actualizado
-        Log::info('Estado de la cotización actualizado:', ['estado' => $cotizacion->estado]);
+        if ($cotizacion->estado !== EstadoCotizacion::Aprobada) {
+            return Redirect::back()
+                ->with('error', 'Solo cotizaciones aprobadas pueden convertirse a pedido');
+        }
 
-        return response()->json(['message' => 'Cotización convertida a pedido exitosamente']);
+        try {
+            DB::beginTransaction();
+
+            $pedido = $this->cotizacionService->convertirAPedido($cotizacion);
+
+            DB::commit();
+
+            return Redirect::route('pedidos.show', $pedido->id)
+                ->with('success', 'Pedido creado exitosamente a partir de la cotización');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al convertir cotización a pedido', [
+                'cotizacion_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+
+            return Redirect::back()
+                ->with('error', 'Error al crear el pedido: ' . $e->getMessage());
+        }
     }
-
 
     public function convertirAVenta($id)
     {
-        $cotizacion = Cotizacion::with(['cliente', 'productos', 'servicios'])->findOrFail($id);
-        $this->cotizacionService->convertirAVenta($cotizacion);
+        $cotizacion = Cotizacion::with([
+            'cliente',
+            'productos' => fn($query) => $query->withPivot('cantidad', 'precio', 'descuento'),
+            'servicios' => fn($query) => $query->withPivot('cantidad', 'precio', 'descuento')
+        ])->findOrFail($id);
 
-        return redirect()->route('ventas.index')->with('success', 'Cotización convertida a venta exitosamente.');
+        if ($cotizacion->estado !== EstadoCotizacion::Aprobada) {
+            return Redirect::back()
+                ->with('error', 'Solo cotizaciones aprobadas pueden convertirse a venta');
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $venta = $this->cotizacionService->convertirAVenta($cotizacion);
+
+            DB::commit();
+
+            return Redirect::route('ventas.show', $venta->id)
+                ->with('success', 'Venta creada exitosamente a partir de la cotización');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al convertir cotización a venta', [
+                'cotizacion_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+
+            return Redirect::back()
+                ->with('error', 'Error al crear la venta: ' . $e->getMessage());
+        }
     }
 
-    private function mapCotizacion($cotizacion)
+    private function formatCotizacionData(Cotizacion $cotizacion): array
     {
-        $items = $cotizacion->productos->map(function ($producto) {
-            return $this->mapItem($producto, 'producto');
-        })->merge($cotizacion->servicios->map(function ($servicio) {
-            return $this->mapItem($servicio, 'servicio');
-        }));
-
-        $estado = $cotizacion->estado;
+        $items = $cotizacion->productos->map(fn($producto) => $this->formatItem($producto, 'producto'))
+            ->merge($cotizacion->servicios->map(fn($servicio) => $this->formatItem($servicio, 'servicio')));
 
         return [
             'id' => $cotizacion->id,
             'cliente' => $cotizacion->cliente,
-            'productos' => $items,
+            'cliente_id' => $cotizacion->cliente_id,
+            'items' => $items,
+            'subtotal' => $cotizacion->subtotal,
+            'descuento' => $cotizacion->descuento,
+            'iva' => $cotizacion->iva,
             'total' => $cotizacion->total,
-            'fecha' => Carbon::parse($cotizacion->created_at)->format('Y-m-d'),
+            'fecha' => $cotizacion->created_at->format('Y-m-d'),
+            'validez' => $cotizacion->validez_dias,
+            'moneda' => $cotizacion->moneda,
+            'notas' => $cotizacion->notas,
             'estado' => [
-                'value' => $estado?->value ?? 'pendiente',
-                'label' => method_exists($estado, 'label') ? $estado->label() : 'Pendiente',
-                'color' => method_exists($estado, 'color') ? $estado->color() : 'gray',
-                'puede_convertir' => method_exists($estado, 'puedeConvertir') ? $estado->puedeConvertir() : false,
+                'value' => $cotizacion->estado->value,
+                'label' => $cotizacion->estado->label(),
+                'color' => $cotizacion->estado->color(),
             ],
+            'created_at' => $cotizacion->created_at->format('Y-m-d H:i'),
+            'updated_at' => $cotizacion->updated_at->format('Y-m-d H:i'),
         ];
     }
 
-
-    private function mapItem($item, $tipo)
+    private function formatItem($item, string $tipo): array
     {
         return [
             'id' => $item->id,
             'nombre' => $item->nombre,
+            'descripcion' => $item->descripcion ?? null,
             'tipo' => $tipo,
-            'pivot' => [
-                'cantidad' => $item->pivot->cantidad,
-                'precio' => $item->pivot->precio,
-            ],
+            'cantidad' => $item->pivot->cantidad,
+            'precio' => $item->pivot->precio,
+            'descuento' => $item->pivot->descuento,
+            'subtotal' => $item->pivot->cantidad * $item->pivot->precio * (1 - ($item->pivot->descuento / 100))
         ];
     }
 }

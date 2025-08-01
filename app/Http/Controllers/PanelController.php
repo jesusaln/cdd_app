@@ -9,6 +9,12 @@ use App\Models\Cliente;
 use App\Models\Producto;
 use App\Models\Proveedor;
 use App\Models\Cita;
+use App\Models\Servicio;
+use App\Models\Categoria;
+use App\Models\Marca;
+use App\Models\Almacen;
+use App\Models\OrdenCompra; // Asegúrate de importar el modelo
+
 use App\Models\Tecnico; // ¡IMPORTANTE: Asegúrate de importar el modelo Tecnico si no lo habías hecho!
 use Carbon\Carbon;
 
@@ -17,8 +23,6 @@ class PanelController extends Controller
     public function index()
     {
         $user = Auth::user();
-
-        // Asegúrate de que esta zona horaria sea correcta para tu servidor y usuarios
         $now = Carbon::now('America/Hermosillo');
         $startOfMonth = $now->copy()->startOfMonth();
 
@@ -28,48 +32,53 @@ class PanelController extends Controller
         $proveedoresCount = Proveedor::count();
         $citasCount = Cita::count();
 
-        // --- Contadores Adicionales para el Dashboard ---
-
-        // Clientes Nuevos este Mes
+        // --- Contadores Adicionales ---
         $clientesNuevosCount = Cliente::where('created_at', '>=', $startOfMonth)->count();
 
         // Productos con Bajo Stock
         $productosBajoStock = Producto::select('nombre', 'stock', 'stock_minimo')
-            ->whereColumn('stock', '<=', 'stock_minimo') // <-- ¡CAMBIO CLAVE AQUÍ!
+            ->whereColumn('stock', '<=', 'stock_minimo')
             ->get();
         $productosBajoStockCount = $productosBajoStock->count();
         $productosBajoStockNombres = $productosBajoStock->pluck('nombre')->toArray();
 
-        // Proveedores con Pedidos Pendientes (placeholder)
-        $proveedoresPedidosPendientesCount = 0;
+        // Órdenes de Compra Pendientes
+        $ordenesPendientes = OrdenCompra::with('proveedor')
+            ->where('estado', 'pendiente')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $proveedoresPedidosPendientesCount = $ordenesPendientes->count();
+
+        // Formatear las órdenes pendientes para el frontend
+        $ordenesPendientesDetalles = $ordenesPendientes->map(function ($orden) {
+            return [
+                'id' => $orden->id,
+                'proveedor' => $orden->proveedor ? $orden->proveedor->nombre_razon_social : 'Proveedor no especificado',
+                'total' => number_format($orden->total, 2),
+                'fecha_creacion' => Carbon::parse($orden->created_at)->format('d/m/Y'),
+                'fecha_recepcion' => $orden->fecha_recepcion ? Carbon::parse($orden->fecha_recepcion)->format('d/m/Y') : 'No especificada',
+            ];
+        })->toArray();
 
         // Citas para Hoy
-        // ¡IMPORTANTE! Cargar las relaciones `cliente` y `tecnico` con Eager Loading.
-        // También selecciona las columnas necesarias, incluyendo las foreign keys.
-        $citasHoy = Cita::with(['cliente', 'tecnico']) // <-- ¡NUEVO O MODIFICADO!
-            ->select('id', 'tipo_servicio', 'fecha_hora', 'cliente_id', 'tecnico_id') // <-- ¡NUEVO O MODIFICADO!
+        $citasHoy = Cita::with(['cliente', 'tecnico'])
+            ->select('id', 'tipo_servicio', 'fecha_hora', 'cliente_id', 'tecnico_id')
             ->whereDate('fecha_hora', $now->toDateString())
             ->orderBy('fecha_hora')
             ->get();
 
         $citasHoyCount = $citasHoy->count();
-
-        // Mapeamos las citas para un formato más fácil de usar en el frontend
         $citasHoyDetalles = $citasHoy->map(function ($cita) {
             return [
-                'id' => $cita->id, // Incluir el ID de la cita
-                'cliente' => $cita->cliente ? $cita->cliente->nombre_razon_social : 'Desconocido', // Nombre del cliente (maneja nulos)
-                'tecnico' => $cita->tecnico ? $cita->tecnico->nombre : 'Sin técnico asignado', // Nombre del técnico (maneja nulos)
-                'titulo' => $cita->tipo_servicio, // Usamos 'tipo_servicio' como el título de la cita
-                'hora' => Carbon::parse($cita->fecha_hora)->format('H:i'), // Extraer la hora de 'fecha_hora'
+                'id' => $cita->id,
+                'cliente' => $cita->cliente ? $cita->cliente->nombre_razon_social : 'Desconocido',
+                'tecnico' => $cita->tecnico ? $cita->tecnico->nombre : 'Sin técnico asignado',
+                'titulo' => $cita->tipo_servicio,
+                'hora' => Carbon::parse($cita->fecha_hora)->format('H:i'),
             ];
         })->toArray();
 
-
-
-
-        //dd($citasHoyDetalles);
-        // --- Pasar los datos al frontend ---
         return Inertia::render('Panel', [
             'user' => $user ? [
                 'id' => $user->id,
@@ -83,10 +92,10 @@ class PanelController extends Controller
             'productosBajoStockNombres' => $productosBajoStockNombres,
             'proveedoresCount' => $proveedoresCount,
             'proveedoresPedidosPendientesCount' => $proveedoresPedidosPendientesCount,
+            'ordenesPendientesDetalles' => $ordenesPendientesDetalles, // Nuevo campo
             'citasCount' => $citasCount,
             'citasHoyCount' => $citasHoyCount,
             'citasHoyDetalles' => $citasHoyDetalles,
-
         ]);
     }
 }
