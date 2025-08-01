@@ -53,7 +53,7 @@ class Producto extends Model
         return $this->belongsTo(Almacen::class);
     }
 
-    
+
 
     public function compras()
     {
@@ -67,21 +67,29 @@ class Producto extends Model
     }
 
     public function pedidos()
-{
-    return $this->morphToMany(Pedido::class, 'pedible', 'pedido_producto')
-        ->withPivot('precio', 'cantidad');
-}
+    {
+        return $this->morphToMany(Pedido::class, 'pedible', 'pedido_producto')
+            ->withPivot('precio', 'cantidad');
+    }
 
-public function ventas()
-{
-    return $this->morphToMany(Venta::class, 'vendible', 'venta_producto')
-        ->withPivot('precio', 'cantidad');
-}
+    public function ventas()
+    {
+        return $this->morphToMany(Venta::class, 'vendible', 'venta_producto')
+            ->withPivot('precio', 'cantidad');
+    }
 
-public function cotizaciones()
-{
-    return $this->morphToMany(Cotizacion::class, 'cotizable', 'cotizacion_producto')
-        ->withPivot('precio', 'cantidad');
+    public function cotizaciones()
+    {
+        return $this->morphToMany(Cotizacion::class, 'cotizable', 'cotizacion_producto')
+            ->withPivot('precio', 'cantidad');
+    }
+    /**
+     * Scope para filtrar productos activos
+     */
+    public function scopeActive($query)
+    {
+        return $query->where('estado', 'activo'); // Ajusta según los valores que uses
+    }
 
-}
+    // ... (el resto de tus métodos)
 }

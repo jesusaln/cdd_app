@@ -19,6 +19,11 @@ class Servicio extends Model
         'estado',
     ];
 
+    public function scopeActive($query)
+    {
+        return $query->where('estado', 'activo'); // Ajusta según los valores que uses
+    }
+
     // Relación con la categoría
     public function categoria()
     {

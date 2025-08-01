@@ -23,6 +23,7 @@ class CreateCotizacionProductoTable extends Migration
 
             $table->decimal('precio', 8, 2); // Precio del producto o servicio en la cotización
             $table->integer('cantidad')->default(1); // Cantidad del producto o servicio en la cotización
+            $table->decimal('descuento', 8, 2)->default(0); // Nuevo campo de descuento
             $table->timestamps(); // Columnas created_at y updated_at
         });
     }

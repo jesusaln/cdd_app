@@ -18,7 +18,8 @@ class Cotizacion extends Model
 
     protected $fillable = [
         'cliente_id',
-        'total'
+        'total',
+       
     ];
 
     protected $casts = [

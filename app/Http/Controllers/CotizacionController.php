@@ -238,16 +238,23 @@ class CotizacionController extends Controller
 
     private function formatCotizacionData(Cotizacion $cotizacion): array
     {
-        $items = $cotizacion->productos->map(fn($producto) => $this->formatItem($producto, 'producto'))
-            ->merge($cotizacion->servicios->map(fn($servicio) => $this->formatItem($servicio, 'servicio')));
+        // Combinar productos y servicios usando collect() para evitar problemas con merge
+        $items = collect($cotizacion->productos->map(fn($producto) => $this->formatItem($producto, 'producto')))
+            ->concat($cotizacion->servicios->map(fn($servicio) => $this->formatItem($servicio, 'servicio')))
+            ->values()
+            ->toArray();
 
         return [
             'id' => $cotizacion->id,
-            'cliente' => $cotizacion->cliente,
+            'cliente' => $cotizacion->cliente ? [
+                'id' => $cotizacion->cliente->id,
+                'nombre_razon_social' => $cotizacion->cliente->nombre_razon_social,
+                'email' => $cotizacion->cliente->email ?? null,
+            ] : null,
             'cliente_id' => $cotizacion->cliente_id,
             'items' => $items,
             'subtotal' => $cotizacion->subtotal,
-            'descuento' => $cotizacion->descuento,
+            'descuento' => $cotizacion->descuento ?? $cotizacion->descuento_general, // Ajuste para consistencia
             'iva' => $cotizacion->iva,
             'total' => $cotizacion->total,
             'fecha' => $cotizacion->created_at->format('Y-m-d'),
@@ -276,5 +283,19 @@ class CotizacionController extends Controller
             'descuento' => $item->pivot->descuento,
             'subtotal' => $item->pivot->cantidad * $item->pivot->precio * (1 - ($item->pivot->descuento / 100))
         ];
+    }
+
+    public function guardarBorrador(Cotizacion $cotizacion, Request $request)
+    {
+        $validated = $request->validate([
+            // Tus reglas de validación aquí
+        ]);
+
+        $cotizacion->update([
+            'estado' => 'borrador',
+            'datos' => $validated
+        ]);
+
+        return redirect()->back()->with('success', 'Borrador guardado');
     }
 }
