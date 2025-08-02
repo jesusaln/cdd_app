@@ -80,8 +80,12 @@ class Producto extends Model
 
     public function cotizaciones()
     {
-        return $this->morphToMany(Cotizacion::class, 'cotizable', 'cotizacion_producto')
-            ->withPivot('precio', 'cantidad');
+        return $this->morphToMany(
+            Cotizacion::class,
+            'cotizable',
+            'cotizacion_producto'
+        )->withPivot('cantidad', 'precio', 'descuento', 'subtotal', 'descuento_monto')
+            ->withTimestamps();
     }
     /**
      * Scope para filtrar productos activos

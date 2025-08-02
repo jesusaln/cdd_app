@@ -9,7 +9,6 @@ use App\Models\Producto;
 use App\Models\Servicio;
 use App\Models\Venta;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 
 class CotizacionService
@@ -27,7 +26,7 @@ class CotizacionService
     /**
      * Crea una nueva cotización con los datos proporcionados.
      *
-     * @param array $data Datos validados de la solicitud
+     * @param array $data
      * @return Cotizacion
      * @throws InvalidArgumentException
      */
@@ -53,10 +52,10 @@ class CotizacionService
     }
 
     /**
-     * Actualiza una cotización existente con los datos proporcionados.
+     * Actualiza una cotización existente.
      *
      * @param Cotizacion $cotizacion
-     * @param array $data Datos validados de la solicitud
+     * @param array $data
      * @return Cotizacion
      * @throws InvalidArgumentException
      */
@@ -99,7 +98,7 @@ class CotizacionService
     }
 
     /**
-     * Convierte una cotización a un pedido.
+     * Convierte una cotización en pedido.
      *
      * @param Cotizacion $cotizacion
      * @return Pedido
@@ -137,7 +136,7 @@ class CotizacionService
     }
 
     /**
-     * Convierte una cotización a una venta.
+     * Convierte una cotización en venta.
      *
      * @param Cotizacion $cotizacion
      * @return Venta
@@ -175,20 +174,19 @@ class CotizacionService
     }
 
     /**
-     * Calcula los totales de la cotización, incluyendo descuentos e IVA.
+     * Calcula los totales de la cotización.
      *
-     * @param array $items Productos o servicios de la cotización
-     * @param float $descuentoGeneral Descuento general en porcentaje
+     * @param array $items
+     * @param float $descuentoGeneral
      * @return array
      */
     private function calculateTotals(array $items, float $descuentoGeneral = 0)
     {
         $subtotal = 0;
         $descuentoItems = 0;
-        $ivaRate = 0.16; // Tasa de IVA (debe coincidir con el cliente)
+        $ivaRate = 0.16;
 
         foreach ($items as $item) {
-            // Validar existencia del ítem
             $this->validateItem($item);
 
             $itemSubtotal = $item['cantidad'] * $item['precio'];
@@ -214,7 +212,7 @@ class CotizacionService
     }
 
     /**
-     * Asocia productos y servicios a la cotización en las tablas pivot.
+     * Asocia productos y servicios a la cotización.
      *
      * @param Cotizacion $cotizacion
      * @param array $items
@@ -230,20 +228,22 @@ class CotizacionService
                 'cantidad' => $item['cantidad'],
                 'precio' => $item['precio'],
                 'descuento' => $item['descuento'] ?? 0,
+                'subtotal' => $item['cantidad'] * $item['precio'],
+                'descuento_monto' => ($item['cantidad'] * $item['precio']) * ($item['descuento'] ?? 0) / 100,
             ];
 
             if ($item['tipo'] === 'producto') {
-                $cotizacion->productos()->attach($item['id'], $pivotData);
+                $producto = Producto::findOrFail($item['id']);
+                $cotizacion->productos()->attach($producto->id, $pivotData);
             } elseif ($item['tipo'] === 'servicio') {
-                $cotizacion->servicios()->attach($item['id'], $pivotData);
-            } else {
-                throw new InvalidArgumentException("Tipo de ítem inválido: {$item['tipo']}");
+                $servicio = Servicio::findOrFail($item['id']);
+                $cotizacion->servicios()->attach($servicio->id, $pivotData);
             }
         }
     }
 
     /**
-     * Valida la existencia de un producto o servicio.
+     * Verifica que el producto o servicio exista.
      *
      * @param array $item
      * @return void
@@ -251,7 +251,7 @@ class CotizacionService
      */
     private function validateItem(array $item)
     {
-        if (!isset($item['id']) || !isset($item['tipo']) || !isset($item['cantidad']) || !isset($item['precio'])) {
+        if (!isset($item['id'], $item['tipo'], $item['cantidad'], $item['precio'])) {
             throw new InvalidArgumentException('Datos del ítem incompletos');
         }
 

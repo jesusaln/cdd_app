@@ -33,8 +33,12 @@ class Servicio extends Model
     // Relación con las cotizaciones
     public function cotizaciones()
     {
-        return $this->morphToMany(Cotizacion::class, 'cotizable', 'cotizacion_servicio')
-            ->withPivot('precio', 'cantidad');
+        return $this->morphToMany(
+            Cotizacion::class,
+            'cotizable',
+            'cotizacion_producto'
+        )->withPivot('cantidad', 'precio', 'descuento', 'subtotal', 'descuento_monto')
+            ->withTimestamps();
     }
 
 

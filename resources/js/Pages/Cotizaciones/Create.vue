@@ -522,6 +522,7 @@ const crearNuevoCliente = async (nombreBuscado) => {
 // Manejo de productos
 const agregarProducto = (item) => {
   if (!item?.id || !item?.tipo) {
+    console.error('Intento de agregar producto inválido:', item);
     showNotification('Datos de producto inválidos', 'error');
     return;
   }
@@ -532,6 +533,7 @@ const agregarProducto = (item) => {
   );
 
   if (exists) {
+    console.log('Producto ya existe en la cotización:', item);
     showNotification('Este producto ya está en la cotización', 'warning');
     return;
   }
@@ -542,6 +544,15 @@ const agregarProducto = (item) => {
   quantities.value[key] = 1;
   prices.value[key] = item.tipo === 'producto' ? (item.precio_venta || 0) : (item.precio || 0);
   discounts.value[key] = 0;
+
+  console.log('Producto agregado:', {
+    id: item.id,
+    tipo: item.tipo,
+    nombre: item.nombre || item.descripcion,
+    cantidad: quantities.value[key],
+    precio: prices.value[key],
+    descuento: discounts.value[key]
+  });
 
   nextTick(() => calcularTotal());
   showNotification(`Producto añadido: ${item.nombre || item.descripcion}`, 'success');
@@ -650,53 +661,21 @@ const validateDraftData = (draftData) => {
   return errors;
 };
 
-const guardarBorrador = async () => {
-  if (!clienteSeleccionado.value || selectedProducts.value.length === 0) {
-    showNotification('Necesitas seleccionar un cliente y al menos un producto', 'warning');
-    return;
-  }
+function guardarBorrador() {
+  const url = form.id
+    ? route('cotizaciones.draft', { cotizacion: form.id })
+    : route('cotizaciones.storeDraft'); // Asegúrate de que esta ruta exista
 
-  const draftData = {
-    cliente_id: form.cliente_id,
-    productos: selectedProducts.value.map(entry => {
-      const key = generateProductKey(entry.id, entry.tipo);
-      return {
-        id: entry.id,
-        tipo: entry.tipo,
-        cantidad: quantities.value[key] || 1,
-        precio: prices.value[key] || 0,
-        descuento: discounts.value[key] || 0
-      };
-    }),
-    descuento_general: descuentoGeneral.value,
-    totales: totales.value
-  };
+  form.post(url, {
+    onSuccess: () => {
+      toast.success('Borrador guardado');
+    },
+    onError: () => {
+      toast.error('Ocurrió un error al guardar');
+    },
+  });
+}
 
-  const validationErrors = validateDraftData(draftData);
-  if (validationErrors.length > 0) {
-    validationErrors.forEach(error => showNotification(error, 'error'));
-    return;
-  }
-
-  console.log('Datos a guardar:', draftData);
-
-  autoguardando.value = true;
-  try {
-    await axios.post(route('cotizaciones.draft'), draftData);
-    ultimoAutoguardado.value = new Date();
-    uiState.value.mostrarNotificacionAutoguardado = true;
-    setTimeout(() => {
-      uiState.value.mostrarNotificacionAutoguardado = false;
-    }, NOTIFICATION_DURATION);
-    showNotification('Borrador guardado automáticamente', 'success');
-  } catch (error) {
-    console.error('Error saving draft:', error);
-    const errorMessage = error.response?.data?.message || 'No se pudo guardar el borrador';
-    showNotification(errorMessage, 'error');
-  } finally {
-    autoguardando.value = false;
-  }
-};
 
 
 
@@ -781,8 +760,13 @@ const imprimirVistaPrevia = () => {
 const crearCotizacion = async () => {
   form.clearErrors();
 
+  console.log('Iniciando proceso de guardado...');
+  console.log('Cliente seleccionado:', clienteSeleccionado.value);
+  console.log('Productos seleccionados:', selectedProducts.value);
+
   const validationErrors = validateForm();
   if (validationErrors.length > 0) {
+    console.error('Errores de validación:', validationErrors);
     validationErrors.forEach(error => showNotification(error, 'error'));
     return;
   }
@@ -795,7 +779,7 @@ const crearCotizacion = async () => {
       const precio = prices.value[key] || 0;
       const descuento = discounts.value[key] || 0;
 
-      return {
+      const productoData = {
         id: entry.id,
         tipo: entry.tipo,
         cantidad,
@@ -804,12 +788,31 @@ const crearCotizacion = async () => {
         subtotal: cantidad * precio,
         descuento_monto: (cantidad * precio) * (descuento / 100)
       };
+
+      console.log('Preparando producto para tabla pivote:', productoData);
+      return productoData;
     });
 
     calcularTotal();
 
+    console.log('Datos completos a enviar:', {
+      cliente_id: form.cliente_id,
+      productos: form.productos,
+      totales: {
+        subtotal: form.subtotal,
+        descuento_general: form.descuento_general,
+        descuento_items: form.descuento_items,
+        iva: form.iva,
+        total: form.total
+      }
+    });
+
     form.post(route('cotizaciones.store'), {
-      onSuccess: () => {
+      onSuccess: (response) => {
+        console.log('Respuesta del servidor:', response);
+        // Opción 1: Solo si rediriges a la vista de cotización
+        //console.log('Cotización creada exitosamente. Redirigiendo...');
+
         router.visit(route('cotizaciones.index'), {
           onSuccess: () => {
             showNotification('Cotización creada con éxito', 'success');
@@ -821,12 +824,12 @@ const crearCotizacion = async () => {
         });
       },
       onError: (errors) => {
-        console.error('Validation errors:', errors);
+        console.error('Errores en el guardado:', errors);
         showNotification('Hubo errores de validación. Por favor, corrige los campos', 'error');
       }
     });
   } catch (error) {
-    console.error('Error creating quotation:', error);
+    console.error('Error en el proceso de guardado:', error);
     showNotification('Error al crear la cotización', 'error');
   }
 };

@@ -19,7 +19,7 @@ class Cotizacion extends Model
     protected $fillable = [
         'cliente_id',
         'total',
-       
+
     ];
 
     protected $casts = [
@@ -33,15 +33,25 @@ class Cotizacion extends Model
         return $this->belongsTo(Cliente::class);
     }
 
+    // Relación polimórfica para productos
     public function productos()
     {
-        return $this->morphedByMany(Producto::class, 'cotizable', 'cotizacion_producto')
-            ->withPivot('precio', 'cantidad');
+        return $this->morphedByMany(
+            Producto::class,
+            'cotizable',
+            'cotizacion_producto' // nombre de la tabla pivote
+        )->withPivot('cantidad', 'precio', 'descuento', 'subtotal', 'descuento_monto')
+            ->withTimestamps();
     }
 
+    // Relación polimórfica para servicios
     public function servicios()
     {
-        return $this->morphedByMany(Servicio::class, 'cotizable', 'cotizacion_producto')
-            ->withPivot('precio', 'cantidad');
+        return $this->morphedByMany(
+            Servicio::class,
+            'cotizable',
+            'cotizacion_producto'
+        )->withPivot('cantidad', 'precio', 'descuento', 'subtotal', 'descuento_monto')
+            ->withTimestamps();
     }
 }
