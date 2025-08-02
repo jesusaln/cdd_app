@@ -50,7 +50,20 @@ class CotizacionController extends Controller
     public function create()
     {
         return Inertia::render('Cotizaciones/Create', [
-            'clientes' => Cliente::select(['id', 'nombre_razon_social'])->get(),
+            'clientes' => Cliente::select([
+                'id',
+                'nombre_razon_social',
+                'rfc',
+                'email',
+                'telefono',
+                'empresa',
+                'calle',
+                'numero_exterior',
+                'colonia',
+                'codigo_postal',
+                'ciudad',
+                'estado'
+            ])->get(),
             'productos' => Producto::active()->get(['id', 'nombre', 'precio_venta']),
             'servicios' => Servicio::active()->get(['id', 'nombre', 'precio']),
             'defaults' => [
@@ -59,6 +72,36 @@ class CotizacionController extends Controller
                 'moneda' => 'MXN'
             ]
         ]);
+    }
+
+    public function guardarBorrador(Request $request)
+    {
+        // Validar datos mínimos
+        $request->validate([
+            'cliente_id' => 'required|exists:clientes,id',
+        ]);
+
+        // Si tiene ID, es una edición
+        if ($request->has('id')) {
+            $cotizacion = Cotizacion::findOrFail($request->id);
+            $cotizacion->update([
+                'estado' => 'borrador',
+                'datos' => $request->except(['_token', 'id']),
+                'subtotal' => $request->subtotal ?? 0,
+                'total' => $request->total ?? 0,
+            ]);
+        } else {
+            // Es un nuevo borrador
+            $cotizacion = Cotizacion::create([
+                'cliente_id' => $request->cliente_id,
+                'estado' => 'borrador',
+                'datos' => $request->except(['_token']),
+                'subtotal' => $request->subtotal ?? 0,
+                'total' => $request->total ?? 0,
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Borrador guardado con éxito');
     }
 
     public function store(Request $request)
@@ -133,6 +176,25 @@ class CotizacionController extends Controller
         }
     }
 
+    public function storeDraft(Request $request)
+    {
+        // Validar datos mínimos
+        $request->validate([
+            'cliente_id' => 'required|exists:clientes,id',
+            'productos' => 'array',
+        ]);
+
+        $cotizacion = Cotizacion::create([
+            'cliente_id' => $request->cliente_id,
+            'estado' => 'borrador',
+            'datos' => $request->except(['_token']),
+            'subtotal' => $request->subtotal ?? 0,
+            'total' => $request->total ?? 0,
+        ]);
+
+        return redirect()->route('cotizaciones.create')
+            ->with('success', 'Borrador guardado temporalmente');
+    }
 
     public function show($id)
     {
@@ -340,19 +402,5 @@ class CotizacionController extends Controller
             'descuento' => $item->pivot->descuento,
             'subtotal' => $item->pivot->cantidad * $item->pivot->precio * (1 - ($item->pivot->descuento / 100))
         ];
-    }
-
-    public function guardarBorrador(Cotizacion $cotizacion, Request $request)
-    {
-        $validated = $request->validate([
-            // Tus reglas de validación aquí
-        ]);
-
-        $cotizacion->update([
-            'estado' => 'borrador',
-            'datos' => $validated
-        ]);
-
-        return redirect()->back()->with('success', 'Borrador guardado');
     }
 }

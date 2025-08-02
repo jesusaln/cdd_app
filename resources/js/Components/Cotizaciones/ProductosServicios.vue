@@ -10,7 +10,6 @@
           Productos y Servicios
         </h2>
         <button
-          @click="handleVerificarPrecios"
           type="button"
           class="text-white hover:text-green-200 transition-colors duration-200 flex items-center text-sm"
           title="Verificar precios actuales"

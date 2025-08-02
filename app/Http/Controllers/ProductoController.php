@@ -10,6 +10,7 @@ use App\Models\Proveedor;
 use App\Models\Almacen;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\JsonResponse;
 
 class ProductoController extends Controller
 {
@@ -92,6 +93,8 @@ class ProductoController extends Controller
             'almacenes' => $almacenes,
         ]);
     }
+
+
 
     /**
      * Actualiza un producto existente en la base de datos.
@@ -184,6 +187,73 @@ class ProductoController extends Controller
         return Inertia::render('Producto/Inventario', [
             'producto' => $producto,
             'inventarios' => $inventarios,
+        ]);
+    }
+
+
+    public function validateStock(Request $request): JsonResponse
+    {
+        $request->validate([
+            'productos' => 'required|array',
+            'productos.*.id' => 'required|integer',
+            'productos.*.tipo' => 'required|string|in:producto,servicio',
+            'productos.*.cantidad' => 'required|numeric|min:1'
+        ]);
+
+        $productos = $request->input('productos');
+        $errors = [];
+        $pricesUpdated = [];
+        $valid = true;
+
+        foreach ($productos as $item) {
+            if ($item['tipo'] === 'producto') {
+                // Validar stock de productos
+                $producto = \App\Models\Producto::find($item['id']);
+
+                if (!$producto) {
+                    $errors[] = [
+                        'producto' => "Producto ID {$item['id']}",
+                        'mensaje' => 'Producto no encontrado'
+                    ];
+                    $valid = false;
+                    continue;
+                }
+
+                if ($producto->stock < $item['cantidad']) {
+                    $errors[] = [
+                        'producto' => $producto->nombre,
+                        'mensaje' => "Stock insuficiente. Disponible: {$producto->stock}, Solicitado: {$item['cantidad']}"
+                    ];
+                    $valid = false;
+                }
+
+                // Verificar si el precio ha cambiado
+                if ($producto->precio_venta != $item['precio']) {
+                    $pricesUpdated[] = [
+                        'id' => $producto->id,
+                        'tipo' => 'producto',
+                        'nombre' => $producto->nombre,
+                        'nuevoPrecio' => $producto->precio_venta
+                    ];
+                }
+            } else {
+                // Para servicios, solo verificar que existan
+                $servicio = \App\Models\Servicio::find($item['id']);
+
+                if (!$servicio) {
+                    $errors[] = [
+                        'producto' => "Servicio ID {$item['id']}",
+                        'mensaje' => 'Servicio no encontrado'
+                    ];
+                    $valid = false;
+                }
+            }
+        }
+
+        return response()->json([
+            'valid' => $valid,
+            'errors' => $errors,
+            'pricesUpdated' => $pricesUpdated
         ]);
     }
 }

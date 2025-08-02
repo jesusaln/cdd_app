@@ -78,8 +78,10 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // Solo agrega estas dos para las confirmaciones:
     Route::get('/cotizaciones/{id}/confirmar-pedido', [CotizacionController::class, 'mostrarConfirmacionPedido'])->name('cotizaciones.confirmar-pedido');
     Route::get('/cotizaciones/{id}/confirmar-venta', [CotizacionController::class, 'mostrarConfirmacionVenta'])->name('cotizaciones.confirmar-venta');
-    Route::post('/cotizaciones/draft', [CotizacionController::class, 'guardarNuevoBorrador'])
+    Route::post('/cotizaciones/draft', [CotizacionController::class, 'guardarBorrador'])
         ->name('cotizaciones.storeDraft');
+    Route::post('/productos/validate-stock', [ProductoController::class, 'validateStock'])
+        ->name('productos.validateStock');
 
     Route::resource('pedidos', PedidoController::class)->names('pedidos');
     Route::post('/pedidos/{id}/enviar-a-ventas', [PedidoController::class, 'enviarAVentas'])->name('pedidos.enviarAVentas');

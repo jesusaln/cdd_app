@@ -14,14 +14,16 @@
       <AtajosTeclado v-if="mostrarAtajos" @cerrar="mostrarAtajos = false" />
 
       <form @submit.prevent="crearCotizacion" class="space-y-8">
-        <ClienteInfo
-          :clientes="clientes"
-          :clienteSeleccionado="clienteSeleccionado"
-          @cliente-seleccionado="onClienteSeleccionado"
-          @crear-nuevo-cliente="crearNuevoCliente"
-          @limpiar-cliente="limpiarCliente"
-          ref="buscarClienteRef"
-        />
+        <BuscarCliente
+  :clientes="clientes"
+  :clienteSeleccionado="clienteSeleccionado"
+  @cliente-seleccionado="onClienteSeleccionado"
+  @crear-nuevo-cliente="crearNuevoCliente"
+  @limpiar-cliente="limpiarCliente"
+  ref="buscarClienteRef"
+/>
+
+
 
         <ProductosServicios
           :productos="productos"
@@ -37,7 +39,7 @@
           @update-discount="updateDiscount"
           @calcular-total="calcularTotal"
           @mostrar-margen="toggleCalculadoraMargen"
-          @verificar-precios="verificarPrecios"
+
           ref="buscarProductoRef"
         />
 
@@ -148,6 +150,8 @@ import VistaPreviaModal from '@/Components/Cotizaciones/VistaPreviaModal.vue';
 import PlantillasModal from '@/Components/Cotizaciones/PlantillasModal.vue';
 import NotificacionAutoguardado from '@/Components/Cotizaciones/NotificacionAutoguardado.vue';
 import AyudaBoton from '@/Components/Cotizaciones/AyudaBoton.vue';
+import CrearClienteModal from '@/Components/Cotizaciones/CrearClienteModal.vue';
+import BuscarCliente from '@/Components/Cotizaciones/BuscarCliente.vue';
 
 // Inicializar Notyf
 const notyf = new Notyf({
@@ -200,6 +204,10 @@ const notyf = new Notyf({
 const IVA_RATE = 0.16;
 const AUTOSAVE_INTERVAL = 30000; // 30 segundos
 const NOTIFICATION_DURATION = 3000;
+
+const verificandoPrecios = ref(false);
+const guardandoBorrador = ref(false);
+const creandoCliente = ref(false);
 
 // Define layout
 defineOptions({ layout: AppLayout });
@@ -494,84 +502,154 @@ const limpiarCliente = () => {
 
 const crearNuevoCliente = async (nombreBuscado) => {
   if (!nombreBuscado?.trim()) {
-    showNotification('El nombre del cliente es requerido', 'error');
+    notyf.open({ type: 'error', message: 'El nombre del cliente es requerido' });
     return;
   }
 
+  creandoCliente.value = true; // ✅ AGREGAR
   try {
     const response = await axios.post(route('clientes.store'), {
       nombre_razon_social: nombreBuscado.trim()
     });
+    // ... resto del código igual
+  } catch (error) {
+    // ... código de error igual
+  } finally {
+    creandoCliente.value = false; // ✅ AGREGAR
+  }
+};
 
-    const nuevoCliente = response.data;
+// Validación de stock y precios en backend
+const validateStockAndPrices = async () => {
+  if (selectedProducts.value.length === 0) return true;
 
-    // Evitar duplicados
-    if (!props.clientes.some(c => c.id === nuevoCliente.id)) {
-      props.clientes.push(nuevoCliente);
+  try {
+    const response = await axios.post(route('productos.validateStock'), {
+      productos: selectedProducts.value.map(entry => {
+        const key = `${entry.tipo}-${entry.id}`;
+        return {
+          id: entry.id,
+          tipo: entry.tipo,
+          cantidad: quantities.value[key] || 1
+        };
+      })
+    });
+
+    const validation = response.data;
+
+    if (!validation.valid) {
+      // Mostrar errores específicos
+      validation.errors.forEach(error => {
+        notyf.open({
+          type: 'error',
+          message: `❌ ${error.producto}: ${error.mensaje}`,
+          duration: 7000
+        });
+      });
+      return false;
     }
 
-    onClienteSeleccionado(nuevoCliente);
-    showNotification(`Cliente creado: ${nuevoCliente.nombre_razon_social}`, 'success');
+    // Actualizar precios si han cambiado
+    if (validation.pricesUpdated && validation.pricesUpdated.length > 0) {
+      validation.pricesUpdated.forEach(update => {
+        const key = `${update.tipo}-${update.id}`;
+        if (prices.value[key] !== update.nuevoPrecio) {
+          prices.value[key] = update.nuevoPrecio;
+          notyf.open({
+            type: 'info',
+            message: `💰 Precio actualizado: ${update.nombre}`,
+            duration: 5000
+          });
+        }
+      });
+      nextTick(() => calcularTotal());
+    }
+
+    return true;
   } catch (error) {
-    console.error('Error creating new client:', error);
-    const errorMessage = error.response?.data?.message || 'No se pudo crear el cliente';
-    showNotification(errorMessage, 'error');
+    console.error('Error validando stock:', error);
+    notyf.open({
+      type: 'error',
+      message: 'Error al validar disponibilidad de productos'
+    });
+    return false;
   }
 };
 
 // Manejo de productos
 const agregarProducto = (item) => {
-  if (!item?.id || !item?.tipo) {
-    console.error('Intento de agregar producto inválido:', item);
-    showNotification('Datos de producto inválidos', 'error');
-    return;
-  }
+ if (!item?.id || !item?.tipo) {
+   console.error('Intento de agregar producto inválido:', item);
+   notyf.open({ type: 'error', message: 'Datos de producto inválidos' });
+   return;
+ }
 
-  const itemEntry = { id: item.id, tipo: item.tipo };
-  const exists = selectedProducts.value.some(
-    entry => entry.id === item.id && entry.tipo === item.tipo
-  );
+ // Validar nombre y precio
+ const nombreProducto = item.nombre || item.descripcion || 'Producto sin nombre';
+ const precioProducto = item.tipo === 'producto' ? (item.precio_venta || item.precio || 0) : (item.precio || 0);
 
-  if (exists) {
-    console.log('Producto ya existe en la cotización:', item);
-    showNotification('Este producto ya está en la cotización', 'warning');
-    return;
-  }
+ if (precioProducto <= 0) {
+   notyf.open({
+     type: 'warning',
+     message: `"${nombreProducto}" no tiene precio válido. Se asignará precio 0.`
+   });
+ }
 
-  selectedProducts.value.push(itemEntry);
-  const key = generateProductKey(item.id, item.tipo);
+ const itemEntry = { id: item.id, tipo: item.tipo };
+ const exists = selectedProducts.value.some(
+   entry => entry.id === item.id && entry.tipo === item.tipo
+ );
 
-  quantities.value[key] = 1;
-  prices.value[key] = item.tipo === 'producto' ? (item.precio_venta || 0) : (item.precio || 0);
-  discounts.value[key] = 0;
+ if (exists) {
+   console.log('Producto ya existe en la cotización:', item);
+   notyf.open({
+     type: 'warning',
+     message: `"${nombreProducto}" ya está en la cotización`
+   });
+   return;
+ }
 
-  console.log('Producto agregado:', {
-    id: item.id,
-    tipo: item.tipo,
-    nombre: item.nombre || item.descripcion,
-    cantidad: quantities.value[key],
-    precio: prices.value[key],
-    descuento: discounts.value[key]
-  });
+ selectedProducts.value.push(itemEntry);
+ const key = generateProductKey(item.id, item.tipo);
 
-  nextTick(() => calcularTotal());
-  showNotification(`Producto añadido: ${item.nombre || item.descripcion}`, 'success');
+ quantities.value[key] = 1;
+ prices.value[key] = precioProducto;
+ discounts.value[key] = 0;
+
+ console.log('Producto agregado:', {
+   id: item.id,
+   tipo: item.tipo,
+   nombre: nombreProducto,
+   cantidad: quantities.value[key],
+   precio: prices.value[key],
+   descuento: discounts.value[key]
+ });
+
+ nextTick(() => calcularTotal());
+ notyf.open({
+   type: 'success',
+   message: `✓ "${nombreProducto}" añadido a la cotización`
+ });
 };
 
 const eliminarProducto = (entry) => {
-  const item = obtenerProducto(entry.id, entry.tipo);
+ const item = obtenerProducto(entry.id, entry.tipo);
+ const nombreProducto = item?.nombre || item?.descripcion || 'Producto';
 
-  selectedProducts.value = selectedProducts.value.filter(
-    item => !(item.id === entry.id && item.tipo === entry.tipo)
-  );
+ selectedProducts.value = selectedProducts.value.filter(
+   item => !(item.id === entry.id && item.tipo === entry.tipo)
+ );
 
-  const key = generateProductKey(entry.id, entry.tipo);
-  delete quantities.value[key];
-  delete prices.value[key];
-  delete discounts.value[key];
+ const key = generateProductKey(entry.id, entry.tipo);
+ delete quantities.value[key];
+ delete prices.value[key];
+ delete discounts.value[key];
 
-  nextTick(() => calcularTotal());
-  showNotification(`Producto eliminado: ${item?.nombre || item?.descripcion}`, 'info');
+ nextTick(() => calcularTotal());
+ notyf.open({
+   type: 'info',
+   message: `"${nombreProducto}" eliminado de la cotización`
+ });
 };
 
 const updateQuantity = (key, quantity) => {
@@ -596,44 +674,7 @@ const updateDiscount = (key, discount) => {
   nextTick(() => calcularTotal());
 };
 
-// Verificación de precios
-const verificarPrecios = async () => {
-  if (selectedProducts.value.length === 0) {
-    showNotification('No hay productos para verificar', 'info');
-    return;
-  }
 
-  try {
-    const response = await axios.post(route('productos.verificarPrecios'), {
-      productos: selectedProducts.value.map(entry => ({
-        id: entry.id,
-        tipo: entry.tipo
-      }))
-    });
-
-    const updatedPrices = response.data;
-    let preciosActualizados = 0;
-
-    for (const entry of selectedProducts.value) {
-      const key = generateProductKey(entry.id, entry.tipo);
-      if (updatedPrices[key] && updatedPrices[key].precio !== prices.value[key]) {
-        prices.value[key] = updatedPrices[key].precio;
-        preciosActualizados++;
-      }
-    }
-
-    if (preciosActualizados > 0) {
-      nextTick(() => calcularTotal());
-      showNotification(`${preciosActualizados} precios actualizados`, 'success');
-    } else {
-      showNotification('Los precios están actualizados', 'info');
-    }
-  } catch (error) {
-    console.error('Error verifying prices:', error);
-    const errorMessage = error.response?.data?.message || 'No se pudieron verificar los precios';
-    showNotification(errorMessage, 'error');
-  }
-};
 
 const validateDraftData = (draftData) => {
   const errors = [];
@@ -662,20 +703,45 @@ const validateDraftData = (draftData) => {
 };
 
 function guardarBorrador() {
-  const url = form.id
-    ? route('cotizaciones.draft', { cotizacion: form.id })
-    : route('cotizaciones.storeDraft'); // Asegúrate de que esta ruta exista
+    // Validar datos mínimos antes de guardar
+    if (!clienteSeleccionado.value) {
+        notyf.open({ type: 'warning', message: 'Selecciona un cliente antes de guardar' });
+        return;
+    }
 
-  form.post(url, {
-    onSuccess: () => {
-      toast.success('Borrador guardado');
-    },
-    onError: () => {
-      toast.error('Ocurrió un error al guardar');
-    },
-  });
+    if (selectedProducts.value.length === 0) {
+        notyf.open({ type: 'warning', message: 'Agrega al menos un producto antes de guardar' });
+        return;
+    }
+
+    // Validar que las cantidades sean válidas
+    const hasInvalidQuantities = selectedProducts.value.some(entry => {
+        const key = `${entry.tipo}-${entry.id}`;
+        const quantity = quantities.value[key];
+        return !quantity || quantity <= 0;
+    });
+
+    if (hasInvalidQuantities) {
+        notyf.open({ type: 'warning', message: 'Corrige las cantidades antes de guardar' });
+        return;
+    }
+
+    const url = form.id
+        ? route('cotizaciones.draft', { cotizacion: form.id })
+        : route('cotizaciones.storeDraft');
+
+    form.post(url, {
+        onSuccess: () => {
+            notyf.open({ type: 'success', message: '💾 Borrador guardado correctamente' });
+            ultimoAutoguardado.value = new Date();
+        },
+        onError: (errors) => {
+            notyf.open({ type: 'error', message: 'Error al guardar el borrador' });
+            console.error('Errores al guardar borrador:', errors);
+        },
+    });
+
 }
-
 
 
 
@@ -768,6 +834,16 @@ const crearCotizacion = async () => {
   if (validationErrors.length > 0) {
     console.error('Errores de validación:', validationErrors);
     validationErrors.forEach(error => showNotification(error, 'error'));
+    return;
+  }
+
+  // ✅ AGREGAR ESTA VALIDACIÓN:
+  const stockValid = await validateStockAndPrices();
+  if (!stockValid) {
+    notyf.open({
+      type: 'warning',
+      message: 'Corrige los problemas de stock antes de continuar'
+    });
     return;
   }
 
