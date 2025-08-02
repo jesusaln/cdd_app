@@ -5,31 +5,48 @@
       <div class="flex justify-between items-center">
         <h2 class="text-lg font-semibold text-white flex items-center">
           <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+            />
           </svg>
           Productos y Servicios
         </h2>
         <button
           type="button"
-          class="text-white hover:text-green-200 transition-colors duration-200 flex items-center text-sm"
-          title="Verificar precios actuales"
+          @click="handleVerificarPrecios"
+          :disabled="verificandoPrecios"
+          class="flex items-center text-sm text-white hover:text-green-200 disabled:opacity-70 disabled:cursor-not-allowed transition-colors duration-200"
+          :title="verificandoPrecios ? 'Verificando...' : 'Verificar precios actuales'"
         >
-          <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          <svg v-if="!verificandoPrecios" class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
-          Verificar Precios
+          <div v-else class="animate-spin w-4 h-4 mr-1 border-2 border-white border-t-transparent rounded-full"></div>
+          {{ verificandoPrecios ? 'Verificando...' : 'Verificar Precios' }}
         </button>
       </div>
     </div>
 
     <!-- Content Section -->
     <div class="p-6">
+      <!-- Búsqueda de producto -->
       <BuscarProducto
         ref="buscarProductoRef"
         :productos="productos"
         :servicios="servicios"
+        :disabled="verificandoPrecios"
         @agregar-producto="handleAgregarProducto"
       />
+
+      <!-- Lista de productos seleccionados -->
       <ProductosSeleccionados
         :selectedProducts="selectedProducts"
         :productos="productos"
@@ -49,50 +66,57 @@
 </template>
 
 <script setup>
-// Importación de componentes
+import { ref } from 'vue';
+
+// Componentes
 import BuscarProducto from '@/Components/BuscarProducto.vue';
 import ProductosSeleccionados from '@/Components/ProductosSeleccionados.vue';
 
-// Definición de props
+// Props
 const props = defineProps({
   productos: {
     type: Array,
     required: true,
     default: () => [],
+    validator: (value) => Array.isArray(value)
   },
   servicios: {
     type: Array,
     required: true,
     default: () => [],
+    validator: (value) => Array.isArray(value)
   },
   selectedProducts: {
     type: Array,
     required: true,
     default: () => [],
+    validator: (value) => Array.isArray(value)
   },
   quantities: {
     type: Object,
     required: true,
     default: () => ({}),
+    validator: (value) => value !== null && typeof value === 'object'
   },
   prices: {
     type: Object,
     required: true,
     default: () => ({}),
+    validator: (value) => value !== null && typeof value === 'object'
   },
   discounts: {
     type: Object,
     required: true,
     default: () => ({}),
+    validator: (value) => value !== null && typeof value === 'object'
   },
   mostrarCalculadoraMargen: {
     type: Boolean,
-    required: true,
-    default: false,
-  },
+    default: false
+  }
 });
 
-// Definición de eventos emitidos
+// Emits
 const emit = defineEmits([
   'agregar-producto',
   'eliminar-producto',
@@ -103,6 +127,9 @@ const emit = defineEmits([
   'verificar-precios'
 ]);
 
+// Estado
+const verificandoPrecios = ref(false);
+
 // Manejadores de eventos
 const handleAgregarProducto = (producto) => {
   emit('agregar-producto', producto);
@@ -112,12 +139,12 @@ const handleEliminarProducto = (producto) => {
   emit('eliminar-producto', producto);
 };
 
-const handleUpdateQuantity = ({ key, quantity }) => {
-  emit('update-quantity', { key, quantity });
+const handleUpdateQuantity = (payload) => {
+  emit('update-quantity', payload);
 };
 
-const handleUpdateDiscount = ({ key, discount }) => {
-  emit('update-discount', { key, discount });
+const handleUpdateDiscount = (payload) => {
+  emit('update-discount', payload);
 };
 
 const handleCalcularTotal = () => {
@@ -128,7 +155,28 @@ const handleMostrarMargen = () => {
   emit('mostrar-margen');
 };
 
-const handleVerificarPrecios = () => {
-  emit('verificar-precios');
+const handleVerificarPrecios = async () => {
+  verificandoPrecios.value = true;
+  try {
+    emit('verificar-precios');
+    // Si el evento es asíncrono, puedes esperar una promesa
+    // await nextTick();
+  } catch (error) {
+    console.error('Error al verificar precios:', error);
+  } finally {
+    verificandoPrecios.value = false;
+  }
 };
+
+// Exponer referencias y métodos
+defineExpose({
+  focus: () => {
+    if (buscarProductoRef.value?.focus) {
+      buscarProductoRef.value.focus();
+    }
+  }
+});
+
+// Referencias
+const buscarProductoRef = ref(null);
 </script>

@@ -74,6 +74,7 @@
           {{ descuento }}%
         </button>
         <button
+        type="button"
           @click="limpiarDescuento"
           class="px-3 py-1 text-xs rounded-md border bg-red-50 border-red-200 text-red-600 hover:bg-red-100 transition-colors duration-200"
         >

@@ -197,7 +197,8 @@ class ProductoController extends Controller
             'productos' => 'required|array',
             'productos.*.id' => 'required|integer',
             'productos.*.tipo' => 'required|string|in:producto,servicio',
-            'productos.*.cantidad' => 'required|numeric|min:1'
+            'productos.*.cantidad' => 'required|numeric|min:1',
+            'productos.*.precio' => 'required|numeric|min:0', // 👈 esta línea es clave
         ]);
 
         $productos = $request->input('productos');
@@ -228,7 +229,7 @@ class ProductoController extends Controller
                 }
 
                 // Verificar si el precio ha cambiado
-                if ($producto->precio_venta != $item['precio']) {
+                if (isset($item['precio']) && $producto->precio_venta != $item['precio']) {
                     $pricesUpdated[] = [
                         'id' => $producto->id,
                         'tipo' => 'producto',

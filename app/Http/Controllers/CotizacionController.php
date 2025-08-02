@@ -64,8 +64,19 @@ class CotizacionController extends Controller
                 'ciudad',
                 'estado'
             ])->get(),
-            'productos' => Producto::active()->get(['id', 'nombre', 'precio_venta']),
-            'servicios' => Servicio::active()->get(['id', 'nombre', 'precio']),
+            'productos' => Producto::select([
+                'id',
+                'nombre',
+                'categoria',
+                'precio_venta',
+                'costo',
+                'codigo', // ✅ Asegúrate de incluir este campo
+                'sku',
+                'clave',
+                'stock',
+                // ... otros campos
+            ])->get(),
+            'servicios' => Servicio::active()->get(['id', 'nombre', 'precio', 'codigo', 'categoria', 'descripcion', 'duracion']),
             'defaults' => [
                 'fecha' => now()->format('Y-m-d'),
                 'validez' => 30,

@@ -26,22 +26,21 @@
 
 
         <ProductosServicios
-          :productos="productos"
-          :servicios="servicios"
-          :selectedProducts="selectedProducts"
-          :quantities="quantities"
-          :prices="prices"
-          :discounts="discounts"
-          :mostrarCalculadoraMargen="mostrarCalculadoraMargen"
-          @agregar-producto="agregarProducto"
-          @eliminar-producto="eliminarProducto"
-          @update-quantity="updateQuantity"
-          @update-discount="updateDiscount"
-          @calcular-total="calcularTotal"
-          @mostrar-margen="toggleCalculadoraMargen"
-
-          ref="buscarProductoRef"
-        />
+  :productos="productos"
+  :servicios="servicios"
+  :selectedProducts="selectedProducts"
+  :quantities="quantities"
+  :prices="prices"
+  :discounts="discounts"
+  :mostrarCalculadoraMargen="mostrarCalculadoraMargen"
+  @agregar-producto="agregarProducto"
+  @eliminar-producto="eliminarProducto"
+  @update-quantity="updateQuantity"
+  @update-price="updatePrice"
+  @update-discount="updateDiscount"
+  @calcular-total="calcularTotal"
+  ref="buscarProductoRef"
+/>
 
         <CalculadoraMargenes
           v-if="mostrarCalculadoraMargen"
@@ -141,7 +140,6 @@ import axios from 'axios';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Header from '@/Components/Cotizaciones/Header.vue';
 import AtajosTeclado from '@/Components/Cotizaciones/AtajosTeclado.vue';
-import ClienteInfo from '@/Components/Cotizaciones/ClienteInfo.vue';
 import ProductosServicios from '@/Components/Cotizaciones/ProductosServicios.vue';
 import CalculadoraMargenes from '@/Components/Cotizaciones/CalculadoraMargenes.vue';
 import DescuentoGeneral from '@/Components/Cotizaciones/DescuentoGeneral.vue';
@@ -230,6 +228,16 @@ const props = defineProps({
     validator: (value) => Array.isArray(value)
   },
 });
+
+const updatePrice = ({ key, price }) => {
+  const parsedPrice = parseFloat(price);
+  if (isNaN(parsedPrice) || parsedPrice < 0) {
+    showNotification('El precio no puede ser negativo ni inválido', 'error');
+    return;
+  }
+  prices.value[key] = parsedPrice;
+  nextTick(() => calcularTotal());
+};
 
 // Composables inline (funciones de utilidad)
 const showNotification = (message, type = 'success') => {
@@ -524,21 +532,26 @@ const validateStockAndPrices = async () => {
   if (selectedProducts.value.length === 0) return true;
 
   try {
+    const productosLimpios = selectedProducts.value.map(entry => {
+      const key = `${entry.tipo}-${entry.id}`;
+      const precio = parseFloat(prices.value[key]) || 0; // Usar prices.value[key]
+      return {
+        id: entry.id,
+        tipo: entry.tipo,
+        cantidad: quantities.value[key] || 1,
+        precio: precio, // Corregido
+      };
+    });
+
+    console.log("Payload enviado a validar stock:", productosLimpios);
+
     const response = await axios.post(route('productos.validateStock'), {
-      productos: selectedProducts.value.map(entry => {
-        const key = `${entry.tipo}-${entry.id}`;
-        return {
-          id: entry.id,
-          tipo: entry.tipo,
-          cantidad: quantities.value[key] || 1
-        };
-      })
+      productos: productosLimpios,
     });
 
     const validation = response.data;
 
     if (!validation.valid) {
-      // Mostrar errores específicos
       validation.errors.forEach(error => {
         notyf.open({
           type: 'error',
@@ -549,32 +562,18 @@ const validateStockAndPrices = async () => {
       return false;
     }
 
-    // Actualizar precios si han cambiado
-    if (validation.pricesUpdated && validation.pricesUpdated.length > 0) {
-      validation.pricesUpdated.forEach(update => {
-        const key = `${update.tipo}-${update.id}`;
-        if (prices.value[key] !== update.nuevoPrecio) {
-          prices.value[key] = update.nuevoPrecio;
-          notyf.open({
-            type: 'info',
-            message: `💰 Precio actualizado: ${update.nombre}`,
-            duration: 5000
-          });
-        }
-      });
-      nextTick(() => calcularTotal());
-    }
-
     return true;
   } catch (error) {
-    console.error('Error validando stock:', error);
-    notyf.open({
-      type: 'error',
-      message: 'Error al validar disponibilidad de productos'
-    });
+    if (error.response?.status === 422) {
+      console.error("❌ Errores de validación:", error.response.data.errors);
+      alert("Errores en validación:\n" + JSON.stringify(error.response.data.errors, null, 2));
+    } else {
+      console.error("❌ Error inesperado:", error);
+    }
     return false;
   }
 };
+
 
 // Manejo de productos
 const agregarProducto = (item) => {
