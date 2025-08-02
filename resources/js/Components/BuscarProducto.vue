@@ -394,8 +394,8 @@ const cerrarLista = (event) => {
 
 onMounted(() => {
   document.addEventListener('click', cerrarLista);
-  console.log('Productos:', props.productos);
-  console.log('Servicios:', props.servicios);
+  //console.log('Productos:', props.productos);
+  //console.log('Servicios:', props.servicios);
 });
 
 onUnmounted(() => {

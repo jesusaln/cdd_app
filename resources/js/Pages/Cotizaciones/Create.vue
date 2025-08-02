@@ -1,5 +1,5 @@
 <template>
-  <!-- El template permanece igual -->
+  <!-- El template permanece igual, pero agregamos un indicador visual para autoguardado -->
   <Head title="Crear cotizaciones" />
   <div class="cotizaciones-create min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
     <div class="max-w-6xl mx-auto">
@@ -72,7 +72,7 @@
           </Link>
           <button
             type="button"
-            @click="guardarBorrador"
+            @click="guardarBorrador(true)"
             :disabled="!clienteSeleccionado || selectedProducts.length === 0"
             class="inline-flex items-center justify-center px-6 py-3 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
           >
@@ -195,7 +195,7 @@ const notyf = new Notyf({
 // Constants
 const IVA_RATE = 0.16;
 const AUTOSAVE_INTERVAL = 30000; // 30 segundos
-const NOTIFICATION_DURATION = 3000;
+const NOTIFICATION_COOLDOWN = 10000; // 10 segundos para evitar notificaciones repetitivas
 
 // Define layout
 defineOptions({ layout: AppLayout });
@@ -210,6 +210,7 @@ const props = defineProps({
 const verificandoPrecios = ref(false);
 const guardandoBorrador = ref(false);
 const creandoCliente = ref(false);
+const lastNotificationTime = ref(0); // Controlar el tiempo de la última notificación
 
 // Form setup
 const form = useForm({
@@ -355,6 +356,11 @@ const {
 
 // Funciones de utilidad
 const showNotification = (message, type = 'success') => {
+  const now = Date.now();
+  if (now - lastNotificationTime.value < NOTIFICATION_COOLDOWN) {
+    return; // Evitar notificaciones frecuentes
+  }
+  lastNotificationTime.value = now;
   notyf.open({
     type,
     message,
@@ -481,7 +487,7 @@ const limpiarCliente = () => {
 
 const crearNuevoCliente = async (nombreBuscado) => {
   if (!nombreBuscado?.trim()) {
-    notyf.open({ type: 'error', message: 'El nombre del cliente es requerido' });
+    showNotification('El nombre del cliente es requerido', 'error');
     return;
   }
 
@@ -525,11 +531,7 @@ const validateStockAndPrices = async () => {
 
     if (!validation.valid) {
       validation.errors.forEach(error => {
-        notyf.open({
-          type: 'error',
-          message: `❌ ${error.producto}: ${error.mensaje}`,
-          duration: 7000
-        });
+        showNotification(`❌ ${error.producto}: ${error.mensaje}`, 'error');
       });
       return false;
     }
@@ -556,24 +558,25 @@ const agregarProducto = (item) => {
   }
 
   const itemEntry = { id: item.id, tipo: item.tipo };
-  const exists = selectedProducts.value.some(
+  const key = generateProductKey(item.id, item.tipo);
+
+  const existingProduct = selectedProducts.value.find(
     entry => entry.id === item.id && entry.tipo === item.tipo
   );
 
-  if (exists) {
-    showNotification(`"${nombreProducto}" ya está en la cotización`, 'warning');
-    return;
+  if (existingProduct) {
+    // Incrementar cantidad en lugar de rechazar el producto
+    quantities.value[key] = (quantities.value[key] || 1) + 1;
+    showNotification(`"${nombreProducto}" ya está en la cotización, se incrementó la cantidad`, 'info');
+  } else {
+    selectedProducts.value.push(itemEntry);
+    quantities.value[key] = 1;
+    prices.value[key] = precioProducto;
+    discounts.value[key] = 0;
+    showNotification(`✓ "${nombreProducto}" añadido a la cotización`, 'success');
   }
 
-  selectedProducts.value.push(itemEntry);
-  const key = generateProductKey(item.id, item.tipo);
-
-  quantities.value[key] = 1;
-  prices.value[key] = precioProducto;
-  discounts.value[key] = 0;
-
   nextTick(() => calcularTotal());
-  showNotification(`✓ "${nombreProducto}" añadido a la cotización`, 'success');
   guardarBorrador(); // Guardar en localStorage al agregar producto
 };
 
@@ -631,7 +634,7 @@ const updateDiscount = (key, discount) => {
 };
 
 // Guardado en localStorage
-const guardarBorrador = () => {
+const guardarBorrador = (manual = false) => {
   if (!clienteSeleccionado.value || selectedProducts.value.length === 0) {
     return;
   }
@@ -658,7 +661,9 @@ const guardarBorrador = () => {
   try {
     localStorage.setItem('cotizacion_draft', JSON.stringify(draftData));
     ultimoAutoguardado.value = new Date();
-    showNotification('💾 Borrador guardado localmente', 'success');
+    if (manual) {
+      showNotification('💾 Borrador guardado localmente', 'success');
+    }
   } catch (error) {
     console.error('Error al guardar en localStorage:', error);
     showNotification('Error al guardar el borrador localmente', 'error');
@@ -667,7 +672,7 @@ const guardarBorrador = () => {
   }
 };
 
-// Guardar borrador en el servidor (opcional)
+// Guardar borrador en el servidor
 const guardarBorradorEnServidor = async () => {
   if (!clienteSeleccionado.value) {
     showNotification('Selecciona un cliente antes de guardar', 'warning');
@@ -734,34 +739,6 @@ const guardarBorradorEnServidor = async () => {
   } catch (error) {
     showNotification('Error al guardar el borrador en el servidor', 'error');
     console.error('Error:', error);
-  }
-};
-
-// Cargar borrador desde localStorage
-const cargarBorrador = () => {
-  const draft = localStorage.getItem('cotizacion_draft');
-  if (draft) {
-    try {
-      const draftData = JSON.parse(draft);
-      clienteSeleccionado.value = draftData.clienteSeleccionado;
-      selectedProducts.value = draftData.selectedProducts;
-      quantities.value = draftData.quantities;
-      prices.value = draftData.prices;
-      discounts.value = draftData.discounts;
-      descuentoGeneral.value = draftData.descuentoGeneral;
-      form.cliente_id = draftData.form.cliente_id;
-      form.subtotal = draftData.form.subtotal;
-      form.descuento_general = draftData.form.descuento_general;
-      form.descuento_items = draftData.form.descuento_items;
-      form.iva = draftData.form.iva;
-      form.total = draftData.form.total;
-      ultimoAutoguardado.value = new Date(draftData.timestamp);
-      showNotification('Borrador cargado desde el almacenamiento local', 'info');
-      nextTick(() => calcularTotal());
-    } catch (error) {
-      console.error('Error al cargar el borrador:', error);
-      showNotification('Error al cargar el borrador local', 'error');
-    }
   }
 };
 
@@ -947,7 +924,7 @@ const setupKeyboardShortcuts = () => {
   const shortcuts = {
     'ctrl+s': (e) => {
       e.preventDefault();
-      guardarBorrador();
+      guardarBorrador(true);
     },
     'ctrl+p': (e) => {
       e.preventDefault();
@@ -986,7 +963,7 @@ const startAutoSave = () => {
 
   autoSaveInterval = setInterval(() => {
     if (clienteSeleccionado.value && selectedProducts.value.length > 0) {
-      guardarBorrador();
+      guardarBorrador(); // Autoguardado sin notificación
     }
   }, AUTOSAVE_INTERVAL);
 };
@@ -999,11 +976,11 @@ const stopAutoSave = () => {
 
 // Lifecycle hooks
 onMounted(() => {
-  console.log('Componente montado con datos:', {
-    clientes: props.clientes.length,
-    productos: props.productos.length,
-    servicios: props.servicios.length
-  });
+  // console.log('Componente montado con datos:', {
+  //   clientes: props.clientes.length,
+  //   productos: props.productos.length,
+  //   servicios: props.servicios.length
+  // });
 
   cargarBorrador(); // Cargar borrador al montar el componente
   startAutoSave();
@@ -1014,6 +991,34 @@ onMounted(() => {
     cleanupKeyboardShortcuts();
   });
 });
+
+// Cargar borrador desde localStorage
+const cargarBorrador = () => {
+  const draft = localStorage.getItem('cotizacion_draft');
+  if (draft) {
+    try {
+      const draftData = JSON.parse(draft);
+      clienteSeleccionado.value = draftData.clienteSeleccionado;
+      selectedProducts.value = draftData.selectedProducts;
+      quantities.value = draftData.quantities;
+      prices.value = draftData.prices;
+      discounts.value = draftData.discounts;
+      descuentoGeneral.value = draftData.descuentoGeneral;
+      form.cliente_id = draftData.form.cliente_id;
+      form.subtotal = draftData.form.subtotal;
+      form.descuento_general = draftData.form.descuento_general;
+      form.descuento_items = draftData.form.descuento_items;
+      form.iva = draftData.form.iva;
+      form.total = draftData.form.total;
+      ultimoAutoguardado.value = new Date(draftData.timestamp);
+      showNotification('Borrador cargado desde el almacenamiento local', 'info');
+      nextTick(() => calcularTotal());
+    } catch (error) {
+      console.error('Error al cargar el borrador:', error);
+      showNotification('Error al cargar el borrador local', 'error');
+    }
+  }
+};
 </script>
 
 <style scoped>
