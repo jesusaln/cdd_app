@@ -60,6 +60,7 @@
       <p class="text-xs text-gray-500 mb-2">Descuentos rápidos:</p>
       <div class="flex flex-wrap gap-2">
         <button
+        type="button"
           v-for="descuento in descuentosRapidos"
           :key="descuento"
           @click="aplicarDescuentoRapido(descuento)"
