@@ -197,34 +197,34 @@
               </td>
 
               <td class="px-6 py-4">
-                <div class="max-w-xs">
-                  <div class="text-sm text-gray-900 font-medium mb-1">
-                    {{ cotizacion.productos.length }} elemento(s)
-                  </div>
-                  <div class="space-y-1">
-                    <div
-                      v-for="(item, index) in cotizacion.productos.slice(0, 2)"
-                      :key="item.id"
-                      class="flex items-center text-xs"
-                    >
-                      <span
-                        :class="item.tipo === 'producto' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'"
-                        class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium mr-2"
-                      >
-                        {{ item.tipo === 'producto' ? 'P' : 'S' }}
-                      </span>
-                      <span class="text-gray-600 truncate">{{ item.nombre }}</span>
-                    </div>
-                    <div v-if="cotizacion.productos.length > 2" class="text-xs text-gray-500">
-                      +{{ cotizacion.productos.length - 2 }} más...
-                    </div>
-                  </div>
-                </div>
-              </td>
+  <div class="max-w-xs">
+    <div class="text-sm text-gray-900 font-medium mb-1">
+      {{ itemsDeCotizacion(cotizacion).length }} elemento(s)
+    </div>
+    <div class="space-y-1">
+      <div
+        v-for="(item, index) in itemsDeCotizacion(cotizacion).slice(0, 2)"
+        :key="`${item.tipo}-${item.id}`"
+        class="flex items-center text-xs"
+      >
+        <span
+          :class="item.tipo === 'producto' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'"
+          class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium mr-2"
+        >
+          {{ item.tipo === 'producto' ? 'P' : 'S' }}
+        </span>
+        <span class="text-gray-600 truncate">{{ item.nombre }}</span>
+      </div>
+      <div v-if="itemsDeCotizacion(cotizacion).length > 2" class="text-xs text-gray-500">
+        +{{ itemsDeCotizacion(cotizacion).length - 2 }} más...
+      </div>
+    </div>
+  </div>
+</td>
 
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="text-sm font-bold text-gray-900">${{ formatearMoneda(cotizacion.total) }}</div>
-                <div class="text-xs text-gray-500">{{ cotizacion.productos.length }} items</div>
+                <!-- <div class="text-xs text-gray-500">{{ cotizacion.productos.length }} items</div> -->
               </td>
 
               <!-- Columna Estado mejorada -->
@@ -715,6 +715,13 @@ const handleConvertirAPedido = async (cotizacionData) => {
   } finally {
     loading.value = false;
   }
+};
+
+// Añade este computed
+const itemsDeCotizacion = (cotizacion) => {
+  const productos = cotizacion.productos?.map(p => ({ ...p, tipo: 'producto' })) || [];
+  const servicios = cotizacion.servicios?.map(s => ({ ...s, tipo: 'servicio' })) || [];
+  return [...productos, ...servicios];
 };
 
 

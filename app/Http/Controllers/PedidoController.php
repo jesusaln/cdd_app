@@ -10,6 +10,8 @@ use App\Models\Venta;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
+use App\Models\Cotizacion;
+use App\Models\CotizacionProducto;
 
 class PedidoController extends Controller
 {
@@ -127,43 +129,70 @@ class PedidoController extends Controller
      */
     public function store(Request $request)
     {
-        // Validar los datos de entrada
-        $validatedData = $request->validate([
+        // 1. Validar los datos
+        $validated = $request->validate([
             'cliente_id' => 'required|exists:clientes,id',
             'productos' => 'required|array',
             'productos.*.id' => 'required|integer',
             'productos.*.tipo' => 'required|in:producto,servicio',
             'productos.*.cantidad' => 'required|integer|min:1',
             'productos.*.precio' => 'required|numeric|min:0',
+            'productos.*.descuento' => 'required|numeric|min:0|max:100',
         ]);
 
-        // Crear el pedido
-        $pedido = Pedido::create([
-            'cliente_id' => $validatedData['cliente_id'],
-            'total' => array_sum(array_map(function ($item) {
-                return $item['cantidad'] * $item['precio'];
-            }, $validatedData['productos'])),
-        ]);
-
-        // Asociar productos y servicios al pedido
-        foreach ($validatedData['productos'] as $itemData) {
-            if ($itemData['tipo'] === 'producto') {
-                $pedido->productos()->attach($itemData['id'], [
-                    'cantidad' => $itemData['cantidad'],
-                    'precio' => $itemData['precio'],
-                ]);
-            } elseif ($itemData['tipo'] === 'servicio') {
-                $pedido->servicios()->attach($itemData['id'], [
-                    'cantidad' => $itemData['cantidad'],
-                    'precio' => $itemData['precio'],
-                ]);
-            }
+        // 2. Calcular totales
+        $subtotal = 0;
+        foreach ($validated['productos'] as $item) {
+            $subtotal += $item['cantidad'] * $item['precio'];
         }
 
-        // Redirigir con un mensaje de éxito
-        return redirect()->route('pedidos.index')->with('success', 'Pedido creado exitosamente.');
-    }
+        $descuentoGeneralMonto = $subtotal * ($request->descuento_general / 100);
+        $subtotalConDescuentos = $subtotal - $descuentoGeneralMonto;
+        $iva = $subtotalConDescuentos * 0.16;
+        $total = $subtotalConDescuentos + $iva;
 
+        // 3. Crear la cotización
+        $cotizacion = Cotizacion::create([
+            'cliente_id' => $validated['cliente_id'],
+            'subtotal' => $subtotal,
+            'descuento_general' => $descuentoGeneralMonto,
+            'iva' => $iva,
+            'total' => $total,
+        ]);
+
+        // 4. Insertar manualmente cada ítem en la tabla pivote
+        foreach ($validated['productos'] as $item) {
+            // Determinar el modelo real (Producto o Servicio)
+            $class = $item['tipo'] === 'producto' ? Producto::class : Servicio::class;
+
+            // Verificar que el ítem exista
+            $modelo = $class::find($item['id']);
+            if (! $modelo) {
+                Log::warning("Ítem no encontrado: {$class} con ID {$item['id']}");
+                continue;
+            }
+
+            // Calcular campos adicionales
+            $subtotalItem = $item['cantidad'] * $item['precio'];
+            $descuentoMontoItem = $subtotalItem * ($item['descuento'] / 100);
+
+            // 5. Crear registro en la tabla pivote manualmente
+            $pivot = new CotizacionProducto();
+            $pivot->cotizacion_id = $cotizacion->id;
+            $pivot->cotizable_id = $item['id'];
+            $pivot->cotizable_type = $class;
+            $pivot->cantidad = $item['cantidad'];
+            $pivot->precio = $item['precio'];
+            $pivot->descuento = $item['descuento'];
+            $pivot->subtotal = $subtotalItem;
+            $pivot->descuento_monto = $descuentoMontoItem;
+            $pivot->save(); // ✅ Guarda en cotizacion_producto
+        }
+
+        // 6. Redirigir con Inertia (respuesta válida)
+        return redirect()->route('cotizaciones.index')
+            ->with('success', 'Cotización creada con éxito');
+    }
     /**
      * Display the specified resource.
      *

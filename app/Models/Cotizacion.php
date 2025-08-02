@@ -33,6 +33,11 @@ class Cotizacion extends Model
         return $this->belongsTo(Cliente::class);
     }
 
+    public function productosServicios()
+    {
+        return $this->morphMany(CotizacionProducto::class, 'cotizable');
+    }
+
     // Relación polimórfica para productos
     public function productos()
     {

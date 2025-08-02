@@ -10,6 +10,7 @@ use App\Models\Venta;
 use App\Models\Servicio;
 use App\Services\CotizacionService;
 use App\Http\Requests\CotizacionRequest;
+use App\Models\CotizacionProducto;
 use App\Http\Resources\CotizacionResource;
 use App\Enums\EstadoCotizacion;
 use App\Enums\EstadoPedido;
@@ -60,22 +61,78 @@ class CotizacionController extends Controller
         ]);
     }
 
-    public function store(CotizacionRequest $request)
+    public function store(Request $request)
     {
-        try {
-            $cotizacion = DB::transaction(function () use ($request) {
-                return $this->cotizacionService->createCotizacion($request->validated());
-            });
+        Log::info('Iniciando creación de cotización', $request->all());
 
-            return Redirect::route('cotizaciones.show', $cotizacion->id)
-                ->with('success', 'Cotización creada exitosamente');
+        try {
+            $request->validate([
+                'cliente_id' => 'required|exists:clientes,id',
+                'productos' => 'required|array',
+                'productos.*.id' => 'required|integer',
+                'productos.*.tipo' => 'required|in:producto,servicio',
+                'productos.*.cantidad' => 'required|integer|min:1',
+                'productos.*.precio' => 'required|numeric|min:0',
+                'productos.*.descuento' => 'required|numeric|min:0|max:100',
+            ]);
+
+            Log::info('Validación pasada');
+
+            $cotizacion = Cotizacion::create([
+                'cliente_id' => $request->cliente_id,
+                'subtotal' => $request->subtotal,
+                'descuento_general' => $request->descuento_general,
+                'iva' => $request->iva,
+                'total' => $request->total,
+            ]);
+
+            Log::info('Cotización creada', ['id' => $cotizacion->id]);
+
+            foreach ($request->productos as $item) {
+                $class = $item['tipo'] === 'producto' ? Producto::class : Servicio::class;
+
+                $subtotal = $item['cantidad'] * $item['precio'];
+                $descuento_monto = $subtotal * ($item['descuento'] / 100);
+
+                $pivot = new CotizacionProducto([
+                    'cotizacion_id' => $cotizacion->id,
+                    'cotizable_id' => $item['id'],
+                    'cotizable_type' => $class,
+                    'cantidad' => $item['cantidad'],
+                    'precio' => $item['precio'],
+                    'descuento' => $item['descuento'],
+                    'subtotal' => $subtotal,
+                    'descuento_monto' => $descuento_monto,
+                ]);
+
+                $pivot->save(); // ❌ Aquí puede estar el error
+
+                Log::info('Ítem guardado', [
+                    'tipo' => $item['tipo'],
+                    'id' => $item['id'],
+                    'class' => $class,
+                    'subtotal' => $subtotal,
+                ]);
+            }
+
+            Log::info('Cotización guardada con éxito', ['cotizacion_id' => $cotizacion->id]);
+
+            return redirect()->route('cotizaciones.index')
+                ->with('success', 'Cotización creada con éxito');
         } catch (\Exception $e) {
-            Log::error('Error al crear cotización', ['error' => $e->getMessage()]);
-            return Redirect::back()
+            Log::error('Error al crear cotización', [
+                'mensaje' => $e->getMessage(),
+                'archivo' => $e->getFile(),
+                'línea' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return redirect()->back()
                 ->with('error', 'Error al crear la cotización: ' . $e->getMessage())
                 ->withInput();
         }
     }
+
 
     public function show($id)
     {
