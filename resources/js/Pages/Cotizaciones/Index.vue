@@ -1,6 +1,7 @@
+```vue
 <template>
   <Head title="Cotizaciones" />
-  <div class="cotizaciones-index min-h-screen bg-gray-50 p-4">
+  <div class="cotizaciones-index min-h-screen bg-gray-50 p-4 relative">
     <!-- Header -->
     <div class="mb-8">
       <h1 class="text-3xl font-bold text-gray-900 mb-2">Gestión de Cotizaciones</h1>
@@ -156,7 +157,7 @@
               :key="cotizacion.id"
               class="hover:bg-gray-50 transition-colors duration-150"
             >
-              <!-- Columna Fecha y Hora mejorada -->
+              <!-- Columna Fecha y Hora -->
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="flex flex-col">
                   <div class="text-sm font-medium text-gray-900">
@@ -196,53 +197,56 @@
                 </div>
               </td>
 
-              <td class="px-6 py-4">
-  <div class="max-w-xs">
-    <div class="text-sm text-gray-900 font-medium mb-1">
-      {{ itemsDeCotizacion(cotizacion).length }} elemento(s)
-    </div>
-    <div class="space-y-1">
-      <div
-        v-for="(item, index) in itemsDeCotizacion(cotizacion).slice(0, 2)"
-        :key="`${item.tipo}-${item.id}`"
-        class="flex items-center text-xs"
-      >
-        <span
-          :class="item.tipo === 'producto' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'"
-          class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium mr-2"
-        >
-          {{ item.tipo === 'producto' ? 'P' : 'S' }}
-        </span>
-        <span class="text-gray-600 truncate">{{ item.nombre }}</span>
-      </div>
-      <div v-if="itemsDeCotizacion(cotizacion).length > 2" class="text-xs text-gray-500">
-        +{{ itemsDeCotizacion(cotizacion).length - 2 }} más...
-      </div>
-    </div>
-  </div>
-</td>
+              <!-- Columna Productos/Servicios -->
+              <td
+                class="px-6 py-4"
+                @mouseenter="mostrarTooltip($event, cotizacion)"
+                @mouseleave="ocultarTooltip"
+                @scroll="actualizarTooltipPosition($event)"
+              >
+                <div class="max-w-xs">
+                  <div class="text-sm text-gray-900 font-medium mb-1">
+                    {{ itemsDeCotizacion(cotizacion).length }} elemento(s)
+                  </div>
+                  <div class="space-y-1">
+                    <div
+                      v-for="(item, index) in itemsDeCotizacion(cotizacion).slice(0, 2)"
+                      :key="`${item.tipo}-${item.id}`"
+                      class="flex items-center text-xs"
+                    >
+                      <span
+                        :class="item.tipo === 'producto' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'"
+                        class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium mr-2"
+                      >
+                        {{ item.tipo === 'producto' ? 'P' : 'S' }}
+                      </span>
+                      <span class="text-gray-600 truncate">{{ item.nombre }}</span>
+                    </div>
+                    <div v-if="itemsDeCotizacion(cotizacion).length > 2" class="text-xs text-gray-500">
+                      +{{ itemsDeCotizacion(cotizacion).length - 2 }} más...
+                    </div>
+                  </div>
+                </div>
+              </td>
 
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="text-sm font-bold text-gray-900">${{ formatearMoneda(cotizacion.total) }}</div>
-                <!-- <div class="text-xs text-gray-500">{{ cotizacion.productos.length }} items</div> -->
               </td>
 
-              <!-- Columna Estado mejorada -->
+              <!-- Columna Estado -->
               <td class="px-6 py-4 whitespace-nowrap">
-  <div class="flex flex-col items-start">
-    <span :class="obtenerClasesEstado(cotizacion.estado)"
-          class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mb-1">
-      <span class="w-1.5 h-1.5 rounded-full mr-1.5"
-            :class="obtenerColorPuntoEstado(cotizacion.estado)"></span>
-      {{ obtenerLabelEstado(cotizacion.estado) }}
-    </span>
-
-    <!-- CORRECCIÓN: Sin loop, solo la cotización actual -->
-    <div class="text-xs text-gray-500">
-      {{ obtenerDescripcionEstado(cotizacion.estado) }}
-    </div>
-  </div>
-</td>
+                <div class="flex flex-col items-start">
+                  <span :class="obtenerClasesEstado(cotizacion.estado)"
+                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mb-1">
+                    <span class="w-1.5 h-1.5 rounded-full mr-1.5"
+                          :class="obtenerColorPuntoEstado(cotizacion.estado)"></span>
+                    {{ obtenerLabelEstado(cotizacion.estado) }}
+                  </span>
+                  <div class="text-xs text-gray-500">
+                    {{ obtenerDescripcionEstado(cotizacion.estado) }}
+                  </div>
+                </div>
+              </td>
 
               <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div class="flex items-center justify-end space-x-2">
@@ -324,6 +328,112 @@
       </div>
     </div>
 
+    <!-- Tooltip global -->
+    <!-- Tooltip global mejorado -->
+<Teleport to="body">
+  <Transition name="tooltip">
+    <div
+      v-if="showTooltip"
+      :style="{ top: tooltipPosition.y + 'px', left: tooltipPosition.x + 'px' }"
+      class="fixed bg-white border border-gray-200 rounded-xl shadow-2xl p-0 w-96 max-h-80 overflow-hidden z-[9999] tooltip-container custom-scrollbar"
+      v-on="{ 'mouseenter': () => {}, 'mouseleave': ocultarTooltip }"
+    >
+      <!-- Header del tooltip -->
+      <div class="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3 border-b border-gray-100">
+        <div class="flex items-center justify-between">
+          <h4 class="text-sm font-semibold text-gray-900 flex items-center">
+            <svg class="w-4 h-4 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+            Productos y Servicios
+          </h4>
+          <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+            {{ tooltipContent.length }} items
+          </span>
+        </div>
+      </div>
+
+      <!-- Contenido del tooltip -->
+      <div class="max-h-64 overflow-y-auto custom-scrollbar">
+        <div class="p-2">
+          <div
+            v-for="(item, index) in tooltipContent"
+            :key="`${item.tipo}-${item.id}`"
+            class="flex items-center p-3 rounded-lg hover:bg-gray-50 transition-all duration-200 group"
+            :class="{ 'mb-1': index < tooltipContent.length - 1 }"
+          >
+            <!-- Icono/Badge del tipo -->
+            <div class="flex-shrink-0 mr-3">
+              <div
+                :class="item.tipo === 'producto' ? 'bg-blue-500 text-white' : 'bg-green-500 text-white'"
+                class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shadow-sm group-hover:scale-110 transition-transform duration-200"
+              >
+                <svg v-if="item.tipo === 'producto'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+                <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+              </div>
+            </div>
+
+            <!-- Información del item -->
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between mb-1">
+                <h5 class="text-sm font-medium text-gray-900 truncate group-hover:text-blue-600 transition-colors duration-200">
+                  {{ item.nombre }}
+                </h5>
+                <span
+                  :class="item.tipo === 'producto' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-green-50 text-green-700 border-green-200'"
+                  class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ml-2 flex-shrink-0"
+                >
+                  {{ item.tipo === 'producto' ? 'Producto' : 'Servicio' }}
+                </span>
+              </div>
+
+              <!-- Información adicional si está disponible -->
+              <div class="flex items-center text-xs text-gray-500 space-x-3">
+                <span v-if="item.cantidad" class="flex items-center">
+                  <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+                  </svg>
+                  Cant: {{ item.cantidad }}
+                </span>
+                <span v-if="item.precio" class="flex items-center">
+                  <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                  </svg>
+                  ${{ formatearMoneda(item.precio) }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Indicador de hover -->
+            <div class="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer si hay muchos elementos -->
+      <div v-if="tooltipContent.length > 5" class="border-t border-gray-100 px-4 py-2 bg-gray-50">
+        <p class="text-xs text-gray-500 text-center">
+          Mostrando {{ Math.min(5, tooltipContent.length) }} de {{ tooltipContent.length }} elementos
+        </p>
+      </div>
+
+      <!-- Flecha del tooltip -->
+      <div
+        class="absolute w-3 h-3 bg-white border-l border-t border-gray-200 transform rotate-45 tooltip-arrow"
+        :style="tooltipArrowStyle"
+      ></div>
+    </div>
+  </Transition>
+</Teleport>
+
     <!-- Spinner de carga -->
     <Transition name="fade">
       <div v-if="loading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -403,7 +513,7 @@
 
 <script setup>
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue'; // Ensure nextTick is imported
 import { Notyf } from 'notyf';
 import 'notyf/notyf.min.css';
 import { generarPDF } from '@/Utils/pdfGenerator';
@@ -419,6 +529,10 @@ const props = defineProps({
   }
 });
 
+// Add these to existing reactive state
+const tooltipArrowStyle = ref({});
+const tooltipUpdateTimeout = ref(null);
+
 // Estado reactivo
 const searchTerm = ref('');
 const sortBy = ref('fecha-desc');
@@ -428,6 +542,9 @@ const showConfirmationDialog = ref(false);
 const cotizacionIdToDelete = ref(null);
 const showDetailsDialog = ref(false);
 const selectedCotizacion = ref(null);
+const showTooltip = ref(false);
+const tooltipContent = ref([]);
+const tooltipPosition = ref({ x: 0, y: 0 });
 
 // Configuración de notificaciones
 const notyf = new Notyf({
@@ -446,6 +563,30 @@ const notyf = new Notyf({
     }
   ]
 });
+
+const actualizarTooltipPosition = (event) => {
+  if (!showTooltip.value) return;
+
+  // Obtener la posición actual del elemento respecto a la ventana
+  const tdElement = event.currentTarget;
+  const rect = tdElement.getBoundingClientRect();
+  const offsetX = 10; // Desplazamiento horizontal
+  const offsetY = 10; // Desplazamiento vertical
+  let x = rect.left + window.scrollX + offsetX;
+  let y = rect.bottom + window.scrollY + offsetY;
+
+  // Ajustar para no salirse de la ventana
+  const tooltipWidth = 320; // Ancho del tooltip (w-80 = 320px)
+  const tooltipHeight = 256; // Alto máximo estimado (max-h-64 = 256px)
+  if (x + tooltipWidth > window.innerWidth) {
+    x = window.innerWidth - tooltipWidth - 10;
+  }
+  if (y + tooltipHeight > window.innerHeight) {
+    y = window.innerHeight - tooltipHeight - 10;
+  }
+
+  tooltipPosition.value = { x, y };
+};
 
 // Data reactiva - Mantener referencia a los datos originales
 const cotizacionesOriginales = ref([...props.cotizaciones]);
@@ -515,7 +656,7 @@ const hayFiltrosActivos = computed(() => {
   return searchTerm.value.trim() !== '' || filtroEstado.value !== '';
 });
 
-// Métodos de formateo - VERSIÓN MEJORADA
+// Métodos de formateo
 const formatearFechaCompleta = (fechaHora) => {
   const fecha = new Date(fechaHora);
   return fecha.toLocaleDateString('es-MX', {
@@ -561,7 +702,7 @@ const formatearMoneda = (amount) => {
   }).format(amount);
 };
 
-// Métodos para estados - VERSIÓN MEJORADA
+// Métodos para estados
 const obtenerClasesEstado = (estado) => {
   const estados = {
     'pendiente': 'bg-yellow-100 text-yellow-800',
@@ -607,16 +748,6 @@ const obtenerDescripcionEstado = (estado) => {
     'rechazado': 'Cliente rechazó',
     'cancelado': 'Proceso cancelado'
   };
-
-   // Log para verificar el estado recibido
-  console.log('Estado recibido:', estado);
-
-  // Obtener la descripción del estado
-  const descripcion = descripciones[estado] || descripciones['pendiente'];
-
-  // Log para verificar la descripción devuelta
-  console.log('Descripción devuelta:', descripcion);
-
   return descripciones[estado] || descripciones['pendiente'];
 };
 
@@ -656,7 +787,6 @@ const eliminarCotizacion = async () => {
     await router.delete(`/cotizaciones/${cotizacionIdToDelete.value}`, {
       onSuccess: () => {
         notyf.success('Cotización eliminada exitosamente');
-        // Actualizar la lista local
         cotizacionesOriginales.value = cotizacionesOriginales.value.filter(
           c => c.id !== cotizacionIdToDelete.value
         );
@@ -698,7 +828,6 @@ const handleConvertirAPedido = async (cotizacionData) => {
           router.get('/pedidos');
         }
         cerrarDetalles();
-        // Actualizar el estado local si es necesario
         const index = cotizacionesOriginales.value.findIndex(c => c.id === cotizacionData.id);
         if (index !== -1) {
           cotizacionesOriginales.value[index].estado = 'enviado_pedido';
@@ -724,6 +853,94 @@ const itemsDeCotizacion = (cotizacion) => {
   return [...productos, ...servicios];
 };
 
+// Métodos para el tooltip
+const mostrarTooltip = (event, cotizacion) => {
+  tooltipContent.value = itemsDeCotizacion(cotizacion);
+  showTooltip.value = true;
+
+  // Usar nextTick para asegurar que el DOM se ha actualizado
+  nextTick(() => {
+    posicionarTooltip(event);
+  });
+
+  // Añadir listeners de scroll y resize
+  window.addEventListener('scroll', actualizarTooltipPosition);
+  window.addEventListener('resize', actualizarTooltipPosition);
+};
+
+// New posicionarTooltip function
+const posicionarTooltip = (event) => {
+  const tdElement = event.currentTarget;
+  const rect = tdElement.getBoundingClientRect();
+  const tooltipWidth = 384; // w-96 = 384px
+  const tooltipHeight = 320; // max-h-80 = 320px
+  const arrowSize = 6;
+
+  let x = rect.left + window.scrollX;
+  let y = rect.bottom + window.scrollY + 10;
+  let arrowPosition = 'top';
+  let arrowLeft = '20px';
+
+  // Verificar si el tooltip se sale por la derecha
+  if (x + tooltipWidth > window.innerWidth + window.scrollX) {
+    x = window.innerWidth + window.scrollX - tooltipWidth - 10;
+  }
+
+  // Verificar si el tooltip se sale por la izquierda
+  if (x < window.scrollX + 10) {
+    x = window.scrollX + 10;
+  }
+
+  // Calcular la posición de la flecha en el eje X
+  const elementCenter = rect.left + rect.width / 2;
+  const tooltipLeft = x;
+  arrowLeft = Math.max(20, Math.min(tooltipWidth - 32, elementCenter - tooltipLeft)) + 'px';
+
+  // Verificar si el tooltip se sale por abajo
+  if (y + tooltipHeight > window.innerHeight + window.scrollY) {
+    y = rect.top + window.scrollY - tooltipHeight - 10;
+    arrowPosition = 'bottom';
+  }
+
+  tooltipPosition.value = { x, y };
+
+  // Configurar el estilo de la flecha
+  if (arrowPosition === 'top') {
+    tooltipArrowStyle.value = {
+      top: '-6px',
+      left: arrowLeft,
+      borderBottomColor: 'white',
+      borderRightColor: 'transparent'
+    };
+  } else {
+    tooltipArrowStyle.value = {
+      bottom: '-6px',
+      left: arrowLeft,
+      borderTopColor: 'white',
+      borderLeftColor: 'transparent'
+    };
+  }
+};
+
+// Replace ocultarTooltip
+const ocultarTooltip = () => {
+  showTooltip.value = false;
+  tooltipContent.value = [];
+  if (tooltipUpdateTimeout.value) {
+    clearTimeout(tooltipUpdateTimeout.value);
+    tooltipUpdateTimeout.value = null;
+  }
+  window.removeEventListener('scroll', actualizarTooltipPosition);
+  window.removeEventListener('resize', actualizarTooltipPosition);
+};
+
+watch(showTooltip, (newValue) => {
+  if (newValue) {
+    window.addEventListener('resize', actualizarTooltipPosition);
+  } else {
+    window.removeEventListener('resize', actualizarTooltipPosition);
+  }
+});
 
 // Generación de PDF
 const generarPDFVenta = async (cotizacion) => {
@@ -750,116 +967,226 @@ const toggleSort = (field) => {
 </script>
 
 <style scoped>
-/* Transiciones */
+/* Transiciones generales */
 .fade-enter-active, .fade-leave-active {
- transition: opacity 0.3s ease;
+  transition: opacity 0.3s ease;
 }
 
 .fade-enter-from, .fade-leave-to {
- opacity: 0;
+  opacity: 0;
 }
 
 .modal-enter-active, .modal-leave-active {
- transition: all 0.3s ease;
+  transition: all 0.3s ease;
 }
 
 .modal-enter-from, .modal-leave-to {
- opacity: 0;
- transform: scale(0.9);
+  opacity: 0;
+  transform: scale(0.9);
 }
 
-/* Estilos para scroll personalizado */
+/* Animaciones del tooltip */
+.tooltip-enter-active {
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.tooltip-enter-from {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.95);
+}
+
+.tooltip-leave-active {
+  transition: all 0.15s ease-in;
+}
+
+.tooltip-leave-to {
+  opacity: 0;
+  transform: translateY(-5px) scale(0.98);
+}
+
+/* Contenedor del tooltip */
+.tooltip-container {
+  backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04),
+    0 0 0 1px rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
+}
+
+.tooltip-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 100%);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* Scrollbar personalizado para el tooltip */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.4);
+  border-radius: 2px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.6);
+}
+
+/* Scrollbar general para otros elementos */
 ::-webkit-scrollbar {
- width: 6px;
+  width: 6px;
 }
 
 ::-webkit-scrollbar-track {
- background: #f1f1f1;
- border-radius: 3px;
+  background: #f1f1f1;
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb {
- background: #c1c1c1;
- border-radius: 3px;
+  background: #c1c1c1;
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
- background: #a8a8a8;
+  background: #a8a8a8;
 }
 
-/* Animaciones adicionales */
-@keyframes pulse {
- 0%, 100% {
-   opacity: 1;
- }
- 50% {
-   opacity: 0.5;
- }
+/* Flecha del tooltip */
+.tooltip-arrow {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
 }
 
-.pulse {
- animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+/* Efectos de hover mejorados */
+.group:hover .group-hover\:scale-110 {
+  transform: scale(1.1);
 }
 
-/* Hover effects mejorados */
+.group:hover .group-hover\:text-blue-600 {
+  color: #2563eb;
+}
+
+.group:hover .group-hover\:opacity-100 {
+  opacity: 1;
+}
+
+/* Animación para elementos del tooltip */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tooltip-container > div > div > div {
+  animation: slideInUp 0.2s ease-out;
+  animation-fill-mode: both;
+}
+
+.tooltip-container > div > div > div:nth-child(2) {
+  animation-delay: 0.05s;
+}
+
+.tooltip-container > div > div > div:nth-child(3) {
+  animation-delay: 0.1s;
+}
+
+.tooltip-container > div > div > div:nth-child(4) {
+  animation-delay: 0.15s;
+}
+
+.tooltip-container > div > div > div:nth-child(5) {
+  animation-delay: 0.2s;
+}
+
+/* Hover effects para filas de la tabla */
 .table-row-hover:hover {
- background-color: #f8fafc;
- transform: translateY(-1px);
- box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
- transition: all 0.2s ease;
+  background-color: #f8fafc;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
 }
 
 /* Botones con efectos mejorados */
 .btn-primary {
- background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
- transition: all 0.3s ease;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  transition: all 0.3s ease;
 }
 
 .btn-primary:hover {
- background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
- transform: translateY(-2px);
- box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
 }
 
 /* Efectos de loading */
 .loading-shimmer {
- background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
- background-size: 200% 100%;
- animation: shimmer 1.5s infinite;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
 }
 
 @keyframes shimmer {
- 0% {
-   background-position: -200% 0;
- }
- 100% {
-   background-position: 200% 0;
- }
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 /* Efectos de focus mejorados */
 .focus-ring:focus {
- outline: 2px solid #3b82f6;
- outline-offset: 2px;
- border-color: #3b82f6;
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+  border-color: #3b82f6;
 }
 
 /* Animación de entrada para elementos */
 .slide-up-enter-active {
- transition: all 0.4s ease;
+  transition: all 0.4s ease;
 }
 
 .slide-up-enter-from {
- opacity: 0;
- transform: translateY(20px);
+  opacity: 0;
+  transform: translateY(20px);
 }
 
 /* Efectos para badges */
 .badge-animate {
- transition: all 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .badge-animate:hover {
- transform: scale(1.05);
+  transform: scale(1.05);
+}
+
+/* Estilos para el tooltip global */
+.fixed.bg-white.border-gray-200.rounded-lg.shadow-lg {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  animation: fadeIn 0.2s ease-in-out forwards;
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
 }
 </style>
