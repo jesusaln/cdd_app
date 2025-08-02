@@ -1,4 +1,5 @@
 <template>
+  <!-- El template permanece igual -->
   <Head title="Crear cotizaciones" />
   <div class="cotizaciones-create min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
     <div class="max-w-6xl mx-auto">
@@ -15,32 +16,30 @@
 
       <form @submit.prevent="crearCotizacion" class="space-y-8">
         <BuscarCliente
-  :clientes="clientes"
-  :clienteSeleccionado="clienteSeleccionado"
-  @cliente-seleccionado="onClienteSeleccionado"
-  @crear-nuevo-cliente="crearNuevoCliente"
-  @limpiar-cliente="limpiarCliente"
-  ref="buscarClienteRef"
-/>
-
-
+          :clientes="clientes"
+          :clienteSeleccionado="clienteSeleccionado"
+          @cliente-seleccionado="onClienteSeleccionado"
+          @crear-nuevo-cliente="crearNuevoCliente"
+          @limpiar-cliente="limpiarCliente"
+          ref="buscarClienteRef"
+        />
 
         <ProductosServicios
-  :productos="productos"
-  :servicios="servicios"
-  :selectedProducts="selectedProducts"
-  :quantities="quantities"
-  :prices="prices"
-  :discounts="discounts"
-  :mostrarCalculadoraMargen="mostrarCalculadoraMargen"
-  @agregar-producto="agregarProducto"
-  @eliminar-producto="eliminarProducto"
-  @update-quantity="updateQuantity"
-  @update-price="updatePrice"
-  @update-discount="updateDiscount"
-  @calcular-total="calcularTotal"
-  ref="buscarProductoRef"
-/>
+          :productos="productos"
+          :servicios="servicios"
+          :selectedProducts="selectedProducts"
+          :quantities="quantities"
+          :prices="prices"
+          :discounts="discounts"
+          :mostrarCalculadoraMargen="mostrarCalculadoraMargen"
+          @agregar-producto="agregarProducto"
+          @eliminar-producto="eliminarProducto"
+          @update-quantity="updateQuantity"
+          @update-price="updatePrice"
+          @update-discount="updateDiscount"
+          @calcular-total="calcularTotal"
+          ref="buscarProductoRef"
+        />
 
         <CalculadoraMargenes
           v-if="mostrarCalculadoraMargen"
@@ -81,6 +80,17 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
             </svg>
             {{ autoguardando ? 'Guardando...' : 'Guardar Borrador' }}
+          </button>
+          <button
+            type="button"
+            @click="guardarBorradorEnServidor"
+            :disabled="!clienteSeleccionado || selectedProducts.length === 0"
+            class="inline-flex items-center justify-center px-6 py-3 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+          >
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+            </svg>
+            Guardar en Servidor
           </button>
           <button
             type="submit"
@@ -156,44 +166,28 @@ const notyf = new Notyf({
   duration: 5000,
   position: {
     x: 'right',
-    y: 'top' // Cambia 'bottom' a 'top'
+    y: 'top'
   },
   types: [
     {
       type: 'success',
       background: '#10B981',
-      icon: {
-        className: 'notyf__icon--success',
-        tagName: 'i',
-        text: '✓'
-      }
+      icon: { className: 'notyf__icon--success', tagName: 'i', text: '✓' }
     },
     {
       type: 'error',
       background: '#EF4444',
-      icon: {
-        className: 'notyf__icon--error',
-        tagName: 'i',
-        text: '✗'
-      }
+      icon: { className: 'notyf__icon--error', tagName: 'i', text: '✗' }
     },
     {
       type: 'info',
       background: '#3B82F6',
-      icon: {
-        className: 'notyf__icon--info',
-        tagName: 'i',
-        text: 'ℹ'
-      }
+      icon: { className: 'notyf__icon--info', tagName: 'i', text: 'ℹ' }
     },
     {
       type: 'warning',
       background: '#F59E0B',
-      icon: {
-        className: 'notyf__icon--warning',
-        tagName: 'i',
-        text: '⚠'
-      }
+      icon: { className: 'notyf__icon--warning', tagName: 'i', text: '⚠' }
     }
   ]
 });
@@ -203,127 +197,19 @@ const IVA_RATE = 0.16;
 const AUTOSAVE_INTERVAL = 30000; // 30 segundos
 const NOTIFICATION_DURATION = 3000;
 
-const verificandoPrecios = ref(false);
-const guardandoBorrador = ref(false);
-const creandoCliente = ref(false);
-
 // Define layout
 defineOptions({ layout: AppLayout });
 
 // Props
 const props = defineProps({
-  clientes: {
-    type: Array,
-    required: true,
-    validator: (value) => Array.isArray(value)
-  },
-  productos: {
-    type: Array,
-    default: () => [],
-    validator: (value) => Array.isArray(value)
-  },
-  servicios: {
-    type: Array,
-    default: () => [],
-    validator: (value) => Array.isArray(value)
-  },
+  clientes: { type: Array, required: true, validator: (value) => Array.isArray(value) },
+  productos: { type: Array, default: () => [], validator: (value) => Array.isArray(value) },
+  servicios: { type: Array, default: () => [], validator: (value) => Array.isArray(value) },
 });
 
-const updatePrice = ({ key, price }) => {
-  const parsedPrice = parseFloat(price);
-  if (isNaN(parsedPrice) || parsedPrice < 0) {
-    showNotification('El precio no puede ser negativo ni inválido', 'error');
-    return;
-  }
-  prices.value[key] = parsedPrice;
-  nextTick(() => calcularTotal());
-};
-
-// Composables inline (funciones de utilidad)
-const showNotification = (message, type = 'success') => {
-  notyf.open({
-    type,
-    message,
-    duration: 5000,
-    ripple: true,
-    dismissible: true
-  });
-};
-
-const debounce = (func, wait) => {
-  let timeout;
-  return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-  };
-};
-
-// Función para calcular totales
-const calculateTotals = ({ selectedProducts, quantities, prices, discounts, descuentoGeneral }) => {
-  let subtotal = 0;
-  let descuentoItems = 0;
-
-  for (const entry of selectedProducts) {
-    const key = `${entry.tipo}-${entry.id}`;
-    const cantidad = Number.parseFloat(quantities[key]) || 0;
-    const precio = Number.parseFloat(prices[key]) || 0;
-    const descuentoItem = Number.parseFloat(discounts[key]) || 0;
-
-    const subtotalItem = cantidad * precio;
-    const descuentoItemMonto = subtotalItem * (descuentoItem / 100);
-
-    subtotal += subtotalItem;
-    descuentoItems += descuentoItemMonto;
-  }
-
-  const subtotalConDescuentoItems = subtotal - descuentoItems;
-  const descuentoGeneralMonto = subtotalConDescuentoItems * (descuentoGeneral / 100);
-  const subtotalConDescuentos = subtotalConDescuentoItems - descuentoGeneralMonto;
-  const iva = subtotalConDescuentos * IVA_RATE;
-  const total = subtotalConDescuentos + iva;
-
-  return {
-    subtotal,
-    descuentoItems,
-    descuentoGeneral: descuentoGeneralMonto,
-    subtotalConDescuentos,
-    iva,
-    total
-  };
-};
-
-// Función para calcular márgenes
-const calculateMargins = ({ selectedProducts, quantities, prices, productos, servicios }) => {
-  let costoTotal = 0;
-  let precioVenta = 0;
-
-  for (const entry of selectedProducts) {
-    const key = `${entry.tipo}-${entry.id}`;
-    const cantidad = parseFloat(quantities[key]) || 0;
-    const precio = parseFloat(prices[key]) || 0;
-
-    const coleccion = entry.tipo === 'producto' ? productos : servicios;
-    const producto = coleccion.find(item => item.id === entry.id);
-    const costo = producto?.costo || precio * 0.7;
-
-    costoTotal += cantidad * costo;
-    precioVenta += cantidad * precio;
-  }
-
-  const ganancia = precioVenta - costoTotal;
-  const margenPorcentaje = precioVenta > 0 ? (ganancia / precioVenta) * 100 : 0;
-
-  return {
-    costoTotal,
-    precioVenta,
-    ganancia,
-    margenPorcentaje
-  };
-};
+const verificandoPrecios = ref(false);
+const guardandoBorrador = ref(false);
+const creandoCliente = ref(false);
 
 // Form setup
 const form = useForm({
@@ -468,6 +354,28 @@ const {
 } = toRefs(uiState.value);
 
 // Funciones de utilidad
+const showNotification = (message, type = 'success') => {
+  notyf.open({
+    type,
+    message,
+    duration: 5000,
+    ripple: true,
+    dismissible: true
+  });
+};
+
+const debounce = (func, wait) => {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+};
+
 const obtenerProducto = (id, tipo) => {
   const coleccion = tipo === 'producto' ? props.productos : props.servicios;
   return coleccion.find(item => item.id === id);
@@ -484,6 +392,67 @@ const calcularTotal = debounce(() => {
   form.total = totalesCalculados.total;
 }, 100);
 
+const calculateTotals = ({ selectedProducts, quantities, prices, discounts, descuentoGeneral }) => {
+  let subtotal = 0;
+  let descuentoItems = 0;
+
+  for (const entry of selectedProducts) {
+    const key = `${entry.tipo}-${entry.id}`;
+    const cantidad = Number.parseFloat(quantities[key]) || 0;
+    const precio = Number.parseFloat(prices[key]) || 0;
+    const descuentoItem = Number.parseFloat(discounts[key]) || 0;
+
+    const subtotalItem = cantidad * precio;
+    const descuentoItemMonto = subtotalItem * (descuentoItem / 100);
+
+    subtotal += subtotalItem;
+    descuentoItems += descuentoItemMonto;
+  }
+
+  const subtotalConDescuentoItems = subtotal - descuentoItems;
+  const descuentoGeneralMonto = subtotalConDescuentoItems * (descuentoGeneral / 100);
+  const subtotalConDescuentos = subtotalConDescuentoItems - descuentoGeneralMonto;
+  const iva = subtotalConDescuentos * IVA_RATE;
+  const total = subtotalConDescuentos + iva;
+
+  return {
+    subtotal,
+    descuentoItems,
+    descuentoGeneral: descuentoGeneralMonto,
+    subtotalConDescuentos,
+    iva,
+    total
+  };
+};
+
+const calculateMargins = ({ selectedProducts, quantities, prices, productos, servicios }) => {
+  let costoTotal = 0;
+  let precioVenta = 0;
+
+  for (const entry of selectedProducts) {
+    const key = `${entry.tipo}-${entry.id}`;
+    const cantidad = parseFloat(quantities[key]) || 0;
+    const precio = parseFloat(prices[key]) || 0;
+
+    const coleccion = entry.tipo === 'producto' ? productos : servicios;
+    const producto = coleccion.find(item => item.id === entry.id);
+    const costo = producto?.costo || precio * 0.7;
+
+    costoTotal += cantidad * costo;
+    precioVenta += cantidad * precio;
+  }
+
+  const ganancia = precioVenta - costoTotal;
+  const margenPorcentaje = precioVenta > 0 ? (ganancia / precioVenta) * 100 : 0;
+
+  return {
+    costoTotal,
+    precioVenta,
+    ganancia,
+    margenPorcentaje
+  };
+};
+
 // Manejo de clientes
 const onClienteSeleccionado = (cliente) => {
   if (!cliente) {
@@ -499,6 +468,7 @@ const onClienteSeleccionado = (cliente) => {
   form.cliente_id = cliente.id;
   form.clearErrors('cliente_id');
   showNotification(`Cliente seleccionado: ${cliente.nombre_razon_social}`, 'success');
+  guardarBorrador(); // Guardar en localStorage al seleccionar cliente
 };
 
 const limpiarCliente = () => {
@@ -506,6 +476,7 @@ const limpiarCliente = () => {
   form.cliente_id = '';
   form.clearErrors('cliente_id');
   showNotification('Selección de cliente limpiada', 'info');
+  guardarBorrador(); // Guardar en localStorage al limpiar cliente
 };
 
 const crearNuevoCliente = async (nombreBuscado) => {
@@ -514,16 +485,19 @@ const crearNuevoCliente = async (nombreBuscado) => {
     return;
   }
 
-  creandoCliente.value = true; // ✅ AGREGAR
+  creandoCliente.value = true;
   try {
     const response = await axios.post(route('clientes.store'), {
       nombre_razon_social: nombreBuscado.trim()
     });
-    // ... resto del código igual
+    const nuevoCliente = response.data;
+    props.clientes.push(nuevoCliente);
+    onClienteSeleccionado(nuevoCliente);
+    showNotification(`Cliente creado: ${nuevoCliente.nombre_razon_social}`, 'success');
   } catch (error) {
-    // ... código de error igual
+    showNotification('Error al crear el cliente', 'error');
   } finally {
-    creandoCliente.value = false; // ✅ AGREGAR
+    creandoCliente.value = false;
   }
 };
 
@@ -534,16 +508,14 @@ const validateStockAndPrices = async () => {
   try {
     const productosLimpios = selectedProducts.value.map(entry => {
       const key = `${entry.tipo}-${entry.id}`;
-      const precio = parseFloat(prices.value[key]) || 0; // Usar prices.value[key]
+      const precio = parseFloat(prices.value[key]) || 0;
       return {
         id: entry.id,
         tipo: entry.tipo,
         cantidad: quantities.value[key] || 1,
-        precio: precio, // Corregido
+        precio: precio,
       };
     });
-
-    console.log("Payload enviado a validar stock:", productosLimpios);
 
     const response = await axios.post(route('productos.validateStock'), {
       productos: productosLimpios,
@@ -564,91 +536,63 @@ const validateStockAndPrices = async () => {
 
     return true;
   } catch (error) {
-    if (error.response?.status === 422) {
-      console.error("❌ Errores de validación:", error.response.data.errors);
-      alert("Errores en validación:\n" + JSON.stringify(error.response.data.errors, null, 2));
-    } else {
-      console.error("❌ Error inesperado:", error);
-    }
+    showNotification('Error al validar stock y precios', 'error');
     return false;
   }
 };
 
-
 // Manejo de productos
 const agregarProducto = (item) => {
- if (!item?.id || !item?.tipo) {
-   console.error('Intento de agregar producto inválido:', item);
-   notyf.open({ type: 'error', message: 'Datos de producto inválidos' });
-   return;
- }
+  if (!item?.id || !item?.tipo) {
+    showNotification('Datos de producto inválidos', 'error');
+    return;
+  }
 
- // Validar nombre y precio
- const nombreProducto = item.nombre || item.descripcion || 'Producto sin nombre';
- const precioProducto = item.tipo === 'producto' ? (item.precio_venta || item.precio || 0) : (item.precio || 0);
+  const nombreProducto = item.nombre || item.descripcion || 'Producto sin nombre';
+  const precioProducto = item.tipo === 'producto' ? (item.precio_venta || item.precio || 0) : (item.precio || 0);
 
- if (precioProducto <= 0) {
-   notyf.open({
-     type: 'warning',
-     message: `"${nombreProducto}" no tiene precio válido. Se asignará precio 0.`
-   });
- }
+  if (precioProducto <= 0) {
+    showNotification(`"${nombreProducto}" no tiene precio válido. Se asignará precio 0.`, 'warning');
+  }
 
- const itemEntry = { id: item.id, tipo: item.tipo };
- const exists = selectedProducts.value.some(
-   entry => entry.id === item.id && entry.tipo === item.tipo
- );
+  const itemEntry = { id: item.id, tipo: item.tipo };
+  const exists = selectedProducts.value.some(
+    entry => entry.id === item.id && entry.tipo === item.tipo
+  );
 
- if (exists) {
-   console.log('Producto ya existe en la cotización:', item);
-   notyf.open({
-     type: 'warning',
-     message: `"${nombreProducto}" ya está en la cotización`
-   });
-   return;
- }
+  if (exists) {
+    showNotification(`"${nombreProducto}" ya está en la cotización`, 'warning');
+    return;
+  }
 
- selectedProducts.value.push(itemEntry);
- const key = generateProductKey(item.id, item.tipo);
+  selectedProducts.value.push(itemEntry);
+  const key = generateProductKey(item.id, item.tipo);
 
- quantities.value[key] = 1;
- prices.value[key] = precioProducto;
- discounts.value[key] = 0;
+  quantities.value[key] = 1;
+  prices.value[key] = precioProducto;
+  discounts.value[key] = 0;
 
- console.log('Producto agregado:', {
-   id: item.id,
-   tipo: item.tipo,
-   nombre: nombreProducto,
-   cantidad: quantities.value[key],
-   precio: prices.value[key],
-   descuento: discounts.value[key]
- });
-
- nextTick(() => calcularTotal());
- notyf.open({
-   type: 'success',
-   message: `✓ "${nombreProducto}" añadido a la cotización`
- });
+  nextTick(() => calcularTotal());
+  showNotification(`✓ "${nombreProducto}" añadido a la cotización`, 'success');
+  guardarBorrador(); // Guardar en localStorage al agregar producto
 };
 
 const eliminarProducto = (entry) => {
- const item = obtenerProducto(entry.id, entry.tipo);
- const nombreProducto = item?.nombre || item?.descripcion || 'Producto';
+  const item = obtenerProducto(entry.id, entry.tipo);
+  const nombreProducto = item?.nombre || item?.descripcion || 'Producto';
 
- selectedProducts.value = selectedProducts.value.filter(
-   item => !(item.id === entry.id && item.tipo === entry.tipo)
- );
+  selectedProducts.value = selectedProducts.value.filter(
+    item => !(item.id === entry.id && item.tipo === entry.tipo)
+  );
 
- const key = generateProductKey(entry.id, entry.tipo);
- delete quantities.value[key];
- delete prices.value[key];
- delete discounts.value[key];
+  const key = generateProductKey(entry.id, entry.tipo);
+  delete quantities.value[key];
+  delete prices.value[key];
+  delete discounts.value[key];
 
- nextTick(() => calcularTotal());
- notyf.open({
-   type: 'info',
-   message: `"${nombreProducto}" eliminado de la cotización`
- });
+  nextTick(() => calcularTotal());
+  showNotification(`"${nombreProducto}" eliminado de la cotización`, 'info');
+  guardarBorrador(); // Guardar en localStorage al eliminar producto
 };
 
 const updateQuantity = (key, quantity) => {
@@ -660,6 +604,18 @@ const updateQuantity = (key, quantity) => {
 
   quantities.value[key] = numericQuantity;
   nextTick(() => calcularTotal());
+  guardarBorrador(); // Guardar en localStorage al actualizar cantidad
+};
+
+const updatePrice = ({ key, price }) => {
+  const parsedPrice = parseFloat(price);
+  if (isNaN(parsedPrice) || parsedPrice < 0) {
+    showNotification('El precio no puede ser negativo ni inválido', 'error');
+    return;
+  }
+  prices.value[key] = parsedPrice;
+  nextTick(() => calcularTotal());
+  guardarBorrador(); // Guardar en localStorage al actualizar precio
 };
 
 const updateDiscount = (key, discount) => {
@@ -671,10 +627,145 @@ const updateDiscount = (key, discount) => {
 
   discounts.value[key] = numericDiscount;
   nextTick(() => calcularTotal());
+  guardarBorrador(); // Guardar en localStorage al actualizar descuento
 };
 
+// Guardado en localStorage
+const guardarBorrador = () => {
+  if (!clienteSeleccionado.value || selectedProducts.value.length === 0) {
+    return;
+  }
 
+  autoguardando.value = true;
+  const draftData = {
+    clienteSeleccionado: clienteSeleccionado.value,
+    selectedProducts: selectedProducts.value,
+    quantities: quantities.value,
+    prices: prices.value,
+    discounts: discounts.value,
+    descuentoGeneral: descuentoGeneral.value,
+    form: {
+      cliente_id: form.cliente_id,
+      subtotal: form.subtotal,
+      descuento_general: form.descuento_general,
+      descuento_items: form.descuento_items,
+      iva: form.iva,
+      total: form.total
+    },
+    timestamp: new Date().toISOString()
+  };
 
+  try {
+    localStorage.setItem('cotizacion_draft', JSON.stringify(draftData));
+    ultimoAutoguardado.value = new Date();
+    showNotification('💾 Borrador guardado localmente', 'success');
+  } catch (error) {
+    console.error('Error al guardar en localStorage:', error);
+    showNotification('Error al guardar el borrador localmente', 'error');
+  } finally {
+    autoguardando.value = false;
+  }
+};
+
+// Guardar borrador en el servidor (opcional)
+const guardarBorradorEnServidor = async () => {
+  if (!clienteSeleccionado.value) {
+    showNotification('Selecciona un cliente antes de guardar', 'warning');
+    return;
+  }
+
+  if (selectedProducts.value.length === 0) {
+    showNotification('Agrega al menos un producto antes de guardar', 'warning');
+    return;
+  }
+
+  const hasInvalidQuantities = selectedProducts.value.some(entry => {
+    const key = `${entry.tipo}-${entry.id}`;
+    const quantity = quantities.value[key];
+    return !quantity || quantity <= 0;
+  });
+
+  if (hasInvalidQuantities) {
+    showNotification('Corrige las cantidades antes de guardar', 'warning');
+    return;
+  }
+
+  const draftData = {
+    cliente_id: form.cliente_id,
+    productos: selectedProducts.value.map(entry => {
+      const key = generateProductKey(entry.id, entry.tipo);
+      return {
+        id: entry.id,
+        tipo: entry.tipo,
+        cantidad: quantities.value[key] || 1,
+        precio: prices.value[key] || 0,
+        descuento: discounts.value[key] || 0
+      };
+    }),
+    subtotal: form.subtotal,
+    descuento_general: form.descuento_general,
+    descuento_items: form.descuento_items,
+    iva: form.iva,
+    total: form.total
+  };
+
+  const errors = validateDraftData(draftData);
+  if (errors.length > 0) {
+    errors.forEach(error => showNotification(error, 'error'));
+    return;
+  }
+
+  try {
+    const url = form.id
+      ? route('cotizaciones.draft', { cotizacion: form.id })
+      : route('cotizaciones.storeDraft');
+
+    await form.post(url, {
+      onSuccess: () => {
+        showNotification('💾 Borrador guardado en el servidor', 'success');
+        ultimoAutoguardado.value = new Date();
+        localStorage.removeItem('cotizacion_draft'); // Limpiar localStorage tras guardar en servidor
+      },
+      onError: (errors) => {
+        showNotification('Error al guardar el borrador en el servidor', 'error');
+        console.error('Errores al guardar borrador:', errors);
+      },
+    });
+  } catch (error) {
+    showNotification('Error al guardar el borrador en el servidor', 'error');
+    console.error('Error:', error);
+  }
+};
+
+// Cargar borrador desde localStorage
+const cargarBorrador = () => {
+  const draft = localStorage.getItem('cotizacion_draft');
+  if (draft) {
+    try {
+      const draftData = JSON.parse(draft);
+      clienteSeleccionado.value = draftData.clienteSeleccionado;
+      selectedProducts.value = draftData.selectedProducts;
+      quantities.value = draftData.quantities;
+      prices.value = draftData.prices;
+      discounts.value = draftData.discounts;
+      descuentoGeneral.value = draftData.descuentoGeneral;
+      form.cliente_id = draftData.form.cliente_id;
+      form.subtotal = draftData.form.subtotal;
+      form.descuento_general = draftData.form.descuento_general;
+      form.descuento_items = draftData.form.descuento_items;
+      form.iva = draftData.form.iva;
+      form.total = draftData.form.total;
+      ultimoAutoguardado.value = new Date(draftData.timestamp);
+      showNotification('Borrador cargado desde el almacenamiento local', 'info');
+      nextTick(() => calcularTotal());
+    } catch (error) {
+      console.error('Error al cargar el borrador:', error);
+      showNotification('Error al cargar el borrador local', 'error');
+    }
+  }
+};
+
+// Validar datos del borrador
 const validateDraftData = (draftData) => {
   const errors = [];
   if (!draftData.cliente_id) {
@@ -701,52 +792,6 @@ const validateDraftData = (draftData) => {
   return errors;
 };
 
-function guardarBorrador() {
-    // Validar datos mínimos antes de guardar
-    if (!clienteSeleccionado.value) {
-        notyf.open({ type: 'warning', message: 'Selecciona un cliente antes de guardar' });
-        return;
-    }
-
-    if (selectedProducts.value.length === 0) {
-        notyf.open({ type: 'warning', message: 'Agrega al menos un producto antes de guardar' });
-        return;
-    }
-
-    // Validar que las cantidades sean válidas
-    const hasInvalidQuantities = selectedProducts.value.some(entry => {
-        const key = `${entry.tipo}-${entry.id}`;
-        const quantity = quantities.value[key];
-        return !quantity || quantity <= 0;
-    });
-
-    if (hasInvalidQuantities) {
-        notyf.open({ type: 'warning', message: 'Corrige las cantidades antes de guardar' });
-        return;
-    }
-
-    const url = form.id
-        ? route('cotizaciones.draft', { cotizacion: form.id })
-        : route('cotizaciones.storeDraft');
-
-    form.post(url, {
-        onSuccess: () => {
-            notyf.open({ type: 'success', message: '💾 Borrador guardado correctamente' });
-            ultimoAutoguardado.value = new Date();
-        },
-        onError: (errors) => {
-            notyf.open({ type: 'error', message: 'Error al guardar el borrador' });
-            console.error('Errores al guardar borrador:', errors);
-        },
-    });
-
-}
-
-
-
-
-
-
 // Manejo de plantillas
 const aplicarPlantilla = (plantilla) => {
   try {
@@ -765,6 +810,7 @@ const aplicarPlantilla = (plantilla) => {
     nextTick(() => calcularTotal());
     uiState.value.mostrarPlantillas = false;
     showNotification(`Plantilla aplicada: ${plantilla.nombre}`, 'success');
+    guardarBorrador(); // Guardar en localStorage al aplicar plantilla
   } catch (error) {
     console.error('Error applying template:', error);
     showNotification('Error al aplicar la plantilla', 'error');
@@ -806,8 +852,7 @@ const guardarPlantilla = async () => {
     showNotification('Plantilla guardada con éxito', 'success');
   } catch (error) {
     console.error('Error saving template:', error);
-    const errorMessage = error.response?.data?.message || 'No se pudo guardar la plantilla';
-    showNotification(errorMessage, 'error');
+    showNotification('No se pudo guardar la plantilla', 'error');
   }
 };
 
@@ -825,36 +870,26 @@ const imprimirVistaPrevia = () => {
 const crearCotizacion = async () => {
   form.clearErrors();
 
-  console.log('Iniciando proceso de guardado...');
-  console.log('Cliente seleccionado:', clienteSeleccionado.value);
-  console.log('Productos seleccionados:', selectedProducts.value);
-
   const validationErrors = validateForm();
   if (validationErrors.length > 0) {
-    console.error('Errores de validación:', validationErrors);
     validationErrors.forEach(error => showNotification(error, 'error'));
     return;
   }
 
-  // ✅ AGREGAR ESTA VALIDACIÓN:
   const stockValid = await validateStockAndPrices();
   if (!stockValid) {
-    notyf.open({
-      type: 'warning',
-      message: 'Corrige los problemas de stock antes de continuar'
-    });
+    showNotification('Corrige los problemas de stock antes de continuar', 'warning');
     return;
   }
 
   try {
-    // Preparar productos para envío
     form.productos = selectedProducts.value.map((entry) => {
       const key = generateProductKey(entry.id, entry.tipo);
       const cantidad = quantities.value[key] || 1;
       const precio = prices.value[key] || 0;
       const descuento = discounts.value[key] || 0;
 
-      const productoData = {
+      return {
         id: entry.id,
         tipo: entry.tipo,
         cantidad,
@@ -863,48 +898,27 @@ const crearCotizacion = async () => {
         subtotal: cantidad * precio,
         descuento_monto: (cantidad * precio) * (descuento / 100)
       };
-
-      console.log('Preparando producto para tabla pivote:', productoData);
-      return productoData;
     });
 
     calcularTotal();
 
-    console.log('Datos completos a enviar:', {
-      cliente_id: form.cliente_id,
-      productos: form.productos,
-      totales: {
-        subtotal: form.subtotal,
-        descuento_general: form.descuento_general,
-        descuento_items: form.descuento_items,
-        iva: form.iva,
-        total: form.total
-      }
-    });
-
     form.post(route('cotizaciones.store'), {
-      onSuccess: (response) => {
-        console.log('Respuesta del servidor:', response);
-        // Opción 1: Solo si rediriges a la vista de cotización
-        //console.log('Cotización creada exitosamente. Redirigiendo...');
-
+      onSuccess: () => {
+        localStorage.removeItem('cotizacion_draft'); // Limpiar borrador tras crear cotización
         router.visit(route('cotizaciones.index'), {
           onSuccess: () => {
             showNotification('Cotización creada con éxito', 'success');
           },
           onError: (errors) => {
-            console.error('Error al redirigir:', errors);
             showNotification('Error al redirigir a la lista de cotizaciones', 'error');
           }
         });
       },
       onError: (errors) => {
-        console.error('Errores en el guardado:', errors);
         showNotification('Hubo errores de validación. Por favor, corrige los campos', 'error');
       }
     });
   } catch (error) {
-    console.error('Error en el proceso de guardado:', error);
     showNotification('Error al crear la cotización', 'error');
   }
 };
@@ -927,7 +941,6 @@ const validateForm = () => {
   }
   return errors;
 };
-
 
 // Atajos de teclado
 const setupKeyboardShortcuts = () => {
@@ -967,13 +980,11 @@ const setupKeyboardShortcuts = () => {
 let autoSaveInterval = null;
 
 const startAutoSave = () => {
-  // Asegurarse de no iniciar múltiples intervalos
   if (autoSaveInterval) {
     clearInterval(autoSaveInterval);
   }
 
   autoSaveInterval = setInterval(() => {
-    // Solo guardar si hay algo que guardar para evitar llamadas innecesarias
     if (clienteSeleccionado.value && selectedProducts.value.length > 0) {
       guardarBorrador();
     }
@@ -994,19 +1005,8 @@ onMounted(() => {
     servicios: props.servicios.length
   });
 
-  // Verificar duplicados en clientes
-  const duplicateClients = props.clientes.filter((cliente, index, self) =>
-    index !== self.findIndex(c => c.id === cliente.id)
-  );
-
-  if (duplicateClients.length > 0) {
-    console.warn('Clientes duplicados encontrados:', duplicateClients);
-  }
-
-  // Configurar autoguardado
+  cargarBorrador(); // Cargar borrador al montar el componente
   startAutoSave();
-
-  // Configurar atajos de teclado
   const cleanupKeyboardShortcuts = setupKeyboardShortcuts();
 
   onUnmounted(() => {
@@ -1017,13 +1017,10 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Estilos específicos del componente si son necesarios */
 .cotizaciones-create {
-  /* Animaciones suaves para transiciones */
   transition: all 0.3s ease;
 }
 
-/* Mejoras de accesibilidad */
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;
