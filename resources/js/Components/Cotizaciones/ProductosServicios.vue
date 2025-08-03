@@ -139,8 +139,24 @@ const handleEliminarProducto = (producto) => {
   emit('eliminar-producto', producto);
 };
 
-const handleUpdateQuantity = (payload) => {
-  emit('update-quantity', payload);
+const handleUpdateQuantity = (key, quantity) => {
+  console.log(`ProductosServicios - handleUpdateQuantity:`, { key, quantity, quantityType: typeof quantity });
+
+  // Validar parámetros
+  if (!key) {
+    console.error('ProductosServicios - Key no proporcionada');
+    return;
+  }
+
+  if (quantity === undefined || quantity === null) {
+    console.error('ProductosServicios - Quantity es undefined/null:', quantity);
+    return;
+  }
+
+  console.log(`ProductosServicios - Emitiendo a Edit.vue:`, { key, quantity });
+
+  // Emitir al componente padre (Edit.vue)
+  emit('update-quantity', key, quantity);
 };
 
 const handleUpdateDiscount = (payload) => {

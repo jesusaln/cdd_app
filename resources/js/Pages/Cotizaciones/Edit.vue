@@ -169,6 +169,8 @@ const notyf = new Notyf({
   ]
 });
 
+
+
 // Constants
 const IVA_RATE = 0.16;
 const AUTOSAVE_INTERVAL = 30000; // 30 segundos
@@ -558,15 +560,65 @@ const eliminarProducto = (entry) => {
 };
 
 const updateQuantity = (key, quantity) => {
+  console.log(`Valor recibido para ${key}:`, quantity, `(tipo: ${typeof quantity})`);
+
+  // Validar que key existe
+  if (!key) {
+    console.error('Clave (key) no proporcionada');
+    showNotification('Error interno: clave no válida', 'error');
+    return;
+  }
+
+  // Manejar valores undefined, null o vacíos
+  if (quantity === undefined || quantity === null || quantity === '') {
+    console.warn(`Cantidad vacía para ${key}, estableciendo a 0`);
+    quantities.value[key] = 0;
+
+    nextTick(() => {
+      calcularTotal();
+      console.log('Totales recalculados después de establecer cantidad a 0');
+    });
+
+    guardarBorrador();
+    return;
+  }
+
+  // Convertir a número
   const numericQuantity = Number(quantity);
+
+  // Validar que es un número válido
+  if (isNaN(numericQuantity)) {
+    console.error(`La cantidad proporcionada para ${key} no es un número válido:`, quantity);
+    showNotification('La cantidad debe ser un número válido', 'error');
+    return;
+  }
+
+  // Validar que no sea negativo
   if (numericQuantity < 0) {
+    console.warn(`Cantidad negativa para ${key}: ${numericQuantity}`);
     showNotification('La cantidad no puede ser negativa', 'error');
     return;
   }
-  quantities.value[key] = numericQuantity;
-  nextTick(() => calcularTotal());
-  guardarBorrador(); // Guardar en localStorage al actualizar cantidad
+
+  // Validar que no sea un número decimal si solo se permiten enteros
+  if (!Number.isInteger(numericQuantity)) {
+    console.warn(`Cantidad decimal para ${key}: ${numericQuantity}, redondeando`);
+    quantities.value[key] = Math.round(numericQuantity);
+  } else {
+    quantities.value[key] = numericQuantity;
+  }
+
+  console.log(`Cantidad actualizada para ${key}: ${quantities.value[key]}`);
+
+  nextTick(() => {
+    calcularTotal();
+    console.log('Totales recalculados');
+  });
+
+  guardarBorrador();
 };
+
+
 
 const updatePrice = ({ key, price }) => {
   const parsedPrice = parseFloat(price);

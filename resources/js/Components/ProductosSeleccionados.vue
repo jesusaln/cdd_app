@@ -78,11 +78,11 @@
                 <label class="block text-xs font-medium text-gray-700 mb-1">Cantidad</label>
                 <div class="relative">
                   <input
-                    type="number"
-                    :value="quantities[`${entry.tipo}-${entry.id}`] || 1"
-                    @input="updateQuantity(entry, $event.target.value)"
-                    min="1"
-                    step="1"
+  type="number"
+  :value="quantities[`${entry.tipo}-${entry.id}`] || 1"
+  @input="(event) => updateQuantity(entry, event.target.value)"
+  min="1"
+  step="1"
                     class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
@@ -229,6 +229,18 @@ const calcularSubtotalSinDescuento = (entry) => {
   return cantidad * precio;
 };
 
+const handleQuantityInput = (entry, event) => {
+  console.log(`handleQuantityInput llamado:`, {
+    entry,
+    eventTarget: event.target,
+    value: event.target.value,
+    valueType: typeof event.target.value
+  });
+
+  const value = event.target.value;
+  updateQuantity(entry, value);
+};
+
 // Función para calcular el descuento de un item
 const calcularDescuentoItem = (entry) => {
   const key = `${entry.tipo}-${entry.id}`;
@@ -253,8 +265,32 @@ const eliminarItem = (entry) => {
 
 // Función para actualizar cantidad
 const updateQuantity = (entry, value) => {
+  console.log(`ProductosSeleccionados - updateQuantity:`, {
+    entry: entry?.tipo ? `${entry.tipo}-${entry.id}` : 'entry inválido',
+    value,
+    valueType: typeof value
+  });
+
+  // Validar que entry sea válido
+  if (!entry || !entry.tipo || !entry.id) {
+    console.error('Entry inválido:', entry);
+    return;
+  }
+
   const key = `${entry.tipo}-${entry.id}`;
-  const quantity = Math.max(1, Number.parseFloat(value) || 1);
+
+  // Manejar valores undefined, null o vacíos
+  if (value === undefined || value === null || value === '') {
+    console.warn(`Valor vacío para ${key}, usando 1 como default`);
+    value = '1';
+  }
+
+  // Convertir a número y asegurar que sea al menos 1
+  const numericValue = Number.parseFloat(value);
+  const quantity = isNaN(numericValue) ? 1 : Math.max(1, numericValue);
+
+  console.log(`ProductosSeleccionados - Emitiendo:`, { key, quantity });
+
   emit('update-quantity', key, quantity);
 };
 
