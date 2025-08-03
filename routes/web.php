@@ -27,15 +27,18 @@ use App\Http\Controllers\ServicioController;
 use App\Http\Controllers\InventarioController;
 use App\Http\Controllers\OrdenCompraController;
 
-Route::resource('ordenescompra', OrdenCompraController::class);
-// Ruta específica para marcar como recibida
-Route::post('ordenescompra/{id}/recibir', [OrdenCompraController::class, 'recibirOrden'])->name('ordenescompra.recibir');
+/*
+|--------------------------------------------------------------------------
+| Web Routes
+|--------------------------------------------------------------------------
+| Aquí defines todas las rutas web de tu aplicación. Estas rutas están
+| cargadas por el RouteServiceProvider y automáticamente tienen el
+| middleware 'web' aplicado.
+*/
 
-Route::get('/productos/{id}/inventario', [ProductoController::class, 'showInventario'])->name('productos.inventario');
-Route::resource('inventario', InventarioController::class);
-
-Route::get('/empresas', [EmpresasController::class, 'index'])->name('empresas.index');
-
+// =====================================================
+// RUTAS PÚBLICAS
+// =====================================================
 Route::get('/', function () {
     return Inertia::render('Welcome', [
         'canLogin' => Route::has('login'),
@@ -44,62 +47,96 @@ Route::get('/', function () {
     ]);
 })->name('welcome');
 
-// Rutas protegidas por autenticación
-Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified'])->group(function () {
-    Route::get('/panel', [PanelController::class, 'index'])->name('panel');
-    //Route::post('/api/validar-rfc', [ClienteController::class, 'validarRfc']);
+Route::get('/empresas', [EmpresasController::class, 'index'])->name('empresas.index');
 
+// =====================================================
+// RECURSOS PRINCIPALES (Fuera del middleware auth)
+// =====================================================
+Route::resource('ordenescompra', OrdenCompraController::class);
+Route::post('ordenescompra/{id}/recibir', [OrdenCompraController::class, 'recibirOrden'])->name('ordenescompra.recibir');
+
+Route::get('/productos/{id}/inventario', [ProductoController::class, 'showInventario'])->name('productos.inventario');
+Route::resource('inventario', InventarioController::class);
+
+// =====================================================
+// RUTAS PROTEGIDAS POR AUTENTICACIÓN
+// =====================================================
+Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified'])->group(function () {
+
+    // Dashboard y Panel
+    Route::get('/panel', [PanelController::class, 'index'])->name('panel');
     Route::get('/dashboard', function () {
         return redirect()->route('panel');
     })->name('dashboard');
 
+    // =====================================================
+    // RECURSOS PRINCIPALES
+    // =====================================================
     Route::resource('clientes', ClienteController::class)->names('clientes');
-
-
-    Route::post('/validar-rfc', [ClienteController::class, 'validarRfc']);
-    Route::get('/clientes/check-email', [ClienteController::class, 'checkEmail'])->name('clientes.checkEmail');
-
-    Route::put('/clientes/{cliente}/toggle', [ClienteController::class, 'toggle'])->name('clientes.toggle');
     Route::resource('productos', ProductoController::class)->names('productos');
-
-    // Proveedores corregidos
-    Route::resource('proveedores', ProveedorController::class)
-        ->names('proveedores')
-        ->parameters(['proveedores' => 'proveedor']);
-    // Elimina la línea duplicada: Route::put('/proveedores/{proveedor}', ...)
-
+    Route::resource('proveedores', ProveedorController::class)->names('proveedores');
     Route::resource('categorias', CategoriaController::class)->names('categorias');
     Route::resource('marcas', MarcaController::class)->names('marcas');
-    Route::resource('almacenes', AlmacenController::class)->names('almacenes');
-    Route::delete('/almacenes/{id}', [AlmacenController::class, 'destroy'])->name('almacenes.destroy');
+    Route::resource('almacenes', AlmacenController::class)->names('almacenes'); // ✅ DUPLICACIÓN ELIMINADA
     Route::resource('cotizaciones', CotizacionController::class)->names('cotizaciones');
-    Route::post('/cotizaciones/{id}/convertir-a-pedido', [CotizacionController::class, 'convertirAPedido'])->name('cotizaciones.convertir-a-pedido');
-    Route::post('/cotizaciones/{id}/convertir-a-venta', [CotizacionController::class, 'convertirAVenta'])->name('cotizaciones.convertir-a-venta');
-    // Solo agrega estas dos para las confirmaciones:
-    Route::get('/cotizaciones/{id}/confirmar-pedido', [CotizacionController::class, 'mostrarConfirmacionPedido'])->name('cotizaciones.confirmar-pedido');
-    Route::get('/cotizaciones/{id}/confirmar-venta', [CotizacionController::class, 'mostrarConfirmacionVenta'])->name('cotizaciones.confirmar-venta');
-    Route::post('/cotizaciones/draft', [CotizacionController::class, 'guardarBorrador'])
-        ->name('cotizaciones.storeDraft');
-    Route::post('/productos/validate-stock', [ProductoController::class, 'validateStock'])
-        ->name('productos.validateStock');
-
     Route::resource('pedidos', PedidoController::class)->names('pedidos');
-    Route::post('/pedidos/{id}/enviar-a-ventas', [PedidoController::class, 'enviarAVentas'])->name('pedidos.enviarAVentas');
     Route::resource('ventas', VentaController::class)->names('ventas');
     Route::resource('servicios', ServicioController::class)->names('servicios');
     Route::resource('usuarios', UserController::class)->names('usuarios');
-    Route::get('/perfil', [UserController::class, 'profile'])->name('perfil');
-    Route::get('/usuario/{id}', [UserController::class, 'show'])->name('usuarios.show');
     Route::resource('compras', CompraController::class)->names('compras');
-    Route::get('/reportes', [ReporteController::class, 'index'])->name('reportes.index');
     Route::resource('reportes', ReporteController::class);
     Route::resource('herramientas', HerramientaController::class)->names('herramientas');
     Route::resource('tecnicos', TecnicoController::class)->names('tecnicos');
     Route::resource('citas', CitaController::class)->names('citas');
-    Route::put('/citas/{id}', [CitaController::class, 'update']);
-    Route::patch('/citas/{id}/update-index', [CitaController::class, 'updateIndex'])->name('citas.updateIndex');
     Route::resource('carros', CarroController::class)->names('carros');
     Route::resource('mantenimientos', MantenimientoController::class)->names('mantenimientos');
-    Route::get('/notifications', [NotificationController::class, 'index']);
-    Route::post('/notifications/mark-as-read', [NotificationController::class, 'markAsRead']);
+
+    // =====================================================
+    // RUTAS ESPECÍFICAS DE CLIENTES
+    // =====================================================
+    Route::post('/validar-rfc', [ClienteController::class, 'validarRfc'])->name('clientes.validarRfc');
+    Route::get('/clientes/check-email', [ClienteController::class, 'checkEmail'])->name('clientes.checkEmail');
+    Route::put('/clientes/{cliente}/toggle', [ClienteController::class, 'toggle'])->name('clientes.toggle');
+
+    // =====================================================
+    // RUTAS ESPECÍFICAS DE PRODUCTOS
+    // =====================================================
+    Route::post('/productos/validate-stock', [ProductoController::class, 'validateStock'])->name('productos.validateStock');
+
+    // =====================================================
+    // RUTAS ESPECÍFICAS DE COTIZACIONES
+    // =====================================================
+    Route::post('/cotizaciones/{id}/convertir-a-pedido', [CotizacionController::class, 'convertirAPedido'])->name('cotizaciones.convertir-a-pedido');
+    Route::post('/cotizaciones/{id}/convertir-a-venta', [CotizacionController::class, 'convertirAVenta'])->name('cotizaciones.convertir-a-venta');
+    Route::get('/cotizaciones/{id}/confirmar-pedido', [CotizacionController::class, 'mostrarConfirmacionPedido'])->name('cotizaciones.confirmar-pedido');
+    Route::get('/cotizaciones/{id}/confirmar-venta', [CotizacionController::class, 'mostrarConfirmacionVenta'])->name('cotizaciones.confirmar-venta');
+    Route::post('/cotizaciones/draft', [CotizacionController::class, 'guardarBorrador'])->name('cotizaciones.storeDraft');
+
+    // =====================================================
+    // RUTAS ESPECÍFICAS DE PEDIDOS
+    // =====================================================
+    Route::post('/pedidos/{id}/enviar-a-ventas', [PedidoController::class, 'enviarAVentas'])->name('pedidos.enviarAVentas');
+
+    // =====================================================
+    // RUTAS ESPECÍFICAS DE USUARIOS
+    // =====================================================
+    Route::get('/perfil', [UserController::class, 'profile'])->name('perfil');
+    // ✅ CONFLICTO RESUELTO: Eliminada ruta duplicada - usa la del resource usuarios.show
+
+    // =====================================================
+    // RUTAS ESPECÍFICAS DE REPORTES
+    // =====================================================
+    Route::get('/reportes', [ReporteController::class, 'index'])->name('reportes.index'); // Nota: Esto podría conflictuar con el resource
+
+    // =====================================================
+    // RUTAS ESPECÍFICAS DE CITAS
+    // =====================================================
+    Route::put('/citas/{id}', [CitaController::class, 'update']); // Nota: Esto duplica el resource update
+    Route::patch('/citas/{id}/update-index', [CitaController::class, 'updateIndex'])->name('citas.updateIndex');
+
+    // =====================================================
+    // RUTAS DE NOTIFICACIONES
+    // =====================================================
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/mark-as-read', [NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
 });
