@@ -198,12 +198,12 @@
               </td>
 
               <!-- Columna Productos/Servicios -->
-              <td
-                class="px-6 py-4"
-                @mouseenter="mostrarTooltip($event, cotizacion)"
-                @mouseleave="ocultarTooltip"
-                @scroll="actualizarTooltipPosition($event)"
-              >
+             <td
+  class="px-6 py-4"
+  @mouseenter="manejarMouseEnter($event, cotizacion)"
+  @mouseleave="manejarMouseLeave"
+  @wheel.prevent
+>
                 <div class="max-w-xs">
                   <div class="text-sm text-gray-900 font-medium mb-1">
                     {{ itemsDeCotizacion(cotizacion).length }} elemento(s)
@@ -333,11 +333,12 @@
 <Teleport to="body">
   <Transition name="tooltip">
     <div
-      v-if="showTooltip"
-      :style="{ top: tooltipPosition.y + 'px', left: tooltipPosition.x + 'px' }"
-      class="fixed bg-white border border-gray-200 rounded-xl shadow-2xl p-0 w-96 max-h-80 overflow-hidden z-[9999] tooltip-container custom-scrollbar"
-      v-on="{ 'mouseenter': () => {}, 'mouseleave': ocultarTooltip }"
-    >
+  v-if="showTooltip"
+  :style="{ top: tooltipPosition.y + 'px', left: tooltipPosition.x + 'px' }"
+  class="fixed bg-white border border-gray-200 rounded-xl shadow-2xl p-0 w-96 max-h-80 overflow-hidden z-[9999] tooltip-container custom-scrollbar"
+  @mouseenter="() => { if (tooltipTimeout.value) clearTimeout(tooltipTimeout.value); }"
+  @mouseleave="ocultarTooltip"
+>
       <!-- Header del tooltip -->
       <div class="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3 border-b border-gray-100">
         <div class="flex items-center justify-between">
@@ -354,8 +355,10 @@
       </div>
 
       <!-- Contenido del tooltip -->
-      <div class="max-h-64 overflow-y-auto custom-scrollbar">
-        <div class="p-2">
+      <div class="max-h-64 overflow-y-auto custom-scrollbar"
+      @wheel.stop
+  @touchmove.stop>
+        <div class="p-2 space-y-1">
           <div
             v-for="(item, index) in tooltipContent"
             :key="`${item.tipo}-${item.id}`"
@@ -533,6 +536,26 @@ const props = defineProps({
 const tooltipArrowStyle = ref({});
 const tooltipUpdateTimeout = ref(null);
 
+
+
+const manejarMouseEnter = (event, cotizacion) => {
+  // Limpiar cualquier timeout pendiente
+  if (tooltipTimeout.value) {
+    clearTimeout(tooltipTimeout.value);
+    tooltipTimeout.value = null;
+  }
+
+  // Mostrar tooltip
+  mostrarTooltip(event, cotizacion);
+};
+
+const manejarMouseLeave = () => {
+  // Programar el cierre del tooltip después de 200ms
+  tooltipTimeout.value = setTimeout(() => {
+    ocultarTooltip();
+  }, 200); // 200ms es suficiente para mover el ratón al tooltip
+};
+
 // Estado reactivo
 const searchTerm = ref('');
 const sortBy = ref('fecha-desc');
@@ -545,6 +568,7 @@ const selectedCotizacion = ref(null);
 const showTooltip = ref(false);
 const tooltipContent = ref([]);
 const tooltipPosition = ref({ x: 0, y: 0 });
+const tooltipTimeout = ref(null);
 
 // Configuración de notificaciones
 const notyf = new Notyf({
@@ -1029,23 +1053,22 @@ const toggleSort = (field) => {
 }
 
 /* Scrollbar personalizado para el tooltip */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
+.custom-scroll-container::-webkit-scrollbar {
+  width: 8px;
 }
 
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
+.custom-scroll-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
 }
 
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(156, 163, 175, 0.4);
-  border-radius: 2px;
+.custom-scroll-container::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
 }
 
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(156, 163, 175, 0.6);
+.custom-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #555;
 }
-
 /* Scrollbar general para otros elementos */
 ::-webkit-scrollbar {
   width: 6px;
@@ -1068,6 +1091,13 @@ const toggleSort = (field) => {
 /* Flecha del tooltip */
 .tooltip-arrow {
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+}
+
+.custom-scroll-container {
+  max-height: 300px; /* Define un alto máximo para el contenedor */
+  overflow-y: auto; /* Permite el scroll vertical */
+  border: 1px solid #ccc; /* Opcional: solo para visualizar el contenedor */
+  padding: 10px;
 }
 
 /* Efectos de hover mejorados */

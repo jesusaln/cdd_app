@@ -225,22 +225,61 @@ class CotizacionController extends Controller
 
     public function edit($id)
     {
+        // Cargar la cotización con las relaciones de Eloquent
         $cotizacion = Cotizacion::with([
             'cliente',
-            'productos' => fn($query) => $query->withPivot('cantidad', 'precio', 'descuento'),
-            'servicios' => fn($query) => $query->withPivot('cantidad', 'precio', 'descuento')
+            'productos',
+            'servicios'
         ])->findOrFail($id);
 
+        // Verificar si la cotización puede ser editada
         if ($cotizacion->estado !== EstadoCotizacion::Pendiente) {
             return Redirect::route('cotizaciones.show', $cotizacion->id)
                 ->with('warning', 'Solo cotizaciones pendientes pueden ser editadas');
         }
 
+        // Obtener datos adicionales para clientes, productos y servicios
+        $clientes = Cliente::select([
+            'id',
+            'nombre_razon_social',
+            'rfc',
+            'email',
+            'telefono',
+            'empresa',
+            'calle',
+            'numero_exterior',
+            'colonia',
+            'codigo_postal',
+            'ciudad',
+            'estado'
+        ])->get();
+
+        $productos = Producto::select([
+            'id',
+            'nombre',
+            'categoria',
+            'precio_venta',
+            'costo',
+            'codigo',
+            'sku',
+            'clave',
+            'stock'
+        ])->get();
+
+        $servicios = Servicio::active()->get(['id', 'nombre', 'precio', 'codigo', 'categoria', 'descripcion', 'duracion']);
+
+        // Añadir atributos adicionales manualmente
+        $cotizacion->defaults = [
+            'fecha' => now()->format('Y-m-d'),
+            'validez' => 30,
+            'moneda' => 'MXN'
+        ];
+
         return Inertia::render('Cotizaciones/Edit', [
             'cotizacion' => $this->formatCotizacionData($cotizacion),
-            'clientes' => Cliente::select(['id', 'nombre_razon_social'])->get(),
-            'productos' => Producto::active()->get(['id', 'nombre', 'precio_venta']),
-            'servicios' => Servicio::active()->get(['id', 'nombre', 'precio'])
+            'clientes' => $clientes,
+            'productos' => $productos,
+            'servicios' => $servicios
         ]);
     }
 
