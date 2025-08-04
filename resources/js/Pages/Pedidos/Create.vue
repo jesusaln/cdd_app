@@ -1,135 +1,96 @@
 <template>
-    <Head title="Crear Pedidos" />
-    <div class="pedidos-create">
-      <h1 class="text-2xl font-semibold mb-6">Crear Nuevo Pedido</h1>
-      <form @submit.prevent="crearPedido" class="space-y-6">
-        <!-- Búsqueda de cliente -->
-        <div class="form-group">
-          <label for="buscarCliente" class="block text-sm font-medium text-gray-700">Buscar Cliente</label>
-          <input
-            id="buscarCliente"
-            v-model="buscarCliente"
-            type="text"
-            placeholder="Buscar cliente..."
-            @focus="mostrarClientes = true"
-            @blur="ocultarClientesDespuesDeTiempo"
-            autocomplete="off"
-            class="mt-1 block w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500"
-          />
-          <ul v-if="mostrarClientes && clientesFiltrados.length > 0" class="absolute z-10 bg-white border rounded-md shadow-md w-full max-h-48 overflow-y-auto">
-            <li
-              v-for="cliente in clientesFiltrados"
-              :key="cliente.id"
-              @click="seleccionarCliente(cliente)"
-              class="px-4 py-2 cursor-pointer hover:bg-gray-100"
-            >
-              {{ cliente.nombre_razon_social }}
-            </li>
-          </ul>
-          <div v-if="clientesFiltrados.length === 0 && buscarCliente" class="text-red-500 text-sm mt-2">
-            No se encontraron clientes.
-          </div>
-        </div>
+  <Head title="Crear Pedidos" />
+  <div class="pedidos-create min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+    <div class="max-w-6xl mx-auto">
+      <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Crear Nuevo Pedido</h1>
+        <p class="text-gray-600">Crea un nuevo pedido para tus clientes</p>
+      </div>
 
-        <!-- Búsqueda de productos y servicios -->
-        <div class="form-group">
-          <label for="buscarProducto" class="block text-sm font-medium text-gray-700">Buscar Producto/Servicio</label>
-          <input
-            id="buscarProducto"
-            v-model="buscarProducto"
-            type="text"
-            placeholder="Buscar producto/servicio..."
-            @focus="mostrarProductos = true"
-            @blur="ocultarProductosDespuesDeTiempo"
-            autocomplete="off"
-            class="mt-1 block w-full px-4 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500"
-          />
-          <ul v-if="mostrarProductos && productosFiltrados.length > 0" class="absolute z-10 bg-white border rounded-md shadow-md w-full max-h-48 overflow-y-auto">
-            <li
-              v-for="item in productosFiltrados"
-              :key="item.id"
-              @click="agregarProducto(item)"
-              class="px-4 py-2 cursor-pointer hover:bg-gray-100"
-            >
-              {{ item.nombre }} ({{ item.tipo }}) (Disponible: {{ item.stock || 'N/A' }})
-            </li>
-          </ul>
-          <div v-if="productosFiltrados.length === 0 && buscarProducto" class="text-red-500 text-sm mt-2">
-            No se encontraron productos/servicios.
-          </div>
-        </div>
-
-        <!-- Lista de productos y servicios seleccionados -->
-        <div v-if="selectedProducts.length > 0" class="mt-4">
-          <h3 class="text-lg font-medium mb-4">Productos/Servicios Seleccionados</h3>
-          <div v-for="(entry, index) in selectedProducts" :key="index" class="flex items-center justify-between bg-white border rounded-md shadow-sm p-4 mb-4">
-            <div class="flex items-center space-x-4 w-full">
-              <span class="font-medium text-gray-800 w-1/3">{{ getProductById(entry)?.nombre || 'Item no encontrado' }}</span>
-              <div class="flex flex-col w-1/4">
-                <label :for="`cantidad-${entry.tipo}-${entry.id}`" class="text-sm font-medium text-gray-700">Cantidad</label>
-                <input
-                  :id="`cantidad-${entry.tipo}-${entry.id}`"
-                  v-model.number="quantities[`${entry.tipo}-${entry.id}`]"
-                  type="number"
-                  class="px-4 py-2 border rounded-md mt-1 w-full"
-                  min="1"
-                  @input="calcularTotal"
-                />
-              </div>
-              <div class="flex flex-col w-1/4">
-                <label :for="`precio-${entry.tipo}-${entry.id}`" class="text-sm font-medium text-gray-700">Precio de Venta</label>
-                <input
-                  :id="`precio-${entry.tipo}-${entry.id}`"
-                  v-model.number="prices[`${entry.tipo}-${entry.id}`]"
-                  type="number"
-                  class="px-4 py-2 border rounded-md mt-1 w-full"
-                  min="0"
-                  @input="calcularTotal"
-                />
-              </div>
-              <div class="flex flex-col w-1/4">
-                <label :for="`subtotal-${entry.tipo}-${entry.id}`" class="text-sm font-medium text-gray-700">Subtotal</label>
-                <input
-                  :id="`subtotal-${entry.tipo}-${entry.id}`"
-                  :value="(quantities[`${entry.tipo}-${entry.id}`] * prices[`${entry.tipo}-${entry.id}`]).toFixed(2)"
-                  type="text"
-                  class="px-4 py-2 border rounded-md mt-1 w-full bg-gray-100 cursor-not-allowed"
-                  readonly
-                />
-              </div>
-            </div>
-            <button
-              type="button"
-              @click="eliminarProducto(entry)"
-              class="text-red-500 hover:text-red-700 ml-4"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+      <form @submit.prevent="crearPedido" class="space-y-8">
+        <!-- Información del Cliente -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4">
+            <h2 class="text-lg font-semibold text-white flex items-center">
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
               </svg>
-            </button>
+              Información del Cliente
+            </h2>
+          </div>
+          <div class="relative p-6">
+            <BuscarCliente
+              ref="buscarClienteRef"
+              :clientes="clientes"
+              :cliente-seleccionado="clienteSeleccionado"
+              @cliente-seleccionado="onClienteSeleccionado"
+              @crear-nuevo-cliente="crearNuevoCliente"
+            />
+          </div>
+        </div>
+
+        <!-- Productos y Servicios -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div class="bg-gradient-to-r from-green-500 to-green-600 px-6 py-4">
+            <h2 class="text-lg font-semibold text-white flex items-center">
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+              </svg>
+              Productos y Servicios
+            </h2>
+          </div>
+          <div class="p-6">
+            <BuscarProducto
+              ref="buscarProductoRef"
+              :productos="productos"
+              :servicios="servicios"
+              @agregar-producto="agregarProducto"
+            />
+            <ProductosSeleccionados
+              :selectedProducts="selectedProducts"
+              :productos="productos"
+              :servicios="servicios"
+              :quantities="quantities"
+              :prices="prices"
+              :discounts="discounts"
+              :mostrarCalculadoraMargen="mostrarCalculadoraMargen"
+              @eliminar-producto="eliminarProducto"
+              @update-quantity="updateQuantity"
+              @update-discount="updateDiscount"
+              @calcular-total="calcularTotal"
+              @mostrar-margen="mostrarMargenProducto"
+            />
           </div>
         </div>
 
         <!-- Total -->
-        <div class="form-group">
-          <label for="total" class="block text-sm font-medium text-gray-700">Total</label>
-          <input
-            id="total"
-            v-model="form.total"
-            type="text"
-            readonly
-            class="mt-1 block w-full px-4 py-2 border rounded-md bg-gray-100 cursor-not-allowed"
-          />
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div class="bg-gradient-to-r from-purple-500 to-purple-600 px-6 py-4">
+            <h2 class="text-lg font-semibold text-white flex items-center">
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+              </svg>
+              Resumen del Pedido
+            </h2>
+          </div>
+          <div class="p-6">
+            <div class="text-right">
+              <div class="text-sm text-gray-600">Total:</div>
+              <div class="text-2xl font-bold text-purple-600">
+                ${{ form.total }}
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Botones -->
         <div class="flex justify-end space-x-4">
-          <Link :href="route('pedidos.index')" class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">
+          <Link :href="route('pedidos.index')" class="inline-flex items-center justify-center px-6 py-3 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-400 transition-all duration-200">
             Cancelar
           </Link>
           <button
             type="submit"
-            class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 disabled:bg-gray-400"
+            class="inline-flex items-center justify-center px-6 py-3 border border-transparent rounded-lg text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
             :disabled="!form.cliente_id || selectedProducts.length === 0"
           >
             Guardar Pedido
@@ -137,236 +98,273 @@
         </div>
       </form>
     </div>
-  </template>
+  </div>
+</template>
 
-  <script setup>
-  import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
-  import { Head, useForm, Link } from '@inertiajs/vue3';
-  import AppLayout from '@/Layouts/AppLayout.vue';
+<script setup>
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue';
+import { Head, useForm, Link } from '@inertiajs/vue3';
+import axios from 'axios';
+import { Notyf } from 'notyf';
+import AppLayout from '@/Layouts/AppLayout.vue';
+import BuscarCliente from '@/Components/BuscarCliente.vue';
+import BuscarProducto from '@/Components/BuscarProducto.vue';
+import ProductosSeleccionados from '@/Components/ProductosSeleccionados.vue';
 
-  // Define el layout del dashboard
-  defineOptions({ layout: AppLayout });
+// Configura Notyf
+const notyf = new Notyf({
+  duration: 5000,
+  position: { x: 'right', y: 'bottom' },
+  types: [
+    { type: 'success', background: '#10B981', icon: { className: 'notyf__icon--success', tagName: 'i', text: '✓' } },
+    { type: 'error', background: '#EF4444', icon: { className: 'notyf__icon--error', tagName: 'i', text: '✗' } },
+    { type: 'info', background: '#3B82F6', icon: { className: 'notyf__icon--info', tagName: 'i', text: 'ℹ' } },
+  ],
+});
 
-  const props = defineProps({
-    clientes: Array,
-    productos: {
-      type: Array,
-      default: () => [],
-    },
-    servicios: {
-      type: Array,
-      default: () => [],
-    },
-  });
+// Función para mostrar notificaciones
+const showNotification = (message, type = 'success') => {
+  console.log('showNotification:', { message, type }); // Depuración
+  notyf.open({ type, message, duration: 5000, ripple: true, dismissible: true });
+};
 
-  const form = useForm({
-    cliente_id: '',
-    total: 0,
-    productos: [],
-  });
+defineOptions({ layout: AppLayout });
 
-  const buscarCliente = ref('');
-  const buscarProducto = ref('');
-  const mostrarClientes = ref(false);
-  const mostrarProductos = ref(false);
-  const selectedProducts = ref([]);
-  const quantities = ref({});
-  const prices = ref({});
-  const clienteSeleccionado = ref(null);
+const props = defineProps({
+  clientes: Array,
+  productos: { type: Array, default: () => [] },
+  servicios: { type: Array, default: () => [] },
+});
 
-  const clientesFiltrados = computed(() => {
-    if (!buscarCliente.value) return [];
-    return props.clientes.filter((cliente) =>
-      cliente.nombre_razon_social.toLowerCase().includes(buscarCliente.value.toLowerCase())
-    );
-  });
+const form = useForm({
+  cliente_id: '',
+  total: 0,
+  productos: [],
+});
 
-  const productosFiltrados = computed(() => {
-    if (!buscarProducto.value) return [];
-    const productosYServicios = [
-      ...(props.productos || []).map(producto => ({
-        ...producto,
-        tipo: 'producto',
-      })),
-      ...(props.servicios || []).map(servicio => ({
-        ...servicio,
-        tipo: 'servicio',
-      })),
-    ];
+const buscarClienteRef = ref(null);
+const buscarProductoRef = ref(null);
+const selectedProducts = ref([]);
+const quantities = ref({});
+const prices = ref({});
+const discounts = ref({});
+const clienteSeleccionado = ref(null);
+const mostrarCalculadoraMargen = ref(false);
 
-    return productosYServicios.filter(item =>
-      item.nombre.toLowerCase().includes(buscarProducto.value.toLowerCase()) ||
-      (item.codigo?.toLowerCase().includes(buscarProducto.value.toLowerCase())) ||
-      (item.numero_de_serie?.toLowerCase().includes(buscarProducto.value.toLowerCase())) ||
-      (item.codigo_barras?.toLowerCase().includes(buscarProducto.value.toLowerCase()))
-    );
-  });
-
-  const getProductById = (entry) => {
-    if (!entry || !entry.id || !entry.tipo) {
-      console.error('Entrada inválida para getProductById:', entry);
-      return null;
-    }
-    if (entry.tipo === 'producto') {
-      const producto = props.productos.find((p) => p.id === entry.id);
-      return producto || null;
-    }
-    if (entry.tipo === 'servicio') {
-      const servicio = props.servicios.find((s) => s.id === entry.id);
-      return servicio || null;
-    }
-    console.error(`No se encontró item con ID: ${entry.id} y tipo: ${entry.tipo}`);
+const getProductById = (entry) => {
+  if (!entry || !entry.id || !entry.tipo) {
+    console.error('Entrada inválida para getProductById:', entry);
     return null;
-  };
-
-  const calcularTotal = () => {
-    let total = 0;
-    for (const entry of selectedProducts.value) {
-      const key = `${entry.tipo}-${entry.id}`;
-      const cantidad = Number.parseFloat(quantities.value[key]) || 0;
-      const precio = Number.parseFloat(prices.value[key]) || 0;
-      total += cantidad * precio;
-    }
-    form.total = total.toFixed(2);
-  };
-
-  watch(quantities, calcularTotal, { deep: true });
-  watch(prices, calcularTotal, { deep: true });
-
-  const seleccionarCliente = (cliente) => {
-    form.cliente_id = cliente.id;
-    buscarCliente.value = cliente.nombre_razon_social;
-    clienteSeleccionado.value = cliente.nombre_razon_social;
-    mostrarClientes.value = false;
-  };
-
-  const agregarProducto = (item) => {
-    console.log('Item seleccionado:', item);
-    const itemEntry = { id: item.id, tipo: item.tipo };
-    const exists = selectedProducts.value.some(
-      (entry) => entry.id === item.id && entry.tipo === item.tipo
-    );
-    if (!exists) {
-      selectedProducts.value.push(itemEntry);
-      quantities.value[`${item.tipo}-${item.id}`] = 1;
-      // Diferencia entre productos y servicios para el precio
-      prices.value[`${item.tipo}-${item.id}`] = item.tipo === 'producto' ? (item.precio_venta || 0) : (item.precio || 0);
-      console.log('Precio asignado:', prices.value[`${item.tipo}-${item.id}`]);
-    }
-    buscarProducto.value = '';
-    mostrarProductos.value = false;
-    calcularTotal();
-  };
-
-  const eliminarProducto = (entry) => {
-    selectedProducts.value = selectedProducts.value.filter(
-      (item) => !(item.id === entry.id && item.tipo === entry.tipo)
-    );
-    delete quantities.value[`${entry.tipo}-${entry.id}`];
-    delete prices.value[`${entry.tipo}-${entry.id}`];
-    calcularTotal();
-  };
-
-  const ocultarClientesDespuesDeTiempo = (event) => {
-    setTimeout(() => {
-      if (!event.relatedTarget || !event.relatedTarget.classList.contains('cliente-item')) {
-        mostrarClientes.value = false;
-      }
-    }, 300);
-  };
-
-  const ocultarProductosDespuesDeTiempo = (event) => {
-    setTimeout(() => {
-      if (!event.relatedTarget || !event.relatedTarget.classList.contains('producto-item')) {
-        mostrarProductos.value = false;
-      }
-    }, 300);
-  };
-
-  watch(
-    [() => form.cliente_id, selectedProducts, quantities, prices, clienteSeleccionado],
-    () => {
-      const dataToSave = {
-        cliente_id: form.cliente_id,
-        cliente_nombre: clienteSeleccionado.value,
-        selectedProducts: selectedProducts.value,
-        quantities: quantities.value,
-        prices: prices.value,
-      };
-      localStorage.setItem('pedidoEnProgreso', JSON.stringify(dataToSave));
-    },
-    { deep: true }
-  );
-
-  onMounted(() => {
-    console.log('Clientes:', props.clientes);
-    console.log('Productos:', props.productos);
-    console.log('Servicios:', props.servicios);
-    const savedData = localStorage.getItem('pedidoEnProgreso');
-    if (savedData) {
-      const parsedData = JSON.parse(savedData);
-      console.log('Datos cargados desde localStorage:', parsedData);
-      form.cliente_id = parsedData.cliente_id;
-      clienteSeleccionado.value = parsedData.cliente_nombre;
-      buscarCliente.value = parsedData.cliente_nombre;
-      selectedProducts.value = Array.isArray(parsedData.selectedProducts)
-        ? parsedData.selectedProducts.filter(
-            (entry) => entry && typeof entry === 'object' && 'id' in entry && 'tipo' in entry
-          )
-        : [];
-      quantities.value = parsedData.quantities || {};
-      prices.value = parsedData.prices || {};
-      calcularTotal();
-    }
-    window.addEventListener('beforeunload', handleBeforeUnload);
-  });
-
-  onBeforeUnmount(() => {
-    window.removeEventListener('beforeunload', handleBeforeUnload);
-  });
-
-  const handleBeforeUnload = (event) => {
-    if (form.cliente_id || selectedProducts.value.length > 0) {
-      event.preventDefault();
-      event.returnValue = '';
-    }
-  };
-
-  const crearPedido = () => {
-    form.productos = selectedProducts.value.map((entry) => ({
-      id: entry.id,
-      tipo: entry.tipo,
-      cantidad: quantities.value[`${entry.tipo}-${entry.id}`] || 1,
-      precio: prices.value[`${entry.tipo}-${entry.id}`] || 0,
-    }));
-
-    form.post(route('pedidos.store'), {
-      onSuccess: () => {
-        localStorage.removeItem('pedidoEnProgreso');
-        selectedProducts.value = [];
-        quantities.value = {};
-        prices.value = {};
-      },
-      onError: (error) => {
-        console.error('Error al crear el pedido:', error);
-      },
-    });
-  };
-
-  const formatearLocalStorage = () => {
-    localStorage.removeItem('pedidoEnProgreso');
-    form.cliente_id = '';
-    clienteSeleccionado.value = null;
-    buscarCliente.value = '';
-    selectedProducts.value = [];
-    quantities.value = {};
-    prices.value = {};
-    calcularTotal();
-  };
-  </script>
-
-  <style scoped>
-  .form-group {
-    margin-bottom: 1rem;
   }
-  </style>
+  return entry.tipo === 'producto'
+    ? props.productos.find((p) => p.id === entry.id) || null
+    : props.servicios.find((s) => s.id === entry.id) || null;
+};
+
+const calcularTotal = () => {
+  console.log('Calculando total'); // Depuración
+  let total = 0;
+  let descuentoItems = 0;
+  for (const entry of selectedProducts.value) {
+    const key = `${entry.tipo}-${entry.id}`;
+    const cantidad = Number.parseFloat(quantities.value[key]) || 0;
+    const precio = Number.parseFloat(prices.value[key]) || 0;
+    const descuento = Number.parseFloat(discounts.value[key]) || 0;
+    const subtotalItem = cantidad * precio;
+    descuentoItems += subtotalItem * (descuento / 100);
+    total += subtotalItem;
+  }
+  form.total = (total - descuentoItems).toFixed(2);
+};
+
+const onClienteSeleccionado = (cliente) => {
+  console.log('onClienteSeleccionado:', cliente); // Depuración
+  try {
+    if (!cliente) {
+      clienteSeleccionado.value = null;
+      form.cliente_id = '';
+      form.clearErrors('cliente_id');
+      showNotification('Selección de cliente limpiada', 'info');
+      return;
+    }
+    if (clienteSeleccionado.value && clienteSeleccionado.value.id === cliente.id) {
+      console.log('Cliente ya seleccionado, ignorando'); // Depuración
+      return;
+    }
+    clienteSeleccionado.value = cliente;
+    form.cliente_id = cliente.id;
+    form.clearErrors('cliente_id');
+    showNotification(`Cliente seleccionado: ${cliente.nombre_razon_social}`);
+  } catch (error) {
+    console.error('Error en onClienteSeleccionado:', error);
+    showNotification('Error al seleccionar cliente', 'error');
+  }
+};
+
+const crearNuevoCliente = async (nombreBuscado) => {
+  console.log('crearNuevoCliente:', nombreBuscado); // Depuración
+  try {
+    const response = await axios.post(route('clientes.store'), { nombre_razon_social: nombreBuscado });
+    const nuevoCliente = response.data;
+    props.clientes.push(nuevoCliente);
+    onClienteSeleccionado(nuevoCliente);
+    showNotification(`Cliente creado: ${nuevoCliente.nombre_razon_social}`);
+  } catch (error) {
+    console.error('Error al crear cliente:', error);
+    showNotification('Error al crear cliente', 'error');
+  }
+};
+
+const limpiarCliente = () => {
+  console.log('limpiarCliente'); // Depuración
+  clienteSeleccionado.value = null;
+  form.cliente_id = '';
+  form.clearErrors('cliente_id');
+  showNotification('Cliente deseleccionado', 'info');
+};
+
+const agregarProducto = (item) => {
+  console.log('agregarProducto:', item); // Depuración
+  const itemEntry = { id: item.id, tipo: item.tipo };
+  const exists = selectedProducts.value.some(
+    (entry) => entry.id === item.id && entry.tipo === item.tipo
+  );
+  if (!exists) {
+    selectedProducts.value.push(itemEntry);
+    quantities.value[`${item.tipo}-${item.id}`] = 1;
+    prices.value[`${item.tipo}-${item.id}`] = item.tipo === 'producto' ? (item.precio_venta || 0) : (item.precio || 0);
+    discounts.value[`${item.tipo}-${item.id}`] = 0;
+    calcularTotal();
+    showNotification(`Producto añadido: ${item.nombre || item.descripcion}`);
+  }
+};
+
+const eliminarProducto = (entry) => {
+  console.log('eliminarProducto:', entry); // Depuración
+  const item = getProductById(entry);
+  selectedProducts.value = selectedProducts.value.filter(
+    (item) => !(item.id === entry.id && item.tipo === entry.tipo)
+  );
+  delete quantities.value[`${entry.tipo}-${entry.id}`];
+  delete prices.value[`${entry.tipo}-${entry.id}`];
+  delete discounts.value[`${entry.tipo}-${entry.id}`];
+  calcularTotal();
+  showNotification(`Producto eliminado: ${item?.nombre || item?.descripcion || 'Item'}`, 'info');
+};
+
+const updateQuantity = (key, quantity) => {
+  console.log('updateQuantity:', { key, quantity }); // Depuración
+  quantities.value[key] = quantity;
+  calcularTotal();
+};
+
+const updateDiscount = (key, discount) => {
+  console.log('updateDiscount:', { key, discount }); // Depuración
+  discounts.value[key] = discount;
+  calcularTotal();
+};
+
+const mostrarMargenProducto = () => {
+  console.log('mostrarMargenProducto:', mostrarCalculadoraMargen.value); // Depuración
+  mostrarCalculadoraMargen.value = !mostrarCalculadoraMargen.value;
+};
+
+watch(
+  [() => form.cliente_id, selectedProducts, quantities, prices, discounts, clienteSeleccionado],
+  () => {
+    console.log('Guardando en localStorage'); // Depuración
+    const dataToSave = {
+      cliente_id: form.cliente_id,
+      cliente: clienteSeleccionado.value,
+      selectedProducts: selectedProducts.value,
+      quantities: quantities.value,
+      prices: prices.value,
+      discounts: discounts.value,
+    };
+    localStorage.setItem('pedidoEnProgreso', JSON.stringify(dataToSave));
+  },
+  { deep: true }
+);
+
+onMounted(() => {
+  console.log('onMounted - Clientes:', props.clientes); // Depuración
+  console.log('onMounted - Productos:', props.productos); // Depuración
+  console.log('onMounted - Servicios:', props.servicios); // Depuración
+  const savedData = localStorage.getItem('pedidoEnProgreso');
+  if (savedData) {
+    const parsedData = JSON.parse(savedData);
+    form.cliente_id = parsedData.cliente_id;
+    clienteSeleccionado.value = parsedData.cliente || null;
+    selectedProducts.value = Array.isArray(parsedData.selectedProducts)
+      ? parsedData.selectedProducts.filter(
+          (entry) => entry && typeof entry === 'object' && 'id' in entry && 'tipo' in entry
+        )
+      : [];
+    quantities.value = parsedData.quantities || {};
+    prices.value = parsedData.prices || {};
+    discounts.value = parsedData.discounts || {};
+    calcularTotal();
+  }
+  window.addEventListener('beforeunload', handleBeforeUnload);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload);
+});
+
+const handleBeforeUnload = (event) => {
+  if (form.cliente_id || selectedProducts.value.length > 0) {
+    event.preventDefault();
+    event.returnValue = '';
+  }
+};
+
+const crearPedido = () => {
+  console.log('crearPedido'); // Depuración
+  form.productos = selectedProducts.value.map((entry) => ({
+    id: entry.id,
+    tipo: entry.tipo,
+    cantidad: quantities.value[`${entry.tipo}-${entry.id}`] || 1,
+    precio: prices.value[`${entry.tipo}-${entry.id}`] || 0,
+    descuento: discounts.value[`${entry.tipo}-${entry.id}`] || 0,
+  }));
+
+  form.post(route('pedidos.store'), {
+    onSuccess: () => {
+      console.log('Pedido creado con éxito'); // Depuración
+      localStorage.removeItem('pedidoEnProgreso');
+      selectedProducts.value = [];
+      quantities.value = {};
+      prices.value = {};
+      discounts.value = {};
+      clienteSeleccionado.value = null;
+      form.reset();
+      showNotification('Pedido creado con éxito');
+    },
+    onError: (error) => {
+      console.error('Error al crear el pedido:', error);
+      showNotification('Error al crear el pedido', 'error');
+    },
+  });
+};
+
+const formatearLocalStorage = () => {
+  console.log('formatearLocalStorage'); // Depuración
+  localStorage.removeItem('pedidoEnProgreso');
+  form.cliente_id = '';
+  clienteSeleccionado.value = null;
+  selectedProducts.value = [];
+  quantities.value = {};
+  prices.value = {};
+  discounts.value = {};
+  buscarClienteRef.value.limpiarBusqueda();
+  calcularTotal();
+  showNotification('Datos locales limpiados', 'info');
+};
+</script>
+
+<style scoped>
+.form-group {
+  margin-bottom: 1rem;
+}
+</style>

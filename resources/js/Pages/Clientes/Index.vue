@@ -1,5 +1,5 @@
 <template>
-  <Head :title="titulo" />
+  <Head title="Clientes" />
   <div class="min-h-screen bg-gray-50">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <!-- Header Section -->
@@ -193,12 +193,12 @@
                       {{ cliente.rfc }}
                     </span>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <!-- <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
     {{ cliente.regimen_fiscal_nombre }}
-</td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+</td> -->
+                  <!-- <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
     {{ cliente.uso_cfdi_nombre }}
-</td>
+</td> -->
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {{ cliente.telefono }}
                   </td>
@@ -403,8 +403,7 @@ document.title = props.titulo;
 const headers = [
   { key: 'nombre_razon_social', label: 'Cliente' },
   { key: 'rfc', label: 'RFC' },
-  { key: 'regimen_fiscal', label: 'Régimen Fiscal' },
-  { key: 'uso_cfdi', label: 'Uso CFDI' },
+
   { key: 'telefono', label: 'Teléfono' },
   { key: 'direccion', label: 'Dirección' },
 ];
