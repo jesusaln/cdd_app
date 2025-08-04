@@ -1,68 +1,20 @@
 <template>
-  <Head title="Crear cotizaciones" />
-  <div class="cotizaciones-create min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
-    <div class="max-w-6xl mx-auto">
-      <!-- Header -->
-      <div class="mb-8">
-        <div class="flex items-center justify-between">
-          <div>
-            <h1 class="text-3xl font-bold text-gray-900 mb-2">Nueva Cotización</h1>
-            <p class="text-gray-600">Crea una nueva cotización para tus clientes</p>
-          </div>
-          <div class="flex gap-3">
-            <!-- Botón Vista Previa -->
-            <button
-              @click="mostrarVistaPrevia = true"
-              :disabled="!clienteSeleccionado || selectedProducts.length === 0"
-              class="inline-flex items-center px-4 py-2 bg-purple-600 border border-transparent rounded-lg text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm"
-            >
-              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-              </svg>
-              Vista Previa
-            </button>
-            <!-- Botón Plantillas -->
-            <button
-              @click="mostrarPlantillas = true"
-              class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-lg text-sm font-medium text-white hover:bg-indigo-700 transition-all duration-200 shadow-sm"
-            >
-              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-              </svg>
-              Plantillas
-            </button>
-            <Link
-              :href="route('cotizaciones.index')"
-              class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm"
-            >
-              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-              </svg>
-              Volver
-            </Link>
-          </div>
-        </div>
-      </div>
 
-      <!-- Atajos de teclado info -->
-      <div v-if="mostrarAtajos" class="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div class="flex justify-between items-start">
-          <div>
-            <h3 class="text-sm font-medium text-blue-900 mb-2">Atajos de Teclado</h3>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs text-blue-700">
-              <div><kbd class="px-2 py-1 bg-white rounded border">Ctrl+P</kbd> Vista Previa</div>
-              <div><kbd class="px-2 py-1 bg-white rounded border">Ctrl+F</kbd> Buscar Cliente</div>
-              <div><kbd class="px-2 py-1 bg-white rounded border">Ctrl+B</kbd> Buscar Producto</div>
-            </div>
-          </div>
-          <button @click="mostrarAtajos = false" class="text-blue-400 hover:text-blue-600">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-            </svg>
-          </button>
-        </div>
-      </div>
+    <Head title="Crear cotizaciones" />
+    <div class="cotizaciones-create min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+      <div class="max-w-6xl mx-auto">
+
+        <!-- Usamos el componente Header -->
+        <Header
+          title="Nueva Cotización"
+          description="Crea una nueva cotización para tus clientes"
+          :can-preview="clienteSeleccionado && selectedProducts.length > 0"
+          :back-url="route('cotizaciones.index')"
+          :show-shortcuts="mostrarAtajos"
+          @preview="handlePreview"
+          @templates="handleTemplates"
+          @close-shortcuts="closeShortcuts"
+        />
 
       <form @submit.prevent="crearCotizacion" class="space-y-8">
         <!-- Información del Cliente -->
@@ -97,18 +49,6 @@
                 </svg>
                 Productos y Servicios
               </h2>
-              <!-- Verificador de precios -->
-              <button
-                @click="verificarPrecios"
-                type="button"
-                class="text-white hover:text-green-200 transition-colors duration-200 flex items-center text-sm"
-                title="Verificar precios actuales"
-              >
-                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-                Verificar Precios
-              </button>
             </div>
           </div>
           <div class="p-6">
@@ -135,164 +75,16 @@
           </div>
         </div>
 
-        <!-- Calculadora de Márgenes -->
-        <div v-if="mostrarCalculadoraMargen" class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <div class="bg-gradient-to-r from-yellow-500 to-yellow-600 px-6 py-4">
-            <div class="flex justify-between items-center">
-              <h2 class="text-lg font-semibold text-white flex items-center">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                </svg>
-                Calculadora de Márgenes
-              </h2>
-              <button
-                @click="mostrarCalculadoraMargen = false"
-                class="text-white hover:text-yellow-200"
-              >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-          <div class="p-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div class="bg-blue-50 p-4 rounded-lg">
-                <div class="text-sm font-medium text-blue-700 mb-2">Costo Total</div>
-                <div class="text-2xl font-bold text-blue-900">
-                  ${{ calculadoraMargen.costoTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}
-                </div>
-              </div>
-              <div class="bg-green-50 p-4 rounded-lg">
-                <div class="text-sm font-medium text-green-700 mb-2">Precio de Venta</div>
-                <div class="text-2xl font-bold text-green-900">
-                  ${{ calculadoraMargen.precioVenta.toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}
-                </div>
-              </div>
-              <div class="bg-purple-50 p-4 rounded-lg">
-                <div class="text-sm font-medium text-purple-700 mb-2">Margen Bruto</div>
-                <div class="text-2xl font-bold text-purple-900">
-                  {{ calculadoraMargen.margenPorcentaje.toFixed(1) }}%
-                </div>
-              </div>
-              <div class="bg-yellow-50 p-4 rounded-lg">
-                <div class="text-sm font-medium text-yellow-700 mb-2">Ganancia</div>
-                <div class="text-2xl font-bold text-yellow-900">
-                  ${{ calculadoraMargen.ganancia.toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Descuento General -->
-        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <div class="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-4">
-            <h2 class="text-lg font-semibold text-white flex items-center">
-              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
-              </svg>
-              Descuento General
-            </h2>
-          </div>
-          <div class="p-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                  Descuento General (%)
-                </label>
-                <div class="relative">
-                  <input
-                    type="number"
-                    v-model="descuentoGeneral"
-                    @input="calcularTotal"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="0.00"
-                  />
-                  <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                    <span class="text-gray-500 text-sm">%</span>
-                  </div>
-                </div>
-              </div>
-              <div class="flex items-end">
-                <div class="text-right">
-                  <div class="text-sm text-gray-600">Descuento aplicado:</div>
-                  <div class="text-2xl font-bold text-orange-600">
-                    ${{ calcularDescuentoGeneral().toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Resumen Total -->
-        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <div class="bg-gradient-to-r from-purple-500 to-purple-600 px-6 py-4">
-            <h2 class="text-lg font-semibold text-white flex items-center">
-              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-              </svg>
-              Resumen de la Cotización
-            </h2>
-          </div>
-          <div class="p-6">
-            <!-- Estadísticas -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-              <div class="text-center p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border border-blue-200">
-                <div class="text-3xl font-bold text-blue-600 mb-2">{{ selectedProducts.length }}</div>
-                <div class="text-sm text-blue-600 font-medium">Items Seleccionados</div>
-              </div>
-              <div class="text-center p-6 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border border-green-200">
-                <div class="text-3xl font-bold text-green-600 mb-2">
-                  {{ Object.values(quantities).reduce((sum, qty) => sum + (qty || 0), 0) }}
-                </div>
-                <div class="text-sm text-green-600 font-medium">Cantidad Total</div>
-              </div>
-              <div class="text-center p-6 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border border-purple-200">
-                <div class="text-3xl font-bold text-purple-600 mb-2">
-                  ${{ totales.total.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
-                </div>
-                <div class="text-sm text-purple-600 font-medium">Total Final</div>
-              </div>
-            </div>
-            <!-- Desglose de totales -->
-            <div class="bg-gray-50 rounded-lg p-6">
-              <h3 class="text-lg font-semibold text-gray-900 mb-4">Desglose de Precios</h3>
-              <div class="space-y-3">
-                <div class="flex justify-between items-center text-gray-700">
-                  <span>Subtotal:</span>
-                  <span class="font-semibold">${{ totales.subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
-                </div>
-                <div class="flex justify-between items-center text-orange-600" v-if="totales.descuentoGeneral > 0">
-                  <span>Descuento General ({{ descuentoGeneral }}%):</span>
-                  <span class="font-semibold">-${{ totales.descuentoGeneral.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
-                </div>
-                <div class="flex justify-between items-center text-orange-600" v-if="totales.descuentoItems > 0">
-                  <span>Descuentos por item:</span>
-                  <span class="font-semibold">-${{ totales.descuentoItems.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
-                </div>
-                <div class="flex justify-between items-center text-gray-700">
-                  <span>Subtotal con descuentos:</span>
-                  <span class="font-semibold">${{ totales.subtotalConDescuentos.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
-                </div>
-                <div class="flex justify-between items-center text-blue-600">
-                  <span>IVA (16%):</span>
-                  <span class="font-semibold">${{ totales.iva.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
-                </div>
-                <div class="border-t border-gray-300 pt-3">
-                  <div class="flex justify-between items-center text-lg font-bold text-gray-900">
-                    <span>Total Final:</span>
-                    <span>${{ totales.total.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+     <Totales
+  :show-margin-calculator="mostrarCalculadoraMargen"
+  :margin-data="calculadoraMargen"
+  :descuento-general="descuentoGeneral"
+  :totals="totales"
+  :item-count="selectedProducts.length"
+  :total-quantity="Object.values(quantities).reduce((sum, qty) => sum + (qty || 0), 0)"
+  @update:descuento-general="val => descuentoGeneral = val"
+  @toggle-margin-calculator="() => mostrarCalculadoraMargen = !mostrarCalculadoraMargen"
+/>
 
         <!-- Botones de Acción -->
         <div class="flex flex-col sm:flex-row gap-4 justify-end">
@@ -502,6 +294,7 @@
       </button>
     </div>
   </div>
+
 </template>
 
 <script setup>
@@ -510,9 +303,11 @@ import { Head, useForm, Link } from '@inertiajs/vue3';
 import { Notyf } from 'notyf';
 import axios from 'axios';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import BuscarCliente from '@/Components/BuscarCliente.vue';
-import BuscarProducto from '@/Components/BuscarProducto.vue';
-import ProductosSeleccionados from '@/Components/ProductosSeleccionados.vue';
+import Header from '@/Components/CreateComponents/Header.vue';
+import BuscarCliente from '@/Components/CreateComponents/BuscarCliente.vue';
+import BuscarProducto from '@/Components/CreateComponents/BuscarProducto.vue';
+import Totales from '@/Components/CreateComponents/Totales.vue';
+import ProductosSeleccionados from '@/Components/CreateComponents/ProductosSeleccionados.vue';
 
 // Initialize Notyf with default configuration
 const notyf = new Notyf({
@@ -561,6 +356,21 @@ const mostrarVistaPrevia = ref(false);
 const mostrarPlantillas = ref(false);
 const mostrarCalculadoraMargen = ref(false);
 const mostrarAtajos = ref(true);
+
+
+const handlePreview = () => {
+  if (clienteSeleccionado.value && selectedProducts.value.length > 0) {
+    mostrarVistaPrevia.value = true;
+  }
+};
+
+const handleTemplates = () => {
+  mostrarPlantillas.value = true;
+};
+
+const closeShortcuts = () => {
+  mostrarAtajos.value = false;
+};
 
 // Templates
 const nuevaPlantilla = ref({

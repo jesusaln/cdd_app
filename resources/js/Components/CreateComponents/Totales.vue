@@ -1,0 +1,207 @@
+<template>
+  <!-- Calculadora de Márgenes -->
+  <div v-if="showMarginCalculator" class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+    <div class="bg-gradient-to-r from-yellow-500 to-yellow-600 px-6 py-4">
+      <div class="flex justify-between items-center">
+        <h2 class="text-lg font-semibold text-white flex items-center">
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+          </svg>
+          Calculadora de Márgenes
+        </h2>
+        <button @click="toggleMarginCalculator" class="text-white hover:text-yellow-200">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="p-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="bg-blue-50 p-4 rounded-lg">
+          <div class="text-sm font-medium text-blue-700 mb-2">Costo Total</div>
+          <div class="text-2xl font-bold text-blue-900">
+            ${{ marginData.costoTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}
+          </div>
+        </div>
+        <div class="bg-green-50 p-4 rounded-lg">
+          <div class="text-sm font-medium text-green-700 mb-2">Precio de Venta</div>
+          <div class="text-2xl font-bold text-green-900">
+            ${{ marginData.precioVenta.toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}
+          </div>
+        </div>
+        <div class="bg-purple-50 p-4 rounded-lg">
+          <div class="text-sm font-medium text-purple-700 mb-2">Margen Bruto</div>
+          <div class="text-2xl font-bold text-purple-900">
+            {{ marginData.margenPorcentaje.toFixed(1) }}%
+          </div>
+        </div>
+        <div class="bg-yellow-50 p-4 rounded-lg">
+          <div class="text-sm font-medium text-yellow-700 mb-2">Ganancia</div>
+          <div class="text-2xl font-bold text-yellow-900">
+            ${{ marginData.ganancia.toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Descuento General -->
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+    <div class="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-4">
+      <h2 class="text-lg font-semibold text-white flex items-center">
+        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+        </svg>
+        Descuento General
+      </h2>
+    </div>
+    <div class="p-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Descuento General (%)
+          </label>
+          <div class="relative">
+            <input
+              type="number"
+              v-model="localDiscount"
+              @input="$emit('update:descuentoGeneral', parseFloat($event.target.value) || 0)"
+              min="0"
+              max="100"
+              step="0.01"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="0.00"
+            />
+            <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+              <span class="text-gray-500 text-sm">%</span>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-end">
+          <div class="text-right">
+            <div class="text-sm text-gray-600">Descuento aplicado:</div>
+            <div class="text-2xl font-bold text-orange-600">
+              ${{ discountAmount.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Resumen Total -->
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+    <div class="bg-gradient-to-r from-purple-500 to-purple-600 px-6 py-4">
+      <h2 class="text-lg font-semibold text-white flex items-center">
+        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+        </svg>
+        Resumen de la Cotización
+      </h2>
+    </div>
+    <div class="p-6">
+      <!-- Estadísticas -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div class="text-center p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border border-blue-200">
+          <div class="text-3xl font-bold text-blue-600 mb-2">{{ itemCount }}</div>
+          <div class="text-sm text-blue-600 font-medium">Items Seleccionados</div>
+        </div>
+        <div class="text-center p-6 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border border-green-200">
+          <div class="text-3xl font-bold text-green-600 mb-2">{{ totalQuantity }}</div>
+          <div class="text-sm text-green-600 font-medium">Cantidad Total</div>
+        </div>
+        <div class="text-center p-6 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border border-purple-200">
+          <div class="text-3xl font-bold text-purple-600 mb-2">${{ totals.total.toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}</div>
+          <div class="text-sm text-purple-600 font-medium">Total Final</div>
+        </div>
+      </div>
+
+      <!-- Desglose de totales -->
+      <div class="bg-gray-50 rounded-lg p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Desglose de Precios</h3>
+        <div class="space-y-3">
+          <div class="flex justify-between items-center text-gray-700">
+            <span>Subtotal:</span>
+            <span class="font-semibold">${{ totals.subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}</span>
+          </div>
+          <div v-if="totals.descuentoGeneral > 0" class="flex justify-between items-center text-orange-600">
+            <span>Descuento General ({{ descuentoGeneral }}%):</span>
+            <span class="font-semibold">-${{ totals.descuentoGeneral.toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}</span>
+          </div>
+          <div v-if="totals.descuentoItems > 0" class="flex justify-between items-center text-orange-600">
+            <span>Descuentos por item:</span>
+            <span class="font-semibold">-${{ totals.descuentoItems.toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}</span>
+          </div>
+          <div class="flex justify-between items-center text-gray-700">
+            <span>Subtotal con descuentos:</span>
+            <span class="font-semibold">${{ totals.subtotalConDescuentos.toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}</span>
+          </div>
+          <div class="flex justify-between items-center text-blue-600">
+            <span>IVA (16%):</span>
+            <span class="font-semibold">${{ totals.iva.toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}</span>
+          </div>
+          <div class="border-t border-gray-300 pt-3">
+            <div class="flex justify-between items-center text-lg font-bold text-gray-900">
+              <span>Total Final:</span>
+              <span>${{ totals.total.toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { computed, defineProps, defineEmits } from 'vue';
+
+// --- PROPS ---
+const props = defineProps({
+  showMarginCalculator: Boolean,
+  marginData: {
+    type: Object,
+    required: true
+  },
+  descuentoGeneral: {
+    type: Number,
+    required: true
+  },
+  totals: {
+    type: Object,
+    required: true
+  },
+  itemCount: {
+    type: Number,
+    default: 0
+  },
+  totalQuantity: {
+    type: Number,
+    default: 0
+  }
+});
+
+// --- EMITS ---
+const emit = defineEmits(['update:descuentoGeneral', 'toggle-margin-calculator']);
+
+// --- LOCAL DESCUENTO (para v-model) ---
+const localDiscount = computed({
+  get() {
+    return props.descuentoGeneral;
+  },
+  set(value) {
+    const numValue = parseFloat(value) || 0;
+    emit('update:descuentoGeneral', numValue);
+  }
+});
+
+// --- CALCULAR DESCUENTO APLICADO ---
+const discountAmount = computed(() => {
+  return props.totals.subtotalConDescuentos * (props.descuentoGeneral / 100);
+});
+
+// --- TOGGLE MARGEN ---
+const toggleMarginCalculator = () => {
+  emit('toggle-margin-calculator');
+};
+</script>

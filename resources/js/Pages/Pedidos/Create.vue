@@ -107,9 +107,9 @@ import { Head, useForm, Link } from '@inertiajs/vue3';
 import axios from 'axios';
 import { Notyf } from 'notyf';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import BuscarCliente from '@/Components/BuscarCliente.vue';
-import BuscarProducto from '@/Components/BuscarProducto.vue';
-import ProductosSeleccionados from '@/Components/ProductosSeleccionados.vue';
+import BuscarCliente from '@/Components/CreateComponents/BuscarCliente.vue';
+import BuscarProducto from '@/Components/CreateComponents/BuscarProducto.vue';
+import ProductosSeleccionados from '@/Components/CreateComponents/ProductosSeleccionados.vue';
 
 // Configura Notyf
 const notyf = new Notyf({

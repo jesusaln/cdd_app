@@ -44,7 +44,7 @@
           </div>
         </div>
       </div>
-      
+
       <!-- Atajos de teclado info -->
       <div v-if="mostrarAtajos" class="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div class="flex justify-between items-start">
@@ -596,9 +596,9 @@ import { Head, useForm, Link } from '@inertiajs/vue3';
 import { Notyf } from 'notyf';
 import axios from 'axios';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import BuscarCliente from '@/Components/BuscarCliente.vue';
-import BuscarProducto from '@/Components/BuscarProducto.vue';
-import ProductosSeleccionados from '@/Components/ProductosSeleccionados.vue';
+import BuscarCliente from '@/Components/CreateComponents/BuscarCliente.vue';
+import BuscarProducto from '@/Components/CreateComponents/BuscarProducto.vue';
+import ProductosSeleccionados from '@/Components/CreateComponents/ProductosSeleccionados.vue';
 
 // Initialize Notyf with default configuration
 const notyf = new Notyf({
@@ -1015,7 +1015,7 @@ const cargarDatosCotizacion = () => {
       const pivot = item.pivot || item;
       const tipo = item.tipo || (item.pivot ? item.pivot.tipo : 'producto');
       const entry = { id: item.id, tipo };
-      
+
       selectedProducts.value.push(entry);
       const key = `${tipo}-${item.id}`;
       quantities.value[key] = pivot.cantidad || 1;

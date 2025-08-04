@@ -371,9 +371,9 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { Head, useForm, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import BuscarCliente from '@/Components/BuscarCliente.vue';
-import BuscarProducto from '@/Components/BuscarProducto.vue';
-import ProductosSeleccionados from '@/Components/ProductosSeleccionados.vue';
+import BuscarCliente from '@/Components/CreateComponents/BuscarCliente.vue';
+import BuscarProducto from '@/Components/CreateComponents/BuscarProducto.vue';
+import ProductosSeleccionados from '@/Components/CreateComponents/ProductosSeleccionados.vue';
 
 defineOptions({ layout: AppLayout });
 
