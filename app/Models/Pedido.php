@@ -29,25 +29,24 @@ class Pedido extends Model
         return $this->belongsTo(Cliente::class);
     }
 
-    /**
-     * Relación con los productos.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
-     */
-    public function productos()
+
+
+    public function items()
     {
-        return $this->morphedByMany(Producto::class, 'pedible', 'pedido_producto')
-            ->withPivot('precio', 'cantidad');
+        return $this->hasMany(PedidoItem::class);
     }
 
-    /**
-     * Relación con los servicios.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
-     */
+    // Relación específica: productos (a través de pedido_items)
+    public function productos()
+    {
+        return $this->morphedByMany(Producto::class, 'pedible', 'pedido_items', 'pedido_id', 'pedible_id')
+            ->withPivot('cantidad', 'precio', 'descuento', 'subtotal', 'descuento_monto');
+    }
+
+    // Relación específica: servicios (a través de pedido_items)
     public function servicios()
     {
-        return $this->morphedByMany(Servicio::class, 'pedible', 'pedido_producto')
-            ->withPivot('precio', 'cantidad');
+        return $this->morphedByMany(Servicio::class, 'pedible', 'pedido_items', 'pedido_id', 'pedible_id')
+            ->withPivot('cantidad', 'precio', 'descuento', 'subtotal', 'descuento_monto');
     }
 }
