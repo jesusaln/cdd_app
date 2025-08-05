@@ -23,33 +23,40 @@ class CotizacionController extends Controller
     {
         $cotizaciones = Cotizacion::with(['cliente', 'items.cotizable'])
             ->get()
+            ->filter(function ($cotizacion) {
+                // Filtrar cotizaciones con cliente y al menos un item válido
+                return $cotizacion->cliente !== null && $cotizacion->items->isNotEmpty();
+            })
             ->map(function ($cotizacion) {
                 $items = $cotizacion->items->map(function ($item) {
                     $cotizable = $item->cotizable;
                     return [
                         'id' => $cotizable->id,
-                        'nombre' => $cotizable->nombre ?? $cotizable->descripcion,
+                        'nombre' => $cotizable->nombre ?? 'Sin nombre', // Corrected: Use nombre instead of nombre_razon_social
                         'tipo' => $item->cotizable_type === Producto::class ? 'producto' : 'servicio',
-                        'pivot' => [
-                            'cantidad' => $item->cantidad,
-                            'precio' => $item->precio,
-                            'descuento' => $item->descuento,
-                        ],
+                        'cantidad' => $item->cantidad,
+                        'precio' => $item->precio,
+                        'descuento' => $item->descuento ?? 0,
                     ];
                 });
 
                 return [
                     'id' => $cotizacion->id,
-                    'cliente' => $cotizacion->cliente,
-                    'productos' => $items,
+                    'cliente' => [
+                        'id' => $cotizacion->cliente->id,
+                        'nombre' => $cotizacion->cliente->nombre_razon_social ?? 'Sin nombre', // Corrected: Use nombre_razon_social
+                        'email' => $cotizacion->cliente->email,
+                    ],
+                    'productos' => $items->toArray(),
                     'total' => $cotizacion->total,
                     'estado' => $cotizacion->estado->value,
-                    'created_at' => $cotizacion->created_at->format('Y-m-d'),
+                    'created_at' => $cotizacion->created_at->format('Y-m-d\TH:i:sP'), //nunca modificar
+                    'numero_cotizacion' => $cotizacion->numero_cotizacion
                 ];
             });
 
         return Inertia::render('Cotizaciones/Index', [
-            'cotizaciones' => $cotizaciones,
+            'cotizaciones' => $cotizaciones->values(),
             'estados' => collect(EstadoCotizacion::cases())->map(fn($estado) => [
                 'value' => $estado->value,
                 'label' => $estado->label(),

@@ -36,7 +36,7 @@
     "@fortawesome/vue-fontawesome": "^3.0.8",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
-    "jspdf": "^3.0.0",
+    "jspdf": "^3.0.1",
     "lodash": "^4.17.21",
     "lodash-es": "^4.17.21",
     "notyf": "^3.10.0",
