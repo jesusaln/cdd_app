@@ -15,10 +15,24 @@ class CreateCotizacionesTable extends Migration
     {
         Schema::create('cotizaciones', function (Blueprint $table) {
             $table->id(); // ID de la cotización
-            $table->foreignId('cliente_id')->constrained()->onDelete('cascade'); // Relación con el cliente
-            $table->decimal('total', 8, 2)->default(0); // Total de la cotización
-            $table->string('estado')->default('pendiente'); // <--- Aquí se guarda el estado
-            $table->timestamps(); // Columnas created_at y updated_at
+
+            // Relación con el cliente
+            $table->foreignId('cliente_id')->constrained('clientes')->onDelete('cascade');
+
+            // Campos de cálculo (equivalentes a los de Pedido)
+            $table->decimal('subtotal', 10, 2)->nullable()->after('cliente_id'); // Suma de ítems
+            $table->decimal('descuento_general', 10, 2)->default(0)->after('subtotal'); // Monto del descuento general
+            $table->decimal('iva', 10, 2)->nullable()->after('descuento_general'); // IVA calculado
+            $table->decimal('total', 10, 2)->default(0)->after('iva'); // Total final
+
+            // Estado (compatible con enum EstadoCotizacion)
+            $table->string('estado')->default('pendiente')->after('total');
+
+            // Notas adicionales
+            $table->text('notas')->nullable()->after('estado');
+
+            // Timestamps
+            $table->timestamps();
         });
     }
 

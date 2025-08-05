@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateCotizacionProductoTable extends Migration
+class CreateCotizacionItemsTable extends Migration
 {
     /**
      * Run the migrations.
@@ -13,25 +13,25 @@ class CreateCotizacionProductoTable extends Migration
      */
     public function up()
     {
-        Schema::create('cotizacion_producto', function (Blueprint $table) {
+        Schema::create('cotizacion_items', function (Blueprint $table) {
             $table->id();
 
             // Relación con la cotización
             $table->foreignId('cotizacion_id')->constrained('cotizaciones')->onDelete('cascade');
 
-            // Campos polimórficos para productos y servicios
+            // Relación polimórfica: productos, servicios, etc.
             $table->unsignedBigInteger('cotizable_id');
             $table->string('cotizable_type');
 
             // Índice compuesto para búsquedas eficientes
             $table->index(['cotizable_id', 'cotizable_type']);
 
-            // Datos del ítem en la cotización
+            // Datos del ítem
             $table->integer('cantidad')->default(1);
             $table->decimal('precio', 10, 2);           // Precio unitario
-            $table->decimal('descuento', 5, 2)->default(0); // Porcentaje de descuento (0-100)
+            $table->decimal('descuento', 5, 2)->default(0); // Porcentaje de descuento
 
-            // Campos calculados (importantes para tu servicio)
+            // Campos calculados
             $table->decimal('subtotal', 10, 2);         // cantidad * precio
             $table->decimal('descuento_monto', 10, 2);  // subtotal * (descuento / 100)
 
@@ -47,6 +47,6 @@ class CreateCotizacionProductoTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('cotizacion_producto');
+        Schema::dropIfExists('cotizacion_items');
     }
 }

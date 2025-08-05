@@ -1,4 +1,3 @@
-
 <template>
   <Head title="Crear cotización" />
   <div class="cotizaciones-create min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
@@ -28,7 +27,7 @@
           <div class="p-6">
             <BuscarCliente
               ref="buscarClienteRef"
-              :clientes="clientes"
+              :clientes="clientesList"
               :cliente-seleccionado="clienteSeleccionado"
               @cliente-seleccionado="onClienteSeleccionado"
               @crear-nuevo-cliente="crearNuevoCliente"
@@ -71,7 +70,6 @@
         <Totales
           :show-margin-calculator="false"
           :margin-data="{ costoTotal: 0, precioVenta: 0, ganancia: 0, margenPorcentaje: 0 }"
-          :descuento-general="form.descuento_general"
           :totals="totales"
           :item-count="selectedProducts.length"
           :total-quantity="Object.values(quantities).reduce((sum, qty) => sum + (qty || 0), 0)"
@@ -107,7 +105,6 @@
     :cliente="clienteSeleccionado"
     :items="selectedProducts"
     :totals="totales"
-    :descuento-general="form.descuento_general"
     :notas="form.notas"
     @close="mostrarVistaPrevia = false"
     @print="() => window.print()"
@@ -153,11 +150,13 @@ const props = defineProps({
   servicios: { type: Array, default: () => [] },
 });
 
+// Copia reactiva de clientes para evitar mutación de props
+const clientesList = ref([...props.clientes]);
+
 // Formulario
 const form = useForm({
   cliente_id: '',
   subtotal: 0,
-  descuento_general: 0,
   descuento_items: 0,
   iva: 0,
   total: 0,
@@ -177,6 +176,33 @@ const discounts = ref({});
 const clienteSeleccionado = ref(null);
 const mostrarVistaPrevia = ref(false);
 const mostrarAtajos = ref(true);
+
+// Función para manejar localStorage de forma segura
+const saveToLocalStorage = (key, data) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (error) {
+    console.warn('No se pudo guardar en localStorage:', error);
+  }
+};
+
+const loadFromLocalStorage = (key) => {
+  try {
+    const item = localStorage.getItem(key);
+    return item ? JSON.parse(item) : null;
+  } catch (error) {
+    console.warn('No se pudo cargar desde localStorage:', error);
+    return null;
+  }
+};
+
+const removeFromLocalStorage = (key) => {
+  try {
+    localStorage.removeItem(key);
+  } catch (error) {
+    console.warn('No se pudo eliminar de localStorage:', error);
+  }
+};
 
 // --- FUNCIONES ---
 
@@ -198,12 +224,14 @@ const onClienteSeleccionado = (cliente) => {
   if (!cliente) {
     clienteSeleccionado.value = null;
     form.cliente_id = '';
+    saveState();
     showNotification('Selección de cliente limpiada', 'info');
     return;
   }
   if (clienteSeleccionado.value?.id === cliente.id) return;
   clienteSeleccionado.value = cliente;
   form.cliente_id = cliente.id;
+  saveState();
   showNotification(`Cliente seleccionado: ${cliente.nombre_razon_social}`);
 };
 
@@ -211,9 +239,12 @@ const crearNuevoCliente = async (nombreBuscado) => {
   try {
     const response = await axios.post(route('clientes.store'), { nombre_razon_social: nombreBuscado });
     const nuevoCliente = response.data;
-    if (!props.clientes.some(c => c.id === nuevoCliente.id)) {
-      props.clientes.push(nuevoCliente);
+
+    // Actualizar la copia reactiva en lugar de mutar props
+    if (!clientesList.value.some(c => c.id === nuevoCliente.id)) {
+      clientesList.value.push(nuevoCliente);
     }
+
     onClienteSeleccionado(nuevoCliente);
     showNotification(`Cliente creado: ${nuevoCliente.nombre_razon_social}`);
   } catch (error) {
@@ -224,22 +255,42 @@ const crearNuevoCliente = async (nombreBuscado) => {
 
 // Productos
 const agregarProducto = (item) => {
+  if (!item || typeof item.id === 'undefined' || !item.tipo) {
+    showNotification('Producto inválido', 'error');
+    return;
+  }
+
   const itemEntry = { id: item.id, tipo: item.tipo };
   const exists = selectedProducts.value.some(
     (entry) => entry.id === item.id && entry.tipo === item.tipo
   );
+
   if (!exists) {
     selectedProducts.value.push(itemEntry);
     const key = `${item.tipo}-${item.id}`;
     quantities.value[key] = 1;
-    prices.value[key] = item.tipo === 'producto' ? (item.precio_venta || 0) : (item.precio || 0);
+
+    // Validar precios con fallbacks seguros
+    let precio = 0;
+    if (item.tipo === 'producto') {
+      precio = typeof item.precio_venta === 'number' ? item.precio_venta : 0;
+    } else {
+      precio = typeof item.precio === 'number' ? item.precio : 0;
+    }
+
+    prices.value[key] = precio;
     discounts.value[key] = 0;
     calcularTotal();
-    showNotification(`Producto añadido: ${item.nombre || item.descripcion}`);
+    saveState();
+    showNotification(`Producto añadido: ${item.nombre || item.descripcion || 'Item'}`);
   }
 };
 
 const eliminarProducto = (entry) => {
+  if (!entry || typeof entry.id === 'undefined' || !entry.tipo) {
+    return;
+  }
+
   const key = `${entry.tipo}-${entry.id}`;
   selectedProducts.value = selectedProducts.value.filter(
     (item) => !(item.id === entry.id && item.tipo === entry.tipo)
@@ -248,17 +299,28 @@ const eliminarProducto = (entry) => {
   delete prices.value[key];
   delete discounts.value[key];
   calcularTotal();
+  saveState();
   showNotification(`Producto eliminado: ${entry.nombre || entry.descripcion || 'Item'}`, 'info');
 };
 
 const updateQuantity = (key, quantity) => {
-  quantities.value[key] = quantity;
+  const numQuantity = parseFloat(quantity);
+  if (isNaN(numQuantity) || numQuantity < 0) {
+    return;
+  }
+  quantities.value[key] = numQuantity;
   calcularTotal();
+  saveState();
 };
 
 const updateDiscount = (key, discount) => {
-  discounts.value[key] = discount;
+  const numDiscount = parseFloat(discount);
+  if (isNaN(numDiscount) || numDiscount < 0 || numDiscount > 100) {
+    return;
+  }
+  discounts.value[key] = numDiscount;
   calcularTotal();
+  saveState();
 };
 
 // Cálculos
@@ -266,110 +328,102 @@ const totales = computed(() => {
   let subtotal = 0;
   let descuentoItems = 0;
 
-  for (const entry of selectedProducts.value) {
+  selectedProducts.value.forEach(entry => {
     const key = `${entry.tipo}-${entry.id}`;
     const cantidad = parseFloat(quantities.value[key]) || 0;
     const precio = parseFloat(prices.value[key]) || 0;
     const descuento = parseFloat(discounts.value[key]) || 0;
-    const subtotalItem = cantidad * precio;
-    descuentoItems += subtotalItem * (descuento / 100);
-    subtotal += subtotalItem;
-  }
 
-  const subtotalConDescuentoItems = subtotal - descuentoItems;
-  const descuentoGeneralMonto = subtotalConDescuentoItems * (form.descuento_general / 100);
-  const subtotalConDescuentos = subtotalConDescuentoItems - descuentoGeneralMonto;
+    if (cantidad > 0 && precio >= 0) {
+      const subtotalItem = cantidad * precio;
+      descuentoItems += subtotalItem * (descuento / 100);
+      subtotal += subtotalItem;
+    }
+  });
+
+  const subtotalConDescuentos = Math.max(0, subtotal - descuentoItems);
   const iva = subtotalConDescuentos * 0.16;
   const total = subtotalConDescuentos + iva;
 
   return {
-    subtotal,
-    descuentoItems,
-    descuentoGeneral: descuentoGeneralMonto,
-    subtotalConDescuentos,
-    iva,
-    total,
+    subtotal: parseFloat(subtotal.toFixed(2)),
+    descuentoItems: parseFloat(descuentoItems.toFixed(2)),
+    subtotalConDescuentos: parseFloat(subtotalConDescuentos.toFixed(2)),
+    iva: parseFloat(iva.toFixed(2)),
+    total: parseFloat(total.toFixed(2)),
   };
 });
 
 const calcularTotal = () => {
   form.subtotal = totales.value.subtotal;
-  form.descuento_general = totales.value.descuentoGeneral;
   form.descuento_items = totales.value.descuentoItems;
   form.iva = totales.value.iva;
   form.total = totales.value.total;
 };
 
-// Guardar en localStorage
-onMounted(() => {
-  const savedData = localStorage.getItem('cotizacionEnProgreso');
-  if (savedData) {
-    const parsedData = JSON.parse(savedData);
-    form.cliente_id = parsedData.cliente_id;
-    clienteSeleccionado.value = parsedData.cliente || null;
-    selectedProducts.value = Array.isArray(parsedData.selectedProducts) ? parsedData.selectedProducts : [];
-    quantities.value = parsedData.quantities || {};
-    prices.value = parsedData.prices || {};
-    discounts.value = parsedData.discounts || {};
-    calcularTotal();
-  }
-
-  const handleBeforeUnload = (event) => {
-    if (form.cliente_id || selectedProducts.value.length > 0) {
-      event.preventDefault();
-      event.returnValue = '';
-    }
-  };
-
-  window.addEventListener('beforeunload', handleBeforeUnload);
-
-  onBeforeUnmount(() => {
-    window.removeEventListener('beforeunload', handleBeforeUnload);
-  });
-});
-
-// Crear cotización
-const crearCotizacion = () => {
+// Validar datos antes de crear cotización
+const validarDatos = () => {
   if (!form.cliente_id) {
     showNotification('Selecciona un cliente', 'error');
-    return;
+    return false;
   }
+
   if (selectedProducts.value.length === 0) {
     showNotification('Agrega al menos un producto o servicio', 'error');
-    return;
+    return false;
   }
 
   // Validar descuentos
   for (const entry of selectedProducts.value) {
     const key = `${entry.tipo}-${entry.id}`;
-    const discount = discounts.value[key] || 0;
+    const discount = parseFloat(discounts.value[key]) || 0;
+    const quantity = parseFloat(quantities.value[key]) || 0;
+    const price = parseFloat(prices.value[key]) || 0;
+
     if (discount < 0 || discount > 100) {
       showNotification('Los descuentos deben estar entre 0% y 100%.', 'error');
-      return;
+      return false;
+    }
+
+    if (quantity <= 0) {
+      showNotification('Las cantidades deben ser mayores a 0', 'error');
+      return false;
+    }
+
+    if (price < 0) {
+      showNotification('Los precios no pueden ser negativos', 'error');
+      return false;
     }
   }
 
-  if (form.descuento_general < 0 || form.descuento_general > 100) {
-    showNotification('El descuento general debe estar entre 0% y 100%.', 'error');
+  return true;
+};
+
+// Crear cotización
+const crearCotizacion = () => {
+  if (!validarDatos()) {
     return;
   }
 
+  // Asignar productos al formulario
   form.productos = selectedProducts.value.map((entry) => {
     const key = `${entry.tipo}-${entry.id}`;
     return {
       id: entry.id,
       tipo: entry.tipo,
-      cantidad: quantities.value[key] || 1,
-      precio: prices.value[key] || 0,
-      descuento: discounts.value[key] || 0,
+      cantidad: parseFloat(quantities.value[key]) || 1,
+      precio: parseFloat(prices.value[key]) || 0,
+      descuento: parseFloat(discounts.value[key]) || 0,
     };
   });
 
+  // Calcular totales
   calcularTotal();
 
+  // Enviar formulario
   form.post(route('cotizaciones.store'), {
     onSuccess: () => {
-      localStorage.removeItem('cotizacionEnProgreso');
+      removeFromLocalStorage('cotizacionEnProgreso');
       selectedProducts.value = [];
       quantities.value = {};
       prices.value = {};
@@ -380,8 +434,59 @@ const crearCotizacion = () => {
     },
     onError: (errors) => {
       console.error('Errores de validación:', errors);
-      showNotification('Hubo errores de validación', 'error');
+      const firstError = Object.values(errors)[0];
+      if (Array.isArray(firstError)) {
+        showNotification(firstError[0], 'error');
+      } else {
+        showNotification('Hubo errores de validación', 'error');
+      }
     },
   });
 };
+
+// Manejo de eventos del navegador
+const handleBeforeUnload = (event) => {
+  if (form.cliente_id || selectedProducts.value.length > 0) {
+    event.preventDefault();
+    event.returnValue = 'Tienes cambios sin guardar. ¿Estás seguro de que quieres salir?';
+  }
+};
+
+// Guardar estado automáticamente
+const saveState = () => {
+  const stateToSave = {
+    cliente_id: form.cliente_id,
+    cliente: clienteSeleccionado.value,
+    selectedProducts: selectedProducts.value,
+    quantities: quantities.value,
+    prices: prices.value,
+    discounts: discounts.value,
+  };
+  saveToLocalStorage('cotizacionEnProgreso', stateToSave);
+};
+
+// Lifecycle hooks
+onMounted(() => {
+  const savedData = loadFromLocalStorage('cotizacionEnProgreso');
+  if (savedData && typeof savedData === 'object') {
+    try {
+      form.cliente_id = savedData.cliente_id || '';
+      clienteSeleccionado.value = savedData.cliente || null;
+      selectedProducts.value = Array.isArray(savedData.selectedProducts) ? savedData.selectedProducts : [];
+      quantities.value = savedData.quantities || {};
+      prices.value = savedData.prices || {};
+      discounts.value = savedData.discounts || {};
+      calcularTotal();
+    } catch (error) {
+      console.warn('Error al cargar datos guardados:', error);
+      removeFromLocalStorage('cotizacionEnProgreso');
+    }
+  }
+
+  window.addEventListener('beforeunload', handleBeforeUnload);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload);
+});
 </script>
