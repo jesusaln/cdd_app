@@ -10,6 +10,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import UniversalHeader from '@/Components/IndexComponents/UniversalHeader.vue';
 import DocumentosTable from '@/Components/IndexComponents/DocumentosTable.vue';
 import Modales from '@/Components/IndexComponents/Modales.vue';
+import { estadosConfig } from '@/Config/estados';
 
 defineOptions({ layout: AppLayout });
 
@@ -269,7 +270,7 @@ const enviarAPedido = async (cotizacionData) => {
       if (index !== -1) {
         cotizacionesOriginales.value[index] = {
           ...cotizacionesOriginales.value[index],
-          estado: 'enviado_pedido' // o el estado que corresponda
+          estado: 'enviado_a_pedido' // o el estado que corresponda
         };
       }
 

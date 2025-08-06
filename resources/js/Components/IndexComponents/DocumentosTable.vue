@@ -332,6 +332,8 @@
 
 <script setup>
 import { computed, ref, nextTick } from 'vue';
+import { estadosConfig } from '@/Config/estados';
+
 
 const props = defineProps({
   documentos: {
@@ -451,13 +453,15 @@ const config = computed(() => {
       campoExtra: { key: 'id', label: 'N° Cotización' },
       acciones: { editar: true, duplicar: true, imprimir: true, eliminar: true },
       estados: {
-        'borrador': { label: 'Borrador', classes: 'bg-gray-100 text-gray-700', color: 'bg-gray-400' },
-        'pendiente': { label: 'Pendiente', classes: 'bg-yellow-100 text-yellow-700', color: 'bg-yellow-400' },
-        'enviado_pedido': { label: 'Enviado a Pedido', classes: 'bg-blue-100 text-blue-700', color: 'bg-blue-400' },
-        'enviado_venta': { label: 'Enviado a Venta', classes: 'bg-indigo-100 text-indigo-700', color: 'bg-indigo-400' },
-        'aprobado': { label: 'Aprobada', classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
-        'rechazado': { label: 'Rechazada', classes: 'bg-red-100 text-red-700', color: 'bg-red-400' },
-        'cancelado': { label: 'Cancelada', classes: 'bg-gray-100 text-gray-700', color: 'bg-gray-400' }
+        'borrador': { label: 'Borrador', classes: 'bg-yellow-100 text-yellow-700', color: 'bg-yellow-400' },
+        'pendiente': { label: 'Pendiente', classes: 'bg-gray-100 text-gray-700', color: 'bg-gray-400' },
+        'aprobada': { label: 'Aprobada', classes: 'bg-blue-100 text-blue-700', color: 'bg-blue-400' },
+        'rechazada': { label: 'Rechazada', classes: 'bg-red-100 text-red-700', color: 'bg-red-400' },
+        'enviada': { label: 'Enviada', classes: 'bg-purple-100 text-purple-700', color: 'bg-purple-400' },
+        'enviado_a_pedido': { label: 'Enviado a Pedido', classes: 'bg-orange-100 text-orange-700', color: 'bg-orange-400' },
+        'convertida_pedido': { label: 'Convertida a Pedido', classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
+        'enviado_pedido': { label: 'Enviado a Pedido', classes: 'bg-indigo-100 text-indigo-700', color: 'bg-indigo-400' },
+        'sin_estado': { label: 'Sin Estado', classes: 'bg-gray-100 text-gray-500', color: 'bg-gray-400' }
       }
     },
     pedidos: {
@@ -568,7 +572,7 @@ const obtenerColorPuntoEstado = (estado) => {
 };
 
 const obtenerLabelEstado = (estado) => {
-  return config.value.estados[estado]?.label || 'Sin estado';
+  return config.value.estados[estado]?.label || 'Pendiente';
 };
 
 // Filtrado y ordenamiento optimizado

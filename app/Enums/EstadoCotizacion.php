@@ -27,7 +27,7 @@ enum EstadoCotizacion: string
             self::ConvertidaPedido => 'Convertida a Pedido',
             self::EnviadoPedido => 'Enviado a Pedido',
             self::Borrador => 'Borrador',
-            default => 'Sin estado',
+            self::SinEstado => 'Sin Estado',
         };
     }
 

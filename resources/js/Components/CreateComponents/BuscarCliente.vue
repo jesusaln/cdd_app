@@ -102,7 +102,7 @@
               }"
             ></div>
             <span class="text-xs font-medium text-gray-600 capitalize">
-              {{ clienteSeleccionado.estado || 'Sin estado' }}
+              {{ clienteSeleccionado.estado || 'Pendiente' }}
             </span>
           </div>
 

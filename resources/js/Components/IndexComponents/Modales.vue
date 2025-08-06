@@ -394,7 +394,7 @@ const obtenerColorPuntoEstado = (estado) => {
 
 const obtenerLabelEstado = (estado) => {
   const estadoConfig = config.value.estados[estado];
-  return estadoConfig ? estadoConfig.label : 'Sin estado';
+  return estadoConfig ? estadoConfig.label : 'Pendiente';
 };
 
 // Método para confirmar el envío
