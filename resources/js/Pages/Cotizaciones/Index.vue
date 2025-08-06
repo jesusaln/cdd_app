@@ -14,7 +14,10 @@ import Modales from '@/Components/IndexComponents/Modales.vue';
 defineOptions({ layout: AppLayout });
 
 const props = defineProps({
-  cotizaciones: { type: Array, default: () => [] }
+  cotizaciones: {
+    type: Array,
+    default: () => []
+  }
 });
 
 // Estado reactivo
@@ -43,12 +46,14 @@ const notyf = new Notyf({
   ]
 });
 
-// Datos originales
+// Datos originales - asegúrate de que sean reactivos
 const cotizacionesOriginales = ref([...props.cotizaciones]);
+
+// Watch para actualizar cuando cambien las props
 watch(() => props.cotizaciones, (newVal) => {
   console.log('Cotizaciones recibidas:', newVal);
   cotizacionesOriginales.value = [...newVal];
-}, { deep: true });
+}, { deep: true, immediate: true });
 
 // Estadísticas calculadas
 const estadisticas = computed(() => {
@@ -66,7 +71,7 @@ const estadisticas = computed(() => {
   return stats;
 });
 
-// Métodos de filtros
+// Método para limpiar filtros
 const handleLimpiarFiltros = () => {
   searchTerm.value = '';
   sortBy.value = 'fecha-desc';
@@ -74,10 +79,16 @@ const handleLimpiarFiltros = () => {
   notyf.success('Filtros limpiados correctamente');
 };
 
+// Watch para debug de filtros
 watch([searchTerm, sortBy, filtroEstado], ([newSearch, newSort, newEstado]) => {
-  console.log('Filtros cambiaron:', { search: newSearch, sort: newSort, estado: newEstado });
+  console.log('Filtros cambiaron:', {
+    search: newSearch,
+    sort: newSort,
+    estado: newEstado
+  });
 }, { deep: true });
 
+// Actualizar ordenamiento
 const updateSort = (newSort) => {
   if (newSort && typeof newSort === 'string') {
     sortBy.value = newSort;
@@ -85,8 +96,10 @@ const updateSort = (newSort) => {
   }
 };
 
-// Métodos de acciones
+// === MÉTODOS DE ACCIONES ===
+
 const verDetalles = (cotizacion) => {
+  console.log('Ver detalles de:', cotizacion);
   if (!cotizacion) {
     notyf.error('Cotización no válida');
     return;
@@ -97,6 +110,7 @@ const verDetalles = (cotizacion) => {
 };
 
 const editarCotizacion = (id) => {
+  console.log('Editar cotización ID:', id);
   if (!id) {
     notyf.error('ID de cotización no válido');
     return;
@@ -105,13 +119,19 @@ const editarCotizacion = (id) => {
 };
 
 const duplicarCotizacion = (cotizacion) => {
+  console.log('Duplicar cotización:', cotizacion);
   if (!cotizacion?.id) {
     notyf.error('No se pudo duplicar: Cotización no válida');
     return;
   }
+
   router.post(`/cotizaciones/${cotizacion.id}/duplicar`, {}, {
-    onSuccess: () => {
+    onSuccess: (page) => {
       notyf.success('Cotización duplicada exitosamente');
+      // Actualizar la lista con los nuevos datos
+      if (page.props.cotizaciones) {
+        cotizacionesOriginales.value = [...page.props.cotizaciones];
+      }
     },
     onError: (errors) => {
       console.error('Error al duplicar:', errors);
@@ -121,6 +141,9 @@ const duplicarCotizacion = (cotizacion) => {
 };
 
 const imprimirCotizacion = async (cotizacion) => {
+  console.log('Imprimir cotización:', cotizacion);
+
+  // Validaciones
   if (!cotizacion) {
     notyf.error('No se seleccionó ninguna cotización para imprimir');
     return;
@@ -137,16 +160,21 @@ const imprimirCotizacion = async (cotizacion) => {
     notyf.error('Error: Lista de productos no válida');
     return;
   }
+
   try {
+    // Mostrar loading
+    notyf.success('Generando PDF...');
+
     await generarPDF('Cotización', cotizacion);
     notyf.success('PDF generado correctamente');
   } catch (error) {
-    console.error('Error al generar PDF:', error.message);
-    notyf.error(`Error al generar el PDF: ${error.message}`);
+    console.error('Error al generar PDF:', error);
+    notyf.error(`Error al generar el PDF: ${error.message || 'Error desconocido'}`);
   }
 };
 
 const confirmarEliminacion = (id) => {
+  console.log('Confirmar eliminación ID:', id);
   if (!id) {
     notyf.error('ID de cotización no válido');
     return;
@@ -161,11 +189,16 @@ const eliminarCotizacion = async () => {
     notyf.error('No se seleccionó ninguna cotización para eliminar');
     return;
   }
+
   try {
-    await router.delete(`/cotizaciones/${selectedId.value}`, {
-      onSuccess: () => {
+    router.delete(`/cotizaciones/${selectedId.value}`, {
+      onSuccess: (page) => {
         notyf.success('Cotización eliminada exitosamente');
-        cotizacionesOriginales.value = cotizacionesOriginales.value.filter(c => c.id !== selectedId.value);
+        // Actualizar la lista local
+        cotizacionesOriginales.value = cotizacionesOriginales.value.filter(
+          c => c.id !== selectedId.value
+        );
+        // Cerrar modal
         showModal.value = false;
         selectedId.value = null;
       },
@@ -179,47 +212,67 @@ const eliminarCotizacion = async () => {
     notyf.error('Error inesperado al eliminar');
   }
 };
+
+// Método para crear nueva cotización
+const crearNuevaCotizacion = () => {
+  router.visit('/cotizaciones/create');
+};
 </script>
 
 <template>
   <Head title="Cotizaciones" />
 
-  <div class="cotizaciones-index min-h-screen bg-gray-50 p-4">
-    <div class="mb-6">
-      <h1 class="text-3xl font-bold text-gray-900 mb-2">
-        Gestión de Cotizaciones
-      </h1>
-      <p class="text-gray-600">
-        Administra y gestiona todas tus cotizaciones de manera eficiente
-      </p>
+  <div class="cotizaciones-index min-h-screen bg-gray-50">
+    <!-- Header principal -->
+    <div class="bg-white shadow-sm border-b border-gray-200 px-6 py-8">
+      <div class="max-w-7xl mx-auto">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">
+              Gestión de Cotizaciones
+            </h1>
+            <p class="text-gray-600">
+              Administra y gestiona todas tus cotizaciones de manera eficiente
+            </p>
+          </div>
+
+        </div>
+      </div>
     </div>
 
-    <UniversalHeader
-      :total="estadisticas.total"
-      :aprobadas="estadisticas.aprobadas"
-      :pendientes="estadisticas.pendientes"
-      v-model:search-term="searchTerm"
-      v-model:sort-by="sortBy"
-      v-model:filtro-estado="filtroEstado"
-      :config="headerConfig"
-      @limpiar-filtros="handleLimpiarFiltros"
-    />
+    <!-- Contenido principal -->
+    <div class="max-w-7xl mx-auto px-6 py-8">
+      <!-- Header de filtros y estadísticas -->
+      <UniversalHeader
+        :total="estadisticas.total"
+        :aprobadas="estadisticas.aprobadas"
+        :pendientes="estadisticas.pendientes"
+        v-model:search-term="searchTerm"
+        v-model:sort-by="sortBy"
+        v-model:filtro-estado="filtroEstado"
+        :config="headerConfig"
+        @limpiar-filtros="handleLimpiarFiltros"
+      />
 
-    <DocumentosTable
-  :documentos="cotizacionesOriginales"
-  tipo="cotizaciones"
-  :search-term="searchTerm"
-  :sort-by="sortBy"
-  :filtro-estado="filtroEstado"
-  @ver-detalles="verDetalles"
-  @editar="editarCotizacion"
-  @duplicar="duplicarCotizacion"
-  @imprimir="imprimirCotizacion"
-  @eliminar="confirmarEliminacion"
-  @sort="updateSort"
-/>
+      <!-- Tabla de documentos -->
+      <div class="mt-6">
+        <DocumentosTable
+          :documentos="cotizacionesOriginales"
+          tipo="cotizaciones"
+          :search-term="searchTerm"
+          :sort-by="sortBy"
+          :filtro-estado="filtroEstado"
+          @ver-detalles="verDetalles"
+          @editar="editarCotizacion"
+          @duplicar="duplicarCotizacion"
+          @imprimir="imprimirCotizacion"
+          @eliminar="confirmarEliminacion"
+          @sort="updateSort"
+        />
+      </div>
+    </div>
 
-
+    <!-- Modales -->
     <Modales
       :show="showModal"
       :mode="modalMode"
@@ -235,14 +288,29 @@ const eliminarCotizacion = async () => {
 
 <style scoped>
 .cotizaciones-index {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 1.5rem;
+  min-height: 100vh;
+  background-color: #f9fafb;
 }
 
+/* Responsive */
 @media (max-width: 640px) {
-  .cotizaciones-index {
-    padding: 1rem;
+  .cotizaciones-index .max-w-7xl {
+    padding-left: 1rem;
+    padding-right: 1rem;
   }
+
+  .cotizaciones-index h1 {
+    font-size: 1.5rem;
+  }
+}
+
+/* Animaciones suaves */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.cotizaciones-index > * {
+  animation: fadeIn 0.3s ease-out;
 }
 </style>

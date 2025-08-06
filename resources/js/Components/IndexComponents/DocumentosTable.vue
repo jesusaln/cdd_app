@@ -8,6 +8,63 @@
         </div>
       </div>
     </div>
+
+    <!-- Tooltip/Modal de productos -->
+    <div
+      v-if="showTooltip && hoveredDoc"
+      class="fixed z-50 bg-white rounded-lg shadow-2xl border border-gray-200 p-4 w-80 max-h-96 pointer-events-none"
+      :style="tooltipStyle"
+    >
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-semibold text-gray-900">Productos</h3>
+        <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+          {{ hoveredDoc.productos?.length || 0 }} items
+        </span>
+      </div>
+
+      <!-- Contenedor con scroll -->
+      <div class="max-h-72 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+        <div v-if="hoveredDoc.productos && hoveredDoc.productos.length > 0" class="space-y-2">
+          <div
+            v-for="(producto, index) in hoveredDoc.productos"
+            :key="index"
+            class="flex items-start justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            <div class="flex-1 min-w-0 mr-3">
+              <p class="text-sm font-medium text-gray-900 truncate">
+                {{ producto.nombre || 'Sin nombre' }}
+              </p>
+              <div class="flex items-center mt-1 space-x-2">
+                <span class="text-xs text-gray-500">
+                  Cant: {{ producto.cantidad || 0 }}
+                </span>
+                <span class="text-xs text-gray-300">•</span>
+                <span class="text-xs text-gray-500">
+                  ${{ formatearMoneda(producto.precio || 0) }}
+                </span>
+              </div>
+              <div v-if="producto.descripcion" class="mt-1">
+                <p class="text-xs text-gray-600 line-clamp-2">
+                  {{ producto.descripcion }}
+                </p>
+              </div>
+            </div>
+            <div class="text-right flex-shrink-0">
+              <p class="text-sm font-semibold text-gray-900">
+                ${{ formatearMoneda((producto.cantidad || 0) * (producto.precio || 0)) }}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div v-else class="text-center py-8">
+          <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m0 0V9a2 2 0 012-2h2m2 2v4" />
+          </svg>
+          <p class="text-sm text-gray-500 mt-2">Sin productos</p>
+        </div>
+      </div>
+    </div>
+
     <div class="min-h-96">
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
@@ -165,8 +222,13 @@
                   ${{ formatearMoneda(doc.total) }}
                 </div>
               </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="flex items-center text-sm text-gray-600">
+              <td
+                class="px-6 py-4 whitespace-nowrap relative"
+                @mouseenter="showProductTooltip(doc, $event)"
+                @mouseleave="hideProductTooltip"
+                @mousemove="updateTooltipPosition($event)"
+              >
+                <div class="flex items-center text-sm text-gray-600 cursor-help">
                   <svg
                     class="w-4 h-4 mr-1 text-gray-400"
                     fill="none"
@@ -195,41 +257,57 @@
                   {{ obtenerLabelEstado(doc.estado) }}
                 </span>
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <button
-                  @click="onVerDetalles(doc)"
-                  class="text-blue-600 hover:text-blue-800 mr-2"
-                >
-                  Ver
-                </button>
-                <button
-                  v-if="config.acciones.editar"
-                  @click="onEditar(doc.id)"
-                  class="text-amber-600 hover:text-amber-800 mr-2"
-                >
-                  Editar
-                </button>
-                <button
-                  v-if="config.acciones.duplicar && tipo === 'cotizaciones'"
-                  @click="onDuplicar(doc)"
-                  class="text-green-600 hover:text-green-800 mr-2"
-                >
-                  Duplicar
-                </button>
-                <button
-                  v-if="config.acciones.imprimir"
-                  @click="onImprimir(doc)"
-                  class="text-purple-600 hover:text-purple-800 mr-2"
-                >
-                  Imprimir
-                </button>
-                <button
-                  v-if="config.acciones.eliminar"
-                  @click="onEliminar(doc.id)"
-                  class="text-red-600 hover:text-red-800"
-                >
-                  Eliminar
-                </button>
+              <td class="px-6 py-4 whitespace-nowrap text-right">
+                <div class="flex items-center justify-end space-x-1">
+                  <!-- Botón Ver -->
+                  <button
+                    @click="onVerDetalles(doc)"
+                    class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                    title="Ver detalles"
+                  >
+                    <font-awesome-icon icon="eye" class="w-4 h-4" />
+                  </button>
+
+                  <!-- Botón Editar -->
+                  <button
+                    v-if="config.acciones.editar"
+                    @click="onEditar(doc.id)"
+                    class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 hover:text-amber-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1"
+                    title="Editar"
+                  >
+                    <font-awesome-icon icon="edit" class="w-4 h-4" />
+                  </button>
+
+                  <!-- Botón Duplicar -->
+                  <button
+                    v-if="config.acciones.duplicar && tipo === 'cotizaciones'"
+                    @click="onDuplicar(doc)"
+                    class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1"
+                    title="Duplicar"
+                  >
+                    <font-awesome-icon icon="copy" class="w-4 h-4" />
+                  </button>
+
+                  <!-- Botón Imprimir -->
+                  <button
+                    v-if="config.acciones.imprimir"
+                    @click="onImprimir(doc)"
+                    class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 hover:text-purple-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-1"
+                    title="Imprimir"
+                  >
+                    <font-awesome-icon icon="print" class="w-4 h-4" />
+                  </button>
+
+                  <!-- Botón Eliminar -->
+                  <button
+                    v-if="config.acciones.eliminar"
+                    @click="onEliminar(doc.id)"
+                    class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
+                    title="Eliminar"
+                  >
+                    <font-awesome-icon icon="trash" class="w-4 h-4" />
+                  </button>
+                </div>
               </td>
             </tr>
           </template>
@@ -251,7 +329,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, nextTick } from 'vue';
 
 const props = defineProps({
   documentos: {
@@ -269,14 +347,13 @@ const props = defineProps({
   },
   sortBy: {
     type: String,
-    default: 'fecha-desc' // Asegúrate de que esté establecido en 'fecha-desc'
+    default: 'fecha-desc'
   },
   filtroEstado: {
     type: String,
     default: ''
   }
 });
-
 
 const emit = defineEmits([
   'ver-detalles',
@@ -286,6 +363,79 @@ const emit = defineEmits([
   'imprimir',
   'sort'
 ]);
+
+// Estado del tooltip
+const showTooltip = ref(false);
+const hoveredDoc = ref(null);
+const tooltipPosition = ref({ x: 0, y: 0 });
+let tooltipTimeout = null;
+
+// Estilo computed para el tooltip
+const tooltipStyle = computed(() => {
+  const offset = 20; // Offset desde el cursor
+  const tooltipWidth = 320; // Ancho del tooltip (w-80 = 320px)
+  const tooltipHeight = 384; // Altura máxima del tooltip (max-h-96 = 384px)
+
+  // Obtener dimensiones de la ventana
+  const windowWidth = window.innerWidth;
+  const windowHeight = window.innerHeight;
+
+  let x = tooltipPosition.value.x + offset;
+  let y = tooltipPosition.value.y;
+
+  // Ajustar posición X si se sale de la pantalla
+  if (x + tooltipWidth > windowWidth) {
+    x = tooltipPosition.value.x - tooltipWidth - offset;
+  }
+
+  // Ajustar posición Y para centrar en el cursor
+  y = tooltipPosition.value.y - (tooltipHeight / 2);
+
+  // Asegurar que no se salga por arriba o abajo
+  if (y < 10) {
+    y = 10;
+  } else if (y + tooltipHeight > windowHeight - 10) {
+    y = windowHeight - tooltipHeight - 10;
+  }
+
+  return {
+    left: `${x}px`,
+    top: `${y}px`,
+  };
+});
+
+// Funciones del tooltip
+const showProductTooltip = (doc, event) => {
+  clearTimeout(tooltipTimeout);
+
+  hoveredDoc.value = doc;
+  tooltipPosition.value = {
+    x: event.clientX,
+    y: event.clientY
+  };
+
+  tooltipTimeout = setTimeout(() => {
+    showTooltip.value = true;
+  }, 300); // Delay de 300ms para evitar tooltips accidentales
+};
+
+const hideProductTooltip = () => {
+  clearTimeout(tooltipTimeout);
+
+  tooltipTimeout = setTimeout(() => {
+    showTooltip.value = false;
+    hoveredDoc.value = null;
+  }, 100); // Delay pequeño para permitir hover sobre el tooltip
+};
+
+const updateTooltipPosition = (event) => {
+  if (showTooltip.value) {
+    tooltipPosition.value = {
+      x: event.clientX,
+      y: event.clientY
+    };
+  }
+};
 
 // Configuración específica para cada tipo de documento
 const config = computed(() => {
@@ -439,12 +589,9 @@ const items = computed(() => {
   // Ordenamiento por el campo extra (id) de manera descendente
   return filtered.sort((a, b) => {
     const field = config.value.campoExtra.key;
-    return b[field] - a[field]; // Ordenar por id de manera descendente
+    return b[field] - a[field];
   });
 });
-
-
-
 
 // Total general
 const total = computed(() => props.documentos?.length || 0);
@@ -467,3 +614,31 @@ const onSort = (field) => {
   emit('sort', newOrder);
 };
 </script>
+
+<style scoped>
+/* Estilos personalizados para el scrollbar */
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+
+.scrollbar-thumb-gray-300::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+  border-radius: 0.375rem;
+}
+
+.scrollbar-track-gray-100::-webkit-scrollbar-track {
+  background-color: #f3f4f6;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+/* Clase para truncar texto en múltiples líneas */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+</style>

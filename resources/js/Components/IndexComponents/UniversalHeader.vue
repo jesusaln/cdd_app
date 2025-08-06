@@ -190,15 +190,15 @@ const getColorClass = (color) => {
       <!-- Botón crear y estadísticas -->
       <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
         <!-- Botón crear -->
-        <Link
-          :href="finalConfig.createRoute"
-          class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium rounded-lg hover:from-blue-700 hover:to-blue-800 transform hover:scale-105 transition-all duration-200 shadow-lg"
-        >
-          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path v-html="icons.plus"></path>
-          </svg>
-          {{ finalConfig.createButtonText }}
-        </Link>
+       <Link
+  :href="finalConfig.createRoute"
+  class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium rounded-lg hover:from-blue-700 hover:to-blue-800 transform hover:scale-105 transition-all duration-200 shadow-lg"
+>
+  <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+  </svg>
+  {{ finalConfig.createButtonText }}
+</Link>
 
         <!-- Estadísticas -->
         <div class="flex items-center gap-4 text-sm text-gray-600">
