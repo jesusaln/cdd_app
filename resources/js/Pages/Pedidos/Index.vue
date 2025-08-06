@@ -1,226 +1,308 @@
+<!-- /resources/js/Pages/Pedidos/Index.vue -->
+<script setup>
+import { ref, computed, watch } from 'vue';
+import { router } from '@inertiajs/vue3';
+import { Head } from '@inertiajs/vue3';
+import { Notyf } from 'notyf';
+import 'notyf/notyf.min.css';
+import { generarPDF } from '@/Utils/pdfGenerator';
+import AppLayout from '@/Layouts/AppLayout.vue';
+import UniversalHeader from '@/Components/IndexComponents/UniversalHeader.vue';
+import DocumentosTable from '@/Components/IndexComponents/DocumentosTable.vue';
+import Modales from '@/Components/IndexComponents/Modales.vue';
+
+defineOptions({ layout: AppLayout });
+
+const props = defineProps({
+  pedidos: {
+    type: Array,
+    default: () => []
+  }
+});
+
+// Estado reactivo
+const searchTerm = ref('');
+const sortBy = ref('fecha-desc');
+const filtroEstado = ref('');
+const showModal = ref(false);
+const modalMode = ref('details');
+const selectedId = ref(null);
+const selectedPedido = ref(null);
+
+// Configuración del header universal
+const headerConfig = {
+  module: 'pedidos',
+  createButtonText: 'Nuevo Pedido',
+  searchPlaceholder: 'Buscar por cliente, número...'
+};
+
+// Notificaciones
+const notyf = new Notyf({
+  duration: 4000,
+  position: { x: 'right', y: 'top' },
+  types: [
+    { type: 'success', background: '#10b981', icon: false },
+    { type: 'error', background: '#ef4444', icon: false }
+  ]
+});
+
+// Datos originales - asegúrate de que sean reactivos
+const pedidosOriginales = ref([...props.pedidos]);
+
+// Watch para actualizar cuando cambien las props
+watch(() => props.pedidos, (newVal) => {
+  console.log('Pedidos recibidos:', newVal);
+  pedidosOriginales.value = [...newVal];
+}, { deep: true, immediate: true });
+
+// Estadísticas calculadas
+const estadisticas = computed(() => {
+  const stats = {
+    total: pedidosOriginales.value.length,
+    aprobados: 0,
+    pendientes: 0
+  };
+
+  pedidosOriginales.value.forEach(p => {
+    if (p.estado === 'aprobado') stats.aprobados++;
+    else if (p.estado === 'pendiente') stats.pendientes++;
+  });
+
+  return stats;
+});
+
+// Método para limpiar filtros
+const handleLimpiarFiltros = () => {
+  searchTerm.value = '';
+  sortBy.value = 'fecha-desc';
+  filtroEstado.value = '';
+  notyf.success('Filtros limpiados correctamente');
+};
+
+// Watch para debug de filtros
+watch([searchTerm, sortBy, filtroEstado], ([newSearch, newSort, newEstado]) => {
+  console.log('Filtros cambiaron:', {
+    search: newSearch,
+    sort: newSort,
+    estado: newEstado
+  });
+}, { deep: true });
+
+// Actualizar ordenamiento
+const updateSort = (newSort) => {
+  if (newSort && typeof newSort === 'string') {
+    sortBy.value = newSort;
+    console.log('Ordenamiento actualizado:', newSort);
+  }
+};
+
+// === MÉTODOS DE ACCIONES ===
+
+const verDetalles = (pedido) => {
+  console.log('Ver detalles de:', pedido);
+  if (!pedido) {
+    notyf.error('Pedido no válido');
+    return;
+  }
+  selectedPedido.value = pedido;
+  modalMode.value = 'details';
+  showModal.value = true;
+};
+
+const editarPedido = (id) => {
+  console.log('Editar pedido ID:', id);
+  if (!id) {
+    notyf.error('ID de pedido no válido');
+    return;
+  }
+  router.visit(`/pedidos/${id}/edit`);
+};
+
+const duplicarPedido = (pedido) => {
+  if (confirm(`¿Duplicar pedido #${pedido.id}?`)) {
+    router.post(`/pedidos/${pedido.id}/duplicate`, {}, {
+      onSuccess: (page) => {
+        notyf.success('Pedido duplicado');
+      },
+      onError: (errors) => {
+        notyf.error('Error al duplicar');
+      }
+    });
+  }
+};
+
+const imprimirPedido = async (pedido) => {
+  console.log('Imprimir pedido:', pedido);
+
+  // Aseguramos que tenga fecha
+  const pedidoConFecha = {
+    ...pedido,
+    fecha: pedido.fecha || pedido.created_at || new Date().toISOString()
+  };
+
+  // Validaciones
+  if (!pedidoConFecha.id) {
+    notyf.error('Error: ID del documento no encontrado');
+    return;
+  }
+  if (!pedidoConFecha.cliente || !pedidoConFecha.cliente.nombre) {
+    notyf.error('Error: Datos del cliente no encontrados');
+    return;
+  }
+  if (!pedidoConFecha.productos || !Array.isArray(pedidoConFecha.productos) || pedidoConFecha.productos.length === 0) {
+    notyf.error('Error: Lista de productos no válida');
+    return;
+  }
+  if (!pedidoConFecha.fecha) {
+    notyf.error('Error: Fecha no especificada');
+    return;
+  }
+
+  try {
+    notyf.success('Generando PDF...');
+    await generarPDF('Pedido', pedidoConFecha);
+    notyf.success('PDF generado correctamente');
+  } catch (error) {
+    console.error('Error al generar PDF:', error);
+    notyf.error(`Error al generar el PDF: ${error.message}`);
+  }
+};
+
+const confirmarEliminacion = (id) => {
+  console.log('Confirmar eliminación ID:', id);
+  if (!id) {
+    notyf.error('ID de pedido no válido');
+    return;
+  }
+  selectedId.value = id;
+  modalMode.value = 'confirm';
+  showModal.value = true;
+};
+
+const eliminarPedido = async () => {
+  if (!selectedId.value) {
+    notyf.error('No se seleccionó ningún pedido para eliminar');
+    return;
+  }
+
+  try {
+    router.delete(`/pedidos/${selectedId.value}`, {
+      onSuccess: (page) => {
+        notyf.success('Pedido eliminado exitosamente');
+        pedidosOriginales.value = pedidosOriginales.value.filter(
+          p => p.id !== selectedId.value
+        );
+        showModal.value = false;
+        selectedId.value = null;
+      },
+      onError: (errors) => {
+        console.error('Error al eliminar:', errors);
+        notyf.error('Error al eliminar el pedido');
+      }
+    });
+  } catch (error) {
+    console.error('Error inesperado:', error);
+    notyf.error('Error inesperado al eliminar');
+  }
+};
+
+// Método para crear nuevo pedido
+const crearNuevoPedido = () => {
+  router.visit('/pedidos/create');
+};
+</script>
+
 <template>
-    <Head title="Pedidos" />
-    <div class="pedidos-index">
-      <!-- Título de la página -->
-      <h1 class="text-2xl font-semibold mb-6">Listado de Pedidos</h1>
+  <Head title="Pedidos" />
 
-      <!-- Botón de crear pedido y campo de búsqueda -->
-      <div class="mb-4 flex justify-between items-center">
-        <Link :href="route('pedidos.create')" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-300">
-          Crear Pedido
-        </Link>
-        <div class="flex flex-col">
-          <label for="searchTerm" class="sr-only">Buscar por cliente, producto o servicio</label>
-          <input
-            id="searchTerm"
-            v-model="searchTerm"
-            type="text"
-            placeholder="Buscar por cliente, producto o servicio"
-            class="px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-      </div>
-
-      <!-- Tabla de pedidos -->
-      <div v-if="pedidosFiltrados.length > 0" class="overflow-x-auto bg-white rounded-lg shadow-md">
-        <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
-            <tr>
-              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th>
-              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Productos/Servicios</th>
-              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
-              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-200">
-            <tr v-for="pedido in pedidosFiltrados" :key="pedido.id" class="hover:bg-gray-100">
-              <td class="px-4 py-3 text-sm text-gray-700">{{ pedido.id }}</td>
-              <td class="px-4 py-3 text-sm text-gray-700">{{ pedido.cliente.nombre_razon_social }}</td>
-              <td class="px-4 py-3 text-sm text-gray-700">
-                <ul>
-                  <li v-for="item in pedido.productos" :key="item.id" :class="item.tipo === 'producto' ? 'text-blue-600' : 'text-green-600'">
-                    {{ item.tipo === 'producto' ? '[Producto]' : '[Servicio]' }} {{ item.nombre }} - ${{ item.pivot.precio }} (Cantidad: {{ item.pivot.cantidad }})
-                  </li>
-                </ul>
-              </td>
-              <td class="px-4 py-3 text-sm text-gray-700">${{ pedido.total }}</td>
-              <td class="px-4 py-3 flex space-x-2">
-                <button @click="editarPedido(pedido.id)" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">
-                  Editar
-                </button>
-                <button @click="confirmarEliminacion(pedido.id)" class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600">
-                  Eliminar
-                </button>
-                <button @click="verDetalles(pedido)" class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600">
-                  Ver Detalles
-                </button>
-                <button @click="generarPDFVenta(pedido)" class="bg-purple-500 text-white px-4 py-2 rounded-md hover:bg-purple-600">
-                  Generar PDF
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Mensaje si no hay pedidos -->
-      <div v-else class="text-center text-gray-500 mt-4">
-        No hay pedidos registrados.
-      </div>
-
-      <!-- Spinner de carga -->
-      <div v-if="loading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-
-      <!-- Diálogo de confirmación de eliminación -->
-      <div v-if="showConfirmationDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-lg shadow-lg">
-          <p class="mb-4">¿Estás seguro de que deseas eliminar este pedido?</p>
-          <div class="flex justify-end">
-            <button @click="cancelarEliminacion" class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 mr-2">
-              Cancelar
-            </button>
-            <button @click="eliminarPedido" class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600">
-              Eliminar
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Diálogo para mostrar detalles del pedido -->
-      <div v-if="showDetailsDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-lg shadow-lg w-1/2">
-          <Show :pedido="selectedPedido" @convertir-a-venta="handleConvertirAVenta" />
-          <div class="flex justify-end mt-4">
-            <button @click="cerrarDetalles" class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">
-              Cerrar
-            </button>
+  <div class="pedidos-index min-h-screen bg-gray-50">
+    <!-- Header principal -->
+    <div class="bg-white shadow-sm border-b border-gray-200 px-6 py-8">
+      <div class="max-w-7xl mx-auto">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">
+              Gestión de Pedidos
+            </h1>
+            <p class="text-gray-600">
+              Administra y gestiona todos tus pedidos de manera eficiente
+            </p>
           </div>
         </div>
       </div>
     </div>
-  </template>
 
-  <script setup>
-  import { Head, Link, router } from '@inertiajs/vue3';
-  import { ref, computed } from 'vue';
-  import { Notyf } from 'notyf';
-  import 'notyf/notyf.min.css';
-  import { generarPDF } from '@/Utils/pdfGenerator';
-  import Show from './Show.vue';
-  import AppLayout from '@/Layouts/AppLayout.vue';
+    <!-- Contenido principal -->
+    <div class="max-w-8xl mx-auto px-6 py-8">
+      <!-- Header de filtros y estadísticas -->
+      <UniversalHeader
+        :total="estadisticas.total"
+        :aprobados="estadisticas.aprobados"
+        :pendientes="estadisticas.pendientes"
+        v-model:search-term="searchTerm"
+        v-model:sort-by="sortBy"
+        v-model:filtro-estado="filtroEstado"
+        :config="headerConfig"
+        @limpiar-filtros="handleLimpiarFiltros"
+      />
 
-  // Define el layout del dashboard
-  defineOptions({ layout: AppLayout });
+      <!-- Tabla de documentos -->
+      <div class="mt-6">
+        <DocumentosTable
+          :documentos="pedidosOriginales"
+          tipo="pedidos"
+          :search-term="searchTerm"
+          :sort-by="sortBy"
+          :filtro-estado="filtroEstado"
+          @ver-detalles="verDetalles"
+          @editar="editarPedido"
+          @duplicar="duplicarPedido"
+          @imprimir="imprimirPedido"
+          @eliminar="confirmarEliminacion"
+          @sort="updateSort"
+        />
+      </div>
+    </div>
 
-  // Propiedades
-  const props = defineProps({ pedidos: Array });
-  const searchTerm = ref('');
-  const loading = ref(false);
-  const showConfirmationDialog = ref(false);
-  const pedidoIdToDelete = ref(null);
-  const showDetailsDialog = ref(false);
-  const selectedPedido = ref(null);
+    <!-- Modales -->
+    <Modales
+      :show="showModal"
+      :mode="modalMode"
+      :selected="selectedPedido"
+      tipo="pedidos"
+      @close="showModal = false"
+      @confirm-delete="eliminarPedido"
+      @imprimir="imprimirPedido"
+      @editar="editarPedido"
+    />
+  </div>
+</template>
 
-  // Configuración de Notyf para notificaciones
-  const notyf = new Notyf({ duration: 3000, position: { x: 'right', y: 'top' } });
+<style scoped>
+.pedidos-index {
+  min-height: 100vh;
+  background-color: #f9fafb;
+}
 
-  // Variable reactiva local para almacenar los pedidos
-  const pedidos = ref([...props.pedidos]);
-
-  // Filtrado de pedidos
-  const pedidosFiltrados = computed(() => {
-    return pedidos.value.filter(pedido => {
-      return pedido.cliente.nombre_razon_social.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
-             pedido.productos.some(item =>
-               item.nombre.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
-               (item.tipo === 'producto' && 'producto'.includes(searchTerm.value.toLowerCase())) ||
-               (item.tipo === 'servicio' && 'servicio'.includes(searchTerm.value.toLowerCase()))
-             );
-    });
-  });
-
-  // Función para editar un pedido
-  const editarPedido = (id) => {
-    router.get(`/pedidos/${id}/edit`);
-  };
-
-  // Función para confirmar la eliminación de un pedido
-  const confirmarEliminacion = (id) => {
-    pedidoIdToDelete.value = id;
-    showConfirmationDialog.value = true;
-  };
-
-  // Función para cancelar la eliminación
-  const cancelarEliminacion = () => {
-    pedidoIdToDelete.value = null;
-    showConfirmationDialog.value = false;
-  };
-
-  // Función para eliminar un pedido
-  const eliminarPedido = async () => {
-    if (pedidoIdToDelete.value) {
-      loading.value = true;
-      try {
-        await router.delete(`/pedidos/${pedidoIdToDelete.value}`, {
-          onSuccess: () => {
-            notyf.success('Pedido eliminado exitosamente.');
-            pedidos.value = pedidos.value.filter(pedido => pedido.id !== pedidoIdToDelete.value);
-            showConfirmationDialog.value = false;
-          },
-          onError: () => notyf.error('Error al eliminar el pedido.')
-        });
-      } catch (error) {
-        notyf.error('Ocurrió un error inesperado.');
-      } finally {
-        loading.value = false;
-      }
-    }
-  };
-
-  // Función para mostrar detalles del pedido
-  const verDetalles = (pedido) => {
-    selectedPedido.value = pedido;
-    showDetailsDialog.value = true;
-  };
-
-  // Función para cerrar el diálogo de detalles
-  const cerrarDetalles = () => {
-    selectedPedido.value = null;
-    showDetailsDialog.value = false;
-  };
-
-  // Función para manejar la conversión a venta
-  const handleConvertirAVenta = async (pedidoData) => {
-    try {
-      await router.post(`/pedidos/${pedidoData.id}/enviar-a-ventas`, {
-        onSuccess: () => {
-          alert('Conversión correcta. ¿Deseas ir al índice de ventas?');
-          cerrarDetalles();
-        },
-        onError: (errors) => {
-          console.error('Error al convertir el pedido a venta:', errors);
-        }
-      });
-    } catch (error) {
-      console.error('Ocurrió un error inesperado:', error);
-    }
-  };
-
-  // Función para generar el PDF del pedido
-  const generarPDFVenta = (pedido) => {
-    generarPDF('Pedido', pedido);
-  };
-  </script>
-
-  <style scoped>
-  /* Estilos personalizados */
-  .text-blue-600 {
-    color: #2563eb; /* Color para productos */
+/* Responsive */
+@media (max-width: 640px) {
+  .pedidos-index .max-w-7xl {
+    padding-left: 1rem;
+    padding-right: 1rem;
   }
-  .text-green-600 {
-    color: #16a34a; /* Color para servicios */
+
+  .pedidos-index h1 {
+    font-size: 1.5rem;
   }
-  </style>
+}
+
+/* Animaciones suaves */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.pedidos-index > * {
+  animation: fadeIn 0.3s ease-out;
+}
+</style>

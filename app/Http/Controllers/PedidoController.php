@@ -3,110 +3,107 @@
 namespace App\Http\Controllers;
 
 use App\Models\Pedido;
+use App\Models\PedidoItem;
 use App\Models\Cliente;
 use App\Models\Producto;
 use App\Models\Servicio;
-use App\Models\Venta;
-use App\Models\PedidoItem;
+use App\Enums\EstadoPedido;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redirect;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class PedidoController extends Controller
 {
-    /**
-     * Convertir un pedido en una venta.
-     *
-     * @param int $id
-     * @return \Illuminate\Http\RedirectResponse
-     */
-    public function enviarAVentas($id)
-    {
-        $pedido = Pedido::with(['cliente', 'items.pedible'])->findOrFail($id);
-
-        // Crear una nueva venta
-        $venta = new Venta();
-        $venta->cliente_id = $pedido->cliente_id;
-        $venta->total = $pedido->total;
-        $venta->save();
-
-        // Asociar productos y servicios desde pedido_items
-        foreach ($pedido->items as $item) {
-            $pedible = $item->pedible;
-
-            if ($pedible instanceof Producto) {
-                $venta->productos()->attach($pedible->id, [
-                    'cantidad' => $item->cantidad,
-                    'precio' => $item->precio,
-                ]);
-                // Opcional: actualizar stock
-                $pedible->decrement('stock', $item->cantidad);
-            } elseif ($pedible instanceof Servicio) {
-                $venta->servicios()->attach($pedible->id, [
-                    'cantidad' => $item->cantidad,
-                    'precio' => $item->precio,
-                ]);
-            }
-        }
-
-        return redirect()->route('ventas.index')->with('success', 'Pedido convertido a venta exitosamente.');
-    }
+    use AuthorizesRequests;
 
     /**
      * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
      */
     public function index()
     {
-        $pedidos = Pedido::with(['cliente', 'items.pedible'])->get()->map(function ($pedido) {
-            $items = $pedido->items->map(function ($item) {
-                $pedible = $item->pedible;
-                return [
-                    'id' => $pedible->id,
-                    'nombre' => $pedible->nombre ?? $pedible->descripcion,
-                    'tipo' => $item->pedible_type === Producto::class ? 'producto' : 'servicio',
-                    'pivot' => [
+        $pedidos = Pedido::with(['cliente', 'items.pedible'])
+            ->get()
+            ->filter(function ($pedido) {
+                // Filtrar pedidos con cliente y al menos un item válido
+                return $pedido->cliente !== null && $pedido->items->isNotEmpty();
+            })
+            ->map(function ($pedido) {
+                $items = $pedido->items->map(function ($item) {
+                    $pedible = $item->pedible;
+                    return [
+                        'id' => $pedible->id,
+                        'nombre' => $pedible->nombre ?? 'Sin nombre',
+                        'tipo' => $item->pedible_type === Producto::class ? 'producto' : 'servicio',
                         'cantidad' => $item->cantidad,
                         'precio' => $item->precio,
-                        'descuento' => $item->descuento,
+                        'descuento' => $item->descuento ?? 0,
+                    ];
+                });
+
+                return [
+                    'id' => $pedido->id,
+                    'fecha' => $pedido->fecha ? $pedido->fecha->format('Y-m-d') : $pedido->created_at->format('Y-m-d'),
+                    'created_at' => $pedido->created_at->format('Y-m-d\TH:i:sP'),
+                    'cliente' => [
+                        'id' => $pedido->cliente->id,
+                        'nombre' => $pedido->cliente->nombre_razon_social ?? 'Sin nombre',
+                        'email' => $pedido->cliente->email,
+                        'telefono' => $pedido->cliente->telefono,
+                        'rfc' => $pedido->cliente->rfc,
+                        'regimen_fiscal' => $pedido->cliente->regimen_fiscal,
+                        'uso_cfdi' => $pedido->cliente->uso_cfdi,
+                        'calle' => $pedido->cliente->calle,
+                        'numero_exterior' => $pedido->cliente->numero_exterior,
+                        'numero_interior' => $pedido->cliente->numero_interior,
+                        'colonia' => $pedido->cliente->colonia,
+                        'codigo_postal' => $pedido->cliente->codigo_postal,
+                        'municipio' => $pedido->cliente->municipio,
+                        'estado' => $pedido->cliente->estado,
+                        'pais' => $pedido->cliente->pais,
                     ],
+                    'productos' => $items->toArray(),
+                    'subtotal' => $pedido->subtotal,
+                    'descuento_general' => $pedido->descuento_general,
+                    'iva' => $pedido->iva,
+                    'total' => $pedido->total,
+                    'estado' => $pedido->estado->value,
+                    'numero_pedido' => $pedido->numero_pedido,
+                    'cotizacion_id' => $pedido->cotizacion_id,
                 ];
             });
 
-            return [
-                'id' => $pedido->id,
-                'cliente' => $pedido->cliente,
-                'productos' => $items,
-                'subtotal' => $pedido->subtotal,
-                'total' => $pedido->total,
-            ];
-        });
-
         return Inertia::render('Pedidos/Index', [
-            'pedidos' => $pedidos,
+            'pedidos' => $pedidos->values(),
+            'estados' => collect(EstadoPedido::cases())->map(fn($estado) => [
+                'value' => $estado->value,
+                'label' => $estado->label(),
+                'color' => $estado->color() // Asumiendo que EstadoPedido tiene un método color()
+            ]),
+            'filters' => request()->only(['search', 'estado', 'fecha_inicio', 'fecha_fin'])
         ]);
     }
 
     /**
      * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
      */
     public function create()
     {
         return Inertia::render('Pedidos/Create', [
-            'clientes' => Cliente::all(),
-            'productos' => Producto::all(),
-            'servicios' => Servicio::all(),
+            'clientes' => Cliente::select('id', 'nombre_razon_social', 'email', 'telefono')->get(),
+            'productos' => Producto::select('id', 'nombre', 'precio_venta', 'descripcion')->get(),
+            'servicios' => Servicio::select('id', 'nombre', 'precio', 'descripcion')->get(),
+            'defaults' => [
+                'fecha' => now()->format('Y-m-d'),
+                'moneda' => 'MXN'
+            ]
         ]);
     }
 
     /**
      * Store a newly created resource in storage.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\Response
      */
     public function store(Request $request)
     {
@@ -123,22 +120,30 @@ class PedidoController extends Controller
         ]);
 
         $subtotal = 0;
+        $descuentoItems = 0;
         foreach ($validated['productos'] as $item) {
-            $subtotal += $item['cantidad'] * $item['precio'];
+            $subtotalItem = $item['cantidad'] * $item['precio'];
+            $descuentoItems += $subtotalItem * ($item['descuento'] / 100);
+            $subtotal += $subtotalItem;
         }
 
-        $descuentoGeneralPorcentaje = $request->descuento_general ?? 0;
-        $descuentoGeneralMonto = $subtotal * ($descuentoGeneralPorcentaje / 100);
-        $subtotalConDescuentos = $subtotal - $descuentoGeneralMonto;
-        $iva = $subtotalConDescuentos * 0.16;
-        $total = $subtotalConDescuentos + $iva;
+        $descuentoGeneralMonto = ($subtotal - $descuentoItems) * ($request->descuento_general / 100);
+        $subtotalFinal = ($subtotal - $descuentoItems) - $descuentoGeneralMonto;
+        $iva = $subtotalFinal * 0.16;
+        $total = $subtotalFinal + $iva;
+
+        $numero_pedido = $this->generarNumeroPedido();
 
         $pedido = Pedido::create([
             'cliente_id' => $validated['cliente_id'],
+            'cotizacion_id' => null, // Puede llenarse si se crea desde una cotización
+            'numero_pedido' => $numero_pedido,
             'subtotal' => $subtotal,
             'descuento_general' => $descuentoGeneralMonto,
             'iva' => $iva,
             'total' => $total,
+            'fecha' => now(),
+            'estado' => EstadoPedido::Borrador,
             'notas' => $request->notas,
         ]);
 
@@ -146,7 +151,7 @@ class PedidoController extends Controller
             $class = $item['tipo'] === 'producto' ? Producto::class : Servicio::class;
             $modelo = $class::find($item['id']);
 
-            if (! $modelo) {
+            if (!$modelo) {
                 Log::warning("Ítem no encontrado: {$class} con ID {$item['id']}");
                 continue;
             }
@@ -171,9 +176,6 @@ class PedidoController extends Controller
 
     /**
      * Display the specified resource.
-     *
-     * @param int $id
-     * @return \Illuminate\Http\Response
      */
     public function show($id)
     {
@@ -202,20 +204,29 @@ class PedidoController extends Controller
                 'descuento_general' => $pedido->descuento_general,
                 'iva' => $pedido->iva,
                 'total' => $pedido->total,
+                'fecha' => $pedido->fecha ? $pedido->fecha->format('Y-m-d') : $pedido->created_at->format('Y-m-d'),
                 'notas' => $pedido->notas,
+                'estado' => $pedido->estado->value,
+                'numero_pedido' => $pedido->numero_pedido,
+                'cotizacion_id' => $pedido->cotizacion_id,
             ],
+            'canEdit' => $pedido->estado === EstadoPedido::Borrador || $pedido->estado === EstadoPedido::Pendiente,
+            'canDelete' => $pedido->estado === EstadoPedido::Borrador || $pedido->estado === EstadoPedido::Pendiente,
         ]);
     }
 
     /**
      * Show the form for editing the specified resource.
-     *
-     * @param int $id
-     * @return \Illuminate\Http\Response
      */
     public function edit($id)
     {
         $pedido = Pedido::with(['cliente', 'items.pedible'])->findOrFail($id);
+
+        // Permitir edición solo si está en Borrador o Pendiente
+        if (!in_array($pedido->estado, [EstadoPedido::Borrador, EstadoPedido::Pendiente])) {
+            return Redirect::route('pedidos.show', $pedido->id)
+                ->with('warning', 'Solo pedidos en borrador o pendientes pueden ser editados');
+        }
 
         $items = $pedido->items->map(function ($item) {
             $pedible = $item->pedible;
@@ -241,27 +252,32 @@ class PedidoController extends Controller
                 'descuento_general' => $pedido->descuento_general,
                 'iva' => $pedido->iva,
                 'total' => $pedido->total,
+                'fecha' => $pedido->fecha ? $pedido->fecha->format('Y-m-d') : $pedido->created_at->format('Y-m-d'),
                 'notas' => $pedido->notas,
+                'numero_pedido' => $pedido->numero_pedido,
+                'cotizacion_id' => $pedido->cotizacion_id,
             ],
-            'clientes' => Cliente::all(),
-            'productos' => Producto::all(),
-            'servicios' => Servicio::all(),
+            'clientes' => Cliente::select('id', 'nombre_razon_social', 'email', 'telefono')->get(),
+            'productos' => Producto::select('id', 'nombre', 'precio_venta', 'descripcion')->get(),
+            'servicios' => Servicio::select('id', 'nombre', 'precio', 'descripcion')->get(),
         ]);
     }
 
     /**
      * Update the specified resource in storage.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @param int $id
-     * @return \Illuminate\Http\Response
      */
     public function update(Request $request, $id)
     {
         $pedido = Pedido::findOrFail($id);
 
+        // Permitir edición solo si está en Borrador o Pendiente
+        if (!in_array($pedido->estado, [EstadoPedido::Borrador, EstadoPedido::Pendiente])) {
+            return Redirect::back()->with('error', 'Solo pedidos en borrador o pendientes pueden ser actualizados');
+        }
+
         $validated = $request->validate([
             'cliente_id' => 'required|exists:clientes,id',
+            'numero_pedido' => 'required|string|unique:pedidos,numero_pedido,' . $pedido->id,
             'productos' => 'required|array',
             'productos.*.id' => 'required|integer',
             'productos.*.tipo' => 'required|in:producto,servicio',
@@ -273,38 +289,44 @@ class PedidoController extends Controller
         ]);
 
         $subtotal = 0;
-        foreach ($validated['productos'] as $item) {
-            $subtotal += $item['cantidad'] * $item['precio'];
-        }
-
         $descuentoItems = 0;
         foreach ($validated['productos'] as $item) {
             $subtotalItem = $item['cantidad'] * $item['precio'];
             $descuentoItems += $subtotalItem * ($item['descuento'] / 100);
+            $subtotal += $subtotalItem;
         }
 
-        $descuentoGeneralPorcentaje = $request->descuento_general ?? 0;
-        $descuentoGeneralMonto = ($subtotal - $descuentoItems) * ($descuentoGeneralPorcentaje / 100);
+        $descuentoGeneralMonto = ($subtotal - $descuentoItems) * ($request->descuento_general / 100);
         $subtotalFinal = ($subtotal - $descuentoItems) - $descuentoGeneralMonto;
         $iva = $subtotalFinal * 0.16;
         $total = $subtotalFinal + $iva;
 
+        // Determinar el nuevo estado: si está en Borrador, cambiarlo a Pendiente
+        $nuevoEstado = $pedido->estado === EstadoPedido::Borrador
+            ? EstadoPedido::Pendiente
+            : $pedido->estado;
+
         $pedido->update([
             'cliente_id' => $validated['cliente_id'],
+            'numero_pedido' => $validated['numero_pedido'],
             'subtotal' => $subtotal,
             'descuento_general' => $descuentoGeneralMonto,
             'iva' => $iva,
             'total' => $total,
+            'fecha' => now(),
+            'estado' => $nuevoEstado,
             'notas' => $request->notas,
         ]);
 
+        // Eliminar ítems anteriores
         $pedido->items()->delete();
 
+        // Guardar nuevos ítems
         foreach ($validated['productos'] as $itemData) {
             $class = $itemData['tipo'] === 'producto' ? Producto::class : Servicio::class;
             $modelo = $class::find($itemData['id']);
 
-            if (! $modelo) {
+            if (!$modelo) {
                 Log::warning("Ítem no encontrado: {$class} con ID {$itemData['id']}");
                 continue;
             }
@@ -324,21 +346,83 @@ class PedidoController extends Controller
             ]);
         }
 
-        return redirect()->route('pedidos.index')->with('success', 'Pedido actualizado exitosamente.');
+        $mensajeExito = $nuevoEstado === EstadoPedido::Pendiente && $pedido->estado === EstadoPedido::Borrador
+            ? 'Pedido actualizado y cambiado a estado pendiente exitosamente'
+            : 'Pedido actualizado exitosamente';
+
+        return Redirect::route('pedidos.index')
+            ->with('success', $mensajeExito);
     }
 
     /**
      * Remove the specified resource from storage.
-     *
-     * @param int $id
-     * @return \Illuminate\Http\Response
      */
     public function destroy($id)
     {
         $pedido = Pedido::findOrFail($id);
-        $pedido->items()->delete(); // Elimina todos los ítems
+
+        if (!in_array($pedido->estado, [EstadoPedido::Borrador, EstadoPedido::Pendiente])) {
+            return Redirect::back()->with('error', 'Solo pedidos en borrador o pendientes pueden ser eliminados');
+        }
+
+        $pedido->items()->delete();
         $pedido->delete();
 
-        return redirect()->route('pedidos.index')->with('success', 'Pedido eliminado exitosamente.');
+        return Redirect::route('pedidos.index')
+            ->with('success', 'Pedido eliminado exitosamente');
+    }
+
+    /**
+     * Duplicate a pedido.
+     */
+    public function duplicate(Request $request, $id)
+    {
+        $pedido = Pedido::with('cliente', 'items.pedible')->findOrFail($id);
+
+        DB::beginTransaction();
+        try {
+            // Duplicar el pedido
+            $nuevo = $pedido->replicate();
+            $nuevo->estado = EstadoPedido::Borrador;
+            $nuevo->numero_pedido = $this->generarNumeroPedido();
+            $nuevo->fecha = now();
+            $nuevo->created_at = now();
+            $nuevo->updated_at = now();
+            $nuevo->save();
+
+            // Duplicar los ítems
+            foreach ($pedido->items as $item) {
+                $nuevo->items()->create([
+                    'pedible_id' => $item->pedible_id,
+                    'pedible_type' => $item->pedible_type,
+                    'cantidad' => $item->cantidad,
+                    'precio' => $item->precio,
+                    'descuento' => $item->descuento,
+                    'subtotal' => $item->subtotal,
+                    'descuento_monto' => $item->descuento_monto,
+                ]);
+            }
+
+            DB::commit();
+
+            return Redirect::route('pedidos.index')
+                ->with('success', 'Pedido duplicado correctamente.');
+        } catch (\Exception $e) {
+            DB::rollback();
+            Log::error('Error duplicando pedido: ' . $e->getMessage());
+
+            return Redirect::back()
+                ->with('error', 'Error al duplicar el pedido.');
+        }
+    }
+
+    /**
+     * Generate a unique numero_pedido.
+     */
+    private function generarNumeroPedido()
+    {
+        $ultimo = Pedido::orderBy('id', 'desc')->first();
+        $numero = $ultimo ? $ultimo->id + 1 : 1;
+        return 'PED-' . date('Ymd') . '-' . str_pad($numero, 5, '0', STR_PAD_LEFT);
     }
 }

@@ -1,4 +1,3 @@
-<!-- /resources/js/Components/IndexComponents/Modales.vue -->
 <template>
   <Transition name="modal">
     <div
@@ -181,6 +180,17 @@
           <!-- Botones de acción -->
           <div class="flex justify-end gap-3 mt-6">
             <button
+              v-if="config.acciones.enviarPedido"
+              @click="confirmarEnvioPedido"
+              class="px-4 py-2 text-white rounded-lg transition-colors"
+              :class="{
+                'bg-green-600 hover:bg-green-700': !yaEnviado,
+                'bg-blue-600 hover:bg-blue-700': yaEnviado
+              }"
+            >
+              {{ yaEnviado ? 'Reenviar a Pedido' : 'Enviar a Pedido' }}
+            </button>
+            <button
               v-if="config.acciones.imprimir"
               @click="onImprimir"
               class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
@@ -205,10 +215,47 @@
       </div>
     </div>
   </Transition>
+
+  <!-- Modal de confirmación para reenvío -->
+  <Transition name="modal">
+    <div
+      v-if="showConfirmReenvio"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+    >
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+        <div class="text-center">
+          <div class="w-12 h-12 mx-auto bg-blue-100 rounded-full flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+            </svg>
+          </div>
+          <h3 class="text-lg font-medium mb-2">¿Reenviar cotización a pedido?</h3>
+          <p class="text-gray-600 mb-6">
+            Esta cotización ya fue enviada anteriormente ({{ formatearFecha(selected?.updated_at) }}).
+            ¿Deseas crear un nuevo pedido?
+          </p>
+          <div class="flex gap-3">
+            <button
+              @click="showConfirmReenvio = false"
+              class="flex-1 px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              @click="reenviarAPedido"
+              class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Reenviar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </Transition>
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 const props = defineProps({
   show: {
@@ -235,8 +282,11 @@ const emit = defineEmits([
   'close',
   'confirm-delete',
   'imprimir',
-  'editar'
+  'editar',
+  'enviar-pedido'
 ]);
+
+const showConfirmReenvio = ref(false);
 
 // Configuración dinámica según el tipo de documento
 const config = computed(() => {
@@ -247,7 +297,8 @@ const config = computed(() => {
       campoExtra: null,
       acciones: {
         editar: true,
-        imprimir: true
+        imprimir: true,
+        enviarPedido: true
       },
       estados: {
         'borrador': { label: 'Borrador', classes: 'bg-gray-100 text-gray-800', color: 'bg-gray-400' },
@@ -265,7 +316,8 @@ const config = computed(() => {
       campoExtra: { key: 'numero_pedido', label: 'N° Pedido' },
       acciones: {
         editar: true,
-        imprimir: true
+        imprimir: true,
+        enviarPedido: false
       },
       estados: {
         'borrador': { label: 'Borrador', classes: 'bg-gray-100 text-gray-800', color: 'bg-gray-400' },
@@ -283,7 +335,8 @@ const config = computed(() => {
       campoExtra: { key: 'numero_factura', label: 'N° Factura' },
       acciones: {
         editar: false,
-        imprimir: true
+        imprimir: true,
+        enviarPedido: false
       },
       estados: {
         'borrador': { label: 'Borrador', classes: 'bg-gray-100 text-gray-800', color: 'bg-gray-400' },
@@ -298,6 +351,11 @@ const config = computed(() => {
   return configs[props.tipo] || configs.cotizaciones;
 });
 
+// Computed para saber si ya fue enviada
+const yaEnviado = computed(() => {
+  return props.selected?.estado === 'enviado_pedido';
+});
+
 // Métodos de formateo
 const formatearFecha = (date) => {
   if (!date) return 'Fecha no disponible';
@@ -305,7 +363,9 @@ const formatearFecha = (date) => {
     return new Date(date).toLocaleDateString('es-MX', {
       year: 'numeric',
       month: 'long',
-      day: 'numeric'
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     });
   } catch (error) {
     console.error('Error formatting date:', date, error);
@@ -336,6 +396,56 @@ const obtenerLabelEstado = (estado) => {
   const estadoConfig = config.value.estados[estado];
   return estadoConfig ? estadoConfig.label : 'Sin estado';
 };
+
+// Método para confirmar el envío
+const confirmarEnvioPedido = () => {
+  if (yaEnviado.value) {
+    showConfirmReenvio.value = true;
+  } else {
+    onEnviarPedido();
+  }
+};
+
+const onEnviarPedido = async () => {
+  try {
+    const response = await emit('enviar-pedido', props.selected);
+
+    if (response?.success) {
+      alert(`Pedido #${response.numero_pedido} creado exitosamente`);
+      emit('close');
+      emit('refresh'); // Si necesitas actualizar la lista
+    }
+  } catch (error) {
+    console.error('Error al enviar:', error.response?.data);
+
+    if (error.response?.data?.requiere_confirmacion) {
+      showConfirmReenvio.value = true;
+    } else {
+      alert(error.response?.data?.error || 'Error al procesar la solicitud');
+    }
+  }
+};
+
+const reenviarAPedido = async () => {
+  showConfirmReenvio.value = false;
+  try {
+    const response = await emit('enviar-pedido', {
+      ...props.selected,
+      forzarReenvio: true
+    });
+
+    if (response?.success) {
+      alert(`Pedido #${response.numero_pedido} actualizado exitosamente`);
+      emit('close');
+      emit('refresh');
+    }
+  } catch (error) {
+    console.error('Error al reenviar:', error.response?.data);
+    alert(error.response?.data?.error || 'Error al actualizar el pedido');
+  }
+};
+
+
 
 // Emits
 const onCancel = () => emit('close');

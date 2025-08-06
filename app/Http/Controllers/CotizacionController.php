@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Cotizacion;
+use App\Models\Pedido;
+use App\Enums\EstadoPedido;
+use App\Models\PedidoItem;
 use App\Models\Cliente;
 use App\Models\Producto;
 use App\Models\Servicio;
@@ -353,7 +356,7 @@ class CotizacionController extends Controller
     {
         $cotizacion = Cotizacion::findOrFail($id);
 
-        if (!in_array($cotizacion->estado, [EstadoCotizacion::Borrador, EstadoCotizacion::Pendiente])) {
+        if (!in_array($cotizacion->estado, [EstadoCotizacion::Borrador, EstadoCotizacion::Pendiente, EstadoCotizacion::Aprobada])) {
             return Redirect::back()->with('error', 'Solo cotizaciones pendientes pueden ser eliminadas');
         }
 
@@ -364,50 +367,6 @@ class CotizacionController extends Controller
             ->with('success', 'Cotización eliminada exitosamente');
     }
 
-    /**
-     * Convertir cotización a pedido.
-     */
-    public function convertirAPedido($id)
-    {
-        $cotizacion = Cotizacion::with(['cliente', 'items.cotizable'])->findOrFail($id);
-
-        if ($cotizacion->estado !== EstadoCotizacion::Aprobada) {
-            return Redirect::back()->with('error', 'Solo cotizaciones aprobadas pueden convertirse a pedido');
-        }
-
-        DB::beginTransaction();
-        try {
-            $pedido = \App\Models\Pedido::create([
-                'cliente_id' => $cotizacion->cliente_id,
-                'subtotal' => $cotizacion->subtotal,
-                'descuento_general' => $cotizacion->descuento_general,
-                'iva' => $cotizacion->iva,
-                'total' => $cotizacion->total,
-                'notas' => $cotizacion->notas,
-            ]);
-
-            foreach ($cotizacion->items as $item) {
-                \App\Models\PedidoItem::create([
-                    'pedido_id' => $pedido->id,
-                    'pedible_id' => $item->cotizable_id,
-                    'pedible_type' => $item->cotizable_type,
-                    'cantidad' => $item->cantidad,
-                    'precio' => $item->precio,
-                    'descuento' => $item->descuento,
-                    'subtotal' => $item->subtotal,
-                    'descuento_monto' => $item->descuento_monto,
-                ]);
-            }
-
-            DB::commit();
-            return Redirect::route('pedidos.show', $pedido->id)
-                ->with('success', 'Pedido creado exitosamente a partir de la cotización');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Error al convertir cotización a pedido', ['error' => $e->getMessage()]);
-            return Redirect::back()->with('error', 'Error al crear el pedido');
-        }
-    }
 
     /**
      * Convertir cotización a venta.
@@ -496,5 +455,106 @@ class CotizacionController extends Controller
             return Redirect::back()
                 ->with('error', 'Error al duplicar la cotización.');
         }
+    }
+
+
+    public function enviarAPedido($id)
+    {
+        try {
+            DB::beginTransaction();
+
+            // Obtener la cotización con relaciones completas
+            $cotizacion = Cotizacion::with([
+                'items.cotizable',
+                'cliente',
+                'productos',
+                'servicios'
+            ])->findOrFail($id);
+
+            // Validar estado
+            if (!$cotizacion->puedeEnviarseAPedido()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'La cotización no está en estado válido para enviar a pedido',
+                    'estado_actual' => $cotizacion->estado->value,
+                    'requiere_confirmacion' => false
+                ], 400);
+            }
+
+            // Validar items
+            if ($cotizacion->items->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'La cotización no contiene items para enviar a pedido',
+                    'requiere_confirmacion' => false
+                ], 400);
+            }
+
+            // Validar cliente
+            if (!$cotizacion->cliente) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'La cotización no tiene cliente asociado',
+                    'requiere_confirmacion' => false
+                ], 400);
+            }
+
+            // Crear nuevo pedido
+            $pedido = new Pedido();
+            $pedido->fill([
+                'cliente_id' => $cotizacion->cliente_id,
+                'cotizacion_id' => $cotizacion->id,
+                'numero_pedido' => $this->generarNumeroPedido(),
+                'fecha' => now(),
+                'estado' => EstadoPedido::Borrador,
+                'subtotal' => $cotizacion->subtotal,
+                'descuento_general' => $cotizacion->descuento_general,
+                'iva' => $cotizacion->iva,
+                'total' => $cotizacion->total,
+                'notas' => "Generado desde cotización #{$cotizacion->id}"
+            ]);
+            $pedido->save();
+
+            // Copiar items de cotización a pedido
+            foreach ($cotizacion->items as $item) {
+                $pedido->items()->create([
+                    'pedible_id' => $item->cotizable_id,
+                    'pedible_type' => $item->cotizable_type,
+                    'cantidad' => $item->cantidad,
+                    'precio' => $item->precio,
+                    'descuento' => $item->descuento,
+                    'subtotal' => $item->subtotal,
+                    'descuento_monto' => $item->descuento_monto
+                ]);
+            }
+
+            // Actualizar estado de la cotización
+            $cotizacion->estado = EstadoCotizacion::EnviadoAPedido;
+            $cotizacion->save();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Pedido creado exitosamente',
+                'pedido_id' => $pedido->id,
+                'numero_pedido' => $pedido->numero_pedido,
+                'items_count' => $pedido->items->count()
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'error' => 'Error interno al procesar el pedido',
+                'details' => env('APP_DEBUG') ? $e->getMessage() : null
+            ], 500);
+        }
+    }
+
+    private function generarNumeroPedido()
+    {
+        $ultimo = Pedido::orderBy('id', 'desc')->first();
+        $numero = $ultimo ? $ultimo->id + 1 : 1;
+        return 'PED-' . str_pad($numero, 6, '0', STR_PAD_LEFT);
     }
 }

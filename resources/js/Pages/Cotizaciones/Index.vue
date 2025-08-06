@@ -36,8 +36,6 @@ const headerConfig = {
   searchPlaceholder: 'Buscar por cliente, número...'
 };
 
-
-
 // Notificaciones
 const notyf = new Notyf({
   duration: 4000,
@@ -97,6 +95,19 @@ const updateSort = (newSort) => {
     console.log('Ordenamiento actualizado:', newSort);
   }
 };
+
+// === FUNCIONES AUXILIARES ===
+
+// Función auxiliar para validar si una cotización puede enviarse a pedido
+function puedeEnviarAPedido(cotizacion) {
+  // Por ahora permitimos enviar desde cualquier estado
+  // Aquí puedes agregar tu lógica de negocio específica más adelante
+  return true;
+
+  // Comentado: Estados válidos anteriores (para referencia futura)
+  // const estadosValidos = ['aprobado', 'confirmado', 'aceptado'];
+  // return estadosValidos.includes(cotizacion.estado);
+}
 
 // === MÉTODOS DE ACCIONES ===
 
@@ -211,6 +222,99 @@ const eliminarCotizacion = async () => {
   }
 };
 
+// Función para confirmar envío a pedido con validaciones
+const confirmarEnvioAPedido = (cotizacion) => {
+  // Verificar estado (por ahora siempre permite)
+  if (!puedeEnviarAPedido(cotizacion)) {
+    notyf.error(`No se puede enviar a pedido en este momento.`);
+    return;
+  }
+
+  // Verificar datos requeridos
+  if (!cotizacion.cliente || !cotizacion.productos || cotizacion.productos.length === 0) {
+    notyf.error('La cotización debe tener cliente y productos válidos');
+    return;
+  }
+
+  // Mostrar confirmación
+  if (confirm(`¿Confirmas enviar la cotización #${cotizacion.id} del cliente ${cotizacion.cliente.nombre} a pedido?`)) {
+    enviarAPedido(cotizacion);
+  }
+};
+
+// Función corregida para enviar cotización a pedido
+const enviarAPedido = async (cotizacionData) => {
+  // Validación previa (por ahora siempre permite)
+  if (!puedeEnviarAPedido(cotizacionData)) {
+    const mensaje = `No se puede enviar a pedido en este momento.`;
+    notyf.error(mensaje);
+    return { success: false, error: mensaje };
+  }
+
+  try {
+    // Mostrar notificación de proceso iniciado
+    notyf.success('Enviando cotización a pedido...');
+
+    const response = await axios.post(`/cotizaciones/${cotizacionData.id}/enviar-pedido`, {
+      forzarReenvio: cotizacionData.forzarReenvio || false
+    });
+
+    // Si la respuesta es exitosa
+    if (response.data && response.data.success) {
+      notyf.success(response.data.message || 'Cotización enviada a pedido exitosamente');
+
+      // Actualizar el estado local de la cotización si es necesario
+      const index = cotizacionesOriginales.value.findIndex(c => c.id === cotizacionData.id);
+      if (index !== -1) {
+        cotizacionesOriginales.value[index] = {
+          ...cotizacionesOriginales.value[index],
+          estado: 'enviado_pedido' // o el estado que corresponda
+        };
+      }
+
+      // Cerrar modal si está abierto
+      showModal.value = false;
+
+      return response.data;
+    }
+
+  } catch (error) {
+    console.error('Error al enviar a pedido:', error);
+
+    let errorMessage = 'Error desconocido al enviar a pedido';
+
+    // Manejar diferentes tipos de errores
+    if (error.response) {
+      // Error del servidor (400, 500, etc.)
+      if (error.response.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.response.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response.status === 400) {
+        errorMessage = 'La cotización no está en estado válido para enviar a pedido';
+      } else if (error.response.status === 404) {
+        errorMessage = 'Cotización no encontrada';
+      } else if (error.response.status === 422) {
+        errorMessage = 'Datos de cotización no válidos';
+      } else if (error.response.status >= 500) {
+        errorMessage = 'Error del servidor. Intenta nuevamente.';
+      }
+    } else if (error.request) {
+      // Error de red
+      errorMessage = 'Error de conexión. Verifica tu conexión a internet.';
+    } else if (error.message) {
+      // Error de configuración u otro
+      errorMessage = error.message;
+    }
+
+    // Mostrar error al usuario
+    notyf.error(errorMessage);
+
+    // Re-lanzar el error para que el componente que llama pueda manejarlo si es necesario
+    throw new Error(errorMessage);
+  }
+};
+
 // Método para crear nueva cotización
 const crearNuevaCotizacion = () => {
   router.visit('/cotizaciones/create');
@@ -233,7 +337,6 @@ const crearNuevaCotizacion = () => {
               Administra y gestiona todas tus cotizaciones de manera eficiente
             </p>
           </div>
-
         </div>
       </div>
     </div>
@@ -280,6 +383,7 @@ const crearNuevaCotizacion = () => {
       @confirm-delete="eliminarCotizacion"
       @imprimir="imprimirCotizacion"
       @editar="editarCotizacion"
+      @enviar-pedido="enviarAPedido"
     />
   </div>
 </template>

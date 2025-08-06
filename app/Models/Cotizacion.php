@@ -55,4 +55,15 @@ class Cotizacion extends Model
             'cotizable_id'
         )->withPivot('cantidad', 'precio', 'descuento', 'subtotal', 'descuento_monto');
     }
+
+    public function puedeEnviarseAPedido(): bool
+    {
+        // Obtén el valor del enum como string
+        $estadoActual = $this->estado->value;
+
+        return in_array($estadoActual, [
+            EstadoCotizacion::Pendiente->value,
+            EstadoCotizacion::Borrador->value,
+        ], true); // true para comparación estricta
+    }
 }
