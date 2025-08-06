@@ -223,24 +223,24 @@ const eliminarCotizacion = async () => {
 };
 
 // Función para confirmar envío a pedido con validaciones
-const confirmarEnvioAPedido = (cotizacion) => {
-  // Verificar estado (por ahora siempre permite)
-  if (!puedeEnviarAPedido(cotizacion)) {
-    notyf.error(`No se puede enviar a pedido en este momento.`);
-    return;
-  }
+// const confirmarEnvioAPedido = (cotizacion) => {
+//   // Verificar estado (por ahora siempre permite)
+//   if (!puedeEnviarAPedido(cotizacion)) {
+//     notyf.error(`No se puede enviar a pedido en este momento.`);
+//     return;
+//   }
 
-  // Verificar datos requeridos
-  if (!cotizacion.cliente || !cotizacion.productos || cotizacion.productos.length === 0) {
-    notyf.error('La cotización debe tener cliente y productos válidos');
-    return;
-  }
+//   // Verificar datos requeridos
+//   if (!cotizacion.cliente || !cotizacion.productos || cotizacion.productos.length === 0) {
+//     notyf.error('La cotización debe tener cliente y productos válidos');
+//     return;
+//   }
 
   // Mostrar confirmación
-  if (confirm(`¿Confirmas enviar la cotización #${cotizacion.id} del cliente ${cotizacion.cliente.nombre} a pedido?`)) {
-    enviarAPedido(cotizacion);
-  }
-};
+//   if (confirm(`¿Confirmas enviar la cotización #${cotizacion.id} del cliente ${cotizacion.cliente.nombre} a pedido?`)) {
+//     enviarAPedido(cotizacion);
+//   }
+// };
 
 // Función corregida para enviar cotización a pedido
 const enviarAPedido = async (cotizacionData) => {
@@ -262,6 +262,7 @@ const enviarAPedido = async (cotizacionData) => {
     // Si la respuesta es exitosa
     if (response.data && response.data.success) {
       notyf.success(response.data.message || 'Cotización enviada a pedido exitosamente');
+      router.visit(route('pedidos.index'));
 
       // Actualizar el estado local de la cotización si es necesario
       const index = cotizacionesOriginales.value.findIndex(c => c.id === cotizacionData.id);
