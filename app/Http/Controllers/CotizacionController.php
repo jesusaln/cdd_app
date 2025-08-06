@@ -218,6 +218,7 @@ class CotizacionController extends Controller
     {
         $cotizacion = Cotizacion::with(['cliente', 'items.cotizable'])->findOrFail($id);
 
+        // Permitir edición solo si está en Borrador o Pendiente
         if (!in_array($cotizacion->estado, [EstadoCotizacion::Borrador, EstadoCotizacion::Pendiente])) {
             return Redirect::route('cotizaciones.show', $cotizacion->id)
                 ->with('warning', 'Solo cotizaciones en borrador o pendientes pueden ser editadas');
@@ -254,7 +255,6 @@ class CotizacionController extends Controller
             'servicios' => Servicio::select('id', 'nombre', 'precio', 'descripcion')->get(),
         ]);
     }
-
     /**
      * Update the specified resource in storage.
      */
@@ -262,8 +262,9 @@ class CotizacionController extends Controller
     {
         $cotizacion = Cotizacion::findOrFail($id);
 
-        if ($cotizacion->estado !== EstadoCotizacion::Pendiente) {
-            return Redirect::back()->with('error', 'Solo cotizaciones pendientes pueden ser actualizadas');
+        // Permitir edición solo si está en Borrador o Pendiente
+        if (!in_array($cotizacion->estado, [EstadoCotizacion::Borrador, EstadoCotizacion::Pendiente])) {
+            return Redirect::back()->with('error', 'Solo cotizaciones en borrador o pendientes pueden ser actualizadas');
         }
 
         $validated = $request->validate([
@@ -294,6 +295,11 @@ class CotizacionController extends Controller
         $iva = $subtotalFinal * 0.16;
         $total = $subtotalFinal + $iva;
 
+        // Determinar el nuevo estado: si está en Borrador, cambiarlo a Pendiente
+        $nuevoEstado = $cotizacion->estado === EstadoCotizacion::Borrador
+            ? EstadoCotizacion::Pendiente
+            : $cotizacion->estado;
+
         $cotizacion->update([
             'cliente_id' => $validated['cliente_id'],
             'subtotal' => $subtotal,
@@ -301,6 +307,7 @@ class CotizacionController extends Controller
             'iva' => $iva,
             'total' => $total,
             'notas' => $request->notas,
+            'estado' => $nuevoEstado, // Actualizar el estado
         ]);
 
         // Eliminar ítems anteriores
@@ -331,8 +338,12 @@ class CotizacionController extends Controller
             ]);
         }
 
+        $mensajeExito = $nuevoEstado === EstadoCotizacion::Pendiente && $cotizacion->estado === EstadoCotizacion::Borrador
+            ? 'Cotización actualizada y cambiada a estado pendiente exitosamente'
+            : 'Cotización actualizada exitosamente';
+
         return Redirect::route('cotizaciones.index')
-            ->with('success', 'Cotización actualizada exitosamente');
+            ->with('success', $mensajeExito);
     }
 
     /**

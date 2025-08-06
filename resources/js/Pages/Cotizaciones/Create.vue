@@ -66,6 +66,26 @@
           </div>
         </div>
 
+         <!-- Notas -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div class="bg-gradient-to-r from-purple-500 to-purple-600 px-6 py-4">
+            <h2 class="text-lg font-semibold text-white flex items-center">
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+              </svg>
+              Notas Adicionales
+            </h2>
+          </div>
+          <div class="p-6">
+            <textarea
+              v-model="form.notas"
+              class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical"
+              rows="4"
+              placeholder="Agrega notas adicionales, términos y condiciones, o información relevante para la cotización..."
+            ></textarea>
+          </div>
+        </div>
+
         <!-- Totales -->
         <Totales
           :show-margin-calculator="false"
