@@ -45,6 +45,12 @@ class Cotizacion extends Model
         )->withPivot('cantidad', 'precio', 'descuento', 'subtotal', 'descuento_monto');
     }
 
+
+    public function marcarComoEnviadoAPedido(): void
+    {
+        $this->update(['estado' => EstadoCotizacion::EnviadoAPedido]);
+    }
+
     public function servicios()
     {
         return $this->morphedByMany(

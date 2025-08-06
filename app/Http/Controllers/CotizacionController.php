@@ -529,8 +529,11 @@ class CotizacionController extends Controller
             }
 
             // Actualizar estado de la cotización
-            $cotizacion->estado = EstadoCotizacion::EnviadoAPedido;
-            $cotizacion->save();
+
+            $cotizacion->update(['estado' => EstadoCotizacion::EnviadoAPedido]);
+
+            //$cotizacion->estado = EstadoCotizacion::EnviadoAPedido;
+            //$cotizacion->save();
 
             DB::commit();
 

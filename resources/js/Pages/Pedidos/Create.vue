@@ -149,7 +149,7 @@ import VistaPreviaModal from '@/Components/Modals/VistaPreviaModal.vue';
 // Inicializar notificaciones
 const notyf = new Notyf({
   duration: 5000,
-  position: { x: 'right', y: 'bottom' },
+  position: { x: 'right', y: 'top' },
   types: [
     { type: 'success', background: '#10B981', icon: { className: 'notyf__icon--success', tagName: 'i', text: '✓' } },
     { type: 'error', background: '#EF4444', icon: { className: 'notyf__icon--error', tagName: 'i', text: '✗' } },
