@@ -36,6 +36,8 @@ const headerConfig = {
   searchPlaceholder: 'Buscar por cliente, número...'
 };
 
+
+
 // Notificaciones
 const notyf = new Notyf({
   duration: 4000,
@@ -119,25 +121,17 @@ const editarCotizacion = (id) => {
 };
 
 const duplicarCotizacion = (cotizacion) => {
-  console.log('Duplicar cotización:', cotizacion);
-  if (!cotizacion?.id) {
-    notyf.error('No se pudo duplicar: Cotización no válida');
-    return;
-  }
-
-  router.post(`/cotizaciones/${cotizacion.id}/duplicar`, {}, {
-    onSuccess: (page) => {
-      notyf.success('Cotización duplicada exitosamente');
-      // Actualizar la lista con los nuevos datos
-      if (page.props.cotizaciones) {
-        cotizacionesOriginales.value = [...page.props.cotizaciones];
+  if (confirm(`¿Duplicar cotización #${cotizacion.id}?`)) {
+    router.post(`/cotizaciones/${cotizacion.id}/duplicate`, {}, {
+      onSuccess: (page) => {
+        notyf.success('Cotización duplicada');
+        // Actualiza tu lista si es necesario
+      },
+      onError: (errors) => {
+        notyf.error('Error al duplicar');
       }
-    },
-    onError: (errors) => {
-      console.error('Error al duplicar:', errors);
-      notyf.error('Error al duplicar la cotización');
-    }
-  });
+    });
+  }
 };
 
 const imprimirCotizacion = async (cotizacion) => {

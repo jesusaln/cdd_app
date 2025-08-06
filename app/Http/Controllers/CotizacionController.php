@@ -13,9 +13,13 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+
+
 
 class CotizacionController extends Controller
 {
+    use AuthorizesRequests;
     /**
      * Display a listing of the resource.
      */
@@ -214,9 +218,9 @@ class CotizacionController extends Controller
     {
         $cotizacion = Cotizacion::with(['cliente', 'items.cotizable'])->findOrFail($id);
 
-        if ($cotizacion->estado !== EstadoCotizacion::Pendiente) {
+        if (!in_array($cotizacion->estado, [EstadoCotizacion::Borrador, EstadoCotizacion::Pendiente])) {
             return Redirect::route('cotizaciones.show', $cotizacion->id)
-                ->with('warning', 'Solo cotizaciones pendientes pueden ser editadas');
+                ->with('warning', 'Solo cotizaciones en borrador o pendientes pueden ser editadas');
         }
 
         $items = $cotizacion->items->map(function ($item) {
@@ -338,7 +342,7 @@ class CotizacionController extends Controller
     {
         $cotizacion = Cotizacion::findOrFail($id);
 
-        if ($cotizacion->estado !== EstadoCotizacion::Pendiente) {
+        if (!in_array($cotizacion->estado, [EstadoCotizacion::Borrador, EstadoCotizacion::Pendiente])) {
             return Redirect::back()->with('error', 'Solo cotizaciones pendientes pueden ser eliminadas');
         }
 
@@ -437,6 +441,49 @@ class CotizacionController extends Controller
             DB::rollBack();
             Log::error('Error al convertir cotización a venta', ['error' => $e->getMessage()]);
             return Redirect::back()->with('error', 'Error al crear la venta');
+        }
+    }
+
+    public function duplicate(Request $request, $id)
+    {
+        $cotizacion = Cotizacion::with('cliente', 'items.cotizable')->findOrFail($id);
+        //$this->authorize('create', Cotizacion::class);
+
+        DB::beginTransaction();
+        try {
+            // Duplicar la cotización
+            $nueva = $cotizacion->replicate();
+            $nueva->estado = EstadoCotizacion::Borrador; // Asegúrate de usar el enum correctamente
+            $nueva->created_at = now();
+            $nueva->updated_at = now();
+            $nueva->save();
+
+            // Duplicar los ítems
+            foreach ($cotizacion->items as $item) {
+                $nueva->items()->create([
+                    'cotizable_id' => $item->cotizable_id,
+                    'cotizable_type' => $item->cotizable_type,
+                    'cantidad' => $item->cantidad,
+                    'precio' => $item->precio,
+                    'descuento' => $item->descuento,
+                    'subtotal' => $item->subtotal,
+                    'descuento_monto' => $item->descuento_monto,
+                ]);
+            }
+
+            DB::commit();
+
+            // Redirigir a la página de detalles de la nueva cotización
+
+            return Redirect::route('cotizaciones.index')
+                ->with('success', 'Cotización duplicada correctamente.');
+        } catch (\Exception $e) {
+            DB::rollback();
+            Log::error('Error duplicando cotización: ' . $e->getMessage());
+
+            // Redirigir de vuelta con un mensaje de error
+            return Redirect::back()
+                ->with('error', 'Error al duplicar la cotización.');
         }
     }
 }

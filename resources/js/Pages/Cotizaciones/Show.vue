@@ -1,9 +1,12 @@
 <!-- resources/js/Pages/Cotizaciones/Show.vue -->
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import VistaPreviaModal from '@/Components/Modals/VistaPreviaModal.vue';
+
+// Ahora puedes usar ref en tu componente
+const myRef = ref(null);
 
 defineProps({
     cotizacion: Object,

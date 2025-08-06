@@ -10,6 +10,7 @@ enum EstadoCotizacion: string
     case Enviada = 'enviada';
     case ConvertidaPedido = 'convertida_pedido';
     case EnviadoPedido = 'enviado_pedido'; // Añade este nuevo estado
+    case Borrador = 'borrador';
 
     public function label(): string
     {
@@ -20,6 +21,7 @@ enum EstadoCotizacion: string
             self::Enviada => 'Enviada',
             self::ConvertidaPedido => 'Convertida a Pedido',
             self::EnviadoPedido => 'Enviado a Pedido',
+            self::Borrador => 'Borrador',
         };
     }
 
@@ -32,6 +34,7 @@ enum EstadoCotizacion: string
             self::Enviada => 'purple',
             self::ConvertidaPedido => 'green',
             self::EnviadoPedido => 'indigo',
+            self::Borrador => 'yellow',
         };
     }
 }
