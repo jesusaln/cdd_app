@@ -185,61 +185,77 @@ class GeneradorPDF {
 
   // Información del cliente
   agregarInformacionCliente(cliente) {
-    if (!cliente) return;
-
-    this.verificarEspacio(50);
-
-    this.setFont(ESTILOS.fuentes.subtitulo.size, ESTILOS.fuentes.subtitulo.style);
-    this.setColor(ESTILOS.colores.secundario);
-    this.doc.text('INFORMACIÓN DEL CLIENTE', ESTILOS.margen.izquierdo, this.posicionY);
-    this.posicionY += 8;
-
-    const clienteInfo = [
-      ['Cliente:', cliente.nombre_razon_social || 'N/A'],
-      ['RFC:', cliente.rfc || 'N/A'],
-      ['Dirección:', this.construirDireccion(cliente)],
-      ['Email:', cliente.email || 'N/A'],
-      ['Teléfono:', cliente.telefono || 'N/A'],
-      ['Régimen Fiscal:', cliente.regimen_fiscal || 'N/A'],
-      ['Uso CFDI:', cliente.uso_cfdi || 'N/A']
-    ];
-
-    this.setFont(ESTILOS.fuentes.texto.size, ESTILOS.fuentes.texto.style);
-
-    clienteInfo.forEach(([etiqueta, valor], index) => {
-      const xPos = index % 2 === 0 ? ESTILOS.margen.izquierdo : 110;
-      const yPos = this.posicionY + Math.floor(index / 2) * 6;
-
-      // Etiqueta en negrita
-      this.doc.setFont('helvetica', 'bold');
-      this.setColor(ESTILOS.colores.secundario);
-      this.doc.text(etiqueta, xPos, yPos);
-
-      // Valor en texto normal
-      this.doc.setFont('helvetica', 'normal');
-      this.setColor(ESTILOS.colores.texto);
-      const valorTruncado = PDFUtils.truncarTexto(valor, 35);
-      this.doc.text(valorTruncado, xPos + 25, yPos);
-    });
-
-    this.posicionY += Math.ceil(clienteInfo.length / 2) * 6 + 5;
-    this.agregarLinea();
-    this.posicionY += 8;
+  if (!cliente) {
+    console.warn('No se proporcionó cliente');
+    return;
   }
+
+  this.verificarEspacio(50);
+  this.setFont(ESTILOS.fuentes.subtitulo.size, ESTILOS.fuentes.subtitulo.style);
+  this.setColor(ESTILOS.colores.secundario);
+  this.doc.text('CLIENTE', ESTILOS.margen.izquierdo, this.posicionY);
+  this.posicionY += 8;
+
+  // Normalización de campos (compatible con tu modal)
+  const nombre = cliente.nombre || cliente.nombre_razon_social || 'Cliente sin nombre';
+  const rfc = cliente.rfc || 'RFC no proporcionado';
+  const email = cliente.email || 'Sin correo';
+  const telefono = cliente.telefono || cliente.celular || 'Sin teléfono';
+  const direccion = this.construirDireccion(cliente);
+  const regimen = cliente.regimen_fiscal || 'No especificado';
+  const usoCfdi = cliente.uso_cfdi || 'No especificado';
+
+  const clienteInfo = [
+    ['Nombre:', nombre],
+    ['RFC:', rfc],
+    ['Dirección:', direccion],
+    ['Email:', email],
+    ['Teléfono:', telefono],
+    ['Régimen Fiscal:', regimen],
+    ['Uso CFDI:', usoCfdi]
+  ];
+
+  this.setFont(ESTILOS.fuentes.texto.size, ESTILOS.fuentes.texto.style);
+
+  clienteInfo.forEach(([etiqueta, valor], index) => {
+    if (!valor) return;
+
+    const xPos = index % 2 === 0 ? ESTILOS.margen.izquierdo : 110;
+    const yPos = this.posicionY + Math.floor(index / 2) * 6;
+
+    // Etiqueta en negrita
+    this.doc.setFont('helvetica', 'bold');
+    this.setColor(ESTILOS.colores.secundario);
+    this.doc.text(etiqueta, xPos, yPos);
+
+    // Valor en texto normal
+    this.doc.setFont('helvetica', 'normal');
+    this.setColor(ESTILOS.colores.texto);
+    const valorTruncado = PDFUtils.truncarTexto(valor, 35);
+    this.doc.text(valorTruncado, xPos + 25, yPos);
+  });
+
+  this.posicionY += Math.ceil(clienteInfo.length / 2) * 6 + 5;
+  this.agregarLinea();
+  this.posicionY += 8;
+}
 
   construirDireccion(cliente) {
-    const partes = [
-      cliente.calle,
-      cliente.numero_exterior,
-      cliente.numero_interior ? `Int. ${cliente.numero_interior}` : null,
-      cliente.colonia,
-      cliente.codigo_postal,
-      cliente.municipio,
-      cliente.estado
-    ].filter(Boolean);
+  if (!cliente) return 'N/A';
 
-    return partes.join(', ') || 'N/A';
-  }
+  const partes = [
+    cliente.calle,
+    cliente.numero_exterior,
+    cliente.numero_interior ? `Int. ${cliente.numero_interior}` : null,
+    cliente.colonia,
+    cliente.codigo_postal,
+    cliente.municipio,
+    cliente.estado,
+    cliente.pais
+  ].filter(Boolean);
+
+  return partes.length > 0 ? partes.join(', ') : 'Dirección no proporcionada';
+}
 
   // Tabla de productos
   agregarTablaProductos(productos) {

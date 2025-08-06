@@ -4,7 +4,6 @@ import { ref, computed } from 'vue';
 import { Notyf } from 'notyf';
 import 'notyf/notyf.min.css';
 import EmpresaModal from '@/Components/EmpresaModal.vue';
-import { defineProps } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
 // Define el layout del dashboard

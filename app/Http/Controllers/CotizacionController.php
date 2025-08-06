@@ -42,10 +42,25 @@ class CotizacionController extends Controller
 
                 return [
                     'id' => $cotizacion->id,
+                    'fecha' => $cotizacion->created_at->format('Y-m-d'), // ✅ Añadido
+                    'created_at' => $cotizacion->created_at->format('Y-m-d\TH:i:sP'),
                     'cliente' => [
                         'id' => $cotizacion->cliente->id,
                         'nombre' => $cotizacion->cliente->nombre_razon_social ?? 'Sin nombre', // Corrected: Use nombre_razon_social
                         'email' => $cotizacion->cliente->email,
+                        'telefono' => $cotizacion->cliente->telefono,
+                        'rfc' => $cotizacion->cliente->rfc,
+                        'regimen_fiscal' => $cotizacion->cliente->regimen_fiscal,
+                        'uso_cfdi' => $cotizacion->cliente->uso_cfdi,
+                        'calle' => $cotizacion->cliente->calle,
+                        'numero_exterior' => $cotizacion->cliente->numero_exterior,
+                        'numero_interior' => $cotizacion->cliente->numero_interior,
+                        'colonia' => $cotizacion->cliente->colonia,
+                        'codigo_postal' => $cotizacion->cliente->codigo_postal,
+                        'municipio' => $cotizacion->cliente->municipio,
+                        'estado' => $cotizacion->cliente->estado,
+                        'pais' => $cotizacion->cliente->pais,
+
                     ],
                     'productos' => $items->toArray(),
                     'total' => $cotizacion->total,

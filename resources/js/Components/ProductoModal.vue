@@ -150,7 +150,7 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits, ref, onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 
 // Simulación de una caché simple
 const cache = {

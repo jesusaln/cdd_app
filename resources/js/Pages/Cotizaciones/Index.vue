@@ -143,33 +143,37 @@ const duplicarCotizacion = (cotizacion) => {
 const imprimirCotizacion = async (cotizacion) => {
   console.log('Imprimir cotización:', cotizacion);
 
+  // ✅ Aseguramos que tenga fecha
+  const cotizacionConFecha = {
+    ...cotizacion,
+    fecha: cotizacion.fecha || cotizacion.created_at || new Date().toISOString()
+  };
+
   // Validaciones
-  if (!cotizacion) {
-    notyf.error('No se seleccionó ninguna cotización para imprimir');
-    return;
-  }
-  if (!cotizacion.id) {
+  if (!cotizacionConFecha.id) {
     notyf.error('Error: ID del documento no encontrado');
     return;
   }
-  if (!cotizacion.cliente || !cotizacion.cliente.nombre) {
+  if (!cotizacionConFecha.cliente || !cotizacionConFecha.cliente.nombre) {
     notyf.error('Error: Datos del cliente no encontrados');
     return;
   }
-  if (!cotizacion.productos || !Array.isArray(cotizacion.productos) || cotizacion.productos.length === 0) {
+  if (!cotizacionConFecha.productos || !Array.isArray(cotizacionConFecha.productos) || cotizacionConFecha.productos.length === 0) {
     notyf.error('Error: Lista de productos no válida');
+    return;
+  }
+  if (!cotizacionConFecha.fecha) {
+    notyf.error('Error: Fecha no especificada');
     return;
   }
 
   try {
-    // Mostrar loading
     notyf.success('Generando PDF...');
-
-    await generarPDF('Cotización', cotizacion);
+    await generarPDF('Cotización', cotizacionConFecha);
     notyf.success('PDF generado correctamente');
   } catch (error) {
     console.error('Error al generar PDF:', error);
-    notyf.error(`Error al generar el PDF: ${error.message || 'Error desconocido'}`);
+    notyf.error(`Error al generar el PDF: ${error.message}`);
   }
 };
 
@@ -241,7 +245,7 @@ const crearNuevaCotizacion = () => {
     </div>
 
     <!-- Contenido principal -->
-    <div class="max-w-7xl mx-auto px-6 py-8">
+    <div class="max-w-8xl mx-auto px-6 py-8">
       <!-- Header de filtros y estadísticas -->
       <UniversalHeader
         :total="estadisticas.total"

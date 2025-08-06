@@ -3,7 +3,7 @@
 import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
-// ✅ Props configurables para cualquier módulo
+// Props configurables para cualquier módulo
 const props = defineProps({
   // Datos estadísticos
   total: {
@@ -43,7 +43,7 @@ const props = defineProps({
   }
 });
 
-// ✅ Configuraciones por defecto según el módulo
+// Configuraciones por defecto según el módulo
 const defaultConfigs = {
   cotizaciones: {
     module: 'cotizaciones',
@@ -135,13 +135,13 @@ const defaultConfigs = {
   }
 };
 
-// ✅ Configuración final combinando defaults con props
+// Configuración final combinando defaults con props
 const finalConfig = computed(() => {
   const defaultConfig = defaultConfigs[props.config.module] || defaultConfigs.cotizaciones;
   return { ...defaultConfig, ...props.config };
 });
 
-// ✅ Emitimos eventos para v-model
+// Emitimos eventos para v-model
 const emit = defineEmits([
   'update:searchTerm',
   'update:sortBy',
@@ -149,12 +149,12 @@ const emit = defineEmits([
   'limpiar-filtros'
 ]);
 
-// ✅ Verifica si hay filtros activos
+// Verifica si hay filtros activos
 const hayFiltrosActivos = computed(() => {
   return !!props.searchTerm || !!props.filtroEstado;
 });
 
-// ✅ Limpia todos los filtros
+// Limpia todos los filtros
 const limpiarFiltros = () => {
   emit('update:searchTerm', '');
   emit('update:sortBy', 'fecha-desc');
@@ -162,86 +162,116 @@ const limpiarFiltros = () => {
   emit('limpiar-filtros');
 };
 
-// ✅ Iconos SVG
+// Iconos SVG optimizados
 const icons = {
-  document: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />`,
-  'check-circle': `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />`,
-  clock: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />`,
-  plus: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />`,
-  search: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />`,
-  x: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />`
+  document: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+  'check-circle': 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+  clock: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+  plus: 'M12 4v16m8-8H4',
+  search: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
+  x: 'M6 18L18 6M6 6l12 12',
+  'filter-x': 'M6 18L18 6M6 6l12 12',
+  'chevron-down': 'M19 9l-7 7-7-7'
 };
 
-// ✅ Clases de color por estado
-const getColorClass = (color) => {
-  const colors = {
-    green: 'text-green-500',
-    blue: 'text-blue-500',
-    yellow: 'text-yellow-500',
-    orange: 'text-orange-500'
-  };
-  return colors[color] || 'text-gray-400';
+// Clases de color por estado con mejores tonos
+const colorClasses = {
+  green: 'text-emerald-600',
+  blue: 'text-blue-600',
+  yellow: 'text-amber-600',
+  orange: 'text-orange-600',
+  default: 'text-slate-500'
+};
+
+const getColorClass = (color) => colorClasses[color] || colorClasses.default;
+
+// Formatear números con separadores de miles
+const formatNumber = (num) => {
+  return new Intl.NumberFormat('es-ES').format(num);
 };
 </script>
 
 <template>
-  <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
-    <div class="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-      <!-- Botón crear y estadísticas -->
-      <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-        <!-- Botón crear -->
-       <Link
-  :href="finalConfig.createRoute"
-  class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium rounded-lg hover:from-blue-700 hover:to-blue-800 transform hover:scale-105 transition-all duration-200 shadow-lg"
->
-  <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-  </svg>
-  {{ finalConfig.createButtonText }}
-</Link>
+  <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-8 mb-6 transition-all duration-200 hover:shadow-md">
+    <div class="flex flex-col lg:flex-row gap-10 items-start lg:items-center justify-between">
 
-        <!-- Estadísticas -->
-        <div class="flex items-center gap-4 text-sm text-gray-600">
-          <span class="flex items-center">
-            <svg class="w-4 h-4 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path v-html="icons[finalConfig.estadisticas.total.icon]"></path>
+      <!-- Sección izquierda: Botón crear y estadísticas -->
+      <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center w-full lg:w-auto">
+
+        <!-- Botón crear mejorado -->
+        <Link
+          :href="finalConfig.createRoute"
+          class="group inline-flex items-center gap-2.5 px-6 py-3 bg-gradient-to-r from-blue-600 via-blue-600 to-blue-700 text-white font-semibold rounded-xl hover:from-blue-700 hover:via-blue-700 hover:to-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-500/20 transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 shadow-lg hover:shadow-xl flex-shrink-0"
+        >
+          <svg
+            class="w-5 h-5 transition-transform duration-200 group-hover:rotate-90"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2.5"
+          >
+            <path :d="icons.plus" />
+          </svg>
+          <span class="tracking-wide">{{ finalConfig.createButtonText }}</span>
+        </Link>
+
+        <!-- Estadísticas mejoradas -->
+        <div class="flex flex-wrap items-center gap-4 text-sm">
+          <!-- Total -->
+          <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 flex-shrink-0">
+            <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="icons[finalConfig.estadisticas.total.icon]" />
             </svg>
-            {{ finalConfig.estadisticas.total.label }}: {{ total }}
-          </span>
-          <span class="flex items-center">
+            <span class="font-medium text-slate-700">{{ finalConfig.estadisticas.total.label }}:</span>
+            <span class="font-bold text-slate-900">{{ formatNumber(total) }}</span>
+          </div>
+
+          <!-- Aprobadas/Completados -->
+          <div class="flex items-center gap-2 px-3 py-2 bg-emerald-50 rounded-lg border border-emerald-200 flex-shrink-0">
             <svg
-              class="w-4 h-4 mr-1"
+              class="w-4 h-4"
               :class="getColorClass(finalConfig.estadisticas.aprobadas.color)"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
-              <path v-html="icons[finalConfig.estadisticas.aprobadas.icon]"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="icons[finalConfig.estadisticas.aprobadas.icon]" />
             </svg>
-            {{ finalConfig.estadisticas.aprobadas.label }}: {{ aprobadas }}
-          </span>
-          <span class="flex items-center">
+            <span class="font-medium text-slate-700">{{ finalConfig.estadisticas.aprobadas.label }}:</span>
+            <span class="font-bold" :class="getColorClass(finalConfig.estadisticas.aprobadas.color)">{{ formatNumber(aprobadas) }}</span>
+          </div>
+
+          <!-- Pendientes -->
+          <div class="flex items-center gap-2 px-3 py-2 rounded-lg border flex-shrink-0"
+               :class="finalConfig.estadisticas.pendientes.color === 'yellow' ? 'bg-amber-50 border-amber-200' :
+                       finalConfig.estadisticas.pendientes.color === 'blue' ? 'bg-blue-50 border-blue-200' :
+                       'bg-orange-50 border-orange-200'"
+          >
             <svg
-              class="w-4 h-4 mr-1"
+              class="w-4 h-4"
               :class="getColorClass(finalConfig.estadisticas.pendientes.color)"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
-              <path v-html="icons[finalConfig.estadisticas.pendientes.icon]"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="icons[finalConfig.estadisticas.pendientes.icon]" />
             </svg>
-            {{ finalConfig.estadisticas.pendientes.label }}: {{ pendientes }}
-          </span>
+            <span class="font-medium text-slate-700">{{ finalConfig.estadisticas.pendientes.label }}:</span>
+            <span class="font-bold" :class="getColorClass(finalConfig.estadisticas.pendientes.color)">{{ formatNumber(pendientes) }}</span>
+          </div>
         </div>
       </div>
 
-      <!-- Búsqueda y filtros -->
-      <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-        <!-- Búsqueda -->
-        <div class="relative flex-1">
-          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path v-html="icons.search"></path>
+      <!-- Sección derecha: Búsqueda y filtros -->
+      <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto lg:flex-shrink-0">
+
+        <!-- Campo de búsqueda mejorado -->
+        <div class="relative group">
+          <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+            <svg class="w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="icons.search" />
             </svg>
           </div>
           <input
@@ -249,60 +279,93 @@ const getColorClass = (color) => {
             @input="$emit('update:searchTerm', $event.target.value)"
             type="text"
             :placeholder="finalConfig.searchPlaceholder"
-            class="pl-10 pr-4 py-2.5 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-full sm:w-64 lg:w-72 pl-11 pr-10 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
           />
-          <button
-            v-if="searchTerm"
-            @click="$emit('update:searchTerm', '')"
-            class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+          <Transition
+            enter-active-class="transition-all duration-200"
+            enter-from-class="opacity-0 scale-90"
+            enter-to-class="opacity-100 scale-100"
+            leave-active-class="transition-all duration-150"
+            leave-from-class="opacity-100 scale-100"
+            leave-to-class="opacity-0 scale-90"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path v-html="icons.x"></path>
-            </svg>
-          </button>
+            <button
+              v-if="searchTerm"
+              @click="$emit('update:searchTerm', '')"
+              class="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-slate-600 transition-colors duration-200"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="icons.x" />
+              </svg>
+            </button>
+          </Transition>
         </div>
 
-        <!-- Ordenamiento -->
-        <select
-          :value="sortBy"
-          @change="$emit('update:sortBy', $event.target.value)"
-          class="px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option
-            v-for="option in finalConfig.sortOptions"
-            :key="option.value"
-            :value="option.value"
+        <!-- Select de ordenamiento mejorado -->
+        <div class="relative flex-shrink-0">
+          <select
+            :value="sortBy"
+            @change="$emit('update:sortBy', $event.target.value)"
+            class="appearance-none w-full sm:w-auto px-4 py-3 pr-10 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 cursor-pointer hover:bg-slate-50"
           >
-            {{ option.label }}
-          </option>
-        </select>
+            <option
+              v-for="option in finalConfig.sortOptions"
+              :key="option.value"
+              :value="option.value"
+            >
+              {{ option.label }}
+            </option>
+          </select>
+          <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="icons['chevron-down']" />
+            </svg>
+          </div>
+        </div>
 
-        <!-- Filtro por estado -->
-        <select
-          :value="filtroEstado"
-          @change="$emit('update:filtroEstado', $event.target.value)"
-          class="px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option
-            v-for="estado in finalConfig.estados"
-            :key="estado.value"
-            :value="estado.value"
+        <!-- Select de estado mejorado -->
+        <div class="relative flex-shrink-0">
+          <select
+            :value="filtroEstado"
+            @change="$emit('update:filtroEstado', $event.target.value)"
+            class="appearance-none w-full sm:w-auto px-4 py-3 pr-10 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 cursor-pointer hover:bg-slate-50"
+            :class="{ 'border-blue-500 bg-blue-50 text-blue-700': filtroEstado }"
           >
-            {{ estado.label }}
-          </option>
-        </select>
+            <option
+              v-for="estado in finalConfig.estados"
+              :key="estado.value"
+              :value="estado.value"
+            >
+              {{ estado.label }}
+            </option>
+          </select>
+          <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="icons['chevron-down']" />
+            </svg>
+          </div>
+        </div>
 
-        <!-- Botón limpiar filtros -->
-        <button
-          v-if="hayFiltrosActivos"
-          @click="limpiarFiltros"
-          class="px-3 py-2.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 flex items-center whitespace-nowrap"
+        <!-- Botón limpiar filtros mejorado -->
+        <Transition
+          enter-active-class="transition-all duration-300"
+          enter-from-class="opacity-0 scale-90 translate-x-4"
+          enter-to-class="opacity-100 scale-100 translate-x-0"
+          leave-active-class="transition-all duration-200"
+          leave-from-class="opacity-100 scale-100 translate-x-0"
+          leave-to-class="opacity-0 scale-90 translate-x-4"
         >
-          <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path v-html="icons.x"></path>
-          </svg>
-          Limpiar
-        </button>
+          <button
+            v-if="hayFiltrosActivos"
+            @click="limpiarFiltros"
+            class="group inline-flex items-center gap-2 px-4 py-3 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 hover:text-slate-700 focus:outline-none focus:ring-4 focus:ring-slate-500/10 transition-all duration-200 whitespace-nowrap border border-slate-200 flex-shrink-0"
+          >
+            <svg class="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="icons['filter-x']" />
+            </svg>
+            <span class="font-medium">Limpiar</span>
+          </button>
+        </Transition>
       </div>
     </div>
   </div>
