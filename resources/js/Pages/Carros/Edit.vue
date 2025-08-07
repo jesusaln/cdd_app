@@ -1,3 +1,4 @@
+<!-- //mejoras en el formulario -->
 <template>
     <Head title="Editar Carro" />
     <div class="max-w-4xl mx-auto">
