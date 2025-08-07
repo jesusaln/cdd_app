@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Carro extends Model
 {
@@ -22,5 +23,13 @@ class Carro extends Model
         'foto',           // Ruta de la foto del carro
     ];
 
-    
+
+
+    /**
+     * Obtener los mantenimientos del carro.
+     */
+    public function mantenimientos(): HasMany
+    {
+        return $this->hasMany(Mantenimiento::class, 'carro_id');
+    }
 }

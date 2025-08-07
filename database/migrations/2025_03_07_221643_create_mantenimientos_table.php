@@ -16,8 +16,13 @@ return new class extends Migration
             $table->foreignId('carro_id')->constrained()->onDelete('cascade');
             $table->string('tipo');
             $table->date('fecha');
-            $table->date('proximo_mantenimiento');
+            $table->date('proximo_mantenimiento')->nullable();
+            $table->text('descripcion')->nullable();
             $table->text('notas')->nullable();
+            $table->decimal('costo', 10, 2)->default(0);
+            $table->string('estado')->default('completado'); // completado, pendiente, en_proceso
+            $table->integer('kilometraje_actual')->nullable();
+            $table->integer('proximo_kilometraje')->nullable();
             $table->timestamps();
         });
     }

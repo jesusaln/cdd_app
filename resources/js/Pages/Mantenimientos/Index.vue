@@ -242,17 +242,74 @@ const notyf = new Notyf({
 // Methods
 const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
-    const options = { year: 'numeric', month: 'long', day: 'numeric' };
-    return new Date(dateString + 'T00:00:00').toLocaleDateString('es-MX', options);
+
+    try {
+        // Si la fecha viene en formato ISO (YYYY-MM-DD), procesarla directamente
+        const dateParts = dateString.split('-');
+        if (dateParts.length === 3) {
+            const year = parseInt(dateParts[0]);
+            const month = parseInt(dateParts[1]) - 1; // Los meses en JS van de 0-11
+            const day = parseInt(dateParts[2]);
+
+            const date = new Date(year, month, day);
+            const options = {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                timeZone: 'America/Mexico_City' // O tu zona horaria local
+            };
+            return date.toLocaleDateString('es-MX', options);
+        }
+
+        // Fallback para otros formatos
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) {
+            return 'Fecha inválida';
+        }
+
+        const options = {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            timeZone: 'America/Mexico_City'
+        };
+        return date.toLocaleDateString('es-MX', options);
+
+    } catch (error) {
+        console.error('Error al formatear fecha:', error, dateString);
+        return 'Error en fecha';
+    }
 };
 
+// También actualiza la función getStatus para usar la misma lógica:
 const getStatus = (proximoMantenimiento) => {
     if (!proximoMantenimiento) return 'Completado';
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-    const proximo = new Date(proximoMantenimiento + 'T00:00:00');
-    if (proximo < hoy) return 'Vencido';
-    return 'Próximo';
+
+    try {
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+
+        // Procesar la fecha de la misma manera
+        const dateParts = proximoMantenimiento.split('-');
+        if (dateParts.length === 3) {
+            const year = parseInt(dateParts[0]);
+            const month = parseInt(dateParts[1]) - 1;
+            const day = parseInt(dateParts[2]);
+            const proximo = new Date(year, month, day);
+
+            if (proximo < hoy) return 'Vencido';
+            return 'Próximo';
+        }
+
+        // Fallback
+        const proximo = new Date(proximoMantenimiento);
+        if (proximo < hoy) return 'Vencido';
+        return 'Próximo';
+
+    } catch (error) {
+        console.error('Error al procesar estado:', error);
+        return 'Estado desconocido';
+    }
 };
 
 const getStatusClasses = (proximoMantenimiento) => {
