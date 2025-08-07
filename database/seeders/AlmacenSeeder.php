@@ -1,5 +1,5 @@
 <?php
-
+//mejoras
 namespace Database\Seeders;
 
 use App\Models\Almacen;
