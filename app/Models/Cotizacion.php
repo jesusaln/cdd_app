@@ -72,4 +72,19 @@ class Cotizacion extends Model
             EstadoCotizacion::Borrador->value,
         ], true); // true para comparación estricta
     }
+
+    /* Relación con Pedidos
+     */
+    public function pedidos()
+    {
+        return $this->hasMany(Pedido::class);
+    }
+
+    /**
+     * Obtener el pedido actual (si existe)
+     */
+    public function pedido()
+    {
+        return $this->hasOne(Pedido::class)->latest();
+    }
 }

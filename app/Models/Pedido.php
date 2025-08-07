@@ -11,6 +11,7 @@ class Pedido extends Model
 
     protected $fillable = [
         'cliente_id',
+        'cotizacion_id',
         'numero_pedido',
         'subtotal',
         'descuento_general',
@@ -29,10 +30,7 @@ class Pedido extends Model
         return $this->belongsTo(Cliente::class);
     }
 
-    public function items()
-    {
-        return $this->hasMany(PedidoItem::class, 'pedido_id');
-    }
+
 
     // Relaciones polimórficas para productos y servicios
     public function productos()
@@ -55,5 +53,14 @@ class Pedido extends Model
             'pedido_id',
             'pedible_id'
         )->withPivot('cantidad', 'precio', 'descuento', 'subtotal', 'descuento_monto');
+    }
+
+    public function cotizacion()
+    {
+        return $this->belongsTo(Cotizacion::class);
+    }
+     public function items()
+    {
+        return $this->hasMany(PedidoItem::class, 'pedido_id');
     }
 }

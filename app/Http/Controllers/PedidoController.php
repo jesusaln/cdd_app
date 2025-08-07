@@ -359,17 +359,43 @@ class PedidoController extends Controller
      */
     public function destroy($id)
     {
-        $pedido = Pedido::findOrFail($id);
+        return DB::transaction(function () use ($id) {
+            try {
+                $pedido = Pedido::with('cotizacion')->findOrFail($id);
 
-        if (!in_array($pedido->estado, [EstadoPedido::Borrador, EstadoPedido::Pendiente])) {
-            return Redirect::back()->with('error', 'Solo pedidos en borrador o pendientes pueden ser eliminados');
-        }
+                // Verificar que el pedido puede ser eliminado
+                if (!in_array($pedido->estado, [EstadoPedido::Borrador, EstadoPedido::Pendiente])) {
+                    return Redirect::back()->with('error', 'Solo pedidos en borrador o pendientes pueden ser eliminados');
+                }
 
-        $pedido->items()->delete();
-        $pedido->delete();
+                // Guardar información de la cotización antes de eliminar
+                $cotizacionId = $pedido->cotizacion_id;
+                $cotizacion = $pedido->cotizacion;
 
-        return Redirect::route('pedidos.index')
-            ->with('success', 'Pedido eliminado exitosamente');
+                // Eliminar los items del pedido primero
+                $pedido->items()->delete();
+
+                // Eliminar el pedido
+                $pedido->delete();
+
+                // Revertir el estado de la cotización asociada DESPUÉS de eliminar el pedido
+                if ($cotizacionId && $cotizacion) {
+                    $cotizacion->estado = 'pendiente';
+                    $cotizacion->save();
+
+                    Log::info("Pedido ID {$id} eliminado y Cotización ID {$cotizacionId} revertida a estado pendiente");
+                }
+
+                return Redirect::route('pedidos.index')
+                    ->with('success', 'Pedido eliminado exitosamente y cotización revertida a pendiente');
+            } catch (\Exception $e) {
+                Log::error('Error al eliminar pedido: ' . $e->getMessage());
+
+                // La transacción se revertirá automáticamente
+                return Redirect::back()
+                    ->with('error', 'Error al eliminar el pedido: ' . $e->getMessage());
+            }
+        });
     }
 
     /**
