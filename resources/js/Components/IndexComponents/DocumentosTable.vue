@@ -482,14 +482,16 @@ const config = computed(() => {
     ventas: {
       titulo: 'Ventas',
       mostrarCampoExtra: true,
-      campoExtra: { key: 'numero_factura', label: 'N° Factura' },
+      campoExtra: { key: 'numero_venta', label: 'N° Venta' },
       acciones: { editar: false, duplicar: false, imprimir: true, eliminar: false },
       estados: {
         'borrador': { label: 'Borrador', classes: 'bg-gray-100 text-gray-700', color: 'bg-gray-400' },
-        'facturado': { label: 'Facturado', classes: 'bg-blue-100 text-blue-700', color: 'bg-blue-400' },
-        'pagado': { label: 'Pagado', classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
-        'vencido': { label: 'Vencido', classes: 'bg-red-100 text-red-700', color: 'bg-red-400' },
-        'anulado': { label: 'Anulado', classes: 'bg-gray-100 text-gray-700', color: 'bg-gray-400' }
+    'pendiente': { label: 'Pendiente', classes: 'bg-yellow-100 text-yellow-700', color: 'bg-yellow-400' },
+    'aprobado': { label: 'Aprobado', classes: 'bg-blue-100 text-blue-700', color: 'bg-blue-400' }, // ✅ Agregado
+    'facturado': { label: 'Facturado', classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
+    'pagado': { label: 'Pagado', classes: 'bg-emerald-100 text-emerald-700', color: 'bg-emerald-400' },
+    'vencido': { label: 'Vencido', classes: 'bg-red-100 text-red-700', color: 'bg-red-400' },
+    'anulado': { label: 'Anulado', classes: 'bg-gray-100 text-gray-500', color: 'bg-gray-400' }
       }
     }
   };

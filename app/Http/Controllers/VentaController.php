@@ -3,294 +3,453 @@
 namespace App\Http\Controllers;
 
 use App\Models\Venta;
+use App\Models\VentaItem;
 use App\Models\Cliente;
 use App\Models\Producto;
 use App\Models\Servicio;
+use App\Enums\EstadoVenta;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redirect;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class VentaController extends Controller
 {
+    use AuthorizesRequests;
+
+    /**
+     * Display a listing of the resource.
+     */
     public function index()
     {
-        $ventas = Venta::with(['cliente', 'productos', 'servicios'])->get()->map(function ($venta) {
-            $productos = $venta->productos->map(function ($producto) {
+        $ventas = Venta::with(['cliente', 'items.ventable'])
+            ->get()
+            ->filter(function ($venta) {
+                // Filtrar ventas con cliente y al menos un item válido
+                return $venta->cliente !== null && $venta->items->isNotEmpty();
+            })
+            ->map(function ($venta) {
+                $items = $venta->items->map(function ($item) {
+                    $ventable = $item->ventable;
+                    return [
+                        'id' => $ventable->id,
+                        'nombre' => $ventable->nombre ?? 'Sin nombre',
+                        'tipo' => $item->ventable_type === Producto::class ? 'producto' : 'servicio',
+                        'cantidad' => $item->cantidad,
+                        'precio' => $item->precio,
+                        'descuento' => $item->descuento ?? 0,
+                        'descuento_monto' => $item->descuento_monto ?? 0,
+                        'subtotal' => $item->subtotal,
+                    ];
+                });
+
                 return [
-                    'id' => $producto->id,
-                    'nombre' => $producto->nombre,
-                    'tipo' => 'producto',
-                    'pivot' => [
-                        'cantidad' => $producto->pivot->cantidad,
-                        'precio' => $producto->pivot->precio,
+                    'id' => $venta->id,
+                    'fecha' => $venta->fecha ? $venta->fecha->format('Y-m-d') : $venta->created_at->format('Y-m-d'),
+                    'created_at' => $venta->created_at->format('Y-m-d\TH:i:sP'),
+                    'cliente' => [
+                        'id' => $venta->cliente->id,
+                        'nombre' => $venta->cliente->nombre_razon_social ?? 'Sin nombre',
+                        'email' => $venta->cliente->email,
+                        'telefono' => $venta->cliente->telefono,
+                        'rfc' => $venta->cliente->rfc,
+                        'regimen_fiscal' => $venta->cliente->regimen_fiscal,
+                        'uso_cfdi' => $venta->cliente->uso_cfdi,
+                        'calle' => $venta->cliente->calle,
+                        'numero_exterior' => $venta->cliente->numero_exterior,
+                        'numero_interior' => $venta->cliente->numero_interior,
+                        'colonia' => $venta->cliente->colonia,
+                        'codigo_postal' => $venta->cliente->codigo_postal,
+                        'municipio' => $venta->cliente->municipio,
+                        'estado' => $venta->cliente->estado,
+                        'pais' => $venta->cliente->pais,
                     ],
+                    'productos' => $items->toArray(),
+                    'subtotal' => $venta->subtotal,
+                    'descuento_general' => $venta->descuento_general ?? 0,
+                    'iva' => $venta->iva,
+                    'total' => $venta->total,
+                    'estado' => $venta->estado->value,
+                    'numero_venta' => $venta->numero_venta,
+                    'pedido_id' => $venta->pedido_id ?? null,
                 ];
             });
-
-            $servicios = $venta->servicios->map(function ($servicio) {
-                return [
-                    'id' => $servicio->id,
-                    'nombre' => $servicio->nombre,
-                    'tipo' => 'servicio',
-                    'pivot' => [
-                        'cantidad' => $servicio->pivot->cantidad,
-                        'precio' => $servicio->pivot->precio,
-                    ],
-                ];
-            });
-
-            $items = collect($productos->all())->merge($servicios->all());
-
-            return [
-                'id' => $venta->id,
-                'cliente' => $venta->cliente,
-                'productos' => $items,
-                'total' => $venta->total,
-            ];
-        });
 
         return Inertia::render('Ventas/Index', [
-            'ventas' => $ventas,
+            'ventas' => $ventas->values(),
+            'estados' => collect(EstadoVenta::cases())->map(fn($estado) => [
+                'value' => $estado->value,
+                'label' => $estado->label(),
+                'color' => $estado->color()
+            ]),
+            'filters' => request()->only(['search', 'estado', 'fecha_inicio', 'fecha_fin'])
         ]);
     }
-
+    /**
+     * Show the form for creating a new resource.
+     */
     public function create()
     {
-        $clientes = Cliente::all();
-        $productos = Producto::all();
-        $servicios = Servicio::all();
-
         return Inertia::render('Ventas/Create', [
-            'clientes' => $clientes,
-            'productos' => $productos,
-            'servicios' => $servicios,
+            'clientes' => Cliente::select('id', 'nombre_razon_social', 'email', 'telefono')->get(),
+            'productos' => Producto::select('id', 'nombre', 'precio_venta', 'descripcion')->get(),
+            'servicios' => Servicio::select('id', 'nombre', 'precio', 'descripcion')->get(),
+            'defaults' => [
+                'fecha' => now()->format('Y-m-d'),
+                'moneda' => 'MXN'
+            ]
         ]);
     }
 
+    /**
+     * Store a newly created resource in storage.
+     */
     public function store(Request $request)
     {
-        // Validar los datos de entrada, incluyendo tipo
-        $validatedData = $request->validate([
+        $validated = $request->validate([
             'cliente_id' => 'required|exists:clientes,id',
             'productos' => 'required|array',
             'productos.*.id' => 'required|integer',
             'productos.*.tipo' => 'required|in:producto,servicio',
             'productos.*.cantidad' => 'required|integer|min:1',
             'productos.*.precio' => 'required|numeric|min:0',
+            'productos.*.descuento' => 'required|numeric|min:0|max:100',
+            'descuento_general' => 'nullable|numeric|min:0|max:100',
+            'notas' => 'nullable|string',
         ]);
 
-        // Verificar stock para productos
-        foreach ($validatedData['productos'] as $itemData) {
-            if ($itemData['tipo'] === 'producto') {
-                $producto = Producto::find($itemData['id']);
-                if (!$producto) {
-                    return redirect()->back()->withErrors(['id' => "El ID {$itemData['id']} no corresponde a un producto válido."]);
-                }
-                if ($producto->stock < $itemData['cantidad']) {
-                    return redirect()->back()->withErrors(['stock' => "No hay suficiente stock para el producto: {$producto->nombre}"]);
-                }
-            } elseif ($itemData['tipo'] === 'servicio') {
-                $servicio = Servicio::find($itemData['id']);
-                if (!$servicio) {
-                    return redirect()->back()->withErrors(['id' => "El ID {$itemData['id']} no corresponde a un servicio válido."]);
-                }
-            }
+        $subtotal = 0;
+        $descuentoItems = 0;
+        foreach ($validated['productos'] as $item) {
+            $subtotalItem = $item['cantidad'] * $item['precio'];
+            $descuentoItems += $subtotalItem * ($item['descuento'] / 100);
+            $subtotal += $subtotalItem;
         }
 
-        // Crear la venta
+        $descuentoGeneralMonto = ($subtotal - $descuentoItems) * ($request->descuento_general / 100);
+        $subtotalFinal = ($subtotal - $descuentoItems) - $descuentoGeneralMonto;
+        $iva = $subtotalFinal * 0.16;
+        $total = $subtotalFinal + $iva;
+
+        $numero_venta = $this->generarNumeroVenta();
+
         $venta = Venta::create([
-            'cliente_id' => $validatedData['cliente_id'],
-            'total' => array_sum(array_map(function ($item) {
-                return $item['cantidad'] * $item['precio'];
-            }, $validatedData['productos'])),
+            'cliente_id' => $validated['cliente_id'],
+            'factura_id' => null, // Puede llenarse si se asocia con una factura
+            'numero_venta' => $numero_venta,
+            'subtotal' => $subtotal,
+            'descuento_general' => $descuentoGeneralMonto,
+            'iva' => $iva,
+            'total' => $total,
+            'fecha' => now(),
+            'estado' => EstadoVenta::Borrador,
+            'notas' => $request->notas,
         ]);
 
-        // Asociar productos y servicios a la venta
-        foreach ($validatedData['productos'] as $itemData) {
-            if ($itemData['tipo'] === 'producto') {
-                $producto = Producto::find($itemData['id']);
-                if ($producto) {
-                    $producto->stock -= $itemData['cantidad'];
-                    $producto->save();
-                    $venta->productos()->attach($itemData['id'], [
-                        'cantidad' => $itemData['cantidad'],
-                        'precio' => $itemData['precio'],
-                    ]);
-                }
-            } elseif ($itemData['tipo'] === 'servicio') {
-                $servicio = Servicio::find($itemData['id']);
-                if ($servicio) {
-                    $venta->servicios()->attach($itemData['id'], [
-                        'cantidad' => $itemData['cantidad'],
-                        'precio' => $itemData['precio'],
-                    ]);
-                }
+        foreach ($validated['productos'] as $item) {
+            $class = $item['tipo'] === 'producto' ? Producto::class : Servicio::class;
+            $modelo = $class::find($item['id']);
+
+            if (!$modelo) {
+                Log::warning("Ítem no encontrado: {$class} con ID {$item['id']}");
+                continue;
             }
+
+            $subtotalItem = $item['cantidad'] * $item['precio'];
+            $descuentoMontoItem = $subtotalItem * ($item['descuento'] / 100);
+
+            VentaItem::create([
+                'venta_id' => $venta->id,
+                'ventable_id' => $item['id'],
+                'ventable_type' => $class,
+                'cantidad' => $item['cantidad'],
+                'precio' => $item['precio'],
+                'descuento' => $item['descuento'],
+                'subtotal' => $subtotalItem,
+                'descuento_monto' => $descuentoMontoItem,
+            ]);
         }
 
-        return redirect()->route('ventas.index')->with('success', 'Venta creada exitosamente.');
+        return redirect()->route('ventas.index')->with('success', 'Venta creada con éxito');
     }
 
+    /**
+     * Display the specified resource.
+     */
     public function show($id)
     {
-        $venta = Venta::with('cliente', 'productos', 'servicios')->findOrFail($id);
-        $productos = $venta->productos->map(function ($producto) {
+        $venta = Venta::with(['cliente', 'items.ventable'])->findOrFail($id);
+
+        $items = $venta->items->map(function ($item) {
+            $ventable = $item->ventable;
             return [
-                'id' => $producto->id,
-                'nombre' => $producto->nombre,
-                'tipo' => 'producto',
+                'id' => $ventable->id,
+                'nombre' => $ventable->nombre ?? $ventable->descripcion,
+                'tipo' => $item->ventable_type === Producto::class ? 'producto' : 'servicio',
                 'pivot' => [
-                    'cantidad' => $producto->pivot->cantidad,
-                    'precio' => $producto->pivot->precio,
+                    'cantidad' => $item->cantidad,
+                    'precio' => $item->precio,
+                    'descuento' => $item->descuento,
                 ],
             ];
         });
-        $servicios = $venta->servicios->map(function ($servicio) {
-            return [
-                'id' => $servicio->id,
-                'nombre' => $servicio->nombre,
-                'tipo' => 'servicio',
-                'pivot' => [
-                    'cantidad' => $servicio->pivot->cantidad,
-                    'precio' => $servicio->pivot->precio,
-                ],
-            ];
-        });
-        $items = collect($productos->all())->merge($servicios->all());
 
         return Inertia::render('Ventas/Show', [
             'venta' => [
                 'id' => $venta->id,
                 'cliente' => $venta->cliente,
                 'productos' => $items,
+                'subtotal' => $venta->subtotal,
+                'descuento_general' => $venta->descuento_general,
+                'iva' => $venta->iva,
                 'total' => $venta->total,
+                'fecha' => $venta->fecha ? $venta->fecha->format('Y-m-d') : $venta->created_at->format('Y-m-d'),
+                'notas' => $venta->notas,
+                'estado' => $venta->estado->value,
+                'numero_venta' => $venta->numero_venta,
+                'factura_id' => $venta->factura_id,
             ],
+            'canEdit' => $venta->estado === EstadoVenta::Borrador || $venta->estado === EstadoVenta::Pendiente,
+            'canDelete' => $venta->estado === EstadoVenta::Borrador || $venta->estado === EstadoVenta::Pendiente,
         ]);
     }
 
+    /**
+     * Show the form for editing the specified resource.
+     */
     public function edit($id)
     {
-        $venta = Venta::with('cliente', 'productos', 'servicios')->findOrFail($id);
-        $productos = $venta->productos->map(function ($producto) {
-            return [
-                'id' => $producto->id,
-                'nombre' => $producto->nombre,
-                'tipo' => 'producto',
-                'pivot' => [
-                    'cantidad' => $producto->pivot->cantidad,
-                    'precio' => $producto->pivot->precio,
-                ],
-            ];
-        });
-        $servicios = $venta->servicios->map(function ($servicio) {
-            return [
-                'id' => $servicio->id,
-                'nombre' => $servicio->nombre,
-                'tipo' => 'servicio',
-                'pivot' => [
-                    'cantidad' => $servicio->pivot->cantidad,
-                    'precio' => $servicio->pivot->precio,
-                ],
-            ];
-        });
-        $items = collect($productos->all())->merge($servicios->all());
+        $venta = Venta::with(['cliente', 'items.ventable'])->findOrFail($id);
 
-        $clientes = Cliente::all();
-        $productosDisponibles = Producto::all();
-        $serviciosDisponibles = Servicio::all();
+        // Permitir edición solo si está en Borrador o Pendiente
+        if (!in_array($venta->estado, [EstadoVenta::Borrador, EstadoVenta::Pendiente])) {
+            return Redirect::route('ventas.show', $venta->id)
+                ->with('warning', 'Solo ventas en borrador o pendientes pueden ser editadas');
+        }
+
+        $items = $venta->items->map(function ($item) {
+            $ventable = $item->ventable;
+            return [
+                'id' => $ventable->id,
+                'nombre' => $ventable->nombre ?? $ventable->descripcion,
+                'tipo' => $item->ventable_type === Producto::class ? 'producto' : 'servicio',
+                'pivot' => [
+                    'cantidad' => $item->cantidad,
+                    'precio' => $item->precio,
+                    'descuento' => $item->descuento,
+                ],
+            ];
+        });
 
         return Inertia::render('Ventas/Edit', [
             'venta' => [
                 'id' => $venta->id,
+                'cliente_id' => $venta->cliente_id,
                 'cliente' => $venta->cliente,
                 'productos' => $items,
+                'subtotal' => $venta->subtotal,
+                'descuento_general' => $venta->descuento_general,
+                'iva' => $venta->iva,
                 'total' => $venta->total,
+                'fecha' => $venta->fecha ? $venta->fecha->format('Y-m-d') : $venta->created_at->format('Y-m-d'),
+                'notas' => $venta->notas,
+                'numero_venta' => $venta->numero_venta,
+                'factura_id' => $venta->factura_id,
             ],
-            'clientes' => $clientes,
-            'productos' => $productosDisponibles,
-            'servicios' => $serviciosDisponibles,
+            'clientes' => Cliente::select('id', 'nombre_razon_social', 'email', 'telefono')->get(),
+            'productos' => Producto::select('id', 'nombre', 'precio_venta', 'descripcion')->get(),
+            'servicios' => Servicio::select('id', 'nombre', 'precio', 'descripcion')->get(),
         ]);
     }
 
+    /**
+     * Update the specified resource in storage.
+     */
     public function update(Request $request, $id)
     {
         $venta = Venta::findOrFail($id);
 
-        $validatedData = $request->validate([
+        // Permitir edición solo si está en Borrador o Pendiente
+        if (!in_array($venta->estado, [EstadoVenta::Borrador, EstadoVenta::Pendiente])) {
+            return Redirect::back()->with('error', 'Solo ventas en borrador o pendientes pueden ser actualizadas');
+        }
+
+        $validated = $request->validate([
             'cliente_id' => 'required|exists:clientes,id',
+            'numero_venta' => 'required|string|unique:ventas,numero_venta,' . $venta->id,
             'productos' => 'required|array',
             'productos.*.id' => 'required|integer',
             'productos.*.tipo' => 'required|in:producto,servicio',
             'productos.*.cantidad' => 'required|integer|min:1',
             'productos.*.precio' => 'required|numeric|min:0',
-            'productos.*.original_cantidad' => 'nullable|integer|min:0',
+            'productos.*.descuento' => 'required|numeric|min:0|max:100',
+            'descuento_general' => 'nullable|numeric|min:0|max:100',
+            'notas' => 'nullable|string',
         ]);
 
-        DB::transaction(function () use ($venta, $validatedData) {
-            $total = array_sum(array_map(function ($item) {
-                return $item['cantidad'] * $item['precio'];
-            }, $validatedData['productos']));
-
-            $venta->update([
-                'cliente_id' => $validatedData['cliente_id'],
-                'total' => $total,
-            ]);
-
-            $productosActuales = $venta->productos()->get()->pluck('pivot.cantidad', 'id')->all();
-            $serviciosActuales = $venta->servicios()->get()->pluck('pivot.cantidad', 'id')->all();
-
-            $syncProductos = [];
-            $syncServicios = [];
-            foreach ($validatedData['productos'] as $itemData) {
-                if ($itemData['tipo'] === 'producto') {
-                    $producto = Producto::find($itemData['id']);
-                    if ($producto) {
-                        $originalCantidad = $productosActuales[$itemData['id']] ?? 0;
-                        $diferencia = $itemData['cantidad'] - $originalCantidad;
-                        if ($diferencia != 0) {
-                            if ($producto->stock - $diferencia < 0) {
-                                throw new \Exception("Stock insuficiente para el producto: {$producto->nombre}");
-                            }
-                            $producto->stock -= $diferencia;
-                            $producto->save();
-                        }
-                        $syncProductos[$itemData['id']] = [
-                            'cantidad' => $itemData['cantidad'],
-                            'precio' => $itemData['precio'],
-                        ];
-                    }
-                } elseif ($itemData['tipo'] === 'servicio') {
-                    $servicio = Servicio::find($itemData['id']);
-                    if ($servicio) {
-                        $syncServicios[$itemData['id']] = [
-                            'cantidad' => $itemData['cantidad'],
-                            'precio' => $itemData['precio'],
-                        ];
-                    }
-                }
-            }
-
-            $venta->productos()->sync($syncProductos);
-            $venta->servicios()->sync($syncServicios);
-        });
-
-        return redirect()->route('ventas.index')->with('success', 'Venta actualizada exitosamente.');
-    }
-
-    public function destroy($id)
-    {
-        $venta = Venta::with('productos', 'servicios')->findOrFail($id);
-
-        foreach ($venta->productos as $producto) {
-            $producto->stock += $producto->pivot->cantidad;
-            $producto->save();
+        $subtotal = 0;
+        $descuentoItems = 0;
+        foreach ($validated['productos'] as $item) {
+            $subtotalItem = $item['cantidad'] * $item['precio'];
+            $descuentoItems += $subtotalItem * ($item['descuento'] / 100);
+            $subtotal += $subtotalItem;
         }
 
-        $venta->productos()->detach();
-        $venta->servicios()->detach();
-        $venta->delete();
+        $descuentoGeneralMonto = ($subtotal - $descuentoItems) * ($request->descuento_general / 100);
+        $subtotalFinal = ($subtotal - $descuentoItems) - $descuentoGeneralMonto;
+        $iva = $subtotalFinal * 0.16;
+        $total = $subtotalFinal + $iva;
 
-        return redirect()->route('ventas.index')->with('success', 'Venta eliminada exitosamente.');
+        // Determinar el nuevo estado: si está en Borrador, cambiarlo a Pendiente
+        $nuevoEstado = $venta->estado === EstadoVenta::Borrador
+            ? EstadoVenta::Pendiente
+            : $venta->estado;
+
+        $venta->update([
+            'cliente_id' => $validated['cliente_id'],
+            'numero_venta' => $validated['numero_venta'],
+            'subtotal' => $subtotal,
+            'descuento_general' => $descuentoGeneralMonto,
+            'iva' => $iva,
+            'total' => $total,
+            'fecha' => now(),
+            'estado' => $nuevoEstado,
+            'notas' => $request->notas,
+        ]);
+
+        // Eliminar ítems anteriores
+        $venta->items()->delete();
+
+        // Guardar nuevos ítems
+        foreach ($validated['productos'] as $itemData) {
+            $class = $itemData['tipo'] === 'producto' ? Producto::class : Servicio::class;
+            $modelo = $class::find($itemData['id']);
+
+            if (!$modelo) {
+                Log::warning("Ítem no encontrado: {$class} con ID {$itemData['id']}");
+                continue;
+            }
+
+            $subtotalItem = $itemData['cantidad'] * $itemData['precio'];
+            $descuentoMontoItem = $subtotalItem * ($itemData['descuento'] / 100);
+
+            VentaItem::create([
+                'venta_id' => $venta->id,
+                'ventable_id' => $itemData['id'],
+                'ventable_type' => $class,
+                'cantidad' => $itemData['cantidad'],
+                'precio' => $itemData['precio'],
+                'descuento' => $itemData['descuento'],
+                'subtotal' => $subtotalItem,
+                'descuento_monto' => $descuentoMontoItem,
+            ]);
+        }
+
+        $mensajeExito = $nuevoEstado === EstadoVenta::Pendiente && $venta->estado === EstadoVenta::Borrador
+            ? 'Venta actualizada y cambiada a estado pendiente exitosamente'
+            : 'Venta actualizada exitosamente';
+
+        return Redirect::route('ventas.index')
+            ->with('success', $mensajeExito);
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy($id)
+    {
+        return DB::transaction(function () use ($id) {
+            try {
+                $venta = Venta::with('factura')->findOrFail($id);
+
+                // Verificar que la venta puede ser eliminada
+                if (!in_array($venta->estado, [EstadoVenta::Borrador, EstadoVenta::Pendiente])) {
+                    return Redirect::back()->with('error', 'Solo ventas en borrador o pendientes pueden ser eliminadas');
+                }
+
+                // Guardar información de la factura antes de eliminar
+                $facturaId = $venta->factura_id;
+                $factura = $venta->factura;
+
+                // Eliminar los ítems de la venta primero
+                $venta->items()->delete();
+
+                // Eliminar la venta
+                $venta->delete();
+
+                // Revertir el estado de la factura asociada DESPUÉS de eliminar la venta
+                if ($facturaId && $factura) {
+                    $factura->estado = 'pendiente';
+                    $factura->save();
+
+                    Log::info("Venta ID {$id} eliminada y Factura ID {$facturaId} revertida a estado pendiente");
+                }
+
+                return Redirect::route('ventas.index')
+                    ->with('success', 'Venta eliminada exitosamente y factura revertida a pendiente');
+            } catch (\Exception $e) {
+                Log::error('Error al eliminar venta: ' . $e->getMessage());
+
+                // La transacción se revertirá automáticamente
+                return Redirect::back()
+                    ->with('error', 'Error al eliminar la venta: ' . $e->getMessage());
+            }
+        });
+    }
+
+    /**
+     * Duplicate a venta.
+     */
+    public function duplicate(Request $request, $id)
+    {
+        $venta = Venta::with('cliente', 'items.ventable')->findOrFail($id);
+
+        DB::beginTransaction();
+        try {
+            // Duplicar la venta
+            $nueva = $venta->replicate();
+            $nueva->estado = EstadoVenta::Borrador;
+            $nueva->numero_venta = $this->generarNumeroVenta();
+            $nueva->fecha = now();
+            $nueva->created_at = now();
+            $nueva->updated_at = now();
+            $nueva->save();
+
+            // Duplicar los ítems
+            foreach ($venta->items as $item) {
+                $nueva->items()->create([
+                    'ventable_id' => $item->ventable_id,
+                    'ventable_type' => $item->ventable_type,
+                    'cantidad' => $item->cantidad,
+                    'precio' => $item->precio,
+                    'descuento' => $item->descuento,
+                    'subtotal' => $item->subtotal,
+                    'descuento_monto' => $item->descuento_monto,
+                ]);
+            }
+
+            DB::commit();
+
+            return Redirect::route('ventas.index')
+                ->with('success', 'Venta duplicada correctamente.');
+        } catch (\Exception $e) {
+            DB::rollback();
+            Log::error('Error duplicando venta: ' . $e->getMessage());
+
+            return Redirect::back()
+                ->with('error', 'Error al duplicar la venta.');
+        }
+    }
+
+    /**
+     * Generate a unique numero_venta.
+     */
+    private function generarNumeroVenta()
+    {
+        $ultima = Venta::orderBy('id', 'desc')->first();
+        $numero = $ultima ? $ultima->id + 1 : 1;
+        return 'VEN-' . date('Ymd') . '-' . str_pad($numero, 5, '0', STR_PAD_LEFT);
     }
 }

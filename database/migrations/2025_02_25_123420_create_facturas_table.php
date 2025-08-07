@@ -8,20 +8,20 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
+     *
+     * @return void
      */
-    public function up(): void
+    public function up()
     {
-        Schema::create('ventas', function (Blueprint $table) {
+        Schema::create('facturas', function (Blueprint $table) {
             $table->id();
+            $table->string('numero_factura')->unique();
             $table->foreignId('cliente_id')->constrained()->onDelete('cascade');
-            $table->foreignId('factura_id')->nullable()->constrained()->onDelete('set null');
-            $table->string('numero_venta')->unique();
             $table->decimal('subtotal', 10, 2);
-            $table->decimal('descuento_general', 10, 2)->default(0);
             $table->decimal('iva', 10, 2)->default(0);
             $table->decimal('total', 10, 2);
-            $table->dateTime('fecha');
-            $table->string('estado');
+            $table->dateTime('fecha_emision');
+            $table->string('estado')->default('pendiente');
             $table->text('notas')->nullable();
             $table->timestamps();
             $table->softDeletes();
@@ -30,9 +30,11 @@ return new class extends Migration
 
     /**
      * Reverse the migrations.
+     *
+     * @return void
      */
-    public function down(): void
+    public function down()
     {
-        Schema::dropIfExists('ventas');
+        Schema::dropIfExists('facturas');
     }
 };

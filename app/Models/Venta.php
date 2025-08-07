@@ -4,59 +4,85 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\Factory;
-
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Enums\EstadoVenta;
 
 class Venta extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
-    // Nombre de la tabla en la base de datos
-    protected $table = 'ventas';
-
-    // Atributos que pueden ser asignados masivamente
     protected $fillable = [
         'cliente_id',
+        'factura_id',
+        'numero_venta',
+        'subtotal',
+        'descuento_general',
+        'iva',
         'total',
-        'estado', // Opcional: para gestionar el estado de la venta (pendiente, completada, cancelada, etc.)
+        'fecha',
+        'estado',
+        'notas',
     ];
 
-    /**
-     * Relación con el cliente.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     */
+    protected $casts = [
+        'estado' => EstadoVenta::class,
+        'fecha' => 'datetime',
+        'subtotal' => 'decimal:2',
+        'descuento_general' => 'decimal:2',
+        'iva' => 'decimal:2',
+        'total' => 'decimal:2',
+    ];
+
+    // Relación con Cliente
     public function cliente()
     {
         return $this->belongsTo(Cliente::class);
     }
 
-    /**
-     * Relación con los productos.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
-     */
+    // Relación con Factura (si existe)
+    public function factura()
+    {
+        return $this->belongsTo(Factura::class);
+    }
+
+    // Relación con VentaItems
+    public function items()
+    {
+        return $this->hasMany(VentaItem::class);
+    }
+
+    // Relación para obtener los productos a través de los items
+    // Esta es la que necesitabas como "productos"
     public function productos()
     {
-        return $this->morphedByMany(Producto::class, 'vendible', 'venta_producto')
-            ->withPivot('precio', 'cantidad');
+        return $this->items()->where('ventable_type', 'App\\Models\\Producto');
     }
 
-    public function servicios()
+    // Método para obtener todos los ventables (productos, servicios, etc.)
+    public function ventables()
     {
-        return $this->morphedByMany(Servicio::class, 'vendible', 'venta_producto')
-            ->withPivot('precio', 'cantidad');
+        return $this->hasManyThrough(
+            'App\Models\Producto', // Ajusta según tu modelo
+            'App\Models\VentaItem',
+            'venta_id',
+            'id',
+            'id',
+            'ventable_id'
+        )->where('venta_items.ventable_type', 'App\\Models\\Producto');
     }
 
-
-
-    public function calcularCostoTotal()
+    // Método auxiliar para obtener el total de items
+    public function getTotalItemsAttribute()
     {
-        return $this->productos->sum(function ($producto) {
-            // Usar el precio_compra del producto
-            return $producto->pivot->cantidad * $producto->precio_compra;
-        });
+        return $this->items->sum('cantidad');
+    }
+
+    // Método auxiliar para recalcular totales
+    public function recalcularTotales()
+    {
+        $subtotal = $this->items->sum('subtotal');
+        $this->subtotal = $subtotal;
+        $this->total = $subtotal - $this->descuento_general + $this->iva;
+        $this->save();
     }
 }
