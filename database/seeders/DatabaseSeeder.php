@@ -26,4 +26,5 @@ class DatabaseSeeder extends Seeder
             //TecnicoSeeder::class,
         ]);
     }
+    //hola
 }
