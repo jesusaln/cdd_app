@@ -30,7 +30,7 @@ class CitaController extends Controller
     public function create()
     {
         $tecnicos = Tecnico::all();
-        $clientes = Cliente::all();
+        $clientes = Cliente::select('id', 'nombre_razon_social', 'email', 'telefono')->get();
         return Inertia::render('Citas/Create', ['tecnicos' => $tecnicos, 'clientes' => $clientes]);
     }
 

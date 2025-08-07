@@ -476,7 +476,7 @@ const minDateTime = computed(() => {
 
 // Filtrado de clientes
 const filteredClientes = computed(() => {
-    if (!clienteSearch.value || clienteSearch.value.length < 2) {
+    if (!clienteSearch.value || clienteSearch.value.length < 1) {
         return [];
     }
 

@@ -311,7 +311,7 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { ref, computed, watchEffect } from 'vue';
 import { Notyf } from 'notyf';
 import 'notyf/notyf.min.css';
-import ServicioModal from '@/Components/Modal/ServicioModal.vue';
+import ServicioModal from '@/Components/Modals/ServicioModal.vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
 // Define el layout del dashboard
