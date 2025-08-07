@@ -225,7 +225,7 @@ class MantenimientoController extends Controller
     // Eliminar un mantenimiento
     public function destroy(Mantenimiento $mantenimiento)
     {
-        \Log::info('Intentando eliminar mantenimiento ID: ' . $mantenimiento->id);
+        Log::info('Intentando eliminar mantenimiento ID: ' . $mantenimiento->id);
 
         DB::beginTransaction();
 
@@ -237,13 +237,13 @@ class MantenimientoController extends Controller
             $deleted = $mantenimiento->delete();
 
             if (!$deleted) {
-                \Log::error('No se pudo eliminar el mantenimiento ID: ' . $mantenimientoId);
+                Log::error('No se pudo eliminar el mantenimiento ID: ' . $mantenimientoId);
                 DB::rollBack();
                 return redirect()->route('mantenimientos.index')
                     ->with('error', 'No se pudo eliminar el mantenimiento.');
             }
 
-            \Log::info('Mantenimiento eliminado exitosamente: ' . $mantenimientoId);
+            Log::info('Mantenimiento eliminado exitosamente: ' . $mantenimientoId);
 
             // Recalcular el kilometraje del carro
             $this->actualizarKilometrajeCarroTrasEliminacion($carroId);
@@ -255,8 +255,8 @@ class MantenimientoController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
 
-            \Log::error('Error al eliminar mantenimiento: ' . $e->getMessage());
-            \Log::error('Stack trace: ' . $e->getTraceAsString());
+            Log::error('Error al eliminar mantenimiento: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
 
             return redirect()->route('mantenimientos.index')
                 ->with('error', 'Error al eliminar el mantenimiento.');
@@ -281,12 +281,12 @@ class MantenimientoController extends Controller
         if ($ultimoMantenimiento) {
             // Actualizar con el kilometraje del último mantenimiento válido
             $carro->update(['kilometraje' => $ultimoMantenimiento->kilometraje_actual]);
-            \Log::info("Kilometraje del carro ID: {$carroId} actualizado a: {$ultimoMantenimiento->kilometraje_actual}");
+            Log::info("Kilometraje del carro ID: {$carroId} actualizado a: {$ultimoMantenimiento->kilometraje_actual}");
         } else {
             // No hay mantenimientos válidos, decidir qué hacer:
 
             // Opción 1: Mantener el kilometraje actual (no hacer nada)
-            \Log::info("No hay mantenimientos válidos para el carro ID: {$carroId}, manteniendo kilometraje actual: {$carro->kilometraje}");
+            Log::info("No hay mantenimientos válidos para el carro ID: {$carroId}, manteniendo kilometraje actual: {$carro->kilometraje}");
 
             // Opción 2: Resetear a 0 (descomenta si lo prefieres)
             // $carro->update(['kilometraje' => 0]);
