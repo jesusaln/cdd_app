@@ -16,14 +16,14 @@ class DatabaseSeeder extends Seeder
         // Llama a otros seeders, como RolesAndPermissionsSeeder
         $this->call([
             RolesAndPermissionsSeeder::class,
-            AlmacenSeeder::class,
-            MarcaSeeder::class,
-            CategoriaSeeder::class,
-            ServicioSeeder::class,
-            ProveedorSeeder::class,
-            ClienteSeeder::class,
-            ProductoSeeder::class,
-            TecnicoSeeder::class,
+            //AlmacenSeeder::class,
+            //MarcaSeeder::class,
+            //CategoriaSeeder::class,
+            //ServicioSeeder::class,
+            //ProveedorSeeder::class,
+            //ClienteSeeder::class,
+            //ProductoSeeder::class,
+            //TecnicoSeeder::class,
         ]);
     }
 }
