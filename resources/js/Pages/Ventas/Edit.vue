@@ -1,12 +1,9 @@
 <!-- /resources/js/Pages/Ventas/Edit.vue -->
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
-import { Head, useForm, router } from '@inertiajs/vue3';
-import axios from 'axios';
+import { ref, computed, onMounted } from 'vue';
+import { Head, useForm } from '@inertiajs/vue3';
 import { Notyf } from 'notyf';
 import AppLayout from '@/Layouts/AppLayout.vue';
-
-// Rutas corregidas según tu estructura
 import Header from '@/Components/CreateComponents/Header.vue';
 import BuscarCliente from '@/Components/CreateComponents/BuscarCliente.vue';
 import BuscarProducto from '@/Components/CreateComponents/BuscarProducto.vue';
@@ -18,33 +15,20 @@ import VistaPreviaModal from '@/Components/Modals/VistaPreviaModal.vue';
 defineOptions({ layout: AppLayout });
 
 const props = defineProps({
-  venta: {
-    type: Object,
-    required: true
-  },
-  clientes: {
-    type: Array,
-    required: true
-  },
-  productos: {
-    type: Array,
-    default: () => []
-  },
-  servicios: {
-    type: Array,
-    default: () => []
-  }
+  venta: { type: Object, required: true },
+  clientes: { type: Array, required: true },
+  productos: { type: Array, default: () => [] },
+  servicios: { type: Array, default: () => [] }
 });
 
-// En el script del componente padre:
-
-
+// Notificaciones
 const notyf = new Notyf({
   duration: 4000,
   position: { x: 'right', y: 'top' },
   types: [
     { type: 'success', background: '#10b981', icon: false },
-    { type: 'error', background: '#ef4444', icon: false }
+    { type: 'error', background: '#ef4444', icon: false },
+    { type: 'info', background: '#3b82f6', icon: false }
   ]
 });
 
@@ -70,47 +54,26 @@ const mostrarVistaPrevia = ref(false);
 const mostrarAtajos = ref(true);
 
 // --- Cargar datos de la venta ---
+// --- Cargar datos de la venta ---
 onMounted(() => {
-  const savedData = localStorage.getItem(`venta_edit_${props.venta.id}`);
-  if (savedData) {
-    const data = JSON.parse(savedData);
-    console.log('Datos recuperados de localStorage:', data); // Log de depuración
-    Object.assign(clienteSeleccionado.value, data.cliente || {});
-    form.cliente_id = data.cliente_id;
-    selectedProducts.value = data.selectedProducts || [];
-    Object.assign(quantities.value, data.quantities || {});
-    Object.assign(prices.value, data.precios || {});
-    Object.assign(discounts.value, data.descuentos || {});
-    form.descuento_general = data.descuento_general || form.descuento_general;
-    form.notas = data.notas || form.notas;
-    notyf.success('Datos recuperados de sesión anterior');
-  } else {
-    console.log('Cargando datos desde props:', props.venta.productos); // Log de depuración
-    props.venta.productos.forEach(item => {
-      const key = `${item.tipo}-${item.id}`;
-      selectedProducts.value.push({ id: item.id, tipo: item.tipo });
-      quantities.value[key] = item.cantidad;
-      prices.value[key] = item.precio;
-      discounts.value[key] = item.descuento || 0;
-    });
-  }
+  console.log('Cargando venta desde base de datos:', props.venta);
+
+  // ✅ Usamos items.ventable (relación polimórfica)
+  props.venta.items.forEach(item => {
+    const tipo = item.ventable_type === 'App\\Models\\Producto' ? 'producto' : 'servicio';
+    const key = `${tipo}-${item.ventable.id}`;
+
+    selectedProducts.value.push({ id: item.ventable.id, tipo });
+    quantities.value[key] = item.cantidad;
+    prices.value[key] = item.precio; // viene de venta_items
+    discounts.value[key] = item.descuento || 0;
+  });
+
+  calcularTotal(); // Aseguramos que los totales se calculen
+  notyf.open({ type: 'info', message: 'Datos cargados desde la base de datos' });
 });
 
 
-// --- Guardar en localStorage ---
-const saveToLocalStorage = () => {
-  const state = {
-    cliente_id: form.cliente_id,
-    cliente: clienteSeleccionado.value,
-    selectedProducts: selectedProducts.value,
-    cantidades: quantities.value,
-    precios: prices.value,
-    descuentos: discounts.value,
-    descuento_general: form.descuento_general,
-    notas: form.notas
-  };
-  localStorage.setItem(`venta_edit_${props.venta.id}`, JSON.stringify(state));
-};
 
 // --- Eventos de componentes ---
 const onClienteSeleccionado = (cliente) => {
@@ -143,7 +106,45 @@ const eliminarProducto = (entry) => {
   delete quantities.value[key];
   delete prices.value[key];
   delete discounts.value[key];
-  notyf.info(`Producto eliminado`);
+  notyf.info('Producto eliminado');
+  saveToLocalStorage();
+};
+
+// ✅ Corregido: agregarProducto ahora usa notyf directamente
+const agregarProducto = (item) => {
+  if (!item || !item.id || !item.tipo) {
+    notyf.error('Producto inválido');
+    return;
+  }
+
+  const key = `${item.tipo}-${item.id}`;
+  const exists = selectedProducts.value.some(p => p.id === item.id && p.tipo === item.tipo);
+
+  if (exists) {
+    const nombre = item.nombre || item.descripcion || item.titulo || `Elemento ${item.id}`;
+    notyf.info(`${nombre} ya está agregado`);
+    return;
+  }
+
+  // Agregar nuevo producto
+  selectedProducts.value.push({ id: item.id, tipo: item.tipo });
+  quantities.value[key] = 1;
+
+  // Determinar precio por defecto
+  let precio = 0;
+  if (item.tipo === 'producto') {
+    precio = item.precio_venta || item.precio || 0;
+  } else if (item.tipo === 'servicio') {
+    precio = item.precio || item.precio_venta || 0;
+  }
+  prices.value[key] = precio;
+  discounts.value[key] = 0;
+
+  const nombre = item.nombre || item.descripcion || item.titulo || `Nuevo ${item.tipo}`;
+  notyf.success(`✅ ${nombre} agregado`);
+
+  // Actualizar totales y guardar
+  calcularTotal();
   saveToLocalStorage();
 };
 
@@ -172,17 +173,15 @@ const totales = computed(() => {
   const total = subtotalFinal + iva;
 
   return {
-  subtotal: parseFloat(subtotal.toFixed(2)),
-  descuento_items: parseFloat(descuentoItems.toFixed(2)),
-  descuento_general: parseFloat(descuentoGeneral.toFixed(2)),
-  // 👇 CAMBIA ESTA LÍNEA 👇
-  subtotalConDescuentos: parseFloat(subtotalFinal.toFixed(2)), // <- Correcto
-  iva: parseFloat(iva.toFixed(2)),
-  total: parseFloat(total.toFixed(2))
-};
+    subtotal: parseFloat(subtotal.toFixed(2)),
+    descuento_items: parseFloat(descuentoItems.toFixed(2)),
+    descuento_general: parseFloat(descuentoGeneral.toFixed(2)),
+    subtotalConDescuentos: parseFloat(subtotalFinal.toFixed(2)),
+    iva: parseFloat(iva.toFixed(2)),
+    total: parseFloat(total.toFixed(2))
+  };
 });
 
-// Actualizar totales
 const calcularTotal = () => {
   const totals = totales.value;
   form.subtotal = totals.subtotal;
@@ -196,13 +195,12 @@ const actualizarVenta = () => {
     notyf.error('Selecciona un cliente');
     return;
   }
-
   if (selectedProducts.value.length === 0) {
     notyf.error('Agrega al menos un producto o servicio');
     return;
   }
 
-  // Validar precios, cantidades, descuentos
+  // Validación de cantidades, precios y descuentos
   for (const entry of selectedProducts.value) {
     const key = `${entry.tipo}-${entry.id}`;
     const cantidad = parseFloat(quantities.value[key]);
@@ -210,20 +208,20 @@ const actualizarVenta = () => {
     const descuento = parseFloat(discounts.value[key]) || 0;
 
     if (isNaN(cantidad) || cantidad <= 0) {
-      notyf.error(`Cantidad inválida para el producto ${entry.id}`);
+      notyf.error(`Cantidad inválida para el producto ID: ${entry.id}`);
       return;
     }
     if (isNaN(precio) || precio < 0) {
-      notyf.error(`Precio inválido para el producto ${entry.id}`);
+      notyf.error(`Precio inválido para el producto ID: ${entry.id}`);
       return;
     }
     if (isNaN(descuento) || descuento < 0 || descuento > 100) {
-      notyf.error(`Descuento inválido para el producto ${entry.id}`);
+      notyf.error(`Descuento inválido para el producto ID: ${entry.id}`);
       return;
     }
   }
 
-  // Asignar productos al formulario
+  // Preparar datos para enviar
   form.productos = selectedProducts.value.map(entry => {
     const key = `${entry.tipo}-${entry.id}`;
     return {
@@ -240,7 +238,7 @@ const actualizarVenta = () => {
   form.put(route('ventas.update', props.venta.id), {
     onSuccess: () => {
       localStorage.removeItem(`venta_edit_${props.venta.id}`);
-      notyf.success('Venta actualizada correctamente');
+      notyf.success('✅ Venta actualizada correctamente');
     },
     onError: (errors) => {
       console.error('Errores de validación:', errors);
@@ -282,16 +280,15 @@ const imprimirVenta = async () => {
   };
 
   try {
-    notyf.success('Generando PDF...');
+    notyf.success('📄 Generando PDF...');
     await generarPDF('Venta', ventaParaPDF);
-    notyf.success('PDF generado');
+    notyf.success('✅ PDF generado');
   } catch (error) {
-    notyf.error('Error al generar PDF');
+    notyf.error('❌ Error al generar PDF');
     console.error(error);
   }
 };
 
-// --- Atajos ---
 const closeShortcuts = () => {
   mostrarAtajos.value = false;
 };
@@ -299,10 +296,8 @@ const closeShortcuts = () => {
 
 <template>
   <Head title="Editar Venta" />
-
   <div class="ventas-edit min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
     <div class="max-w-6xl mx-auto">
-
       <!-- Header -->
       <Header
         title="Editar Venta"
@@ -315,7 +310,6 @@ const closeShortcuts = () => {
       />
 
       <form @submit.prevent="actualizarVenta" class="space-y-8">
-
         <!-- Cliente -->
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4">
@@ -345,6 +339,12 @@ const closeShortcuts = () => {
               Productos y Servicios
             </h2>
           </div>
+          <div class="p-6">
+          <BuscarProducto
+            :productos="productos"
+            :servicios="servicios"
+            @agregar-producto="agregarProducto"
+          />
           <ProductosSeleccionados
             :productos="productos"
             :servicios="servicios"
@@ -356,7 +356,7 @@ const closeShortcuts = () => {
             v-model:discounts="discounts"
           />
         </div>
-
+</div>
         <!-- Notas -->
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <div class="px-6 py-4 bg-gray-50 border-b">
@@ -373,7 +373,7 @@ const closeShortcuts = () => {
         </div>
 
         <!-- Totales -->
-       <Totales
+        <Totales
           :show-margin-calculator="false"
           :margin-data="{ costoTotal: 0, precioVenta: 0, ganancia: 0, margenPorcentaje: 0 }"
           :totals="totales"
@@ -387,9 +387,7 @@ const closeShortcuts = () => {
           :is-processing="form.processing"
           :can-submit="form.cliente_id && selectedProducts.length > 0"
           :button-text="form.processing ? 'Guardando...' : 'Actualizar Venta'"
-
         />
-
       </form>
 
       <!-- Atajos de teclado -->
@@ -417,7 +415,6 @@ const closeShortcuts = () => {
         @close="mostrarVistaPrevia = false"
         @print="imprimirVenta"
       />
-
     </div>
   </div>
 </template>

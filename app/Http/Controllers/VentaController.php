@@ -221,47 +221,16 @@ class VentaController extends Controller
      */
     public function edit($id)
     {
-        $venta = Venta::with(['cliente', 'items.ventable'])->findOrFail($id);
+        $venta = Venta::with([
+            'cliente',
+            'items.ventable' // ← Esto carga productos y servicios
+        ])->findOrFail($id);
 
-        // Permitir edición solo si está en Borrador o Pendiente
-        if (!in_array($venta->estado, [EstadoVenta::Borrador, EstadoVenta::Pendiente])) {
-            return Redirect::route('ventas.show', $venta->id)
-                ->with('warning', 'Solo ventas en borrador o pendientes pueden ser editadas');
-        }
+        $clientes = Cliente::all();
+        $productos = Producto::all();
+        $servicios = Servicio::all();
 
-        $items = $venta->items->map(function ($item) {
-            $ventable = $item->ventable;
-            return [
-                'id' => $ventable->id,
-                'nombre' => $ventable->nombre ?? $ventable->descripcion,
-                'tipo' => $item->ventable_type === Producto::class ? 'producto' : 'servicio',
-                'pivot' => [
-                    'cantidad' => $item->cantidad,
-                    'precio' => $item->precio,
-                    'descuento' => $item->descuento,
-                ],
-            ];
-        });
-
-        return Inertia::render('Ventas/Edit', [
-            'venta' => [
-                'id' => $venta->id,
-                'cliente_id' => $venta->cliente_id,
-                'cliente' => $venta->cliente,
-                'productos' => $items,
-                'subtotal' => $venta->subtotal,
-                'descuento_general' => $venta->descuento_general,
-                'iva' => $venta->iva,
-                'total' => $venta->total,
-                'fecha' => $venta->fecha ? $venta->fecha->format('Y-m-d') : $venta->created_at->format('Y-m-d'),
-                'notas' => $venta->notas,
-                'numero_venta' => $venta->numero_venta,
-                'factura_id' => $venta->factura_id,
-            ],
-            'clientes' => Cliente::select('id', 'nombre_razon_social', 'email', 'telefono')->get(),
-            'productos' => Producto::select('id', 'nombre', 'precio_venta', 'descripcion')->get(),
-            'servicios' => Servicio::select('id', 'nombre', 'precio', 'descripcion')->get(),
-        ]);
+        return Inertia::render('Ventas/Edit', compact('venta', 'clientes', 'productos', 'servicios'));
     }
 
     /**
