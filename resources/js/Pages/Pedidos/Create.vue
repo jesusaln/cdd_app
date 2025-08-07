@@ -103,6 +103,7 @@
           :is-processing="form.processing"
           :can-submit="form.cliente_id && selectedProducts.length > 0"
           :button-text="form.processing ? 'Guardando...' : 'Crear Pedido'"
+          @limpiar="limpiarFormulario"
         />
       </form>
 
@@ -418,6 +419,33 @@ const validarDatos = () => {
   }
 
   return true;
+};
+
+// En el script
+const limpiarFormulario = () => {
+  // Limpiar cliente
+  clienteSeleccionado.value = null;
+  form.cliente_id = '';
+
+  // Limpiar productos
+  selectedProducts.value = [];
+
+  // Reiniciar cantidades, precios y descuentos
+  quantities.value = {};
+  prices.value = {};
+  discounts.value = {};
+
+  // Limpiar notas
+  form.notas = '';
+
+  // Limpiar localStorage si es necesario
+  localStorage.removeItem(`venta_edit_${props.venta?.id}`);
+
+  // Notificación
+  notyf.success('Formulario limpiado correctamente');
+
+  // Si necesitas forzar actualización de algún componente
+  // keyComponent.value += 1;
 };
 
 // Crear pedido

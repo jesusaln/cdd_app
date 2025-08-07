@@ -483,7 +483,7 @@ const config = computed(() => {
       titulo: 'Ventas',
       mostrarCampoExtra: true,
       campoExtra: { key: 'numero_venta', label: 'N° Venta' },
-      acciones: { editar: false, duplicar: false, imprimir: true, eliminar: false },
+      acciones: { editar: true, duplicar: true, imprimir: true, eliminar: true }, // ✅ Habilitados todos
       estados: {
         'borrador': { label: 'Borrador', classes: 'bg-gray-100 text-gray-700', color: 'bg-gray-400' },
     'pendiente': { label: 'Pendiente', classes: 'bg-yellow-100 text-yellow-700', color: 'bg-yellow-400' },

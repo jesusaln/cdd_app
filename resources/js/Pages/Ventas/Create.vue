@@ -104,6 +104,7 @@
           :is-processing="form.processing"
           :can-submit="form.cliente_id && selectedProducts.length > 0"
           :button-text="form.processing ? 'Guardando...' : 'Crear Venta'"
+           @limpiar="limpiarFormulario"
         />
       </form>
 
@@ -323,6 +324,34 @@ const eliminarProducto = (entry) => {
   calcularTotal();
   saveState();
   showNotification(`Producto eliminado: ${entry.nombre || entry.descripcion || 'Item'}`, 'info');
+};
+
+// En el script del componente padre:
+// En el script
+const limpiarFormulario = () => {
+  // Limpiar cliente
+  clienteSeleccionado.value = null;
+  form.cliente_id = '';
+
+  // Limpiar productos
+  selectedProducts.value = [];
+
+  // Reiniciar cantidades, precios y descuentos
+  quantities.value = {};
+  prices.value = {};
+  discounts.value = {};
+
+  // Limpiar notas
+  form.notas = '';
+
+  // Limpiar localStorage si es necesario
+  localStorage.removeItem(`venta_edit_${props.venta?.id}`);
+
+  // Notificación
+  notyf.success('Formulario limpiado correctamente');
+
+  // Si necesitas forzar actualización de algún componente
+  // keyComponent.value += 1;
 };
 
 const updateQuantity = (key, quantity) => {

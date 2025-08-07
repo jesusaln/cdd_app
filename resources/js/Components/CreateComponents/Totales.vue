@@ -46,7 +46,6 @@
     </div>
   </div>
 
-
   <!-- Resumen Total -->
   <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
     <div class="bg-gradient-to-r from-purple-500 to-purple-600 px-6 py-4">
@@ -74,7 +73,7 @@
         </div>
       </div>
 
-      <!-- Desglose de totales -->
+      <!-- Desglose de totales simplificado -->
       <div class="bg-gray-50 rounded-lg p-6">
         <h3 class="text-lg font-semibold text-gray-900 mb-4">Desglose de Precios</h3>
         <div class="space-y-3">
@@ -82,12 +81,8 @@
             <span>Subtotal:</span>
             <span class="font-semibold">${{ totals.subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}</span>
           </div>
-          <div v-if="totals.descuentoGeneral > 0" class="flex justify-between items-center text-orange-600">
-            <span>Descuento General ({{ descuentoGeneral }}%):</span>
-            <span class="font-semibold">-${{ totals.descuentoGeneral.toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}</span>
-          </div>
           <div v-if="totals.descuentoItems > 0" class="flex justify-between items-center text-orange-600">
-            <span>Descuentos por item:</span>
+            <span>Descuentos aplicados:</span>
             <span class="font-semibold">-${{ totals.descuentoItems.toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}</span>
           </div>
           <div class="flex justify-between items-center text-gray-700">
@@ -111,18 +106,30 @@
 </template>
 
 <script setup>
-import { computed, defineProps, defineEmits } from 'vue';
+import { defineProps, defineEmits } from 'vue';
 
-// --- PROPS ---
 const props = defineProps({
   showMarginCalculator: Boolean,
   marginData: {
     type: Object,
-    required: true
+    required: true,
+    default: () => ({
+      costoTotal: 0,
+      precioVenta: 0,
+      ganancia: 0,
+      margenPorcentaje: 0
+    })
   },
   totals: {
     type: Object,
-    required: true
+    required: true,
+    default: () => ({
+      subtotal: 0,
+      descuentoItems: 0,
+      subtotalConDescuentos: 0,
+      iva: 0,
+      total: 0
+    })
   },
   itemCount: {
     type: Number,
@@ -134,15 +141,8 @@ const props = defineProps({
   }
 });
 
-// --- EMITS ---
 const emit = defineEmits(['toggle-margin-calculator']);
 
-// --- CALCULAR DESCUENTO APLICADO ---
-const discountAmount = computed(() => {
-  return props.totals.subtotalConDescuentos * (props.descuentoGeneral / 100);
-});
-
-// --- TOGGLE MARGEN ---
 const toggleMarginCalculator = () => {
   emit('toggle-margin-calculator');
 };
