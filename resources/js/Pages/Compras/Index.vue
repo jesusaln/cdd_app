@@ -1,199 +1,231 @@
+<!-- /resources/js/Pages/Compras/Index.vue -->
+<script setup>
+import { ref, computed, watch } from 'vue'
+import { router, Head } from '@inertiajs/vue3'
+import { Notyf } from 'notyf'
+import 'notyf/notyf.min.css'
+import { generarPDF } from '@/Utils/pdfGenerator'
+import AppLayout from '@/Layouts/AppLayout.vue'
+import UniversalHeader from '@/Components/IndexComponents/UniversalHeader.vue'
+import DocumentosTable from '@/Components/IndexComponents/DocumentosTable.vue'
+import Modales from '@/Components/IndexComponents/Modales.vue'
+
+defineOptions({ layout: AppLayout })
+
+const props = defineProps({
+  compras: {
+    type: Array,
+    default: () => []
+  }
+})
+
+// Estado reactivo
+const searchTerm = ref('')
+const sortBy = ref('fecha-desc')
+const filtroEstado = ref('')
+const showModal = ref(false)
+const modalMode = ref('details')
+const selectedId = ref(null)
+const selectedCompra = ref(null)
+
+// Configuración del header universal
+const headerConfig = {
+  module: 'compras',
+  createButtonText: 'Nueva Compra',
+  searchPlaceholder: 'Buscar por proveedor, producto...'
+}
+
+// Notificaciones
+const notyf = new Notyf({
+  duration: 4000,
+  position: { x: 'right', y: 'top' },
+  types: [
+    { type: 'success', background: '#10b981', icon: false },
+    { type: 'error', background: '#ef4444', icon: false }
+  ]
+})
+
+// Datos originales
+const comprasOriginales = ref([...props.compras])
+
+watch(
+  () => props.compras,
+  (newVal) => {
+    comprasOriginales.value = [...newVal]
+  },
+  { deep: true, immediate: true }
+)
+
+// Estadísticas calculadas
+const estadisticas = computed(() => {
+  const stats = { total: comprasOriginales.value.length, pagadas: 0, pendientes: 0 }
+  comprasOriginales.value.forEach(c => {
+    if (c.estado === 'pagada') stats.pagadas++
+    else if (c.estado === 'pendiente') stats.pendientes++
+  })
+  return stats
+})
+
+// Métodos
+const handleLimpiarFiltros = () => {
+  searchTerm.value = ''
+  sortBy.value = 'fecha-desc'
+  filtroEstado.value = ''
+  notyf.success('Filtros limpiados correctamente')
+}
+
+const updateSort = (newSort) => {
+  if (newSort && typeof newSort === 'string') sortBy.value = newSort
+}
+
+const verDetalles = (compra) => {
+  if (!compra) return notyf.error('Compra no válida')
+  selectedCompra.value = compra
+  modalMode.value = 'details'
+  showModal.value = true
+}
+
+const editarCompra = (id) => {
+  if (!id) return notyf.error('ID no válido')
+  router.visit(`/compras/${id}/edit`)
+}
+
+const duplicarCompra = (compra) => {
+  if (confirm(`¿Duplicar compra #${compra.id}?`)) {
+    router.post(`/compras/${compra.id}/duplicate`, {}, {
+      onSuccess: () => notyf.success('Compra duplicada'),
+      onError: () => notyf.error('Error al duplicar')
+    })
+  }
+}
+
+const imprimirCompra = async (compra) => {
+  if (!compra?.id) return notyf.error('ID no válido')
+  if (!compra?.proveedor?.nombre_razon_social) return notyf.error('Proveedor no encontrado')
+  if (!Array.isArray(compra.productos) || !compra.productos.length) return notyf.error('Lista de productos vacía')
+
+  try {
+    notyf.success('Generando PDF...')
+    await generarPDF('Compra', compra)
+    notyf.success('PDF generado correctamente')
+  } catch (error) {
+    console.error(error)
+    notyf.error(`Error al generar PDF: ${error.message}`)
+  }
+}
+
+const confirmarEliminacion = (id) => {
+  if (!id) return notyf.error('ID no válido')
+  selectedId.value = id
+  modalMode.value = 'confirm'
+  showModal.value = true
+}
+
+const eliminarCompra = async () => {
+  if (!selectedId.value) return notyf.error('No hay compra seleccionada')
+
+  try {
+    router.delete(`/compras/${selectedId.value}`, {
+      onSuccess: () => {
+        notyf.success('Compra eliminada exitosamente')
+        comprasOriginales.value = comprasOriginales.value.filter(c => c.id !== selectedId.value)
+        showModal.value = false
+        selectedId.value = null
+      },
+      onError: () => notyf.error('Error al eliminar')
+    })
+  } catch (error) {
+    console.error(error)
+    notyf.error('Error inesperado al eliminar')
+  }
+}
+
+const crearNuevaCompra = () => {
+  router.visit('/compras/create')
+}
+</script>
+
 <template>
-    <Head title="Compras" />
-    <div class="compras-index">
-      <!-- Título de la página -->
-      <h1 class="text-2xl font-semibold mb-6">Listado de Compras</h1>
+  <Head title="Compras" />
 
-      <!-- Botón de crear compra y campo de búsqueda -->
-      <div class="mb-4 flex justify-between items-center">
-        <Link :href="route('compras.create')" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-300">
-          Crear Compra
-        </Link>
-        <input
-          v-model="searchTerm"
-          type="text"
-          placeholder="Buscar por proveedor o producto"
-          class="px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
-
-      <!-- Tabla de compras -->
-      <div v-if="comprasFiltradas.length > 0" class="overflow-x-auto bg-white rounded-lg shadow-md">
-        <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
-            <tr>
-              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Proveedor</th>
-              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Productos</th>
-              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
-              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-200">
-            <tr v-for="compra in comprasFiltradas" :key="compra.id" class="hover:bg-gray-100">
-              <td class="px-4 py-3 text-sm text-gray-700">{{ compra.id }}</td>
-              <td class="px-4 py-3 text-sm text-gray-700">{{ compra.proveedor.nombre_razon_social }}</td>
-              <td class="px-4 py-3 text-sm text-gray-700">
-                <ul>
-                  <li v-for="producto in compra.productos" :key="producto.id">
-                    {{ producto.nombre }} - ${{ producto.pivot.precio }} (Cantidad: {{ producto.pivot.cantidad }})
-                  </li>
-                </ul>
-              </td>
-              <td class="px-4 py-3 text-sm text-gray-700">${{ compra.total }}</td>
-              <td class="px-4 py-3 flex space-x-2">
-                <button @click="editarCompra(compra.id)" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">
-                  Editar
-                </button>
-                <button @click="confirmarEliminacion(compra.id)" class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600">
-                  Eliminar
-                </button>
-                <button @click="verDetalles(compra)" class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600">
-                  Ver Detalles
-                </button>
-                <button @click="generarPDFCompra(compra)" class="bg-purple-500 text-white px-4 py-2 rounded-md hover:bg-purple-600">
-                  Generar PDF
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Mensaje si no hay compras -->
-      <div v-else class="text-center text-gray-500 mt-4">
-        No hay compras registradas.
-      </div>
-
-      <!-- Spinner de carga -->
-      <div v-if="loading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-
-      <!-- Diálogo de confirmación de eliminación -->
-      <div v-if="showConfirmationDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-lg shadow-lg">
-          <p class="mb-4">¿Estás seguro de que deseas eliminar esta compra?</p>
-          <div class="flex justify-end">
-            <button @click="cancelarEliminacion" class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 mr-2">
-              Cancelar
-            </button>
-            <button @click="eliminarCompra" class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600">
-              Eliminar
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Diálogo para mostrar detalles de la compra -->
-      <div v-if="showDetailsDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-lg shadow-lg w-1/2">
-          <Show :compra="selectedCompra"/>
-          <div class="flex justify-end mt-4">
-            <button @click="cerrarDetalles" class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">
-              Cerrar
-            </button>
-          </div>
-        </div>
+  <div class="compras-index min-h-screen bg-gray-50">
+    <!-- Header principal -->
+    <div class="bg-white shadow-sm border-b border-gray-200 px-6 py-8">
+      <div class="max-w-7xl mx-auto">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Gestión de Compras</h1>
+        <p class="text-gray-600">Administra y gestiona todas tus compras de manera eficiente</p>
       </div>
     </div>
-  </template>
 
-  <script setup>
-  import { Head, Link, router } from '@inertiajs/vue3';
-  import { ref, computed } from 'vue';
-  import { Notyf } from 'notyf';
-  import 'notyf/notyf.min.css';
- // import Dashboard from '@/Pages/Dashboard.vue';
-  import { generarPDF } from '@/Utils/pdfGenerator';  // Asegúrate de que la ruta sea correcta
-  import Show from './Show.vue'; // Asegúrate de que la ruta sea correcta
-  import AppLayout from '@/Layouts/AppLayout.vue';
+    <!-- Contenido -->
+    <div class="max-w-8xl mx-auto px-6 py-8">
+      <!-- Filtros y estadísticas -->
+      <UniversalHeader
+        :total="estadisticas.total"
+        :aprobados="estadisticas.pagadas"
+        :pendientes="estadisticas.pendientes"
+        v-model:search-term="searchTerm"
+        v-model:sort-by="sortBy"
+        v-model:filtro-estado="filtroEstado"
+        :config="headerConfig"
+        @limpiar-filtros="handleLimpiarFiltros"
+      />
 
+      <!-- Tabla -->
+      <div class="mt-6">
+        <DocumentosTable
+          :documentos="comprasOriginales"
+          tipo="compras"
+          :search-term="searchTerm"
+          :sort-by="sortBy"
+          :filtro-estado="filtroEstado"
+          @ver-detalles="verDetalles"
+          @editar="editarCompra"
+          @duplicar="duplicarCompra"
+          @imprimir="imprimirCompra"
+          @eliminar="confirmarEliminacion"
+          @sort="updateSort"
+        />
+      </div>
+    </div>
 
-// Define el layout del dashboard
-defineOptions({ layout: AppLayout });
+    <!-- Modales -->
+    <Modales
+      :show="showModal"
+      :mode="modalMode"
+      :selected="selectedCompra"
+      tipo="compras"
+      @close="showModal = false"
+      @confirm-delete="eliminarCompra"
+      @imprimir="imprimirCompra"
+      @editar="editarCompra"
+    />
+  </div>
+</template>
 
-  // Propiedades
-  const props = defineProps({ compras: Array });
-  const searchTerm = ref('');
-  const loading = ref(false);
-  const showConfirmationDialog = ref(false);
-  const compraIdToDelete = ref(null);
-  const showDetailsDialog = ref(false);
-  const selectedCompra = ref(null);
+<style scoped>
+.compras-index {
+  min-height: 100vh;
+  background-color: #f9fafb;
+}
 
-  // Configuración de Notyf para notificaciones
-  const notyf = new Notyf({ duration: 3000, position: { x: 'right', y: 'top' } });
+@media (max-width: 640px) {
+  .compras-index .max-w-7xl {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
 
-  // Variable reactiva local para almacenar las compras
-  const compras = ref([...props.compras]);
+  .compras-index h1 {
+    font-size: 1.5rem;
+  }
+}
 
-  // Filtrado de compras
-  const comprasFiltradas = computed(() => {
-    return compras.value.filter(compra => {
-      return compra.proveedor.nombre_razon_social.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
-             compra.productos.some(producto => producto.nombre_razon_social.toLowerCase().includes(searchTerm.value.toLowerCase()));
-    });
-  });
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
-  // Función para editar una compra
-  const editarCompra = (id) => {
-    router.get(`/compras/${id}/edit`);
-  };
-
-  // Función para confirmar la eliminación de una compra
-  const confirmarEliminacion = (id) => {
-    compraIdToDelete.value = id;
-    showConfirmationDialog.value = true;
-  };
-
-  // Función para cancelar la eliminación
-  const cancelarEliminacion = () => {
-    compraIdToDelete.value = null;
-    showConfirmationDialog.value = false;
-  };
-
-  // Función para eliminar una compra
-  const eliminarCompra = async () => {
-    if (compraIdToDelete.value) {
-      loading.value = true;
-      try {
-        await router.delete(`/compras/${compraIdToDelete.value}`, {
-          onSuccess: () => {
-            notyf.success('Compra eliminada exitosamente.');
-            compras.value = compras.value.filter(compra => compra.id !== compraIdToDelete.value);
-            showConfirmationDialog.value = false;
-          },
-          onError: () => notyf.error('Error al eliminar la compra.')
-        });
-      } catch (error) {
-        notyf.error('Ocurrió un error inesperado.');
-      } finally {
-        loading.value = false;
-      }
-    }
-  };
-
-  // Función para mostrar detalles de la compra
-  const verDetalles = (compra) => {
-    selectedCompra.value = compra;
-    showDetailsDialog.value = true;
-  };
-
-  // Función para cerrar el diálogo de detalles
-  const cerrarDetalles = () => {
-    selectedCompra.value = null;
-    showDetailsDialog.value = false;
-  };
-
-
-
-  // Función para generar el PDF de la compra
-  const generarPDFCompra = (compra) => {
-    generarPDF('Compra', compra);
-  };
-  </script>
-
-  <style scoped>
-  /* Aquí van tus estilos personalizados */
-  </style>
+.compras-index > * {
+  animation: fadeIn 0.3s ease-out;
+}
+</style>

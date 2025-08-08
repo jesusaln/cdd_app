@@ -27,6 +27,7 @@ use App\Http\Controllers\ServicioController;
 use App\Http\Controllers\InventarioController;
 use App\Http\Controllers\OrdenCompraController;
 
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -116,7 +117,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // =====================================================
     // RUTAS ESPECÍFICAS DE PEDIDOS
     // =====================================================
-    Route::post('/pedidos/{id}/enviar-a-ventas', [PedidoController::class, 'enviarAVentas'])->name('pedidos.enviarAVentas');
+    Route::post('/pedidos/{id}/enviar-a-venta', [PedidoController::class, 'enviarAVenta'])
+        ->name('pedidos.enviar-a-venta');
     Route::get('/pedidos', [PedidoController::class, 'index'])->name('pedidos.index');
     // =====================================================
     // RUTAS ESPECÍFICAS DE USUARIOS

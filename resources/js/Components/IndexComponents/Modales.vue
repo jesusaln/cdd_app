@@ -1,4 +1,5 @@
 <template>
+  <!-- Modal principal -->
   <Transition name="modal">
     <div
       v-if="show"
@@ -13,15 +14,8 @@
       >
         <!-- Modo: Confirmación de eliminación -->
         <div v-if="mode === 'confirm'" class="text-center">
-          <div
-            class="w-12 h-12 mx-auto bg-red-100 rounded-full flex items-center justify-center mb-4"
-          >
-            <svg
-              class="w-6 h-6 text-red-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+          <div class="w-12 h-12 mx-auto bg-red-100 rounded-full flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -56,9 +50,7 @@
         <div v-else-if="mode === 'details'" class="space-y-4">
           <h3 class="text-lg font-medium mb-4">
             Detalles de {{ config.titulo }}
-            <span v-if="selected?.id" class="text-sm text-gray-500"
-              >#{{ selected.id }}</span
-            >
+            <span v-if="selected?.id" class="text-sm text-gray-500">#{{ selected.id }}</span>
           </h3>
 
           <div v-if="selected" class="space-y-4">
@@ -112,34 +104,22 @@
                 <table class="min-w-full divide-y divide-gray-200">
                   <thead class="bg-gray-50">
                     <tr>
-                      <th
-                        class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
-                      >
+                      <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                         Nombre
                       </th>
-                      <th
-                        class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
-                      >
+                      <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                         Tipo
                       </th>
-                      <th
-                        class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
-                      >
+                      <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                         Cantidad
                       </th>
-                      <th
-                        class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
-                      >
+                      <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                         Precio
                       </th>
-                      <th
-                        class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
-                      >
+                      <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                         Descuento
                       </th>
-                      <th
-                        class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
-                      >
+                      <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                         Subtotal
                       </th>
                     </tr>
@@ -169,16 +149,13 @@
                 </table>
               </div>
             </div>
-            <p v-else class="text-sm text-gray-600">
-              No hay productos asociados.
-            </p>
+            <p v-else class="text-sm text-gray-600">No hay productos asociados.</p>
           </div>
-          <div v-else class="text-sm text-gray-600">
-            No hay datos disponibles.
-          </div>
+          <div v-else class="text-sm text-gray-600">No hay datos disponibles.</div>
 
           <!-- Botones de acción -->
           <div class="flex justify-end gap-3 mt-6">
+            <!-- Enviar a Pedido (solo en cotizaciones) -->
             <button
               v-if="config.acciones.enviarPedido"
               @click="confirmarEnvioPedido"
@@ -190,6 +167,21 @@
             >
               {{ yaEnviado ? 'Reenviar a Pedido' : 'Enviar a Pedido' }}
             </button>
+
+            <!-- Enviar a Venta (solo en pedidos) -->
+            <button
+              v-if="config.acciones.enviarAVenta"
+              @click="confirmarEnvioAVenta"
+              class="px-4 py-2 text-white rounded-lg transition-colors"
+              :class="{
+                'bg-emerald-600 hover:bg-emerald-700': !yaConvertidoAVenta,
+                'bg-blue-600 hover:bg-blue-700': yaConvertidoAVenta
+              }"
+            >
+              {{ yaConvertidoAVenta ? 'Reenviar a Venta' : 'Enviar a Venta' }}
+            </button>
+
+            <!-- Imprimir -->
             <button
               v-if="config.acciones.imprimir"
               @click="onImprimir"
@@ -197,6 +189,8 @@
             >
               Imprimir
             </button>
+
+            <!-- Editar -->
             <button
               v-if="config.acciones.editar"
               @click="onEditar"
@@ -204,6 +198,8 @@
             >
               Editar
             </button>
+
+            <!-- Cerrar -->
             <button
               @click="onClose"
               class="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400 transition-colors"
@@ -216,10 +212,10 @@
     </div>
   </Transition>
 
-  <!-- Modal de confirmación para reenvío -->
+  <!-- Modal de confirmación: Reenviar a Pedido -->
   <Transition name="modal">
     <div
-      v-if="showConfirmReenvio"
+      v-if="showConfirmReenvioPedido"
       class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
     >
       <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
@@ -229,14 +225,14 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
             </svg>
           </div>
-          <h3 class="text-lg font-medium mb-2">¿Reenviar cotización a pedido?</h3>
+          <h3 class="text-lg font-medium mb-2">¿Reenviar a Pedido?</h3>
           <p class="text-gray-600 mb-6">
-            Esta cotización ya fue enviada anteriormente ({{ formatearFecha(selected?.updated_at) }}).
+            Este documento ya fue enviado anteriormente ({{ formatearFecha(selected?.updated_at) }}).
             ¿Deseas crear un nuevo pedido?
           </p>
           <div class="flex gap-3">
             <button
-              @click="showConfirmReenvio = false"
+              @click="showConfirmReenvioPedido = false"
               class="flex-1 px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
             >
               Cancelar
@@ -244,6 +240,43 @@
             <button
               @click="reenviarAPedido"
               class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Reenviar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </Transition>
+
+  <!-- Modal de confirmación: Reenviar a Venta -->
+  <Transition name="modal">
+    <div
+      v-if="showConfirmReenvioVenta"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+    >
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+        <div class="text-center">
+          <div class="w-12 h-12 mx-auto bg-emerald-100 rounded-full flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16l-4-4m0 0l4-4m-4 4h18"/>
+            </svg>
+          </div>
+          <h3 class="text-lg font-medium mb-2">¿Reenviar a Venta?</h3>
+          <p class="text-gray-600 mb-6">
+            Este pedido ya fue convertido en venta anteriormente ({{ formatearFecha(selected?.updated_at) }}).
+            ¿Deseas crear una nueva venta?
+          </p>
+          <div class="flex gap-3">
+            <button
+              @click="showConfirmReenvioVenta = false"
+              class="flex-1 px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              @click="reenviarAVenta"
+              class="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
             >
               Reenviar
             </button>
@@ -274,7 +307,7 @@ const props = defineProps({
   tipo: {
     type: String,
     required: true,
-    validator: (value) => ['cotizaciones', 'pedidos', 'ventas'].includes(value)
+    validator: (value) => ['cotizaciones', 'pedidos', 'ventas', 'compras'].includes(value)
   }
 });
 
@@ -283,12 +316,15 @@ const emit = defineEmits([
   'confirm-delete',
   'imprimir',
   'editar',
-  'enviar-pedido'
+  'enviar-pedido',
+  'enviar-a-venta' // Nuevo evento
 ]);
 
-const showConfirmReenvio = ref(false);
+// Estados de confirmación
+const showConfirmReenvioPedido = ref(false);
+const showConfirmReenvioVenta = ref(false);
 
-// Configuración dinámica según el tipo de documento
+// Configuración dinámica
 const config = computed(() => {
   const configs = {
     cotizaciones: {
@@ -298,7 +334,8 @@ const config = computed(() => {
       acciones: {
         editar: true,
         imprimir: true,
-        enviarPedido: true
+        enviarPedido: true,
+        enviarAVenta: false
       },
       estados: {
         'borrador': { label: 'Borrador', classes: 'bg-gray-100 text-gray-800', color: 'bg-gray-400' },
@@ -317,7 +354,8 @@ const config = computed(() => {
       acciones: {
         editar: true,
         imprimir: true,
-        enviarPedido: false
+        enviarPedido: false,
+        enviarAVenta: true
       },
       estados: {
         'borrador': { label: 'Borrador', classes: 'bg-gray-100 text-gray-800', color: 'bg-gray-400' },
@@ -336,7 +374,8 @@ const config = computed(() => {
       acciones: {
         editar: false,
         imprimir: true,
-        enviarPedido: false
+        enviarPedido: false,
+        enviarAVenta: false
       },
       estados: {
         'borrador': { label: 'Borrador', classes: 'bg-gray-100 text-gray-800', color: 'bg-gray-400' },
@@ -351,12 +390,16 @@ const config = computed(() => {
   return configs[props.tipo] || configs.cotizaciones;
 });
 
-// Computed para saber si ya fue enviada
+// Verificaciones de estado
 const yaEnviado = computed(() => {
-  return props.selected?.estado === 'enviado_pedido';
+  return ['enviado_pedido', 'convertido_pedido'].includes(props.selected?.estado);
 });
 
-// Métodos de formateo
+const yaConvertidoAVenta = computed(() => {
+  return ['enviado_venta', 'facturado', 'pagado', 'convertido_venta'].includes(props.selected?.estado);
+});
+
+// Formateo
 const formatearFecha = (date) => {
   if (!date) return 'Fecha no disponible';
   try {
@@ -381,73 +424,50 @@ const formatearMoneda = (num) => {
   }).format(value);
 };
 
-// Estados dinámicos
+// Estados visuales
 const obtenerClasesEstado = (estado) => {
-  const estadoConfig = config.value.estados[estado];
-  return estadoConfig ? estadoConfig.classes : 'bg-gray-100 text-gray-800';
+  return config.value.estados[estado]?.classes || 'bg-gray-100 text-gray-800';
 };
 
 const obtenerColorPuntoEstado = (estado) => {
-  const estadoConfig = config.value.estados[estado];
-  return estadoConfig ? estadoConfig.color : 'bg-gray-400';
+  return config.value.estados[estado]?.color || 'bg-gray-400';
 };
 
 const obtenerLabelEstado = (estado) => {
-  const estadoConfig = config.value.estados[estado];
-  return estadoConfig ? estadoConfig.label : 'Pendiente';
+  return config.value.estados[estado]?.label || 'Pendiente';
 };
 
-// Método para confirmar el envío
+// --- Acciones: Enviar a Pedido ---
 const confirmarEnvioPedido = () => {
   if (yaEnviado.value) {
-    showConfirmReenvio.value = true;
+    showConfirmReenvioPedido.value = true;
   } else {
-    onEnviarPedido();
+    emit('enviar-pedido', props.selected);
   }
 };
 
-const onEnviarPedido = async () => {
-  try {
-    const response = await emit('enviar-pedido', props.selected);
-
-    if (response?.success) {
-      alert(`Pedido #${response.numero_pedido} creado exitosamente`);
-      emit('close');
-      emit('refresh'); // Si necesitas actualizar la lista
-    }
-  } catch (error) {
-    console.error('Error al enviar:', error.response?.data);
-
-    if (error.response?.data?.requiere_confirmacion) {
-      showConfirmReenvio.value = true;
-    } else {
-      alert(error.response?.data?.error || 'Error al procesar la solicitud');
-    }
+// --- Acciones: Enviar a Venta ---
+const confirmarEnvioAVenta = () => {
+  if (yaConvertidoAVenta.value) {
+    showConfirmReenvioVenta.value = true;
+  } else {
+    emit('enviar-a-venta', props.selected);
   }
 };
 
-const reenviarAPedido = async () => {
-  showConfirmReenvio.value = false;
-  try {
-    const response = await emit('enviar-pedido', {
-      ...props.selected,
-      forzarReenvio: true
-    });
-
-    if (response?.success) {
-      alert(`Pedido #${response.numero_pedido} actualizado exitosamente`);
-      emit('close');
-      emit('refresh');
-    }
-  } catch (error) {
-    console.error('Error al reenviar:', error.response?.data);
-    alert(error.response?.data?.error || 'Error al actualizar el pedido');
-  }
+// Confirmación: Reenviar a Pedido
+const reenviarAPedido = () => {
+  showConfirmReenvioPedido.value = false;
+  emit('enviar-pedido', { ...props.selected, forzarReenvio: true });
 };
 
+// Confirmación: Reenviar a Venta
+const reenviarAVenta = () => {
+  showConfirmReenvioVenta.value = false;
+  emit('enviar-a-venta', { ...props.selected, forzarReenvio: true });
+};
 
-
-// Emits
+// Emits generales
 const onCancel = () => emit('close');
 const onConfirm = () => emit('confirm-delete');
 const onClose = () => emit('close');

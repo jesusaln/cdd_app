@@ -105,6 +105,34 @@ const defaultConfigs = {
     ]
   },
 
+  compras: {
+    module: 'compras',
+    title: 'Compras',
+    createRoute: '/compras/create',
+    createButtonText: 'Nueva Compra',
+    searchPlaceholder: 'Buscar compras...',
+    estadisticas: {
+      total: { label: 'Total', icon: 'document' },
+      aprobadas: { label: 'Recibidas', icon: 'check-circle', color: 'green' },
+      pendientes: { label: 'Pendientes', icon: 'clock', color: 'orange' }
+    },
+    estados: [
+      { value: '', label: 'Todos los Estados' },
+      { value: 'pendiente', label: 'Pendientes' },
+      { value: 'ordenado', label: 'Ordenado' },
+      { value: 'recibido', label: 'Recibido' },
+      { value: 'cancelado', label: 'Cancelado' }
+    ],
+    sortOptions: [
+      { value: 'fecha-desc', label: 'Fecha ↓' },
+      { value: 'fecha-asc', label: 'Fecha ↑' },
+      { value: 'total-desc', label: 'Total ↓' },
+      { value: 'total-asc', label: 'Total ↑' },
+      { value: 'proveedor-asc', label: 'Proveedor A-Z' },
+      { value: 'proveedor-desc', label: 'Proveedor Z-A' }
+    ]
+  },
+
   ventas: {
     module: 'ventas',
     title: 'Ventas',

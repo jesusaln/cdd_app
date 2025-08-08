@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Pedido;
 use App\Models\PedidoItem;
 use App\Models\Cliente;
+use App\Models\Venta;
+use App\Models\VentaItem;
 use App\Models\Producto;
 use App\Models\Servicio;
 use App\Enums\EstadoPedido;
@@ -14,6 +16,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Validator;
+use Exception;
+use App\Enums\EstadoVenta;
+
 
 class PedidoController extends Controller
 {
@@ -450,5 +457,147 @@ class PedidoController extends Controller
         $ultimo = Pedido::orderBy('id', 'desc')->first();
         $numero = $ultimo ? $ultimo->id + 1 : 1;
         return 'PED-' . date('Ymd') . '-' . str_pad($numero, 5, '0', STR_PAD_LEFT);
+    }
+
+    public function enviarAVenta(Request $request, $id)
+    {
+        try {
+            DB::beginTransaction();
+
+            // Obtener el pedido con relaciones completas
+            $pedido = Pedido::with([
+                'items.pedible',  // producto o servicio
+                'cliente',
+            ])->findOrFail($id);
+
+            // Validar estado del pedido
+            if (!$this->puedeEnviarseAVenta($pedido)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'El pedido no está en un estado válido para convertirse en venta',
+                    'estado_actual' => $pedido->estado->value,
+                    'requiere_confirmacion' => false
+                ], 400);
+            }
+
+            // Validar que tenga items
+            if ($pedido->items->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'El pedido no contiene ítems para convertir en venta',
+                    'requiere_confirmacion' => false
+                ], 400);
+            }
+
+            // Validar cliente
+            if (!$pedido->cliente) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'El pedido no tiene cliente asociado',
+                    'requiere_confirmacion' => false
+                ], 400);
+            }
+
+            // Verificar si ya fue convertido (opcional: permitir reenvío con forzar)
+            $ventaExistente = Venta::where('pedido_id', $pedido->id)->first();
+
+            if ($ventaExistente && !$request->has('forzar_reenvio')) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Este pedido ya fue convertido en venta',
+                    'requiere_confirmacion' => true,
+                    'venta_id' => $ventaExistente->id,
+                    'numero_venta' => $ventaExistente->numero_factura
+                ], 409); // 409 Conflict
+            }
+
+            // Generar número de venta
+            $numeroVenta = $this->generarNumeroVenta();
+
+            // Crear la venta
+            $venta = new Venta();
+            $venta->fill([
+                'cliente_id' => $pedido->cliente_id,
+                'pedido_id' => $pedido->id,
+                'numero_factura' => $numeroVenta,
+                'fecha_venta' => now(),
+                'estado' => EstadoVenta::Borrador,
+                'subtotal' => $pedido->subtotal,
+                'descuento_general' => $pedido->descuento_general,
+                'iva' => $pedido->iva,
+                'total' => $pedido->total,
+                'notas' => "Generado desde pedido #{$pedido->numero_pedido}",
+                'user_id' => $request->user()->id,
+            ]);
+            $venta->save();
+
+            // Copiar ítems del pedido a la venta
+            foreach ($pedido->items as $item) {
+                VentaItem::create([
+                    'venta_id' => $venta->id,
+                    'vendible_id' => $item->pedible_id,
+                    'vendible_type' => $item->pedible_type,
+                    'cantidad' => $item->cantidad,
+                    'precio' => $item->precio,
+                    'descuento' => $item->descuento,
+                    'descuento_monto' => $item->descuento_monto,
+                    'subtotal' => $item->subtotal,
+                ]);
+            }
+
+            // Opcional: cambiar estado del pedido
+            // $pedido->estado = EstadoPedido::ConvertidoAVenta;
+            // $pedido->save();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Venta creada exitosamente',
+                'venta_id' => $venta->id,
+                'numero_factura' => $venta->numero_factura,
+                'items_count' => $venta->items->count(),
+                'total' => $venta->total
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al convertir pedido a venta: ' . $e->getMessage(), [
+                'pedido_id' => $id,
+                'user_id' => $request->user()->id ?? null,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error interno al procesar la conversión a venta',
+                'details' => app()->environment('local') ? $e->getMessage() : null
+            ], 500);
+        }
+    }
+
+    /**
+     * Determina si el pedido puede convertirse en venta.
+     */
+    private function puedeEnviarseAVenta(Pedido $pedido): bool
+    {
+        $estadosValidos = [
+            EstadoPedido::Confirmado,
+            EstadoPedido::EnPreparacion,
+            EstadoPedido::ListoEntrega,
+            EstadoPedido::Entregado,
+            EstadoPedido::Borrador,
+        ];
+
+        return in_array($pedido->estado, $estadosValidos);
+    }
+
+    /**
+     * Genera un número de venta único.
+     */
+    private function generarNumeroVenta(): string
+    {
+        $ultimo = Venta::orderBy('id', 'desc')->first();
+        $numero = $ultimo ? $ultimo->id + 1 : 1;
+        return 'VEN-' . str_pad($numero, 6, '0', STR_PAD_LEFT);
     }
 }

@@ -14,7 +14,11 @@ enum EstadoPedido: string
     case Confirmado = 'confirmado';
     case Enviado = 'enviado';
     case Entregado = 'entregado';
-    
+    case EnPreparacion = 'en_preparacion';
+    case ListoEntrega = 'listo_entrega';
+    case Cancelado = 'cancelado';
+
+
 
     public function label(): string
     {
@@ -24,6 +28,9 @@ enum EstadoPedido: string
             self::Confirmado => 'Confirmado',
             self::Enviado => 'Enviado',
             self::Entregado => 'Entregado',
+            self::EnPreparacion => 'En Preparación',
+            self::ListoEntrega => 'Listo para Entrega',
+            self::Cancelado => 'Cancelado',
         };
     }
 
@@ -35,6 +42,9 @@ enum EstadoPedido: string
             self::Confirmado => 'blue',
             self::Enviado => 'indigo',
             self::Entregado => 'green',
+            self::EnPreparacion => 'red',
+            self::ListoEntrega => 'red',
+            self::Cancelado => 'red',
         };
     }
 }
