@@ -23,6 +23,7 @@ return new class extends Migration
             $table->string('marca_equipo');
             $table->string('modelo_equipo');
             $table->text('problema_reportado')->nullable();
+            $table->string('prioridad')->nullable(); // Puedes usar nullable() temporalmente
             $table->string('estado')->default('pendiente'); // Nuevo campo de estado
             // Campos para las evidencias
             $table->text('evidencias')->nullable(); // Campo para texto de evidencias

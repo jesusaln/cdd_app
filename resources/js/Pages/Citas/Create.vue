@@ -408,6 +408,7 @@ const tecnicosOptions = computed(() => [
 const tipoServicioOptions = [
     { value: '', text: 'Selecciona el tipo de servicio', disabled: true },
     { value: 'instalacion', text: 'Instalación' },
+    { value: 'mantenimiento', text: 'Mantenimiento' },
     { value: 'diagnostico', text: 'Diagnóstico' },
     { value: 'reparacion', text: 'Reparación' },
     { value: 'mantenimiento', text: 'Mantenimiento' },

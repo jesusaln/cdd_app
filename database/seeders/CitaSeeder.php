@@ -10,12 +10,8 @@ use Faker\Factory as Faker;
 
 class CitaSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        // Verificar que existan clientes y técnicos
         if (Cliente::count() === 0) {
             $this->command->info('No hay clientes. Ejecuta ClienteSeeder primero.');
             return;
@@ -31,11 +27,12 @@ class CitaSeeder extends Seeder
         $clientes = Cliente::all();
         $tecnicos = Tecnico::all();
 
-        $tiposServicio = ['Instalación', 'Mantenimiento', 'Reparación', 'Diagnóstico', 'Soporte remoto', 'Configuración'];
-        $tiposEquipo = ['Laptop', 'PC de escritorio', 'Impresora', 'Servidor', 'Router', 'Monitor', 'Proyector'];
-        $marcas = ['HP', 'Dell', 'Lenovo', 'Asus', 'Acer', 'Toshiba', 'Canon', 'Epson', 'Cisco', 'Apple', 'Samsung'];
+        // Valores consistentes con el frontend
+        $tiposServicio = ['instalacion', 'mantenimiento', 'diagnostico', 'reparacion', 'garantia', 'otro_servicio'];
+        $tiposEquipo = ['minisplit', 'boiler', 'refrigerador', 'lavadora', 'secadora', 'estufa', 'horno', 'campana', 'horno_de_microondas', 'lavavajillas', 'licuadora', 'ventilador', 'otro_equipo'];
+        $marcas = ['SAMSUNG', 'LG', 'WHIRLPOOL', 'MABE', 'FRIGIDAIRE', 'GE', 'BOSCH', 'ELECTROLUX', 'CARRIER', 'YORK', 'TRANE', 'RHEEM', 'CALOREX'];
         $modelos = ['XPS 13', 'ThinkPad T480', 'LaserJet Pro MFP', 'RT-AX88U', 'MacBook Air', 'Galaxy Book', 'PowerEdge T30'];
-        $estados = ['pendiente', 'confirmada', 'en_progreso', 'completada', 'cancelada'];
+        $estados = ['pendiente', 'en_proceso', 'completado', 'cancelado']; //agregar reprogramado
 
         foreach (range(1, 20) as $index) {
             $tipoEquipo = $tiposEquipo[array_rand($tiposEquipo)];
@@ -61,6 +58,7 @@ class CitaSeeder extends Seeder
                     'Sobrecalentamiento'
                 ]),
                 'estado' => $faker->randomElement($estados),
+                'prioridad' => $faker->randomElement(['baja', 'normal', 'alta', 'urgente']),
                 'evidencias' => json_encode([
                     'notas' => $faker->optional()->sentence(),
                     'repuestos' => $faker->boolean(30) ? [
@@ -77,16 +75,13 @@ class CitaSeeder extends Seeder
         $this->command->info('20 citas creadas con éxito.');
     }
 
-    /**
-     * Crea técnicos de prueba si no existen.
-     */
     private function crearTecnicosDePrueba(): void
     {
         $faker = Faker::create('es_MX');
 
         $especialidades = ['Hardware', 'Redes', 'Software', 'Soporte Técnico', 'Sistemas', 'Infraestructura'];
 
-        foreach (range(1, 3) as $i) {
+        for ($i = 1; $i <= 3; $i++) {
             Tecnico::create([
                 'nombre' => $faker->name(),
                 'email' => $faker->unique()->safeEmail(),
@@ -99,22 +94,17 @@ class CitaSeeder extends Seeder
         $this->command->info('3 técnicos de prueba creados.');
     }
 
-    /**
-     * Genera una imagen simulada y devuelve la ruta.
-     */
     private function crearImagenTemporal($faker, $prefix): string
     {
         $path = "citas/{$prefix}_" . time() . '_' . $faker->unique()->randomNumber() . '.jpg';
         $fullPath = storage_path('app/public/' . $path);
 
-        // Crear imagen simple
         $image = imagecreate(200, 150);
         $bgColor = imagecolorallocate($image, rand(100, 200), rand(100, 200), rand(100, 200));
         $textColor = imagecolorallocate($image, 255, 255, 255);
         imagestring($image, 5, 10, 60, strtoupper($prefix), $textColor);
         imagestring($image, 3, 10, 90, date('Y-m-d'), $textColor);
 
-        // Asegurarse de que el directorio exista
         if (!is_dir(dirname($fullPath))) {
             mkdir(dirname($fullPath), 0755, true);
         }
