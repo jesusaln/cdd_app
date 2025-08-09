@@ -24,7 +24,8 @@ class DatabaseSeeder extends Seeder
             ClienteSeeder::class,
             ProductoSeeder::class,
             TecnicoSeeder::class,
-            CarroSeeder::class
+            CarroSeeder::class,
+            CitaSeeder::class
         ]);
     }
     //hola

@@ -4,11 +4,14 @@ namespace Tests\Unit;
 
 use Tests\TestCase;
 use App\Models\Cliente;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+//use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions; // Cambiado aquí
+
 
 class ModelTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions; // Ahora usa transacciones
+    //use RefreshDatabase;
 
     public function test_tiene_los_campos_fillable_correctos()
     {
