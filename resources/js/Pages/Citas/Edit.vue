@@ -638,7 +638,7 @@ const handleFileChange = async (fieldName, event) => {
 
   try {
     // Mostrar indicador de procesamiento
-    notyf.info('Procesando imagen...');
+    notyf.success('Procesando imagen...');
 
     // Comprimir imagen si es necesario
     let processedFile = file;
@@ -789,9 +789,9 @@ const submit = async () => {
       preserveState: false,
       onStart: () => {
         try {
-          notyf.info('📤 Enviando datos...');
+          notyf.success('📤 Enviando datos...');
         } catch (error) {
-          console.error('Error en notyf.info:', error);
+          console.error('Error en', error);
         }
       },
       onSuccess: (page) => {
