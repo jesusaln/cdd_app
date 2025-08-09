@@ -26,10 +26,10 @@ class Cliente extends Model
         'estado',
         'pais',
         'tipo_persona',
-        'requiere_factura',
+
         'activo',
         'notas', // ✅ faltaba
-        'acepta_marketing', // ✅ faltaba
+
     ];
 
     protected $casts = [
