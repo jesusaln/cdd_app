@@ -70,10 +70,7 @@ class User extends Authenticatable
      * @param string $token
      * @return void
      */
-    public function sendPasswordResetNotification($token)
-    {
-        $this->notify(new ResetPasswordNotification($token));
-    }
+
 
     /**
      * Accessor para la propiedad 'profile_photo_url'.

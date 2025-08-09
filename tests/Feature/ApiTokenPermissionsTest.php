@@ -8,6 +8,7 @@ use Illuminate\Support\Str;
 use Laravel\Jetstream\Features;
 use Tests\TestCase;
 
+
 class ApiTokenPermissionsTest extends TestCase
 {
     use RefreshDatabase;
@@ -26,13 +27,18 @@ class ApiTokenPermissionsTest extends TestCase
             'abilities' => ['create', 'read'],
         ]);
 
-        $this->put('/user/api-tokens/'.$token->id, [
-            'name' => $token->name,
-            'permissions' => [
-                'delete',
-                'missing-permission',
-            ],
-        ]);
+        $response = $this->actingAs($user)
+
+            ->put('/user/api-tokens/' . $token->id, [
+                'name' => $token->name,
+                'permissions' => [
+                    'delete',
+                    'missing-permission',
+                ],
+            ]);
+
+        $response->assertStatus(303); // Jetstream redirige tras actualizar
+        $response->assertSessionHasNoErrors();
 
         $this->assertTrue($user->fresh()->tokens->first()->can('delete'));
         $this->assertFalse($user->fresh()->tokens->first()->can('read'));

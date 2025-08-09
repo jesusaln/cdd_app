@@ -45,6 +45,14 @@ class JetstreamServiceProvider extends ServiceProvider
     {
         Jetstream::defaultApiTokenPermissions(['read']);
 
+        // AÑADE ESTO: La lista maestra de todos los permisos posibles para un token.
+        Jetstream::permissions([
+            'create',
+            'read',
+            'update',
+            'delete',
+        ]);
+
         Jetstream::role('admin', 'Administrator', [
             'create',
             'read',
