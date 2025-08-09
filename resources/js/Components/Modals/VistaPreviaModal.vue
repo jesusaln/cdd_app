@@ -148,7 +148,7 @@ const props = defineProps({
   type: {
     type: String,
     required: true,
-    validator: (value) => ['cotizacion', 'pedido', 'venta'].includes(value)
+    validator: (value) => ['cotizacion', 'pedido', 'venta', 'compra'].includes(value)
   },
   cliente: {
     type: Object,

@@ -1,6 +1,6 @@
 <template>
   <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-    <!-- Header optimizado -->
+    <!-- Header -->
     <div class="bg-gradient-to-r from-gray-50 to-gray-100/50 px-6 py-4 border-b border-gray-200/60">
       <div class="flex items-center justify-between">
         <h2 class="text-lg font-semibold text-gray-900 tracking-tight">{{ config.titulo }}</h2>
@@ -10,7 +10,7 @@
       </div>
     </div>
 
-    <!-- Tooltip optimizado -->
+    <!-- Tooltip -->
     <Teleport to="body">
       <div
         v-if="showTooltip && hoveredDoc"
@@ -71,7 +71,7 @@
       </div>
     </Teleport>
 
-    <!-- Tabla optimizada -->
+    <!-- Table -->
     <div class="overflow-x-auto">
       <table class="min-w-full divide-y divide-gray-200/60">
         <thead class="bg-gray-50/60">
@@ -95,13 +95,13 @@
             </th>
             <th
               class="group px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100/60 transition-colors duration-150"
-              @click="onSort('cliente')"
+              @click="onSort(isCompra ? 'proveedor' : 'cliente')"
             >
               <div class="flex items-center space-x-1">
-                <span>Cliente</span>
+                <span>{{ isCompra ? 'Proveedor' : 'Cliente' }}</span>
                 <svg
-                  v-if="sortBy.startsWith('cliente')"
-                  :class="['w-4 h-4 transition-transform duration-200', sortBy === 'cliente-desc' ? 'rotate-180' : '']"
+                  v-if="sortBy.startsWith(isCompra ? 'proveedor' : 'cliente')"
+                  :class="['w-4 h-4 transition-transform duration-200', sortBy === `${isCompra ? 'proveedor' : 'cliente'}-desc` ? 'rotate-180' : '']"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -189,14 +189,14 @@
                 </div>
               </td>
 
-              <!-- Cliente -->
+              <!-- Proveedor/Cliente -->
               <td class="px-6 py-4">
                 <div class="flex flex-col space-y-0.5">
                   <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800">
-                    {{ doc.cliente?.nombre || 'Sin cliente' }}
+                    {{ isCompra ? (doc.proveedor?.nombre_razon_social || 'Sin proveedor') : (doc.cliente?.nombre || 'Sin cliente') }}
                   </div>
-                  <div v-if="doc.cliente?.email" class="text-xs text-gray-500 truncate max-w-48">
-                    {{ doc.cliente.email }}
+                  <div v-if="isCompra ? doc.proveedor?.email : doc.cliente?.email" class="text-xs text-gray-500 truncate max-w-48">
+                    {{ isCompra ? doc.proveedor?.email : doc.cliente?.email }}
                   </div>
                 </div>
               </td>
@@ -204,7 +204,7 @@
               <!-- Campo extra (ID/Número) -->
               <td v-if="config.mostrarCampoExtra" class="px-6 py-4">
                 <div class="text-sm font-mono font-medium text-gray-700 bg-gray-100/60 px-2 py-1 rounded-md inline-block">
-                  #{{ doc[config.campoExtra.key] }}
+                  #{{ doc[config.campoExtra.key] || 'N/A' }}
                 </div>
               </td>
 
@@ -215,7 +215,7 @@
                 </div>
               </td>
 
-              <!-- Productos con tooltip -->
+              <!-- Productos -->
               <td
                 class="px-6 py-4 relative"
                 @mouseenter="showProductTooltip(doc, $event)"
@@ -238,7 +238,7 @@
                 </div>
               </td>
 
-              <!-- Estado mejorado -->
+              <!-- Estado -->
               <td class="px-6 py-4">
                 <span
                   :class="obtenerClasesEstado(doc.estado)"
@@ -252,7 +252,7 @@
                 </span>
               </td>
 
-              <!-- Acciones optimizadas -->
+              <!-- Acciones -->
               <td class="px-6 py-4">
                 <div class="flex items-center justify-end space-x-1">
                   <!-- Ver -->
@@ -308,7 +308,7 @@
             </tr>
           </template>
 
-          <!-- Estado vacío mejorado -->
+          <!-- Empty State -->
           <tr v-else>
             <td :colspan="config.mostrarCampoExtra ? 7 : 6" class="px-6 py-16 text-center">
               <div class="flex flex-col items-center space-y-4">
@@ -331,9 +331,7 @@
 </template>
 
 <script setup>
-import { computed, ref, nextTick } from 'vue';
-import { estadosConfig } from '@/Config/estados';
-
+import { computed, ref } from 'vue';
 
 const props = defineProps({
   documentos: {
@@ -368,13 +366,16 @@ const emit = defineEmits([
   'sort'
 ]);
 
-// Estado del tooltip optimizado
+// Determine if tipo is 'compras'
+const isCompra = computed(() => props.tipo === 'compras');
+
+// Tooltip State
 const showTooltip = ref(false);
 const hoveredDoc = ref(null);
 const tooltipPosition = ref({ x: 0, y: 0 });
 let tooltipTimeout = null;
 
-// Posicionamiento inteligente del tooltip
+// Tooltip Positioning
 const tooltipStyle = computed(() => {
   const OFFSET = 20;
   const TOOLTIP_WIDTH = 320;
@@ -387,7 +388,7 @@ const tooltipStyle = computed(() => {
   let x = tooltipPosition.value.x + OFFSET;
   let y = tooltipPosition.value.y - (TOOLTIP_HEIGHT / 2);
 
-  // Ajuste horizontal
+  // Horizontal adjustment
   if (x + TOOLTIP_WIDTH > viewportWidth - VIEWPORT_PADDING) {
     x = tooltipPosition.value.x - TOOLTIP_WIDTH - OFFSET;
   }
@@ -395,7 +396,7 @@ const tooltipStyle = computed(() => {
     x = VIEWPORT_PADDING;
   }
 
-  // Ajuste vertical
+  // Vertical adjustment
   if (y < VIEWPORT_PADDING) {
     y = VIEWPORT_PADDING;
   } else if (y + TOOLTIP_HEIGHT > viewportHeight - VIEWPORT_PADDING) {
@@ -410,13 +411,11 @@ const tooltipStyle = computed(() => {
   };
 });
 
-// Funciones del tooltip optimizadas
+// Tooltip Functions
 const showProductTooltip = (doc, event) => {
   clearTimeout(tooltipTimeout);
-
   hoveredDoc.value = doc;
   updateTooltipPosition(event);
-
   tooltipTimeout = setTimeout(() => {
     showTooltip.value = true;
   }, 500);
@@ -424,7 +423,6 @@ const showProductTooltip = (doc, event) => {
 
 const hideProductTooltip = () => {
   clearTimeout(tooltipTimeout);
-
   tooltipTimeout = setTimeout(() => {
     showTooltip.value = false;
     hoveredDoc.value = null;
@@ -438,7 +436,7 @@ const updateTooltipPosition = (event) => {
   };
 };
 
-// Configuración optimizada
+// Configuration
 const configCache = new Map();
 
 const config = computed(() => {
@@ -483,15 +481,30 @@ const config = computed(() => {
       titulo: 'Ventas',
       mostrarCampoExtra: true,
       campoExtra: { key: 'numero_venta', label: 'N° Venta' },
-      acciones: { editar: true, duplicar: true, imprimir: true, eliminar: true }, // ✅ Habilitados todos
+      acciones: { editar: true, duplicar: true, imprimir: true, eliminar: true },
       estados: {
         'borrador': { label: 'Borrador', classes: 'bg-gray-100 text-gray-700', color: 'bg-gray-400' },
-    'pendiente': { label: 'Pendiente', classes: 'bg-yellow-100 text-yellow-700', color: 'bg-yellow-400' },
-    'aprobado': { label: 'Aprobado', classes: 'bg-blue-100 text-blue-700', color: 'bg-blue-400' }, // ✅ Agregado
-    'facturado': { label: 'Facturado', classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
-    'pagado': { label: 'Pagado', classes: 'bg-emerald-100 text-emerald-700', color: 'bg-emerald-400' },
-    'vencido': { label: 'Vencido', classes: 'bg-red-100 text-red-700', color: 'bg-red-400' },
-    'anulado': { label: 'Anulado', classes: 'bg-gray-100 text-gray-500', color: 'bg-gray-400' }
+        'pendiente': { label: 'Pendiente', classes: 'bg-yellow-100 text-yellow-700', color: 'bg-yellow-400' },
+        'aprobado': { label: 'Aprobado', classes: 'bg-blue-100 text-blue-700', color: 'bg-blue-400' },
+        'facturado': { label: 'Facturado', classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
+        'pagado': { label: 'Pagado', classes: 'bg-emerald-100 text-emerald-700', color: 'bg-emerald-400' },
+        'vencido': { label: 'Vencido', classes: 'bg-red-100 text-red-700', color: 'bg-red-400' },
+        'anulado': { label: 'Anulado', classes: 'bg-gray-100 text-gray-500', color: 'bg-gray-400' }
+      }
+    },
+    compras: {
+      titulo: 'Compras',
+      mostrarCampoExtra: true,
+      campoExtra: { key: 'numero_compra', label: 'N° Compra' },
+      acciones: { editar: true, duplicar: false, imprimir: true, eliminar: true },
+      estados: {
+        'borrador': { label: 'Borrador', classes: 'bg-gray-100 text-gray-700', color: 'bg-gray-400' },
+        'pendiente': { label: 'Pendiente', classes: 'bg-yellow-100 text-yellow-700', color: 'bg-yellow-400' },
+        'confirmado': { label: 'Confirmado', classes: 'bg-blue-100 text-blue-700', color: 'bg-blue-400' },
+        'en_preparacion': { label: 'En Preparación', classes: 'bg-orange-100 text-orange-700', color: 'bg-orange-400' },
+        'listo_entrega': { label: 'Listo para Entrega', classes: 'bg-purple-100 text-purple-700', color: 'bg-purple-400' },
+        'entregado': { label: 'Entregado', classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
+        'cancelado': { label: 'Cancelado', classes: 'bg-red-100 text-red-700', color: 'bg-red-400' }
       }
     }
   };
@@ -501,17 +514,15 @@ const config = computed(() => {
   return result;
 });
 
-// Memoización de formateo
+// Formatting Functions
 const formatCache = new Map();
 
 const formatearFecha = (date) => {
   if (!date) return 'Fecha no disponible';
-
   const cacheKey = `fecha-${date}`;
   if (formatCache.has(cacheKey)) {
     return formatCache.get(cacheKey);
   }
-
   try {
     const formatted = new Date(date).toLocaleDateString('es-MX', {
       day: '2-digit',
@@ -528,12 +539,10 @@ const formatearFecha = (date) => {
 
 const formatearHora = (date) => {
   if (!date) return '';
-
   const cacheKey = `hora-${date}`;
   if (formatCache.has(cacheKey)) {
     return formatCache.get(cacheKey);
   }
-
   try {
     const formatted = new Date(date).toLocaleTimeString('es-MX', {
       hour: '2-digit',
@@ -550,21 +559,18 @@ const formatearHora = (date) => {
 const formatearMoneda = (num) => {
   const value = parseFloat(num) || 0;
   const cacheKey = `moneda-${value}`;
-
   if (formatCache.has(cacheKey)) {
     return formatCache.get(cacheKey);
   }
-
   const formatted = new Intl.NumberFormat('es-MX', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(value);
-
   formatCache.set(cacheKey, formatted);
   return formatted;
 };
 
-// Funciones de estado optimizadas
+// Estado Functions
 const obtenerClasesEstado = (estado) => {
   return config.value.estados[estado]?.classes || 'bg-gray-100 text-gray-700';
 };
@@ -577,33 +583,41 @@ const obtenerLabelEstado = (estado) => {
   return config.value.estados[estado]?.label || 'Pendiente';
 };
 
-// Filtrado y ordenamiento optimizado
+// Filtered and Sorted Items
 const items = computed(() => {
   if (!Array.isArray(props.documentos)) {
     console.warn('⚠️ Documentos is not an array:', props.documentos);
     return [];
   }
 
-  let filtered = props.documentos.slice(); // Shallow copy
+  let filtered = props.documentos.slice();
 
-  // Filtro por búsqueda optimizado
+  // Search Filter
   if (props.searchTerm) {
     const term = props.searchTerm.toLowerCase();
     filtered = filtered.filter(doc => {
-      return (
-        (doc.cliente?.nombre || '').toLowerCase().includes(term) ||
-        doc.productos?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
-        (doc.numero_pedido || doc.numero_factura || doc.id || '').toString().toLowerCase().includes(term)
-      );
+      if (isCompra.value) {
+        return (
+          (doc.proveedor?.nombre_razon_social || '').toLowerCase().includes(term) ||
+          doc.productos?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
+          (doc.numero_compra || doc.id || '').toString().toLowerCase().includes(term)
+        );
+      } else {
+        return (
+          (doc.cliente?.nombre || '').toLowerCase().includes(term) ||
+          doc.productos?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
+          (doc.numero_pedido || doc.numero_factura || doc.id || '').toString().toLowerCase().includes(term)
+        );
+      }
     });
   }
 
-  // Filtro por estado
+  // Estado Filter
   if (props.filtroEstado) {
     filtered = filtered.filter(doc => doc.estado === props.filtroEstado);
   }
 
-  // Ordenamiento optimizado
+  // Sorting
   const [field, direction] = props.sortBy.split('-');
 
   return filtered.sort((a, b) => {
@@ -617,6 +631,10 @@ const items = computed(() => {
       case 'cliente':
         aVal = (a.cliente?.nombre || '').toLowerCase();
         bVal = (b.cliente?.nombre || '').toLowerCase();
+        break;
+      case 'proveedor':
+        aVal = (a.proveedor?.nombre_razon_social || '').toLowerCase();
+        bVal = (b.proveedor?.nombre_razon_social || '').toLowerCase();
         break;
       case 'total':
         aVal = parseFloat(a.total) || 0;
@@ -638,7 +656,7 @@ const items = computed(() => {
 
 const total = computed(() => props.documentos?.length || 0);
 
-// Event handlers optimizados
+// Event Handlers
 const onVerDetalles = (doc) => emit('ver-detalles', doc);
 const onEditar = (id) => emit('editar', id);
 const onEliminar = (id) => emit('eliminar', id);
@@ -652,7 +670,6 @@ const onSort = (field) => {
 </script>
 
 <style scoped>
-/* Scrollbar personalizado */
 .custom-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: #d1d5db #f3f4f6;
@@ -676,7 +693,6 @@ const onSort = (field) => {
   background: #9ca3af;
 }
 
-/* Truncado de texto optimizado */
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -685,9 +701,6 @@ const onSort = (field) => {
   line-height: 1.4;
 }
 
-
-
-/* Mejoras de accesibilidad */
 @media (prefers-contrast: high) {
   .bg-gray-50 {
     background-color: #f9fafb;
@@ -698,13 +711,11 @@ const onSort = (field) => {
   }
 }
 
-/* Estados de focus mejorados */
 button:focus-visible {
   outline: 2px solid;
   outline-offset: 2px;
 }
 
-/* Optimización para pantallas táctiles */
 @media (hover: none) {
   .hover\:bg-gray-50:hover {
     background-color: transparent;

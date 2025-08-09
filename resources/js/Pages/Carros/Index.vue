@@ -375,7 +375,7 @@ import { ref, computed } from 'vue';
 import { Notyf } from 'notyf';
 import 'notyf/notyf.min.css';
 import AppLayout from '@/Layouts/AppLayout.vue';
-//import ModalCarro from '@/Components/Modal/ModalCarro.vue';
+import ModalCarro from '@/Components/Modals/ModalCarro.vue';
 
 // Define el layout del dashboard
 defineOptions({ layout: AppLayout });

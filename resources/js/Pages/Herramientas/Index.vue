@@ -302,7 +302,7 @@
 import { ref, computed, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
-//import ModalHerramientas from '@/Components/Modal/ModalHerramientas.vue';
+import ModalHerramientas from '@/Components/Modals/ModalHerramientas.vue';
 
 // Define el layout del dashboard
 defineOptions({ layout: AppLayout });
