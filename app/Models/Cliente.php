@@ -34,7 +34,7 @@ class Cliente extends Model
 
     protected $casts = [
         'activo' => 'boolean',
-        'acepta_marketing' => 'boolean',
+
     ];
 
     /**
