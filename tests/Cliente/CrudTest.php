@@ -7,7 +7,7 @@ use App\Models\Cliente;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
-class ClienteTest extends TestCase
+class CrudTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -152,7 +152,7 @@ class ClienteTest extends TestCase
             'activo' => false,
             'notas' => 'Actualizado en test',
 
-            
+
         ];
 
         $response = $this->actingAs($this->user)->put("/clientes/{$cliente->id}", $data);
