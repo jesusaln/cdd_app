@@ -162,6 +162,10 @@
                         <NavLink href="/usuarios" icon="user" :collapsed="isSidebarCollapsed">
                             Usuarios
                         </NavLink>
+
+<NavLink :href="route('backup.index')" icon="database" :collapsed="isSidebarCollapsed">
+    Copia de Seguridad
+</NavLink>
                     </ul>
                 </div>
             </div>

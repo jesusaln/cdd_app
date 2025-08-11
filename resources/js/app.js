@@ -52,6 +52,7 @@ import {
   faCopy,
   faPrint,
   faTrash,
+  faDatabase,
 } from '@fortawesome/free-solid-svg-icons';
 
 // Agregar todos los iconos a la librería
@@ -97,6 +98,7 @@ library.add(
   faCopy,
   faPrint,
   faTrash,
+  faDatabase,
 );
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';

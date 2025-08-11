@@ -26,6 +26,10 @@ use App\Http\Controllers\EmpresasController;
 use App\Http\Controllers\ServicioController;
 use App\Http\Controllers\InventarioController;
 use App\Http\Controllers\OrdenCompraController;
+use App\Http\Controllers\DatabaseBackupController;
+
+
+
 
 
 /*
@@ -142,4 +146,22 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // =====================================================
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/mark-as-read', [NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
+
+
+
+    // =====================================================
+    // RUTAS BACKUP
+    // =====================================================
+
+
+    Route::middleware(['auth'])->group(function () {
+        Route::prefix('admin/backup')->name('backup.')->group(function () {
+            Route::get('/', [DatabaseBackupController::class, 'index'])->name('index');
+            Route::post('/create', [DatabaseBackupController::class, 'create'])->name('create');
+            Route::get('/download/{path}', [DatabaseBackupController::class, 'download'])->name('download');
+            Route::delete('/delete/{path}', [DatabaseBackupController::class, 'delete'])->name('delete');
+            Route::post('/restore/{path}', [DatabaseBackupController::class, 'restore'])->name('restore');
+            Route::post('/clean', [DatabaseBackupController::class, 'clean'])->name('clean');
+        });
+    });
 });
