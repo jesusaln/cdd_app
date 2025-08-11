@@ -1,4 +1,3 @@
-```vue
 <template>
   <Head title="Citas" />
   <div class="citas-index min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
@@ -41,7 +40,7 @@
       </div>
     </div>
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <!-- Controles superiores -->
       <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mb-8">
         <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
@@ -403,6 +402,104 @@
         </div>
       </div>
 
+      <!-- Nueva tabla para citas canceladas -->
+<div v-if="vistaActual === 'tabla' && citasCanceladas.length > 0" class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden mt-8">
+  <div class="px-6 py-4 bg-gradient-to-r from-red-50 to-red-100">
+    <h2 class="text-xl font-bold text-gray-900">Citas Canceladas</h2>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-gray-200">
+      <thead class="bg-gradient-to-r from-gray-50 to-gray-100">
+        <tr>
+          <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+            Folio
+          </th>
+          <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Cliente</th>
+          <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Técnico</th>
+          <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Servicio</th>
+          <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Fecha</th>
+          <th class="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Acciones</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-200">
+        <tr
+          v-for="cita in citasCanceladas"
+          :key="cita.id"
+          class="hover:bg-red-50 transition-colors duration-200"
+        >
+          <td class="px-6 py-4 whitespace-nowrap">
+            <div class="text-sm font-bold text-gray-900">#{{ cita.id }}</div>
+            <div class="text-xs text-gray-500">{{ formatearFechaHora(cita.created_at) }}</div>
+          </td>
+          <td class="px-6 py-4">
+            <div class="text-sm font-medium text-gray-900">{{ cita.cliente.nombre_razon_social }}</div>
+            <div v-if="cita.cliente.telefono" class="text-xs text-gray-500">{{ cita.cliente.telefono }}</div>
+          </td>
+          <td class="px-6 py-4">
+            <div class="flex items-center">
+              <div class="flex-shrink-0 h-8 w-8">
+                <div class="h-8 w-8 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center">
+                  <span class="text-xs font-medium text-white">
+                    {{ (cita.tecnico.nombre.charAt(0) + cita.tecnico.apellido.charAt(0)).toUpperCase() }}
+                  </span>
+                </div>
+              </div>
+              <div class="ml-3">
+                <div class="text-sm font-medium text-gray-900">
+                  {{ cita.tecnico.nombre + ' ' + cita.tecnico.apellido }}
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="px-6 py-4">
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium"
+                  :class="tipoServicioClase(cita.tipo_servicio)">
+              {{ formatearTipoServicio(cita.tipo_servicio) }}
+            </span>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <div class="text-sm text-gray-900">{{ formatearFecha(cita.fecha_hora) }}</div>
+            <div class="text-xs text-gray-500">{{ formatearHora(cita.fecha_hora) }}</div>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap text-center">
+            <div class="flex justify-center space-x-2">
+              <button
+                @click="abrirModalDetalles(cita)"
+                class="inline-flex items-center px-3 py-2 bg-gradient-to-r from-emerald-500 to-green-600 text-white text-xs font-medium rounded-lg hover:from-emerald-600 hover:to-green-700 transform hover:scale-105 transition-all duration-200 shadow-md"
+              >
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                </svg>
+                Ver
+              </button>
+              <Link
+                :href="route('citas.edit', cita.id)"
+                class="inline-flex items-center px-3 py-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white text-xs font-medium rounded-lg hover:from-amber-600 hover:to-orange-700 transform hover:scale-105 transition-all duration-200 shadow-md"
+              >
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                </svg>
+                Editar
+              </Link>
+              <button
+                @click="abrirModal(cita.id)"
+                class="inline-flex items-center px-3 py-2 bg-gradient-to-r from-red-500 to-pink-600 text-white text-xs font-medium rounded-lg hover:from-red-600 hover:to-pink-700 transform hover:scale-105 transition-all duration-200 shadow-md"
+              >
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                </svg>
+                Eliminar
+              </button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+
       <!-- Vista de tarjetas -->
       <div v-else-if="vistaActual === 'tarjetas'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <div
@@ -641,8 +738,9 @@ const tieneFactoresFiltro = computed(() => {
 const citasFiltradas = computed(() => {
   let citas = [...props.citas];
 
-  // Excluir citas completadas
-  citas = citas.filter(cita => cita.estado !== 'completado');
+ // Excluir citas completadas y canceladas
+  citas = citas.filter(cita => cita.estado !== 'completado' && cita.estado !== 'cancelado');
+
 
   // Aplicar filtros
   if (filtroCliente.value) {
@@ -898,6 +996,34 @@ const tipoServicioClase = (tipo) => {
   };
   return clases[tipo] || 'bg-gray-100 text-gray-800';
 };
+
+const citasCanceladas = computed(() => {
+  let citas = [...props.citas];
+  // Filtrar solo citas canceladas
+  citas = citas.filter(cita => cita.estado === 'cancelado');
+  // Aplicar ordenamiento
+  citas.sort((a, b) => {
+    let valorA, valorB;
+    switch (ordenPor.value) {
+      case 'id':
+        valorA = a.id;
+        valorB = b.id;
+        break;
+      case 'fecha_hora':
+        valorA = new Date(a.fecha_hora);
+        valorB = new Date(b.fecha_hora);
+        break;
+      default:
+        valorA = a[ordenPor.value];
+        valorB = b[ordenPor.value];
+    }
+    if (valorA < valorB) return ordenDireccion.value === 'asc' ? -1 : 1;
+    if (valorA > valorB) return ordenDireccion.value === 'asc' ? 1 : -1;
+    return 0;
+  });
+  return citas;
+});
+
 
 // Mostrar mensaje flash si existe
 onMounted(() => {

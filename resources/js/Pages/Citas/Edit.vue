@@ -91,6 +91,9 @@
               <p v-if="errors.cliente_id" class="text-red-500 text-sm mt-1">{{ errors.cliente_id }}</p>
             </div>
 
+
+
+
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2" for="tecnico_id">
                 Técnico Asignado *
