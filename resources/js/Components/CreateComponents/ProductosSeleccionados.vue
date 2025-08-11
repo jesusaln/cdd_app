@@ -49,13 +49,26 @@
                     {{ getItemInfo(entry).descripcion }}
                   </p>
 
-                  <div class="flex items-center text-sm text-gray-500">
-                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
-                    </svg>
-                    Precio unitario: ${{ getItemInfo(entry).precio.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
-                  </div>
+                 <div class="space-y-1">
+  <!-- Precio de venta -->
+  <div class="flex items-center text-sm text-gray-500">
+    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
+    </svg>
+    Precio unitario: ${{ getItemInfo(entry).precio.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+  </div>
+
+  <!-- Precio de compra (solo para productos) -->
+  <div v-if="entry.tipo === 'producto' && getItemInfo(entry).precio_compra > 0" class="flex items-center text-sm text-gray-400">
+    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 2.5M7 13l2.5 2.5"/>
+    </svg>
+    Precio compra: ${{ getItemInfo(entry).precio_compra.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+  </div>
+</div>
+
                 </div>
+
 
                 <!-- Botón eliminar -->
                 <button
@@ -201,6 +214,8 @@ const emit = defineEmits([
 ]);
 
 // Función para obtener información del item
+// 1. Actualizar la función getItemInfo para incluir precio_compra:
+
 const getItemInfo = (entry) => {
   const items = entry.tipo === 'producto' ? props.productos : props.servicios;
   const item = items.find(i => i.id === entry.id);
@@ -209,14 +224,16 @@ const getItemInfo = (entry) => {
     return {
       nombre: 'Item no encontrado',
       descripcion: '',
-      precio: 0
+      precio: 0,
+      precio_compra: 0
     };
   }
 
   return {
     nombre: item.nombre,
     descripcion: item.descripcion || '',
-    precio: entry.tipo === 'producto' ? (item.precio_venta || 0) : (item.precio || 0)
+    precio: entry.tipo === 'producto' ? (item.precio_venta || 0) : (item.precio || 0),
+    precio_compra: item.precio_compra || 0
   };
 };
 

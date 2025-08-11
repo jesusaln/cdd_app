@@ -148,7 +148,7 @@ const props = defineProps({
   type: {
     type: String,
     required: true,
-    validator: (value) => ['cotizacion', 'pedido', 'venta', 'compra'].includes(value)
+    validator: (value) => ['cotizacion', 'pedido', 'venta', 'compra', 'ordenescompra'].includes(value)
   },
   cliente: {
     type: Object,
@@ -180,7 +180,9 @@ const documentTypeLabel = computed(() => {
   const labels = {
     cotizacion: 'Cotización',
     pedido: 'Pedido',
-    venta: 'Venta'
+    venta: 'Venta',
+    compra: 'Compra',
+    ordenescompra: 'Órdenes de Compra'
   };
   return labels[props.type] || 'Documento';
 });

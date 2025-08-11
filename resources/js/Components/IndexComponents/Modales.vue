@@ -307,13 +307,14 @@ const props = defineProps({
   tipo: {
     type: String,
     required: true,
-    validator: (value) => ['cotizaciones', 'pedidos', 'ventas', 'compras'].includes(value)
+    validator: (value) => ['cotizaciones', 'pedidos', 'ventas', 'compras', 'ordenescompra'].includes(value)
   }
 });
 
 const emit = defineEmits([
   'close',
   'confirm-delete',
+  'confirm-receive',
   'imprimir',
   'editar',
   'enviar-pedido',
