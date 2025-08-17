@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\DatabaseBackupService;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
@@ -26,11 +27,22 @@ class DatabaseBackupController extends Controller
         try {
             $backups = $this->backupService->listBackups();
 
+            // Formatear los datos de respaldos para el frontend
+            $formattedBackups = collect($backups)->map(function ($backup) {
+                return [
+                    'name' => $backup['name'] ?? basename($backup['path']),
+                    'path' => $backup['path'],
+                    'size' => $backup['size'] ?? 0,
+                    'created_at' => $backup['created_at'] ?? filemtime($backup['path']),
+                    'compressed' => $this->isCompressed($backup['path']),
+                ];
+            })->values()->toArray();
+
             return Inertia::render('DatabaseBackup/Index', [
-                'backups' => $backups,
+                'backups' => $formattedBackups,
                 'mysqldump_available' => $this->backupService->isMysqldumpAvailable(),
-                'total_backups' => count($backups),
-                'total_size' => $this->calculateTotalSize($backups)
+                'total_backups' => count($formattedBackups),
+                'total_size' => $this->calculateTotalSize($formattedBackups)
             ]);
         } catch (Exception $e) {
             Log::error('Error loading backup index: ' . $e->getMessage());
@@ -40,7 +52,7 @@ class DatabaseBackupController extends Controller
                 'mysqldump_available' => false,
                 'total_backups' => 0,
                 'total_size' => 0
-            ])->with('error', 'Error al cargar la lista de respaldos');
+            ])->with('error', 'Error al cargar la lista de respaldos: ' . $e->getMessage());
         }
     }
 
@@ -49,7 +61,7 @@ class DatabaseBackupController extends Controller
      */
     public function create(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'name' => 'nullable|string|max:255|regex:/^[a-zA-Z0-9_\-\.]+$/',
             'compress' => 'boolean',
             'include_structure_only' => 'boolean'
@@ -60,12 +72,12 @@ class DatabaseBackupController extends Controller
 
         try {
             // Generar nombre por defecto si no se proporciona
-            $backupName = $request->name ?: $this->generateDefaultBackupName();
+            $backupName = $validated['name'] ?: $this->generateDefaultBackupName();
 
             $result = $this->backupService->createBackup([
                 'name' => $backupName,
-                'compress' => $request->boolean('compress', true),
-                'include_structure_only' => $request->boolean('include_structure_only', false)
+                'compress' => $validated['compress'] ?? true,
+                'include_structure_only' => $validated['include_structure_only'] ?? false
             ]);
 
             if ($result['success']) {
@@ -73,14 +85,15 @@ class DatabaseBackupController extends Controller
                     ->with('success', $result['message'] . ' Tamaño: ' . $this->formatFileSize($result['size'] ?? 0));
             }
 
-            return back()->with('error', $result['message']);
+            return redirect()->route('backup.index')->with('error', $result['message']);
         } catch (Exception $e) {
             Log::error('Error creating backup: ' . $e->getMessage(), [
-                'user_id' => auth()->id(),
+                'user_id' => Auth::id(),
                 'request_data' => $request->all()
             ]);
 
-            return back()->with('error', 'Error interno al crear el respaldo. Por favor, inténtelo de nuevo.');
+            return redirect()->route('backup.index')
+                ->with('error', 'Error interno al crear el respaldo. Por favor, inténtelo de nuevo.');
         }
     }
 
@@ -90,15 +103,18 @@ class DatabaseBackupController extends Controller
     public function download($filename)
     {
         try {
+            // Sanitizar el nombre del archivo
+            $filename = basename($filename);
+
             // Validar que el archivo existe y es seguro
             if (!$this->backupService->backupExists($filename)) {
-                return back()->with('error', 'El archivo de respaldo no existe.');
+                return redirect()->route('backup.index')->with('error', 'El archivo de respaldo no existe.');
             }
 
             $filePath = $this->backupService->getBackupPath($filename);
 
             if (!file_exists($filePath)) {
-                return back()->with('error', 'El archivo físico no se encuentra en el servidor.');
+                return redirect()->route('backup.index')->with('error', 'El archivo físico no se encuentra en el servidor.');
             }
 
             return response()->download($filePath, $filename, [
@@ -109,10 +125,10 @@ class DatabaseBackupController extends Controller
         } catch (Exception $e) {
             Log::error('Error downloading backup: ' . $e->getMessage(), [
                 'filename' => $filename,
-                'user_id' => auth()->id()
+                'user_id' => Auth::id()
             ]);
 
-            return back()->with('error', 'Error al descargar el archivo de respaldo.');
+            return redirect()->route('backup.index')->with('error', 'Error al descargar el archivo de respaldo.');
         }
     }
 
@@ -122,8 +138,10 @@ class DatabaseBackupController extends Controller
     public function delete($filename)
     {
         try {
+            $filename = basename($filename);
+
             if (!$this->backupService->backupExists($filename)) {
-                return back()->with('error', 'El archivo de respaldo no existe.');
+                return redirect()->route('backup.index')->with('error', 'El archivo de respaldo no existe.');
             }
 
             $result = $this->backupService->deleteBackup($filename);
@@ -133,14 +151,14 @@ class DatabaseBackupController extends Controller
                     ->with('success', 'Respaldo eliminado exitosamente.');
             }
 
-            return back()->with('error', $result['message']);
+            return redirect()->route('backup.index')->with('error', $result['message']);
         } catch (Exception $e) {
             Log::error('Error deleting backup: ' . $e->getMessage(), [
                 'filename' => $filename,
-                'user_id' => auth()->id()
+                'user_id' => Auth::id()
             ]);
 
-            return back()->with('error', 'Error al eliminar el archivo de respaldo.');
+            return redirect()->route('backup.index')->with('error', 'Error al eliminar el archivo de respaldo.');
         }
     }
 
@@ -150,8 +168,10 @@ class DatabaseBackupController extends Controller
     public function restore($filename)
     {
         try {
+            $filename = basename($filename);
+
             if (!$this->backupService->backupExists($filename)) {
-                return back()->with('error', 'El archivo de respaldo no existe.');
+                return redirect()->route('backup.index')->with('error', 'El archivo de respaldo no existe.');
             }
 
             // Crear un respaldo automático antes de la restauración
@@ -176,14 +196,15 @@ class DatabaseBackupController extends Controller
                 return redirect()->route('backup.index')->with('success', $message);
             }
 
-            return back()->with('error', $result['message']);
+            return redirect()->route('backup.index')->with('error', $result['message']);
         } catch (Exception $e) {
             Log::error('Error restoring backup: ' . $e->getMessage(), [
                 'filename' => $filename,
-                'user_id' => auth()->id()
+                'user_id' => Auth::id()
             ]);
 
-            return back()->with('error', 'Error crítico durante la restauración. Verifique el estado de la base de datos.');
+            return redirect()->route('backup.index')
+                ->with('error', 'Error crítico durante la restauración. Verifique el estado de la base de datos.');
         }
     }
 
@@ -192,7 +213,7 @@ class DatabaseBackupController extends Controller
      */
     public function clean(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'days_old' => 'required|integer|min:1|max:365'
         ], [
             'days_old.required' => 'Debe especificar la antigüedad de los archivos a eliminar.',
@@ -202,7 +223,7 @@ class DatabaseBackupController extends Controller
         ]);
 
         try {
-            $daysOld = $request->integer('days_old', 30);
+            $daysOld = $validated['days_old'];
             $result = $this->backupService->cleanOldBackups($daysOld);
 
             if ($result['success']) {
@@ -218,14 +239,14 @@ class DatabaseBackupController extends Controller
                 return redirect()->route('backup.index')->with('success', $message);
             }
 
-            return back()->with('error', $result['message']);
+            return redirect()->route('backup.index')->with('error', $result['message']);
         } catch (Exception $e) {
             Log::error('Error cleaning old backups: ' . $e->getMessage(), [
-                'days_old' => $request->input('days_old'),
-                'user_id' => auth()->id()
+                'days_old' => $validated['days_old'],
+                'user_id' => Auth::id()
             ]);
 
-            return back()->with('error', 'Error al limpiar los respaldos antiguos.');
+            return redirect()->route('backup.index')->with('error', 'Error al limpiar los respaldos antiguos.');
         }
     }
 
@@ -236,13 +257,24 @@ class DatabaseBackupController extends Controller
     {
         try {
             $backups = $this->backupService->listBackups();
+            $formattedBackups = collect($backups)->map(function ($backup) {
+                return [
+                    'name' => $backup['name'] ?? basename($backup['path']),
+                    'path' => $backup['path'],
+                    'size' => $backup['size'] ?? 0,
+                    'created_at' => $backup['created_at'] ?? filemtime($backup['path']),
+                ];
+            })->values()->toArray();
+
             $stats = [
-                'total_backups' => count($backups),
-                'total_size' => $this->calculateTotalSize($backups),
-                'oldest_backup' => $this->getOldestBackup($backups),
-                'newest_backup' => $this->getNewestBackup($backups),
+                'total_backups' => count($formattedBackups),
+                'total_size' => $this->calculateTotalSize($formattedBackups),
+                'total_size_formatted' => $this->formatFileSize($this->calculateTotalSize($formattedBackups)),
+                'oldest_backup' => $this->getOldestBackup($formattedBackups),
+                'newest_backup' => $this->getNewestBackup($formattedBackups),
                 'mysqldump_available' => $this->backupService->isMysqldumpAvailable(),
-                'disk_space_available' => $this->backupService->getAvailableDiskSpace()
+                'disk_space_available' => $this->backupService->getAvailableDiskSpace() ?? 0,
+                'disk_space_available_formatted' => $this->formatFileSize($this->backupService->getAvailableDiskSpace() ?? 0)
             ];
 
             return response()->json($stats);
@@ -261,6 +293,7 @@ class DatabaseBackupController extends Controller
     public function verify($filename)
     {
         try {
+            $filename = basename($filename);
             $result = $this->backupService->verifyBackup($filename);
             return response()->json($result);
         } catch (Exception $e) {
@@ -279,6 +312,7 @@ class DatabaseBackupController extends Controller
     public function info($filename)
     {
         try {
+            $filename = basename($filename);
             $info = $this->backupService->getBackupInfo($filename);
             return response()->json($info);
         } catch (Exception $e) {
@@ -339,5 +373,11 @@ class DatabaseBackupController extends Controller
             'tar' => 'application/x-tar',
             default => 'application/octet-stream'
         };
+    }
+
+    private function isCompressed(string $filename): bool
+    {
+        $extension = pathinfo($filename, PATHINFO_EXTENSION);
+        return in_array(strtolower($extension), ['zip', 'gz', 'tar', '7z']);
     }
 }

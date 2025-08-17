@@ -1,23 +1,56 @@
-/.phpunit.cache
-/node_modules
-/public/build
-/public/hot
+# -----------------------------
+# Entorno y configuración sensible
+# -----------------------------
+.env
+.env.*.backup
+.env.production
+/.phpactor.json
+Homestead.json
+Homestead.yaml
+/auth.json
+
+# -----------------------------
+# Dependencias
+# -----------------------------
+/vendor/
+/node_modules/
+
+# -----------------------------
+# Builds y assets generados
+# -----------------------------
+/public/build/
+/public/hot/
 /public/storage
 /storage/*.key
 /storage/pail
-/vendor
-.env
-.env.backup
-.env.production
-.phpactor.json
+
+# -----------------------------
+# Cachés de Laravel y PHP
+# -----------------------------
+/storage/framework/cache/
+/storage/framework/views/
+/storage/framework/sessions/
+/storage/logs/*.log
+.phpunit.cache
 .phpunit.result.cache
-Homestead.json
-Homestead.yaml
+
+# -----------------------------
+# Logs y errores de npm/yarn
+# -----------------------------
 npm-debug.log
 yarn-error.log
-/auth.json
-/.fleet
-/.idea
-/.nova
-/.vscode
-/.zed
+
+# -----------------------------
+# IDEs y editores
+# -----------------------------
+/.idea/
+/.vscode/
+/.zed/
+/.fleet/
+*.swp
+*~
+
+# -----------------------------
+# Mac OS
+# -----------------------------
+.DS_Store

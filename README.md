@@ -1,3 +1,19 @@
+Tips para commits más rápidos
+
+cuando haga una actualizacion corro este en el vps
+
+cd /srv/laravel-app/src
+./update-from-github.sh
+
+No subas node_modules ni vendor, deja que otros reconstruyan dependencias con:
+
+composer install
+npm install
+
+Usa git add . solo después de limpiar archivos temporales o ignorados.
+
+Para cambios frecuentes en frontend (Vite), solo sube el código fuente (resources/js, resources/css, vite.config.js) y deja que la compilación se haga en cada entorno.
+
 # cdd_app
 
 Aplicación desarrollada con Vue.js para la gestión y administración de información relacionada con CDD.
