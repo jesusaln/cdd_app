@@ -25,7 +25,7 @@ class CreatePedidoItemsTable extends Migration
             $table->integer('cantidad')->default(1);
             $table->decimal('descuento', 8, 2)->default(0); // Opcional: por si hay descuento por ítem
             $table->decimal('subtotal', 8, 2); // opcional: puedes calcularlo, pero útil guardarlo
-            $table->decimal('descuento_monto', 8, 2)->default(0)->after('descuento');
+            $table->decimal('descuento_monto', 8, 2)->default(0);
             $table->timestamps();
         });
     }

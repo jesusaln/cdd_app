@@ -19,17 +19,17 @@ class CreateCotizacionesTable extends Migration
             // Relación con el cliente
             $table->foreignId('cliente_id')->constrained('clientes')->onDelete('cascade');
 
-            // Campos de cálculo (equivalentes a los de Pedido)
-            $table->decimal('subtotal', 10, 2)->nullable()->after('cliente_id'); // Suma de ítems
-            $table->decimal('descuento_general', 10, 2)->default(0)->after('subtotal'); // Monto del descuento general
-            $table->decimal('iva', 10, 2)->nullable()->after('descuento_general'); // IVA calculado
-            $table->decimal('total', 10, 2)->default(0)->after('iva'); // Total final
+            // Campos de cálculo
+            $table->decimal('subtotal', 10, 2)->nullable();       // Suma de ítems
+            $table->decimal('descuento_general', 10, 2)->default(0); // Monto del descuento general
+            $table->decimal('iva', 10, 2)->nullable();           // IVA calculado
+            $table->decimal('total', 10, 2)->default(0);         // Total final
 
             // Estado (compatible con enum EstadoCotizacion)
-            $table->string('estado')->default('pendiente')->after('total');
+            $table->string('estado')->default('pendiente');
 
             // Notas adicionales
-            $table->text('notas')->nullable()->after('estado');
+            $table->text('notas')->nullable();
 
             // Timestamps
             $table->timestamps();
