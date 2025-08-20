@@ -25,7 +25,10 @@ class DatabaseSeeder extends Seeder
             ProductoSeeder::class,
             TecnicoSeeder::class,
             CarroSeeder::class,
-            CitaSeeder::class
+            CitaSeeder::class,
+            CotizacionSeeder::class,
+            CotizacionItemSeeder::class,
+            
         ]);
     }
     //hola

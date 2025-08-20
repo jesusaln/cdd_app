@@ -4,10 +4,16 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Enums\EstadoCotizacion;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Cotizacion extends Model
 {
+
+
+
     protected $table = 'cotizaciones';
+
+    use HasFactory;
 
     protected $fillable = [
         'cliente_id',
