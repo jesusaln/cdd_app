@@ -307,7 +307,7 @@ const props = defineProps({
   tipo: {
     type: String,
     required: true,
-    validator: (value) => ['cotizaciones', 'pedidos', 'ventas', 'compras', 'ordenescompra'].includes(value)
+    validator: (value) => ['cotizaciones', 'pedidos', 'ventas', 'compras', 'ordenescompra', 'rentas', 'equipos'].includes(value)
   }
 });
 
@@ -318,7 +318,10 @@ const emit = defineEmits([
   'imprimir',
   'editar',
   'enviar-pedido',
-  'enviar-a-venta' // Nuevo evento
+  'enviar-a-venta',
+   'renovar',
+  'suspender',
+  'reactivar'
 ]);
 
 // Estados de confirmación

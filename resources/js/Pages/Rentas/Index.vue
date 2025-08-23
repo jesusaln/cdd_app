@@ -1,7 +1,6 @@
-<!-- /resources/js/Pages/Rentas/Index.vue -->
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { router, Link } from '@inertiajs/vue3';
 import { Head } from '@inertiajs/vue3';
 import { Notyf } from 'notyf';
 import 'notyf/notyf.min.css';
@@ -11,17 +10,19 @@ import UniversalHeader from '@/Components/IndexComponents/UniversalHeader.vue';
 import DocumentosTable from '@/Components/IndexComponents/DocumentosTable.vue';
 import Modales from '@/Components/IndexComponents/Modales.vue';
 import { estadosConfig } from '@/Config/estados';
+import axios from 'axios'; // Asegúrate de importar axios si lo estás usando
 
 defineOptions({ layout: AppLayout });
 
+// === PROPS ===
 const props = defineProps({
   rentas: {
-    type: Array,
-    default: () => []
+    type: Object, // Es un objeto paginado: { data: [], links: [], meta: {} }
+    required: true
   }
 });
 
-// Estado reactivo
+// === REACTIVIDAD ===
 const searchTerm = ref('');
 const sortBy = ref('fecha-desc');
 const filtroEstado = ref('');
@@ -30,7 +31,7 @@ const modalMode = ref('details');
 const selectedId = ref(null);
 const selectedRenta = ref(null);
 
-// Configuración del header universal
+// Configuración del header
 const headerConfig = {
   module: 'rentas',
   createButtonText: 'Nueva Renta',
@@ -47,310 +48,174 @@ const notyf = new Notyf({
   ]
 });
 
-// Datos originales - asegúrate de que sean reactivos
-const rentasOriginales = ref([...props.rentas]);
-
-// Watch para actualizar cuando cambien las props
-watch(() => props.rentas, (newVal) => {
-  console.log('Rentas recibidas:', newVal);
-  rentasOriginales.value = [...newVal];
-}, { deep: true, immediate: true });
-
-// Estadísticas calculadas
-const estadisticas = computed(() => {
-  const stats = {
-    total: rentasOriginales.value.length,
-    activas: 0,
-    vencidas: 0
-  };
-
-  rentasOriginales.value.forEach(r => {
-    if (r.estado === 'activo') stats.activas++;
-    else if (r.estado === 'vencido' || r.estado === 'moroso') stats.vencidas++;
-  });
-
-  return stats;
+// === DATOS FILTRADOS Y ORDENADOS (Computados) ===
+const documentosFiltrados = computed(() => {
+  let list = props.rentas.data || [];
+  // Filtro por búsqueda
+  if (searchTerm.value) {
+    const term = searchTerm.value.toLowerCase();
+    list = list.filter(r => {
+      return (
+        r.numero_contrato?.toLowerCase().includes(term) ||
+        r.cliente?.nombre?.toLowerCase().includes(term) ||
+        r.cliente?.email?.toLowerCase().includes(term) ||
+        r.equipos?.some(eq => eq.nombre?.toLowerCase().includes(term))
+      );
+    });
+  }
+  // Filtro por estado
+  if (filtroEstado.value) {
+    list = list.filter(r => r.estado === filtroEstado.value);
+  }
+  // Ordenamiento
+  list = [...list]; // Copia para no mutar
+  switch (sortBy.value) {
+    case 'fecha-asc':
+      list.sort((a, b) => new Date(a.fecha_inicio) - new Date(b.fecha_inicio));
+      break;
+    case 'fecha-desc':
+      list.sort((a, b) => new Date(b.fecha_inicio) - new Date(a.fecha_inicio));
+      break;
+    case 'cliente-asc':
+      list.sort((a, b) => (a.cliente?.nombre || '').localeCompare(b.cliente?.nombre || ''));
+      break;
+    case 'cliente-desc':
+      list.sort((a, b) => (b.cliente?.nombre || '').localeCompare(a.cliente?.nombre || ''));
+      break;
+    default:
+      break;
+  }
+  return list;
 });
 
-// Método para limpiar filtros
+// === ESTADÍSTICAS ===
+const estadisticas = computed(() => {
+  const total = props.rentas.data?.length || 0;
+  const activas = props.rentas.data?.filter(r => r.estado === 'activo').length || 0;
+  const vencidas = props.rentas.data?.filter(r =>
+    ['vencido', 'moroso', 'proximo_vencimiento'].includes(r.estado)
+  ).length || 0;
+  return { total, activas, vencidas };
+});
+
+// === MÉTODOS ===
 const handleLimpiarFiltros = () => {
   searchTerm.value = '';
   sortBy.value = 'fecha-desc';
   filtroEstado.value = '';
-  notyf.success('Filtros limpiados correctamente');
+  notyf.success('Filtros limpiados');
 };
 
-// Watch para debug de filtros
-watch([searchTerm, sortBy, filtroEstado], ([newSearch, newSort, newEstado]) => {
-  console.log('Filtros cambiaron:', {
-    search: newSearch,
-    sort: newSort,
-    estado: newEstado
-  });
-}, { deep: true });
-
-// Actualizar ordenamiento
 const updateSort = (newSort) => {
-  if (newSort && typeof newSort === 'string') {
+  if (['fecha-asc', 'fecha-desc', 'cliente-asc', 'cliente-desc'].includes(newSort)) {
     sortBy.value = newSort;
-    console.log('Ordenamiento actualizado:', newSort);
   }
 };
 
-// === FUNCIONES AUXILIARES ===
-
-// Función auxiliar para validar si una renta puede ser renovada
-function puedeRenovar(renta) {
-  // Permitir renovación si está activa o próxima a vencer
-  const estadosValidos = ['activo', 'proximo_vencimiento', 'vencido'];
-  return estadosValidos.includes(renta.estado);
-}
-
-// === MÉTODOS DE ACCIONES ===
-
+// Acciones
 const verDetalles = (renta) => {
-  console.log('Ver detalles de:', renta);
-  if (!renta) {
-    notyf.error('Renta no válida');
-    return;
-  }
+  if (!renta) return notyf.error('Renta no válida');
   selectedRenta.value = renta;
   modalMode.value = 'details';
   showModal.value = true;
 };
 
 const editarRenta = (id) => {
-  console.log('Editar renta ID:', id);
-  if (!id) {
-    notyf.error('ID de renta no válido');
-    return;
-  }
+  if (!id) return notyf.error('ID inválido');
   router.visit(`/rentas/${id}/edit`);
 };
 
 const duplicarRenta = (renta) => {
-  if (confirm(`¿Duplicar renta #${renta.id} del cliente ${renta.cliente?.nombre || 'N/A'}?`)) {
+  if (confirm(`¿Duplicar renta #${renta.numero_contrato}?`)) {
     router.post(`/rentas/${renta.id}/duplicate`, {}, {
-      onSuccess: (page) => {
-        notyf.success('Renta duplicada');
-        // Actualiza tu lista si es necesario
-      },
-      onError: (errors) => {
-        notyf.error('Error al duplicar');
-      }
+      onSuccess: () => notyf.success('Renta duplicada'),
+      onError: () => notyf.error('Error al duplicar')
     });
   }
 };
 
 const imprimirRenta = async (renta) => {
-  console.log('Imprimir renta:', renta);
-
-  // ✅ Aseguramos que tenga fecha
   const rentaConFecha = {
     ...renta,
-    fecha: renta.fecha || renta.fecha_inicio || renta.created_at || new Date().toISOString()
+    fecha: renta.fecha_inicio || renta.created_at || new Date().toISOString()
   };
-
-  // Validaciones
-  if (!rentaConFecha.id) {
-    notyf.error('Error: ID del documento no encontrado');
-    return;
+  const validaciones = [
+    [rentaConFecha.id, 'ID del documento no encontrado'],
+    [rentaConFecha.cliente?.nombre, 'Datos del cliente no encontrados'],
+    [Array.isArray(rentaConFecha.equipos) && rentaConFecha.equipos.length > 0, 'Lista de equipos no válida'],
+    [rentaConFecha.fecha, 'Fecha no especificada']
+  ];
+  for (const [cond, msg] of validaciones) {
+    if (!cond) return notyf.error(`Error: ${msg}`);
   }
-  if (!rentaConFecha.cliente || !rentaConFecha.cliente.nombre) {
-    notyf.error('Error: Datos del cliente no encontrados');
-    return;
-  }
-  if (!rentaConFecha.equipos || !Array.isArray(rentaConFecha.equipos) || rentaConFecha.equipos.length === 0) {
-    notyf.error('Error: Lista de equipos no válida');
-    return;
-  }
-  if (!rentaConFecha.fecha) {
-    notyf.error('Error: Fecha no especificada');
-    return;
-  }
-
   try {
     notyf.success('Generando PDF...');
     await generarPDF('Contrato de Renta', rentaConFecha);
-    notyf.success('PDF generado correctamente');
+    notyf.success('PDF generado');
   } catch (error) {
-    console.error('Error al generar PDF:', error);
-    notyf.error(`Error al generar el PDF: ${error.message}`);
+    notyf.error(`Error al generar PDF: ${error.message}`);
   }
 };
 
 const confirmarEliminacion = (id) => {
-  console.log('Confirmar eliminación ID:', id);
-  if (!id) {
-    notyf.error('ID de renta no válido');
-    return;
-  }
+  if (!id) return notyf.error('ID no válido');
   selectedId.value = id;
   modalMode.value = 'confirm';
   showModal.value = true;
 };
 
-const eliminarRenta = async () => {
-  if (!selectedId.value) {
-    notyf.error('No se seleccionó ninguna renta para eliminar');
-    return;
-  }
-
-  try {
-    router.delete(`/rentas/${selectedId.value}`, {
-      onSuccess: (page) => {
-        notyf.success('Renta eliminada exitosamente');
-        // Actualizar la lista local
-        rentasOriginales.value = rentasOriginales.value.filter(
-          r => r.id !== selectedId.value
-        );
-        // Cerrar modal
-        showModal.value = false;
-        selectedId.value = null;
-      },
-      onError: (errors) => {
-        console.error('Error al eliminar:', errors);
-        notyf.error('Error al eliminar la renta');
-      }
-    });
-  } catch (error) {
-    console.error('Error inesperado:', error);
-    notyf.error('Error inesperado al eliminar');
-  }
-};
-
-// Función para renovar renta
-const renovarRenta = async (rentaData) => {
-  // Validación previa
-  if (!puedeRenovar(rentaData)) {
-    const mensaje = `No se puede renovar la renta en estado: ${rentaData.estado}`;
-    notyf.error(mensaje);
-    return { success: false, error: mensaje };
-  }
-
-  try {
-    // Mostrar notificación de proceso iniciado
-    notyf.success('Procesando renovación de renta...');
-
-    const response = await axios.post(`/rentas/${rentaData.id}/renovar`, {
-      meses_renovacion: rentaData.meses_renovacion || 12
-    });
-
-    // Si la respuesta es exitosa
-    if (response.data && response.data.success) {
-      notyf.success(response.data.message || 'Renta renovada exitosamente');
-
-      // Actualizar el estado local de la renta
-      const index = rentasOriginales.value.findIndex(r => r.id === rentaData.id);
-      if (index !== -1) {
-        rentasOriginales.value[index] = {
-          ...rentasOriginales.value[index],
-          ...response.data.renta // Datos actualizados desde el servidor
-        };
-      }
-
-      // Cerrar modal si está abierto
+const eliminarRenta = () => {
+  if (!selectedId.value) return notyf.error('No se seleccionó ninguna renta');
+  router.delete(`/rentas/${selectedId.value}`, {
+    onSuccess: () => {
+      notyf.success('Renta eliminada');
       showModal.value = false;
+      selectedId.value = null;
+    },
+    onError: () => notyf.error('Error al eliminar')
+  });
+};
 
-      return response.data;
+const renovarRenta = async (renta) => {
+  if (!['activo', 'proximo_vencimiento', 'vencido'].includes(renta.estado)) {
+    return notyf.error(`No se puede renovar en estado: ${renta.estado}`);
+  }
+  try {
+    const response = await axios.post(`/rentas/${renta.id}/renovar`, { meses_renovacion: 12 });
+    if (response.data.success) {
+      notyf.success(response.data.message || 'Renta renovada');
+      showModal.value = false;
     }
-
   } catch (error) {
-    console.error('Error al renovar renta:', error);
-
-    let errorMessage = 'Error desconocido al renovar renta';
-
-    // Manejar diferentes tipos de errores
-    if (error.response) {
-      // Error del servidor (400, 500, etc.)
-      if (error.response.data?.error) {
-        errorMessage = error.response.data.error;
-      } else if (error.response.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.response.status === 400) {
-        errorMessage = 'La renta no está en estado válido para renovación';
-      } else if (error.response.status === 404) {
-        errorMessage = 'Renta no encontrada';
-      } else if (error.response.status === 422) {
-        errorMessage = 'Datos de renta no válidos';
-      } else if (error.response.status >= 500) {
-        errorMessage = 'Error del servidor. Intenta nuevamente.';
-      }
-    } else if (error.request) {
-      // Error de red
-      errorMessage = 'Error de conexión. Verifica tu conexión a internet.';
-    } else if (error.message) {
-      // Error de configuración u otro
-      errorMessage = error.message;
-    }
-
-    // Mostrar error al usuario
-    notyf.error(errorMessage);
-
-    // Re-lanzar el error para que el componente que llama pueda manejarlo si es necesario
-    throw new Error(errorMessage);
+    const msg = error.response?.data?.message || 'Error al renovar';
+    notyf.error(msg);
   }
 };
 
-// Función para suspender renta
 const suspenderRenta = async (renta) => {
-  if (!confirm(`¿Confirmas suspender la renta #${renta.id} del cliente ${renta.cliente?.nombre || 'N/A'}?`)) {
-    return;
-  }
-
+  if (!confirm(`¿Suspender renta #${renta.numero_contrato}?`)) return;
   try {
-    notyf.success('Suspendiendo renta...');
-
     const response = await axios.post(`/rentas/${renta.id}/suspender`);
-
-    if (response.data && response.data.success) {
-      notyf.success(response.data.message || 'Renta suspendida exitosamente');
-
-      // Actualizar el estado local
-      const index = rentasOriginales.value.findIndex(r => r.id === renta.id);
-      if (index !== -1) {
-        rentasOriginales.value[index] = {
-          ...rentasOriginales.value[index],
-          estado: 'suspendido'
-        };
-      }
+    if (response.data.success) {
+      notyf.success('Renta suspendida');
     }
   } catch (error) {
-    console.error('Error al suspender renta:', error);
-    notyf.error('Error al suspender la renta');
+    notyf.error('Error al suspender');
   }
 };
 
-// Función para reactivar renta
 const reactivarRenta = async (renta) => {
-  if (!confirm(`¿Confirmas reactivar la renta #${renta.id} del cliente ${renta.cliente?.nombre || 'N/A'}?`)) {
-    return;
-  }
-
+  if (!confirm(`¿Reactivar renta #${renta.numero_contrato}?`)) return;
   try {
-    notyf.success('Reactivando renta...');
-
     const response = await axios.post(`/rentas/${renta.id}/reactivar`);
-
-    if (response.data && response.data.success) {
-      notyf.success(response.data.message || 'Renta reactivada exitosamente');
-
-      // Actualizar el estado local
-      const index = rentasOriginales.value.findIndex(r => r.id === renta.id);
-      if (index !== -1) {
-        rentasOriginales.value[index] = {
-          ...rentasOriginales.value[index],
-          estado: 'activo'
-        };
-      }
+    if (response.data.success) {
+      notyf.success('Renta reactivada');
     }
   } catch (error) {
-    console.error('Error al reactivar renta:', error);
-    notyf.error('Error al reactivar la renta');
+    notyf.error('Error al reactivar');
   }
 };
 
-// Método para crear nueva renta
 const crearNuevaRenta = () => {
   router.visit('/rentas/create');
 };
@@ -358,24 +223,18 @@ const crearNuevaRenta = () => {
 
 <template>
   <Head title="Rentas" />
-
-  <div class="rentas-index min-h-screen bg-gray-50">
+  <div class="rentas-index bg-gray-50 min-h-screen">
     <!-- Header principal -->
     <div class="bg-white shadow-sm border-b border-gray-200 px-6 py-8">
       <div class="max-w-7xl mx-auto">
         <div class="flex items-center justify-between">
           <div>
-            <h1 class="text-3xl font-bold text-gray-900 mb-2">
-              Gestión de Rentas
-            </h1>
-            <p class="text-gray-600">
-              Administra y gestiona todas las rentas de puntos de venta de manera eficiente
-            </p>
+            <h1 class="text-3xl font-bold text-gray-900">Gestión de Rentas</h1>
+            <p class="text-gray-600">Administra todas las rentas de puntos de venta.</p>
           </div>
         </div>
       </div>
     </div>
-
     <!-- Contenido principal -->
     <div class="max-w-8xl mx-auto px-6 py-8">
       <!-- Header de filtros y estadísticas -->
@@ -389,69 +248,73 @@ const crearNuevaRenta = () => {
         :config="headerConfig"
         @limpiar-filtros="handleLimpiarFiltros"
       />
-
-      <!-- Tabla de documentos -->
-      <div class="mt-6">
-        <DocumentosTable
-          :documentos="rentasOriginales"
-          tipo="rentas"
-          :search-term="searchTerm"
-          :sort-by="sortBy"
-          :filtro-estado="filtroEstado"
-          @ver-detalles="verDetalles"
-          @editar="editarRenta"
-          @duplicar="duplicarRenta"
-          @imprimir="imprimirRenta"
-          @eliminar="confirmarEliminacion"
-          @sort="updateSort"
-          @renovar="renovarRenta"
-          @suspender="suspenderRenta"
-          @reactivar="reactivarRenta"
-        />
+      <!-- Tabla -->
+      <DocumentosTable
+        :documentos="documentosFiltrados"
+        tipo="rentas"
+        :search-term="searchTerm"
+        :sort-by="sortBy"
+        :filtro-estado="filtroEstado"
+        @ver-detalles="verDetalles"
+        @editar="editarRenta"
+        @duplicar="duplicarRenta"
+        @imprimir="imprimirRenta"
+        @eliminar="confirmarEliminacion"
+        @sort="updateSort"
+        @renovar="renovarRenta"
+        @suspender="suspenderRenta"
+        @reactivar="reactivarRenta"
+      />
+      <div v-if="rentas.links && rentas.links.length > 2" class="mt-6 flex justify-center">
+        <div class="inline-flex rounded-md shadow-sm">
+          <template v-for="link in rentas.links">
+            <Link
+              v-if="link.url"
+              :key="link.label"
+              :href="link.url"
+              v-html="link.label"
+              :class="[
+                'px-3 py-2 text-sm border',
+                link.active ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50',
+                'first:rounded-l-md last:rounded-r-md'
+              ]"
+              preserve-scroll
+            />
+            <span
+              v-else
+              :key="link.label"
+              v-html="link.label"
+              class="px-3 py-2 text-sm border text-gray-400 cursor-not-allowed"
+            ></span>
+          </template>
+        </div>
       </div>
+      <!-- Modales -->
+      <Modales
+        :show="showModal"
+        :mode="modalMode"
+        :selected="selectedRenta"
+        tipo="rentas"
+        @close="showModal = false"
+        @confirm-delete="eliminarRenta"
+        @imprimir="imprimirRenta"
+        @editar="editarRenta"
+        @renovar="renovarRenta"
+        @suspender="suspenderRenta"
+        @reactivar="reactivarRenta"
+      />
     </div>
-
-    <!-- Modales -->
-    <Modales
-      :show="showModal"
-      :mode="modalMode"
-      :selected="selectedRenta"
-      tipo="rentas"
-      @close="showModal = false"
-      @confirm-delete="eliminarRenta"
-      @imprimir="imprimirRenta"
-      @editar="editarRenta"
-      @renovar="renovarRenta"
-      @suspender="suspenderRenta"
-      @reactivar="reactivarRenta"
-    />
   </div>
 </template>
 
 <style scoped>
 .rentas-index {
-  min-height: 100vh;
   background-color: #f9fafb;
 }
-
-/* Responsive */
-@media (max-width: 640px) {
-  .rentas-index .max-w-7xl {
-    padding-left: 1rem;
-    padding-right: 1rem;
-  }
-
-  .rentas-index h1 {
-    font-size: 1.5rem;
-  }
-}
-
-/* Animaciones suaves */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
-
 .rentas-index > * {
   animation: fadeIn 0.3s ease-out;
 }

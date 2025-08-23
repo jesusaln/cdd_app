@@ -27,6 +27,8 @@ use App\Http\Controllers\ServicioController;
 use App\Http\Controllers\InventarioController;
 use App\Http\Controllers\OrdenCompraController;
 use App\Http\Controllers\DatabaseBackupController;
+use App\Http\Controllers\EquipoController;
+use App\Http\Controllers\RentasController;
 
 
 
@@ -95,6 +97,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::resource('citas', CitaController::class)->names('citas');
     Route::resource('carros', CarroController::class)->names('carros');
     Route::resource('mantenimientos', MantenimientoController::class)->names('mantenimientos');
+    Route::resource('equipos', EquipoController::class);
+    Route::resource('rentas', RentasController::class);
 
     // =====================================================
     // RUTAS ESPECÍFICAS DE CLIENTES

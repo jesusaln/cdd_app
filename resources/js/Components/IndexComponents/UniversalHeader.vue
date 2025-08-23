@@ -1,4 +1,3 @@
-<!-- /resources/js/Components/IndexComponents/UniversalHeader.vue -->
 <script setup>
 import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
@@ -188,6 +187,62 @@ const defaultConfigs = {
       { value: 'cliente-asc', label: 'Cliente A-Z' },
       { value: 'cliente-desc', label: 'Cliente Z-A' }
     ]
+  },
+
+  rentas: {
+    module: 'rentas',
+    title: 'Rentas',
+    createRoute: '/rentas/create',
+    createButtonText: 'Nueva Renta',
+    searchPlaceholder: 'Buscar por cliente, equipo, número...',
+    estadisticas: {
+      total: { label: 'Total', icon: 'document' },
+      aprobadas: { label: 'Activas', icon: 'check-circle', color: 'green' },
+      pendientes: { label: 'Vencidas', icon: 'clock', color: 'red' }
+    },
+    estados: [
+      { value: '', label: 'Todos los Estados' },
+      { value: 'activo', label: 'Activas' },
+      { value: 'proximo_vencimiento', label: 'Próximo a Vencer' },
+      { value: 'vencido', label: 'Vencidas' },
+      { value: 'moroso', label: 'Morosas' },
+      { value: 'suspendido', label: 'Suspendidas' },
+      { value: 'cancelado', label: 'Canceladas' }
+    ],
+    sortOptions: [
+      { value: 'fecha-desc', label: 'Fecha ↓' },
+      { value: 'fecha-asc', label: 'Fecha ↑' },
+      { value: 'cliente-asc', label: 'Cliente A-Z' },
+      { value: 'cliente-desc', label: 'Cliente Z-A' }
+    ]
+  },
+
+  equipos: {
+    module: 'equipos',
+    title: 'Equipos',
+    createRoute: '/equipos/create',
+    createButtonText: 'Nuevo Equipo',
+    searchPlaceholder: 'Buscar equipos...',
+    estadisticas: {
+      total: { label: 'Total', icon: 'document' },
+      aprobadas: { label: 'Aprobadas', icon: 'check-circle', color: 'green' },
+      pendientes: { label: 'Pendientes', icon: 'clock', color: 'orange' }
+    },
+    estados: [
+      { value: '', label: 'Todos los Estados' },
+      { value: 'disponible', label: 'Disponible' },
+      { value: 'rentado', label: 'Rentado' },
+      { value: 'mantenimiento', label: 'En Mantenimiento' },
+      { value: 'reparacion', label: 'En Reparación' },
+      { value: 'fuera_servicio', label: 'Fuera de Servicio' },
+      { value: 'cancelado', label: 'Cancelado' }
+    ],
+    sortOptions: [
+      { value: 'fecha-desc', label: 'Fecha ↓' },
+      { value: 'fecha-asc', label: 'Fecha ↑' },
+      { value: 'cliente-asc', label: 'Cliente A-Z' },
+      { value: 'cliente-desc', label: 'Cliente Z-A' }
+    ]
   }
 };
 
@@ -236,6 +291,7 @@ const colorClasses = {
   blue: 'text-blue-600',
   yellow: 'text-amber-600',
   orange: 'text-orange-600',
+  red: 'text-red-600',
   default: 'text-slate-500'
 };
 
@@ -303,6 +359,7 @@ const formatNumber = (num) => {
           <div class="flex items-center gap-2 px-3 py-2 rounded-lg border flex-shrink-0"
                :class="finalConfig.estadisticas.pendientes.color === 'yellow' ? 'bg-amber-50 border-amber-200' :
                        finalConfig.estadisticas.pendientes.color === 'blue' ? 'bg-blue-50 border-blue-200' :
+                       finalConfig.estadisticas.pendientes.color === 'red' ? 'bg-red-50 border-red-200' :
                        'bg-orange-50 border-orange-200'"
           >
             <svg

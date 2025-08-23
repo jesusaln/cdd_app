@@ -294,6 +294,36 @@
                     <font-awesome-icon icon="print" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
                   </button>
 
+                  <!-- Renovar -->
+<button
+  v-if="config.acciones.renovar && doc.estado !== 'suspendido' && ['activo', 'proximo_vencimiento', 'vencido'].includes(doc.estado)"
+  @click="emit('renovar', doc)"
+  class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:ring-offset-1"
+  title="Renovar contrato"
+>
+  <font-awesome-icon icon="sync-alt" class="w-4 h-4 transition-transform duration-200 group-hover/btn:rotate-180" />
+</button>
+
+<!-- Suspender -->
+<button
+  v-if="config.acciones.suspender && doc.estado === 'activo'"
+  @click="emit('suspender', doc)"
+  class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-orange-50 text-orange-600 hover:bg-orange-100 hover:text-orange-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:ring-offset-1"
+  title="Suspender contrato"
+>
+  <font-awesome-icon icon="pause" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
+</button>
+
+<!-- Reactivar -->
+<button
+  v-if="config.acciones.reactivar && doc.estado === 'suspendido'"
+  @click="emit('reactivar', doc)"
+  class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:ring-offset-1"
+  title="Reactivar contrato"
+>
+  <font-awesome-icon icon="play" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
+</button>
+
                   <!-- Eliminar -->
                   <button
                     v-if="config.acciones.eliminar"
@@ -341,7 +371,7 @@ const props = defineProps({
   tipo: {
     type: String,
     required: true,
-    validator: (value) => ['cotizaciones', 'pedidos', 'ventas', 'compras', 'ordenescompra'].includes(value)
+    validator: (value) => ['cotizaciones', 'pedidos', 'ventas', 'compras', 'ordenescompra', 'rentas', 'equipos'].includes(value)
   },
   searchTerm: {
     type: String,
@@ -363,7 +393,10 @@ const emit = defineEmits([
   'eliminar',
   'duplicar',
   'imprimir',
-  'sort'
+  'sort',
+  'renovar',
+  'suspender',
+  'reactivar'
 ]);
 
 // Determine if tipo is 'compras'
@@ -506,7 +539,50 @@ const config = computed(() => {
         'entregado': { label: 'Entregado', classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
         'cancelado': { label: 'Cancelado', classes: 'bg-red-100 text-red-700', color: 'bg-red-400' }
       }
-    }
+    },
+
+    equipos: {
+        titulo: 'Equipos',
+        mostrarCampoExtra: true,
+        campoExtra: { key: 'serial', label: 'Serial' },
+        acciones: { editar: true, duplicar: false, imprimir: true, eliminar: true },
+        estados: {
+            'borrador': { label: 'Borrador', classes: 'bg-gray-100 text-gray-700', color: 'bg-gray-400' },
+            'pendiente': { label: 'Pendiente', classes: 'bg-yellow-100 text-yellow-700', color: 'bg-yellow-400' },
+            'confirmado': { label: 'Confirmado', classes: 'bg-blue-100 text-blue-700', color: 'bg-blue-400' },
+            'en_preparacion': { label: 'En Preparación', classes: 'bg-orange-100 text-orange-700', color: 'bg-orange-400' },
+            'listo_entrega': { label: 'Listo para Entrega', classes: 'bg-purple-100 text-purple-700', color: 'bg-purple-400' },
+            'entregado': { label: 'Entregado', classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
+            'cancelado': { label: 'Cancelado', classes: 'bg-red-100 text-red-700', color: 'bg-red-400' }
+        }
+    },
+
+
+  rentas: {
+  titulo: 'Rentas',
+  mostrarCampoExtra: true,
+  campoExtra: { key: 'numero_contrato', label: 'N° Contrato' },
+  acciones: {
+    editar: true,
+    duplicar: true,
+    imprimir: true,
+    eliminar: true,
+    renovar: true,
+    suspender: true,
+    reactivar: true
+  },
+  estados: {
+    'borrador': { label: 'Borrador', classes: 'bg-gray-100 text-gray-700', color: 'bg-gray-400' },
+    'activo': { label: 'Activo', classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
+    'proximo_vencimiento': { label: 'Próximo Vencimiento', classes: 'bg-orange-100 text-orange-700', color: 'bg-orange-400' },
+    'vencido': { label: 'Vencido', classes: 'bg-red-100 text-red-700', color: 'bg-red-400' },
+    'moroso': { label: 'Moroso', classes: 'bg-red-200 text-red-800', color: 'bg-red-500' },
+    'suspendido': { label: 'Suspendido', classes: 'bg-yellow-100 text-yellow-700', color: 'bg-yellow-400' },
+    'finalizado': { label: 'Finalizado', classes: 'bg-gray-100 text-gray-600', color: 'bg-gray-400' },
+    'anulado': { label: 'Anulado', classes: 'bg-gray-100 text-gray-500', color: 'bg-gray-400' },
+    'sin_estado': { label: 'Sin Estado', classes: 'bg-gray-100 text-gray-500', color: 'bg-gray-400' }
+  },
+}
   };
 
   const result = configs[props.tipo] || configs.cotizaciones;
