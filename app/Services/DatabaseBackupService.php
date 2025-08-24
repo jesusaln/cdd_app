@@ -3,10 +3,10 @@
 namespace App\Services;
 
 use App\Models\BackupLog;
-use Illuminate\Support\Facades\Storage;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Carbon\Carbon;
+use Illuminate\Support\Facades\Storage;
 use ZipArchive;
 
 /**
@@ -15,18 +15,19 @@ use ZipArchive;
 class DatabaseBackupService
 {
     protected string $backupDisk = 'local';
+
     protected string $backupPath = 'backups/database/';
 
     /**
      * Crear un nuevo respaldo de la base de datos.
      *
-     * @param array $options Opciones: 'name', 'compress'
+     * @param  array  $options  Opciones: 'name', 'compress'
      * @return array ['success' => bool, 'message' => string, 'path' => string, 'size' => int]
      */
     public function createBackup(array $options = []): array
     {
         $filename = $this->generateFilename($options['name'] ?? null);
-        $fullPath = $this->backupPath . $filename;
+        $fullPath = $this->backupPath.$filename;
 
         $logData = [
             'filename' => basename($fullPath),
@@ -38,11 +39,11 @@ class DatabaseBackupService
             'metadata' => [
                 'compress' => $options['compress'] ?? false,
                 'driver' => config('database.default'),
-            ]
+            ],
         ];
 
         try {
-            if (!$this->hasEnoughDiskSpace(500 * 1024 * 1024)) {
+            if (! $this->hasEnoughDiskSpace(500 * 1024 * 1024)) {
                 throw new \Exception('Espacio en disco insuficiente');
             }
 
@@ -55,7 +56,7 @@ class DatabaseBackupService
                 $logData['method'] = 'laravel';
             }
 
-            if (!$result['success']) {
+            if (! $result['success']) {
                 throw new \Exception($result['message']);
             }
 
@@ -72,7 +73,7 @@ class DatabaseBackupService
                     $logData['size'] = $result['size'];
                     $logData['message'] .= ' (comprimido)';
                 } else {
-                    throw new \Exception('Compresión fallida: ' . $compressResult['message']);
+                    throw new \Exception('Compresión fallida: '.$compressResult['message']);
                 }
             }
 
@@ -85,12 +86,12 @@ class DatabaseBackupService
 
             Log::error('DatabaseBackupService - createBackup failed', [
                 'exception' => $e,
-                'options' => $options
+                'options' => $options,
             ]);
 
             return [
                 'success' => false,
-                'message' => 'Error al crear respaldo: ' . $e->getMessage()
+                'message' => 'Error al crear respaldo: '.$e->getMessage(),
             ];
         }
     }
@@ -98,16 +99,17 @@ class DatabaseBackupService
     /**
      * Crear respaldo usando mysqldump (solo MySQL).
      *
-     * @param string $path Ruta relativa
-     * @return array
+     * @param  string  $path  Ruta relativa
      */
     protected function createBackupWithMysqldump(string $path): array
     {
-        $config = config('database.connections.' . config('database.default'));
-        $storagePath = storage_path('app/' . $path);
+        $config = config('database.connections.'.config('database.default'));
+        $storagePath = storage_path('app/'.$path);
 
         $directory = dirname($storagePath);
-        if (!file_exists($directory)) mkdir($directory, 0755, true);
+        if (! file_exists($directory)) {
+            mkdir($directory, 0755, true);
+        }
 
         $command = sprintf(
             'mysqldump --host=%s --port=%s --user=%s --password=%s --single-transaction --routines --triggers --no-tablespaces %s > %s 2>&1',
@@ -126,7 +128,7 @@ class DatabaseBackupService
                 'success' => true,
                 'message' => 'Respaldo creado con mysqldump',
                 'path' => $path,
-                'size' => filesize($storagePath)
+                'size' => filesize($storagePath),
             ];
         }
 
@@ -138,14 +140,15 @@ class DatabaseBackupService
     /**
      * Crear respaldo usando Laravel (portable entre drivers).
      *
-     * @param string $path Ruta relativa
-     * @return array
+     * @param  string  $path  Ruta relativa
      */
     protected function createBackupWithLaravel(string $path): array
     {
-        $fullPath = storage_path('app/' . $path);
+        $fullPath = storage_path('app/'.$path);
         $directory = dirname($fullPath);
-        if (!file_exists($directory)) mkdir($directory, 0755, true);
+        if (! file_exists($directory)) {
+            mkdir($directory, 0755, true);
+        }
 
         $tables = $this->getAllTables();
         $sql = $this->generateSqlHeader();
@@ -162,7 +165,7 @@ class DatabaseBackupService
                 'success' => true,
                 'message' => 'Respaldo creado con Laravel',
                 'path' => $path,
-                'size' => Storage::disk($this->backupDisk)->size($path)
+                'size' => Storage::disk($this->backupDisk)->size($path),
             ];
         }
 
@@ -177,8 +180,6 @@ class DatabaseBackupService
 
     /**
      * Obtener todas las tablas según el driver.
-     *
-     * @return array
      */
     protected function getAllTables(): array
     {
@@ -187,9 +188,9 @@ class DatabaseBackupService
 
         switch ($driver) {
             case 'mysql':
-                return DB::select("SELECT table_name FROM information_schema.tables WHERE table_schema = ?", [$connection['database']]);
+                return DB::select('SELECT table_name FROM information_schema.tables WHERE table_schema = ?', [$connection['database']]);
             case 'pgsql':
-                return DB::select("SELECT tablename AS table_name FROM pg_tables WHERE schemaname = ?", [$connection['schema'] ?? 'public']);
+                return DB::select('SELECT tablename AS table_name FROM pg_tables WHERE schemaname = ?', [$connection['schema'] ?? 'public']);
             case 'sqlite':
                 return DB::select("SELECT name AS table_name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'");
             default:
@@ -200,8 +201,7 @@ class DatabaseBackupService
     /**
      * Generar estructura SQL de una tabla.
      *
-     * @param object $table
-     * @return string
+     * @param  object  $table
      */
     protected function getTableStructure($table): string
     {
@@ -210,46 +210,52 @@ class DatabaseBackupService
 
         if ($driver === 'sqlite') {
             $row = DB::select("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?", [$tableName])[0];
-            return "\n-- Estructura de tabla `{$tableName}`\n" . $row->sql . ";\n\n";
+
+            return "\n-- Estructura de tabla `{$tableName}`\n".$row->sql.";\n\n";
         }
 
         $row = DB::select("SHOW CREATE TABLE `{$tableName}`")[0];
-        return "\n-- Estructura de tabla `{$tableName}`\n" . $row->{'Create Table'} . ";\n\n";
+
+        return "\n-- Estructura de tabla `{$tableName}`\n".$row->{'Create Table'}.";\n\n";
     }
 
     /**
      * Generar datos SQL de una tabla.
      *
-     * @param object $table
-     * @return string
+     * @param  object  $table
      */
     protected function getTableData($table): string
     {
         $tableName = $table->table_name ?? $table->TABLE_NAME;
         $rows = DB::table($tableName)->get()->toArray();
 
-        if (empty($rows)) return '';
+        if (empty($rows)) {
+            return '';
+        }
 
-        $columns = '`' . implode('`, `', array_keys((array)$rows[0])) . '`';
+        $columns = '`'.implode('`, `', array_keys((array) $rows[0])).'`';
         $sql = "-- Datos de tabla `{$tableName}`\nINSERT INTO `{$tableName}` ({$columns}) VALUES\n";
 
         $values = [];
         foreach ($rows as $row) {
             $vals = array_map(function ($value) {
-                if ($value === null) return 'NULL';
-                if (is_numeric($value)) return $value;
-                return "'" . addslashes((string)$value) . "'";
-            }, (array)$row);
-            $values[] = '(' . implode(', ', $vals) . ')';
+                if ($value === null) {
+                    return 'NULL';
+                }
+                if (is_numeric($value)) {
+                    return $value;
+                }
+
+                return "'".addslashes((string) $value)."'";
+            }, (array) $row);
+            $values[] = '('.implode(', ', $vals).')';
         }
 
-        return $sql . implode(",\n", $values) . ";\n\n";
+        return $sql.implode(",\n", $values).";\n\n";
     }
 
     /**
      * Encabezado SQL según driver.
-     *
-     * @return string
      */
     protected function generateSqlHeader(): string
     {
@@ -258,20 +264,18 @@ class DatabaseBackupService
 
         switch ($driver) {
             case 'mysql':
-                return "-- MySQL Backup\n-- DB: {$dbName}\n-- Fecha: " . now() . "\n\nSET FOREIGN_KEY_CHECKS=0;\nSTART TRANSACTION;\n";
+                return "-- MySQL Backup\n-- DB: {$dbName}\n-- Fecha: ".now()."\n\nSET FOREIGN_KEY_CHECKS=0;\nSTART TRANSACTION;\n";
             case 'pgsql':
-                return "-- PostgreSQL Backup\n-- DB: {$dbName}\n-- Fecha: " . now() . "\n\nBEGIN;\n";
+                return "-- PostgreSQL Backup\n-- DB: {$dbName}\n-- Fecha: ".now()."\n\nBEGIN;\n";
             case 'sqlite':
-                return "-- SQLite Backup\n-- DB: " . basename($dbName) . "\n-- Fecha: " . now() . "\n\nPRAGMA foreign_keys=OFF;\nBEGIN TRANSACTION;\n";
+                return "-- SQLite Backup\n-- DB: ".basename($dbName)."\n-- Fecha: ".now()."\n\nPRAGMA foreign_keys=OFF;\nBEGIN TRANSACTION;\n";
             default:
-                return "-- Backup\n-- Fecha: " . now() . "\n";
+                return "-- Backup\n-- Fecha: ".now()."\n";
         }
     }
 
     /**
      * Pie de archivo SQL.
-     *
-     * @return string
      */
     protected function getSqlFooter(): string
     {
@@ -291,19 +295,18 @@ class DatabaseBackupService
     /**
      * Comprimir un archivo SQL en ZIP.
      *
-     * @param string $filePath Ruta relativa
-     * @return array
+     * @param  string  $filePath  Ruta relativa
      */
     public function compressBackup(string $filePath): array
     {
-        $storagePath = storage_path('app/' . $filePath);
+        $storagePath = storage_path('app/'.$filePath);
         $zipPath = str_replace('.sql', '.zip', $storagePath);
 
-        if (!file_exists($storagePath)) {
+        if (! file_exists($storagePath)) {
             return ['success' => false, 'message' => "Archivo no encontrado: {$storagePath}"];
         }
 
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
         $result = $zip->open($zipPath, ZipArchive::CREATE);
 
         if ($result !== true) {
@@ -315,18 +318,20 @@ class DatabaseBackupService
                 ZipArchive::ER_NOENT => 'No encontrado',
                 ZipArchive::ER_OPEN => 'No se pudo abrir',
             ];
+
             return ['success' => false, 'message' => $errors[$result] ?? "Error ZIP: {$result}"];
         }
 
-        if (!$zip->addFile($storagePath, basename($storagePath))) {
+        if (! $zip->addFile($storagePath, basename($storagePath))) {
             $zip->close();
             @unlink($zipPath);
+
             return ['success' => false, 'message' => 'No se pudo agregar al ZIP'];
         }
 
         $zip->close();
 
-        if (!file_exists($zipPath)) {
+        if (! file_exists($zipPath)) {
             return ['success' => false, 'message' => 'ZIP no creado'];
         }
 
@@ -337,14 +342,12 @@ class DatabaseBackupService
             'success' => true,
             'message' => 'Comprimido OK',
             'path' => $relativePath,
-            'size' => filesize($zipPath)
+            'size' => filesize($zipPath),
         ];
     }
 
     /**
      * Listar todos los respaldos disponibles.
-     *
-     * @return array
      */
     public function listBackups(): array
     {
@@ -352,8 +355,12 @@ class DatabaseBackupService
         $backups = [];
 
         foreach ($files as $file) {
-            if (!preg_match('/\.(sql|zip)$/', $file)) continue;
-            if (!Storage::disk($this->backupDisk)->exists($file)) continue;
+            if (! preg_match('/\.(sql|zip)$/', $file)) {
+                continue;
+            }
+            if (! Storage::disk($this->backupDisk)->exists($file)) {
+                continue;
+            }
 
             try {
                 $size = Storage::disk($this->backupDisk)->size($file);
@@ -365,51 +372,51 @@ class DatabaseBackupService
                     'size' => $size,
                     'size_human' => $this->formatBytes($size),
                     'created_at' => Carbon::createFromTimestamp($mtime)->format('Y-m-d H:i:s'),
-                    'type' => pathinfo($file, PATHINFO_EXTENSION)
+                    'type' => pathinfo($file, PATHINFO_EXTENSION),
                 ];
             } catch (\Exception $e) {
                 Log::error("Error leyendo respaldo: {$file}", ['exception' => $e]);
             }
         }
 
-        usort($backups, fn($a, $b) => strtotime($b['created_at']) - strtotime($a['created_at']));
+        usort($backups, fn ($a, $b) => strtotime($b['created_at']) - strtotime($a['created_at']));
+
         return $backups;
     }
 
     /**
      * Verificar si un respaldo existe.
      *
-     * @param string $filename Nombre del archivo
-     * @return bool
+     * @param  string  $filename  Nombre del archivo
      */
     public function backupExists(string $filename): bool
     {
-        $path = $this->backupPath . $filename;
+        $path = $this->backupPath.$filename;
+
         return Storage::disk($this->backupDisk)->exists($path);
     }
 
     /**
      * Obtener la ruta física del archivo de respaldo.
      *
-     * @param string $filename Nombre del archivo
+     * @param  string  $filename  Nombre del archivo
      * @return string Ruta completa
      */
     public function getBackupPath(string $filename): string
     {
-        return storage_path('app/' . $this->backupPath . $filename);
+        return storage_path('app/'.$this->backupPath.$filename);
     }
 
     /**
      * Eliminar un archivo de respaldo.
      *
-     * @param string $filename Nombre del archivo
-     * @return array
+     * @param  string  $filename  Nombre del archivo
      */
     public function deleteBackup(string $filename): array
     {
-        $path = $this->backupPath . $filename;
+        $path = $this->backupPath.$filename;
 
-        if (!Storage::disk($this->backupDisk)->exists($path)) {
+        if (! Storage::disk($this->backupDisk)->exists($path)) {
             return ['success' => false, 'message' => 'El archivo no existe.'];
         }
 
@@ -418,7 +425,7 @@ class DatabaseBackupService
             return [
                 'success' => true,
                 'message' => 'Respaldo eliminado.',
-                'freed_space' => $size
+                'freed_space' => $size,
             ];
         }
 
@@ -428,35 +435,38 @@ class DatabaseBackupService
     /**
      * Restaurar la base de datos desde un respaldo.
      *
-     * @param string $filename Nombre del archivo
-     * @return array
+     * @param  string  $filename  Nombre del archivo
      */
     public function restoreBackup(string $filename): array
     {
         DB::beginTransaction();
         try {
-            $path = $this->backupPath . $filename;
-            if (!Storage::disk($this->backupDisk)->exists($path)) {
+            $path = $this->backupPath.$filename;
+            if (! Storage::disk($this->backupDisk)->exists($path)) {
                 throw new \Exception('Archivo no existe');
             }
 
-            $storagePath = storage_path('app/' . $path);
+            $storagePath = storage_path('app/'.$path);
             $sqlContent = '';
 
             if (pathinfo($filename, PATHINFO_EXTENSION) === 'zip') {
-                $zip = new ZipArchive();
+                $zip = new ZipArchive;
                 if ($zip->open($storagePath) === true) {
                     $tempDir = storage_path('app/temp_restore/');
-                    if (!is_dir($tempDir)) mkdir($tempDir, 0755, true);
+                    if (! is_dir($tempDir)) {
+                        mkdir($tempDir, 0755, true);
+                    }
 
                     $zip->extractTo($tempDir);
                     $zip->close();
 
-                    $sqlFiles = glob($tempDir . '*.sql');
-                    if (empty($sqlFiles)) throw new \Exception('No hay SQL en el ZIP');
+                    $sqlFiles = glob($tempDir.'*.sql');
+                    if (empty($sqlFiles)) {
+                        throw new \Exception('No hay SQL en el ZIP');
+                    }
                     $sqlContent = file_get_contents($sqlFiles[0]);
 
-                    array_map('unlink', glob($tempDir . '*'));
+                    array_map('unlink', glob($tempDir.'*'));
                     rmdir($tempDir);
                 } else {
                     throw new \Exception('No se pudo abrir ZIP');
@@ -467,18 +477,19 @@ class DatabaseBackupService
 
             DB::unprepared($sqlContent);
             DB::commit();
+
             return ['success' => true, 'message' => 'Base de datos restaurada.'];
         } catch (\Exception $e) {
             DB::rollBack();
-            return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
+
+            return ['success' => false, 'message' => 'Error: '.$e->getMessage()];
         }
     }
 
     /**
      * Limpiar respaldos más antiguos que X días.
      *
-     * @param int $daysOld Días de antigüedad
-     * @return array
+     * @param  int  $daysOld  Días de antigüedad
      */
     public function cleanOldBackups(int $daysOld): array
     {
@@ -510,17 +521,16 @@ class DatabaseBackupService
     /**
      * Verificar integridad de un respaldo.
      *
-     * @param string $filename Nombre del archivo
-     * @return array
+     * @param  string  $filename  Nombre del archivo
      */
     public function verifyBackup(string $filename): array
     {
-        $path = $this->backupPath . $filename;
+        $path = $this->backupPath.$filename;
 
-        if (!$this->backupExists($filename)) {
+        if (! $this->backupExists($filename)) {
             return [
                 'success' => false,
-                'message' => 'El archivo de respaldo no existe.'
+                'message' => 'El archivo de respaldo no existe.',
             ];
         }
 
@@ -530,7 +540,7 @@ class DatabaseBackupService
         if ($size === 0) {
             return [
                 'success' => false,
-                'message' => 'El archivo está vacío.'
+                'message' => 'El archivo está vacío.',
             ];
         }
 
@@ -545,14 +555,13 @@ class DatabaseBackupService
     /**
      * Obtener información detallada de un respaldo.
      *
-     * @param string $filename Nombre del archivo
-     * @return array
+     * @param  string  $filename  Nombre del archivo
      */
     public function getBackupInfo(string $filename): array
     {
-        $path = $this->backupPath . $filename;
+        $path = $this->backupPath.$filename;
 
-        if (!$this->backupExists($filename)) {
+        if (! $this->backupExists($filename)) {
             throw new \Exception('Archivo no encontrado.');
         }
 
@@ -580,14 +589,14 @@ class DatabaseBackupService
     public function getAvailableDiskSpace(): ?int
     {
         $free = @disk_free_space(storage_path('app'));
+
         return $free ?: null;
     }
 
     /**
      * Generar nombre de archivo para el respaldo.
      *
-     * @param string|null $customName Nombre personalizado
-     * @return string
+     * @param  string|null  $customName  Nombre personalizado
      */
     protected function generateFilename(?string $customName): string
     {
@@ -595,55 +604,61 @@ class DatabaseBackupService
         if ($customName) {
             $safeName = preg_replace('/[^a-zA-Z0-9_-]/', '', $customName);
             if (preg_match('/\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}/', $customName)) {
-                return $safeName . '.sql';
+                return $safeName.'.sql';
             }
-            return $safeName . '_' . $timestamp . '.sql';
+
+            return $safeName.'_'.$timestamp.'.sql';
         }
+
         return "backup_{$timestamp}.sql";
     }
 
     /**
      * Verificar si mysqldump está disponible.
-     *
-     * @return bool
      */
     public function isMysqldumpAvailable(): bool
     {
         exec('mysqldump --version 2>&1', $output, $returnCode);
+
         return $returnCode === 0;
     }
 
     /**
      * Verificar si hay espacio en disco.
      *
-     * @param int $minBytes Espacio mínimo requerido
-     * @return bool
+     * @param  int  $minBytes  Espacio mínimo requerido
      */
     protected function hasEnoughDiskSpace(int $minBytes): bool
     {
         $free = @disk_free_space(storage_path('app'));
+
         return $free && $free > $minBytes;
     }
 
     /**
      * Formatear tamaño en bytes a unidad legible.
      *
-     * @param int $size Tamaño en bytes
-     * @param int $precision Decimales
-     * @return string
+     * @param  int  $size  Tamaño en bytes
+     * @param  int  $precision  Decimales
      */
     protected function formatBytes(int $size, int $precision = 2): string
     {
         $units = ['B', 'KB', 'MB', 'GB'];
-        $base = $size > 0 ? log($size, 1024) : 0;
-        $unitIndex = min(floor($base), count($units) - 1);
-        return round(pow(1024, $base - $unitIndex), $precision) . ' ' . $units[$unitIndex];
+
+        // Handle zero bytes explicitly to avoid log(0) errors
+        if ($size <= 0) {
+            return '0 B';
+        }
+
+        $base = log($size, 1024);
+        $unitIndex = (int) min(floor($base), count($units) - 1);
+        $value = $size / pow(1024, $unitIndex);
+
+        return round($value, $precision).' '.$units[$unitIndex];
     }
 
     /**
      * Obtener estado general del sistema de respaldos.
-     *
-     * @return array
      */
     public function getStatus(): array
     {
