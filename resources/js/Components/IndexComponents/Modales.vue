@@ -3,14 +3,21 @@
   <Transition name="modal">
     <div
       v-if="show"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      @click.self="onClose"
     >
       <div
         :class="{
           'max-w-md': mode === 'confirm',
           'max-w-4xl': mode === 'details'
         }"
-        class="bg-white rounded-lg shadow-xl w-full max-h-[90vh] overflow-y-auto p-6"
+        class="bg-white rounded-lg shadow-xl w-full max-h-[90vh] overflow-y-auto p-6 outline-none"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="`Modal de ${config.titulo}`"
+        tabindex="-1"
+        ref="modalRef"
+        @keydown.esc.prevent="onClose"
       >
         <!-- Modo: Confirmación de eliminación -->
         <div v-if="mode === 'confirm'" class="text-center">
@@ -48,7 +55,7 @@
 
         <!-- Modo: Detalles -->
         <div v-else-if="mode === 'details'" class="space-y-4">
-          <h3 class="text-lg font-medium mb-4">
+          <h3 class="text-lg font-medium mb-4 flex items-center gap-2">
             Detalles de {{ config.titulo }}
             <span v-if="selected?.id" class="text-sm text-gray-500">#{{ selected.id }}</span>
           </h3>
@@ -56,13 +63,17 @@
           <div v-if="selected" class="space-y-4">
             <!-- Información general -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
+              <!-- Columna izquierda -->
+              <div v-if="isEquipos">
                 <p class="text-sm text-gray-600">
-                  <strong>Cliente:</strong>
-                  {{ selected.cliente?.nombre || 'Sin cliente' }}
+                  <strong>Equipo:</strong> {{ selected.nombre || 'Sin nombre' }}
                 </p>
-                <p v-if="selected.cliente?.email" class="text-sm text-gray-600">
-                  <strong>Email:</strong> {{ selected.cliente.email }}
+                <p class="text-sm text-gray-600" v-if="selected.marca || selected.modelo">
+                  <strong>Marca/Modelo:</strong>
+                  {{ [selected.marca, selected.modelo].filter(Boolean).join(' · ') }}
+                </p>
+                <p class="text-sm text-gray-600" v-if="selected.codigo_interno">
+                  <strong>Código interno:</strong> {{ selected.codigo_interno }}
                 </p>
                 <p class="text-sm text-gray-600">
                   <strong>Fecha:</strong>
@@ -82,23 +93,83 @@
                   </span>
                 </p>
               </div>
-              <div>
-                <p v-if="config.mostrarCampoExtra" class="text-sm text-gray-600">
-                  <strong>{{ config.campoExtra.label }}:</strong>
-                  {{ selected[config.campoExtra.key] || 'N/A' }}
+
+              <div v-else-if="isRentas">
+                <p class="text-sm text-gray-600">
+                  <strong>Cliente:</strong> {{ selected.cliente?.nombre || 'Sin cliente' }}
+                </p>
+                <p class="text-sm text-gray-600" v-if="selected.cliente?.email">
+                  <strong>Email:</strong> {{ selected.cliente.email }}
                 </p>
                 <p class="text-sm text-gray-600">
+                  <strong>Fecha inicio:</strong> {{ formatearFecha(selected.fecha_inicio || selected.created_at) }}
+                </p>
+                <p class="text-sm text-gray-600" v-if="selected.fecha_fin">
+                  <strong>Fecha fin:</strong> {{ formatearFecha(selected.fecha_fin) }}
+                </p>
+                <p class="text-sm text-gray-600">
+                  <strong>Estado:</strong>
+                  <span
+                    :class="obtenerClasesEstado(selected.estado)"
+                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                  >
+                    <span class="w-1.5 h-1.5 rounded-full mr-1.5" :class="obtenerColorPuntoEstado(selected.estado)"></span>
+                    {{ obtenerLabelEstado(selected.estado) }}
+                  </span>
+                </p>
+              </div>
+
+              <div v-else>
+                <p class="text-sm text-gray-600">
+                  <strong>Cliente:</strong> {{ selected.cliente?.nombre || 'Sin cliente' }}
+                </p>
+                <p v-if="selected.cliente?.email" class="text-sm text-gray-600">
+                  <strong>Email:</strong> {{ selected.cliente.email }}
+                </p>
+                <p class="text-sm text-gray-600">
+                  <strong>Fecha:</strong>
+                  {{ formatearFecha(selected.created_at || selected.fecha) }}
+                </p>
+                <p class="text-sm text-gray-600">
+                  <strong>Estado:</strong>
+                  <span
+                    :class="obtenerClasesEstado(selected.estado)"
+                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                  >
+                    <span class="w-1.5 h-1.5 rounded-full mr-1.5" :class="obtenerColorPuntoEstado(selected.estado)"></span>
+                    {{ obtenerLabelEstado(selected.estado) }}
+                  </span>
+                </p>
+              </div>
+
+              <!-- Columna derecha -->
+              <div>
+                <p v-if="config.mostrarCampoExtra && config.campoExtra?.key" class="text-sm text-gray-600">
+                  <strong>{{ config.campoExtra.label }}:</strong>
+                  {{ selected[config.campoExtra.key] ?? 'N/A' }}
+                </p>
+
+                <p v-if="isNumber(selected.total)" class="text-sm text-gray-600">
                   <strong>Total:</strong> ${{ formatearMoneda(selected.total) }}
                 </p>
-                <p class="text-sm text-gray-600">
-                  <strong>Productos:</strong>
-                  {{ selected.productos?.length || 0 }} items
-                </p>
+
+                <template v-if="!isEquipos">
+                  <p class="text-sm text-gray-600">
+                    <strong>Productos:</strong>
+                    {{ selected.productos?.length || 0 }} items
+                  </p>
+                </template>
+
+                <template v-else>
+                  <p class="text-sm text-gray-600" v-if="selected.numero_serie">
+                    <strong>Número de serie:</strong> {{ selected.numero_serie }}
+                  </p>
+                </template>
               </div>
             </div>
 
-            <!-- Tabla de productos -->
-            <div v-if="selected.productos?.length" class="mt-4">
+            <!-- Tabla de productos (no aplica a equipos) -->
+            <div v-if="!isEquipos && selected.productos?.length" class="mt-4">
               <h4 class="text-sm font-medium text-gray-900 mb-2">Productos</h4>
               <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
@@ -125,7 +196,7 @@
                     </tr>
                   </thead>
                   <tbody class="bg-white divide-y divide-gray-200">
-                    <tr v-for="producto in selected.productos" :key="producto.id">
+                    <tr v-for="producto in selected.productos" :key="producto.id || producto.nombre">
                       <td class="px-4 py-2 text-sm text-gray-900">
                         {{ producto.nombre || 'Sin nombre' }}
                       </td>
@@ -142,46 +213,100 @@
                         ${{ formatearMoneda(producto.descuento || 0) }}
                       </td>
                       <td class="px-4 py-2 text-sm text-gray-600">
-                        ${{ formatearMoneda((producto.cantidad * producto.precio) - (producto.descuento || 0)) }}
+                        ${{ formatearMoneda((producto.cantidad || 0) * (producto.precio || 0) - (producto.descuento || 0)) }}
                       </td>
                     </tr>
                   </tbody>
                 </table>
               </div>
             </div>
-            <p v-else class="text-sm text-gray-600">No hay productos asociados.</p>
+            <p v-else-if="!isEquipos" class="text-sm text-gray-600">No hay productos asociados.</p>
           </div>
           <div v-else class="text-sm text-gray-600">No hay datos disponibles.</div>
 
           <!-- Botones de acción -->
-          <div class="flex justify-end gap-3 mt-6">
-            <!-- Enviar a Pedido (solo en cotizaciones) -->
-            <button
-              v-if="config.acciones.enviarPedido"
-              @click="confirmarEnvioPedido"
-              class="px-4 py-2 text-white rounded-lg transition-colors"
-              :class="{
-                'bg-green-600 hover:bg-green-700': !yaEnviado,
-                'bg-blue-600 hover:bg-blue-700': yaEnviado
-              }"
-            >
-              {{ yaEnviado ? 'Reenviar a Pedido' : 'Enviar a Pedido' }}
-            </button>
+          <div class="flex flex-wrap justify-end gap-2 mt-6">
+            <!-- Cotizaciones -->
+            <template v-if="isCotizaciones">
+              <button
+                v-if="config.acciones.enviarPedido"
+                @click="confirmarEnvioPedido"
+                class="px-4 py-2 text-white rounded-lg transition-colors"
+                :class="{
+                  'bg-green-600 hover:bg-green-700': !yaEnviado,
+                  'bg-blue-600 hover:bg-blue-700': yaEnviado
+                }"
+              >
+                {{ yaEnviado ? 'Reenviar a Pedido' : 'Enviar a Pedido' }}
+              </button>
+            </template>
 
-            <!-- Enviar a Venta (solo en pedidos) -->
-            <button
-              v-if="config.acciones.enviarAVenta"
-              @click="confirmarEnvioAVenta"
-              class="px-4 py-2 text-white rounded-lg transition-colors"
-              :class="{
-                'bg-emerald-600 hover:bg-emerald-700': !yaConvertidoAVenta,
-                'bg-blue-600 hover:bg-blue-700': yaConvertidoAVenta
-              }"
-            >
-              {{ yaConvertidoAVenta ? 'Reenviar a Venta' : 'Enviar a Venta' }}
-            </button>
+            <!-- Pedidos -->
+            <template v-if="isPedidos">
+              <button
+                v-if="config.acciones.enviarAVenta"
+                @click="confirmarEnvioAVenta"
+                class="px-4 py-2 text-white rounded-lg transition-colors"
+                :class="{
+                  'bg-emerald-600 hover:bg-emerald-700': !yaConvertidoAVenta,
+                  'bg-blue-600 hover:bg-blue-700': yaConvertidoAVenta
+                }"
+              >
+                {{ yaConvertidoAVenta ? 'Reenviar a Venta' : 'Enviar a Venta' }}
+              </button>
+            </template>
 
-            <!-- Imprimir -->
+            <!-- Rentas -->
+            <template v-if="isRentas">
+              <button
+                class="px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white"
+                @click="emit('renovar', selected)"
+                v-if="['activo','proximo_vencimiento','vencido'].includes(selected?.estado)"
+                title="Renovar"
+              >
+                Renovar
+              </button>
+              <button
+                class="px-3 py-2 rounded-lg bg-orange-600 hover:bg-orange-700 text-white"
+                @click="emit('suspender', selected)"
+                v-if="selected?.estado === 'activo'"
+                title="Suspender"
+              >
+                Suspender
+              </button>
+              <button
+                class="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white"
+                @click="emit('reactivar', selected)"
+                v-if="selected?.estado === 'suspendido'"
+                title="Reactivar"
+              >
+                Reactivar
+              </button>
+            </template>
+
+            <!-- Equipos -->
+            <template v-if="isEquipos">
+              <div class="flex gap-2 flex-wrap">
+                <button class="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white"
+                        @click="emit('marcar-disponible', selected)">
+                  Marcar disponible
+                </button>
+                <button class="px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white"
+                        @click="emit('marcar-reparacion', selected)">
+                  En reparación
+                </button>
+                <button class="px-3 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white"
+                        @click="emit('marcar-fuera-servicio', selected)">
+                  Fuera de servicio
+                </button>
+                <button class="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
+                        @click="emit('programar-mantenimiento', selected)">
+                  Programar mantenimiento
+                </button>
+              </div>
+            </template>
+
+            <!-- Comunes -->
             <button
               v-if="config.acciones.imprimir"
               @click="onImprimir"
@@ -189,8 +314,6 @@
             >
               Imprimir
             </button>
-
-            <!-- Editar -->
             <button
               v-if="config.acciones.editar"
               @click="onEditar"
@@ -198,8 +321,6 @@
             >
               Editar
             </button>
-
-            <!-- Cerrar -->
             <button
               @click="onClose"
               class="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400 transition-colors"
@@ -216,7 +337,8 @@
   <Transition name="modal">
     <div
       v-if="showConfirmReenvioPedido"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      @click.self="showConfirmReenvioPedido = false"
     >
       <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
         <div class="text-center">
@@ -253,7 +375,8 @@
   <Transition name="modal">
     <div
       v-if="showConfirmReenvioVenta"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      @click.self="showConfirmReenvioVenta = false"
     >
       <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
         <div class="text-center">
@@ -288,28 +411,18 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 
 const props = defineProps({
-  show: {
-    type: Boolean,
-    default: false
-  },
-  mode: {
-    type: String,
-    default: 'details',
-    validator: (value) => ['confirm', 'details'].includes(value)
-  },
-  selected: {
-    type: Object,
-    default: null
-  },
+  show: { type: Boolean, default: false },
+  mode: { type: String, default: 'details', validator: (v) => ['confirm','details'].includes(v) },
+  selected: { type: Object, default: null },
   tipo: {
     type: String,
     required: true,
-    validator: (value) => ['cotizaciones', 'pedidos', 'ventas', 'compras', 'ordenescompra', 'rentas', 'equipos'].includes(value)
+    validator: (v) => ['cotizaciones','pedidos','ventas','compras','ordenescompra','rentas','equipos'].includes(v)
   }
-});
+})
 
 const emit = defineEmits([
   'close',
@@ -319,179 +432,167 @@ const emit = defineEmits([
   'editar',
   'enviar-pedido',
   'enviar-a-venta',
-   'renovar',
-  'suspender',
-  'reactivar'
-]);
+
+  // 👇 NUEVOS (para evitar warnings y habilitar acciones)
+  'renovar', 'suspender', 'reactivar',
+  'cambiar-estado', 'programar-mantenimiento',
+  'marcar-disponible', 'marcar-reparacion', 'marcar-fuera-servicio'
+])
+
+const isCotizaciones = computed(() => props.tipo === 'cotizaciones')
+const isPedidos = computed(() => props.tipo === 'pedidos')
+const isRentas = computed(() => props.tipo === 'rentas')
+const isEquipos = computed(() => props.tipo === 'equipos')
 
 // Estados de confirmación
-const showConfirmReenvioPedido = ref(false);
-const showConfirmReenvioVenta = ref(false);
+const showConfirmReenvioPedido = ref(false)
+const showConfirmReenvioVenta = ref(false)
 
-// Configuración dinámica
+// Focus management
+const modalRef = ref(null)
+const focusFirst = () => { try { modalRef.value?.focus() } catch {} }
+watch(() => props.show, (v) => { if (v) setTimeout(focusFirst, 0) })
+
+// Cerrar con tecla ESC también desde window (redundante al keydown del contenedor)
+const onKey = (e) => { if (e.key === 'Escape' && props.show) onClose() }
+onMounted(() => window.addEventListener('keydown', onKey))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
+
+// Config dinámica por tipo
 const config = computed(() => {
+  const baseEstados = (map) => map || {}
   const configs = {
     cotizaciones: {
       titulo: 'Cotización',
       mostrarCampoExtra: false,
       campoExtra: null,
-      acciones: {
-        editar: true,
-        imprimir: true,
-        enviarPedido: true,
-        enviarAVenta: false
-      },
-      estados: {
-        'borrador': { label: 'Borrador', classes: 'bg-gray-100 text-gray-800', color: 'bg-gray-400' },
-        'pendiente': { label: 'Pendiente', classes: 'bg-yellow-100 text-yellow-800', color: 'bg-yellow-400' },
-        'enviado_pedido': { label: 'Enviado a Pedido', classes: 'bg-blue-100 text-blue-800', color: 'bg-blue-400' },
-        'enviado_venta': { label: 'Enviado a Venta', classes: 'bg-indigo-100 text-indigo-800', color: 'bg-indigo-400' },
-        'aprobado': { label: 'Aprobada', classes: 'bg-green-100 text-green-800', color: 'bg-green-400' },
-        'rechazado': { label: 'Rechazada', classes: 'bg-red-100 text-red-800', color: 'bg-red-400' },
-        'cancelado': { label: 'Cancelada', classes: 'bg-gray-100 text-gray-800', color: 'bg-gray-400' }
-      }
+      acciones: { editar: true, imprimir: true, enviarPedido: true, enviarAVenta: false },
+      estados: baseEstados({
+        borrador: { label: 'Borrador', classes: 'bg-gray-100 text-gray-800', color: 'bg-gray-400' },
+        pendiente: { label: 'Pendiente', classes: 'bg-yellow-100 text-yellow-800', color: 'bg-yellow-400' },
+        enviado_pedido: { label: 'Enviado a Pedido', classes: 'bg-blue-100 text-blue-800', color: 'bg-blue-400' },
+        enviado_venta: { label: 'Enviado a Venta', classes: 'bg-indigo-100 text-indigo-800', color: 'bg-indigo-400' },
+        aprobado: { label: 'Aprobada', classes: 'bg-green-100 text-green-800', color: 'bg-green-400' },
+        rechazado: { label: 'Rechazada', classes: 'bg-red-100 text-red-800', color: 'bg-red-400' },
+        cancelado: { label: 'Cancelada', classes: 'bg-gray-100 text-gray-800', color: 'bg-gray-400' }
+      })
     },
     pedidos: {
       titulo: 'Pedido',
       mostrarCampoExtra: true,
       campoExtra: { key: 'numero_pedido', label: 'N° Pedido' },
-      acciones: {
-        editar: true,
-        imprimir: true,
-        enviarPedido: false,
-        enviarAVenta: true
-      },
-      estados: {
-        'borrador': { label: 'Borrador', classes: 'bg-gray-100 text-gray-800', color: 'bg-gray-400' },
-        'pendiente': { label: 'Pendiente', classes: 'bg-yellow-100 text-yellow-800', color: 'bg-yellow-400' },
-        'confirmado': { label: 'Confirmado', classes: 'bg-blue-100 text-blue-800', color: 'bg-blue-400' },
-        'en_preparacion': { label: 'En Preparación', classes: 'bg-orange-100 text-orange-800', color: 'bg-orange-400' },
-        'listo_entrega': { label: 'Listo para Entrega', classes: 'bg-purple-100 text-purple-800', color: 'bg-purple-400' },
-        'entregado': { label: 'Entregado', classes: 'bg-green-100 text-green-800', color: 'bg-green-400' },
-        'cancelado': { label: 'Cancelado', classes: 'bg-red-100 text-red-800', color: 'bg-red-400' }
-      }
+      acciones: { editar: true, imprimir: true, enviarPedido: false, enviarAVenta: true },
+      estados: baseEstados({
+        borrador: { label: 'Borrador', classes: 'bg-gray-100 text-gray-800', color: 'bg-gray-400' },
+        pendiente: { label: 'Pendiente', classes: 'bg-yellow-100 text-yellow-800', color: 'bg-yellow-400' },
+        confirmado: { label: 'Confirmado', classes: 'bg-blue-100 text-blue-800', color: 'bg-blue-400' },
+        en_preparacion: { label: 'En Preparación', classes: 'bg-orange-100 text-orange-800', color: 'bg-orange-400' },
+        listo_entrega: { label: 'Listo para Entrega', classes: 'bg-purple-100 text-purple-800', color: 'bg-purple-400' },
+        entregado: { label: 'Entregado', classes: 'bg-green-100 text-green-800', color: 'bg-green-400' },
+        cancelado: { label: 'Cancelado', classes: 'bg-red-100 text-red-800', color: 'bg-red-400' }
+      })
     },
     ventas: {
       titulo: 'Venta',
       mostrarCampoExtra: true,
       campoExtra: { key: 'numero_factura', label: 'N° Factura' },
-      acciones: {
-        editar: false,
-        imprimir: true,
-        enviarPedido: false,
-        enviarAVenta: false
-      },
-      estados: {
-        'borrador': { label: 'Borrador', classes: 'bg-gray-100 text-gray-800', color: 'bg-gray-400' },
-        'facturado': { label: 'Facturado', classes: 'bg-blue-100 text-blue-800', color: 'bg-blue-400' },
-        'pagado': { label: 'Pagado', classes: 'bg-green-100 text-green-800', color: 'bg-green-400' },
-        'vencido': { label: 'Vencido', classes: 'bg-red-100 text-red-800', color: 'bg-red-400' },
-        'anulado': { label: 'Anulado', classes: 'bg-gray-100 text-gray-800', color: 'bg-gray-400' }
-      }
+      acciones: { editar: false, imprimir: true, enviarPedido: false, enviarAVenta: false },
+      estados: baseEstados({
+        borrador: { label: 'Borrador', classes: 'bg-gray-100 text-gray-800', color: 'bg-gray-400' },
+        facturado: { label: 'Facturado', classes: 'bg-blue-100 text-blue-800', color: 'bg-blue-400' },
+        pagado: { label: 'Pagado', classes: 'bg-green-100 text-green-800', color: 'bg-green-400' },
+        vencido: { label: 'Vencido', classes: 'bg-red-100 text-red-800', color: 'bg-red-400' },
+        anulado: { label: 'Anulado', classes: 'bg-gray-100 text-gray-800', color: 'bg-gray-400' }
+      })
+    },
+    rentas: {
+      titulo: 'Renta',
+      mostrarCampoExtra: true,
+      campoExtra: { key: 'numero_contrato', label: 'N° Contrato' },
+      acciones: { editar: true, imprimir: true, enviarPedido: false, enviarAVenta: false },
+      estados: baseEstados({
+        borrador: { label: 'Borrador', classes: 'bg-gray-100 text-gray-700', color: 'bg-gray-400' },
+        activo: { label: 'Activo', classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
+        proximo_vencimiento: { label: 'Próximo Vencimiento', classes: 'bg-orange-100 text-orange-700', color: 'bg-orange-400' },
+        vencido: { label: 'Vencido', classes: 'bg-red-100 text-red-700', color: 'bg-red-400' },
+        moroso: { label: 'Moroso', classes: 'bg-red-200 text-red-800', color: 'bg-red-500' },
+        suspendido: { label: 'Suspendido', classes: 'bg-yellow-100 text-yellow-700', color: 'bg-yellow-400' },
+        finalizado: { label: 'Finalizado', classes: 'bg-gray-100 text-gray-600', color: 'bg-gray-400' },
+        anulado: { label: 'Anulado', classes: 'bg-gray-100 text-gray-500', color: 'bg-gray-400' },
+        sin_estado: { label: 'Sin Estado', classes: 'bg-gray-100 text-gray-500', color: 'bg-gray-400' }
+      })
+    },
+    equipos: {
+      titulo: 'Equipo',
+      mostrarCampoExtra: true,
+      campoExtra: { key: 'numero_serie', label: 'Serie' },
+      acciones: { editar: true, imprimir: true, enviarPedido: false, enviarAVenta: false },
+      estados: baseEstados({
+        disponible: { label: 'Disponible', classes: 'bg-emerald-100 text-emerald-700', color: 'bg-emerald-500' },
+        rentado: { label: 'Rentado', classes: 'bg-indigo-100 text-indigo-700', color: 'bg-indigo-500' },
+        mantenimiento: { label: 'Mantenimiento', classes: 'bg-amber-100 text-amber-700', color: 'bg-amber-500' },
+        reparacion: { label: 'Reparación', classes: 'bg-orange-100 text-orange-700', color: 'bg-orange-500' },
+        fuera_servicio: { label: 'Fuera de servicio', classes: 'bg-rose-100 text-rose-700', color: 'bg-rose-500' },
+        sin_estado: { label: 'Sin Estado', classes: 'bg-gray-100 text-gray-600', color: 'bg-gray-400' }
+      })
     }
-  };
-
-  return configs[props.tipo] || configs.cotizaciones;
-});
-
-// Verificaciones de estado
-const yaEnviado = computed(() => {
-  return ['enviado_pedido', 'convertido_pedido'].includes(props.selected?.estado);
-});
-
-const yaConvertidoAVenta = computed(() => {
-  return ['enviado_venta', 'facturado', 'pagado', 'convertido_venta'].includes(props.selected?.estado);
-});
-
-// Formateo
-const formatearFecha = (date) => {
-  if (!date) return 'Fecha no disponible';
-  try {
-    return new Date(date).toLocaleDateString('es-MX', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  } catch (error) {
-    console.error('Error formatting date:', date, error);
-    return 'Fecha inválida';
   }
-};
+  return configs[props.tipo] || configs.cotizaciones
+})
+
+// Verificaciones de estado para flujos
+const yaEnviado = computed(() => {
+  return ['enviado_pedido','convertido_pedido'].includes(props.selected?.estado)
+})
+const yaConvertidoAVenta = computed(() => {
+  return ['enviado_venta','facturado','pagado','convertido_venta'].includes(props.selected?.estado)
+})
+
+// Helpers de formato
+const isNumber = (n) => Number.isFinite(parseFloat(n))
+
+const formatearFecha = (date) => {
+  if (!date) return 'Fecha no disponible'
+  try {
+    const t = new Date(date).getTime()
+    if (Number.isNaN(t)) return 'Fecha inválida'
+    return new Date(t).toLocaleDateString('es-MX', {
+      year: 'numeric', month: 'long', day: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    })
+  } catch { return 'Fecha inválida' }
+}
 
 const formatearMoneda = (num) => {
-  const value = parseFloat(num) || 0;
-  return new Intl.NumberFormat('es-MX', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(value);
-};
+  const value = parseFloat(num)
+  const safe = Number.isFinite(value) ? value : 0
+  return new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(safe)
+}
 
-// Estados visuales
-const obtenerClasesEstado = (estado) => {
-  return config.value.estados[estado]?.classes || 'bg-gray-100 text-gray-800';
-};
+// Visual estados
+const obtenerClasesEstado = (estado) => config.value.estados[estado]?.classes || 'bg-gray-100 text-gray-800'
+const obtenerColorPuntoEstado = (estado) => config.value.estados[estado]?.color || 'bg-gray-400'
+const obtenerLabelEstado = (estado) => config.value.estados[estado]?.label || 'Pendiente'
 
-const obtenerColorPuntoEstado = (estado) => {
-  return config.value.estados[estado]?.color || 'bg-gray-400';
-};
+// Flujo cotizaciones/pedidos
+const confirmarEnvioPedido = () => { yaEnviado.value ? (showConfirmReenvioPedido.value = true) : emit('enviar-pedido', props.selected) }
+const confirmarEnvioAVenta = () => { yaConvertidoAVenta.value ? (showConfirmReenvioVenta.value = true) : emit('enviar-a-venta', props.selected) }
+const reenviarAPedido = () => { showConfirmReenvioPedido.value = false; emit('enviar-pedido', { ...props.selected, forzarReenvio: true }) }
+const reenviarAVenta = () => { showConfirmReenvioVenta.value = false; emit('enviar-a-venta', { ...props.selected, forzarReenvio: true }) }
 
-const obtenerLabelEstado = (estado) => {
-  return config.value.estados[estado]?.label || 'Pendiente';
-};
-
-// --- Acciones: Enviar a Pedido ---
-const confirmarEnvioPedido = () => {
-  if (yaEnviado.value) {
-    showConfirmReenvioPedido.value = true;
-  } else {
-    emit('enviar-pedido', props.selected);
-  }
-};
-
-// --- Acciones: Enviar a Venta ---
-const confirmarEnvioAVenta = () => {
-  if (yaConvertidoAVenta.value) {
-    showConfirmReenvioVenta.value = true;
-  } else {
-    emit('enviar-a-venta', props.selected);
-  }
-};
-
-// Confirmación: Reenviar a Pedido
-const reenviarAPedido = () => {
-  showConfirmReenvioPedido.value = false;
-  emit('enviar-pedido', { ...props.selected, forzarReenvio: true });
-};
-
-// Confirmación: Reenviar a Venta
-const reenviarAVenta = () => {
-  showConfirmReenvioVenta.value = false;
-  emit('enviar-a-venta', { ...props.selected, forzarReenvio: true });
-};
-
-// Emits generales
-const onCancel = () => emit('close');
-const onConfirm = () => emit('confirm-delete');
-const onClose = () => emit('close');
-const onImprimir = () => emit('imprimir', props.selected);
-const onEditar = () => emit('editar', props.selected?.id);
+// Emits comunes
+const onCancel = () => emit('close')
+const onConfirm = () => emit('confirm-delete')
+const onClose = () => emit('close')
+const onImprimir = () => emit('imprimir', props.selected)
+const onEditar = () => emit('editar', props.selected?.id)
 </script>
 
 <style scoped>
 .modal-enter-active,
-.modal-leave-active {
-  transition: opacity 0.3s ease, transform 0.3s ease;
-}
+.modal-leave-active { transition: opacity 0.25s ease, transform 0.25s ease; }
 .modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-  transform: scale(0.95);
-}
+.modal-leave-to { opacity: 0; transform: scale(0.97); }
 .modal-enter-to,
-.modal-leave-from {
-  opacity: 1;
-  transform: scale(1);
-}
+.modal-leave-from { opacity: 1; transform: scale(1); }
 </style>

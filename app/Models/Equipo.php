@@ -2,22 +2,15 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Equipo extends Model
 {
-    use HasFactory, SoftDeletes;
+    use SoftDeletes;
 
-    /**
-     * Nombre de la tabla.
-     */
     protected $table = 'equipos';
 
-    /**
-     * Atributos asignables en masa.
-     */
     protected $fillable = [
         'codigo',
         'nombre',
@@ -38,20 +31,10 @@ class Equipo extends Model
         'proveedor',
     ];
 
-    /**
-     * Atributos que deben convertirse a tipos nativos.
-     */
     protected $casts = [
-        'especificaciones' => 'json',
-        'accesorios' => 'json',
-        'precio_renta_mensual' => 'decimal:2',
-        'precio_compra' => 'decimal:2',
+        'especificaciones' => 'array',
+        'accesorios' => 'array',
         'fecha_adquisicion' => 'date',
         'fecha_garantia' => 'date',
     ];
-
-    /**
-     * Mutaciones de fecha.
-     */
-    protected $dates = ['deleted_at', 'created_at', 'updated_at'];
 }

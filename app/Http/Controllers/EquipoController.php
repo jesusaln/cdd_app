@@ -2,149 +2,124 @@
 
 namespace App\Http\Controllers;
 
+use Inertia\Inertia;
 use App\Models\Equipo;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
-use Inertia\Inertia;
 
 class EquipoController extends Controller
 {
-    /**
-     * Muestra una lista de equipos.
-     */
-    public function index()
+    public function index(Request $request)
     {
-        $equipos = Equipo::withTrashed() // Incluye eliminados si usas SoftDeletes
-            ->orderBy('created_at', 'desc')
-            ->paginate(10);
+        // Ejemplo de paginado simple para tu índice
+        $equipos = Equipo::query()
+            ->latest()
+            ->paginate(10)
+            ->withQueryString();
 
         return Inertia::render('Equipos/Index', [
-            'equipos' => $equipos, // Inertia manda datos a Vue
+            'equipos' => $equipos,
         ]);
     }
 
-    /**
-     * Muestra el formulario para crear un nuevo equipo.
-     */
     public function create()
     {
-        return view('equipos.create');
+        // 👈 AQUÍ ESTABA EL PROBLEMA: devolver Inertia, no view()
+        return Inertia::render('Equipos/Create', [
+            // Si necesitas catálogos iniciales, pásalos aquí
+            'estados' => ['disponible', 'rentado', 'mantenimiento', 'reparacion', 'fuera_servicio'], // ver nota (punto 4)
+            'condiciones' => ['nuevo', 'excelente', 'bueno', 'regular', 'malo'],
+        ]);
     }
 
-    /**
-     * Almacena un nuevo equipo en la base de datos.
-     */
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'codigo' => 'required|string|max:50|unique:equipos,codigo',
-            'nombre' => 'required|string|max:255',
-            'marca' => 'nullable|string|max:100',
-            'modelo' => 'nullable|string|max:100',
-            'numero_serie' => 'nullable|string|max:100|unique:equipos,numero_serie',
-            'descripcion' => 'nullable|string',
-            'especificaciones' => 'nullable|array',
-            'precio_renta_mensual' => 'required|numeric|min:0',
-            'precio_compra' => 'nullable|numeric|min:0',
-            'fecha_adquisicion' => 'nullable|date',
-            'estado' => 'required|in:disponible,rentado,mantenimiento,reparacion,dado_baja',
-            'condicion' => 'required|in:nuevo,excelente,bueno,regular,malo',
-            'ubicacion_fisica' => 'nullable|string|max:255',
-            'notas' => 'nullable|string',
-            'accesorios' => 'nullable|array',
-            'fecha_garantia' => 'nullable|date',
-            'proveedor' => 'nullable|string|max:150',
+        $data = $request->validate([
+            'codigo' => ['required', 'string', 'max:255', 'unique:equipos,codigo'],
+            'nombre' => ['required', 'string', 'max:255'],
+            'marca' => ['nullable', 'string', 'max:255'],
+            'modelo' => ['nullable', 'string', 'max:255'],
+            'numero_serie' => ['nullable', 'string', 'max:255', 'unique:equipos,numero_serie'],
+            'descripcion' => ['nullable', 'string'],
+            'especificaciones' => ['nullable', 'array'],
+            'precio_renta_mensual' => ['required', 'numeric', 'min:0'],
+            'precio_compra' => ['nullable', 'numeric', 'min:0'],
+            'fecha_adquisicion' => ['nullable', 'date'],
+            'estado' => ['required', 'in:disponible,rentado,mantenimiento,reparacion,fuera_servicio'],
+            'condicion' => ['required', 'in:nuevo,excelente,bueno,regular,malo'],
+            'ubicacion_fisica' => ['nullable', 'string', 'max:255'],
+            'notas' => ['nullable', 'string'],
+            'accesorios' => ['nullable', 'array'],
+            'fecha_garantia' => ['nullable', 'date'],
+            'proveedor' => ['nullable', 'string', 'max:255'],
         ]);
 
-        if ($validator->fails()) {
-            return redirect()->back()->withErrors($validator)->withInput();
-        }
+        // Si llegan arrays/objetos para JSON:
+        $data['especificaciones'] = $data['especificaciones'] ?? null;
+        $data['accesorios'] = $data['accesorios'] ?? null;
 
-        $equipo = new Equipo($request->all());
+        $equipo = Equipo::create($data);
 
-        // Guardar JSON como array (Laravel lo maneja automáticamente)
-        $equipo->especificaciones = $request->especificaciones;
-        $equipo->accesorios = $request->accesorios;
-
-        $equipo->save();
-
-        return redirect()->route('equipos.index')->with('success', 'Equipo creado exitosamente.');
+        return redirect()->route('equipos.index')->with('success', 'Equipo creado correctamente.');
     }
-
-    /**
-     * Muestra un equipo específico.
-     */
-    public function show(Equipo $equipo)
-    {
-        return view('equipos.show', compact('equipo'));
-    }
-
-    /**
-     * Muestra el formulario para editar un equipo.
-     */
+    // 🔹 EDIT
     public function edit(Equipo $equipo)
     {
-        return view('equipos.edit', compact('equipo'));
+        return Inertia::render('Equipos/Edit', [
+            'equipo' => [
+                'id' => $equipo->id,
+                'codigo' => $equipo->codigo,
+                'nombre' => $equipo->nombre,
+                'marca' => $equipo->marca,
+                'modelo' => $equipo->modelo,
+                'numero_serie' => $equipo->numero_serie,
+                'descripcion' => $equipo->descripcion,
+                'especificaciones' => $equipo->especificaciones, // cast array
+                'precio_renta_mensual' => $equipo->precio_renta_mensual,
+                'precio_compra' => $equipo->precio_compra,
+                'fecha_adquisicion' => optional($equipo->fecha_adquisicion)->format('Y-m-d'),
+                'estado' => $equipo->estado,
+                'condicion' => $equipo->condicion,
+                'ubicacion_fisica' => $equipo->ubicacion_fisica,
+                'notas' => $equipo->notas,
+                'accesorios' => $equipo->accesorios, // cast array
+                'fecha_garantia' => optional($equipo->fecha_garantia)->format('Y-m-d'),
+                'proveedor' => $equipo->proveedor,
+                'created_at' => $equipo->created_at,
+                'updated_at' => $equipo->updated_at,
+            ],
+            'estados' => ['disponible', 'rentado', 'mantenimiento', 'reparacion', 'fuera_servicio'],
+            'condiciones' => ['nuevo', 'excelente', 'bueno', 'regular', 'malo'],
+        ]);
     }
 
-    /**
-     * Actualiza un equipo en la base de datos.
-     */
+    // 🔹 UPDATE
     public function update(Request $request, Equipo $equipo)
     {
-        $validator = Validator::make($request->all(), [
-            'codigo' => 'required|string|max:50|unique:equipos,codigo,' . $equipo->id,
-            'nombre' => 'required|string|max:255',
-            'marca' => 'nullable|string|max:100',
-            'modelo' => 'nullable|string|max:100',
-            'numero_serie' => 'nullable|string|max:100|unique:equipos,numero_serie,' . $equipo->id,
-            'descripcion' => 'nullable|string',
-            'especificaciones' => 'nullable|array',
-            'precio_renta_mensual' => 'required|numeric|min:0',
-            'precio_compra' => 'nullable|numeric|min:0',
-            'fecha_adquisicion' => 'nullable|date',
-            'estado' => 'required|in:disponible,rentado,mantenimiento,reparacion,dado_baja',
-            'condicion' => 'required|in:nuevo,excelente,bueno,regular,malo',
-            'ubicacion_fisica' => 'nullable|string|max:255',
-            'notas' => 'nullable|string',
-            'accesorios' => 'nullable|array',
-            'fecha_garantia' => 'nullable|date',
-            'proveedor' => 'nullable|string|max:150',
+        $data = $request->validate([
+            'codigo' => ['required', 'string', 'max:255', Rule::unique('equipos', 'codigo')->ignore($equipo->id)],
+            'nombre' => ['required', 'string', 'max:255'],
+            'marca' => ['nullable', 'string', 'max:255'],
+            'modelo' => ['nullable', 'string', 'max:255'],
+            'numero_serie' => ['nullable', 'string', 'max:255', Rule::unique('equipos', 'numero_serie')->ignore($equipo->id)],
+            'descripcion' => ['nullable', 'string'],
+            'especificaciones' => ['nullable', 'array'],
+            'precio_renta_mensual' => ['required', 'numeric', 'min:0'],
+            'precio_compra' => ['nullable', 'numeric', 'min:0'],
+            'fecha_adquisicion' => ['nullable', 'date'],
+            'estado' => ['required', Rule::in(['disponible', 'rentado', 'mantenimiento', 'reparacion', 'fuera_servicio'])],
+            'condicion' => ['required', Rule::in(['nuevo', 'excelente', 'bueno', 'regular', 'malo'])],
+            'ubicacion_fisica' => ['nullable', 'string', 'max:255'],
+            'notas' => ['nullable', 'string'],
+            'accesorios' => ['nullable', 'array'],
+            'fecha_garantia' => ['nullable', 'date'],
+            'proveedor' => ['nullable', 'string', 'max:255'],
         ]);
 
-        if ($validator->fails()) {
-            return redirect()->back()->withErrors($validator)->withInput();
-        }
+        $data['especificaciones'] = $data['especificaciones'] ?? null;
+        $data['accesorios'] = $data['accesorios'] ?? null;
 
-        $equipo->fill($request->all());
+        $equipo->update($data);
 
-        // Actualizar campos JSON
-        $equipo->especificaciones = $request->especificaciones ?? $equipo->especificaciones;
-        $equipo->accesorios = $request->accesorios ?? $equipo->accesorios;
-
-        $equipo->save();
-
-        return redirect()->route('equipos.index')->with('success', 'Equipo actualizado exitosamente.');
-    }
-
-    /**
-     * Elimina (soft delete) un equipo.
-     */
-    public function destroy(Equipo $equipo)
-    {
-        $equipo->delete();
-
-        return redirect()->route('equipos.index')->with('success', 'Equipo eliminado correctamente.');
-    }
-
-    /**
-     * Restaura un equipo eliminado.
-     */
-    public function restore($id)
-    {
-        $equipo = Equipo::withTrashed()->findOrFail($id);
-        $equipo->restore();
-
-        return redirect()->route('equipos.index')->with('success', 'Equipo restaurado correctamente.');
+        return redirect()->route('equipos.index')->with('success', 'Equipo actualizado correctamente.');
     }
 }

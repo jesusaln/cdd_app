@@ -76,6 +76,7 @@
       <table class="min-w-full divide-y divide-gray-200/60">
         <thead class="bg-gray-50/60">
           <tr>
+            <!-- Fecha -->
             <th
               class="group px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100/60 transition-colors duration-150"
               @click="onSort('fecha')"
@@ -93,15 +94,17 @@
                 </svg>
               </div>
             </th>
+
+            <!-- Cliente/Proveedor | Equipo -->
             <th
               class="group px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100/60 transition-colors duration-150"
-              @click="onSort(isCompra ? 'proveedor' : 'cliente')"
+              @click="onSort(isEquipos ? 'nombre' : (isCompra ? 'proveedor' : 'cliente'))"
             >
               <div class="flex items-center space-x-1">
-                <span>{{ isCompra ? 'Proveedor' : 'Cliente' }}</span>
+                <span>{{ isEquipos ? 'Equipo' : (isCompra ? 'Proveedor' : 'Cliente') }}</span>
                 <svg
-                  v-if="sortBy.startsWith(isCompra ? 'proveedor' : 'cliente')"
-                  :class="['w-4 h-4 transition-transform duration-200', sortBy === `${isCompra ? 'proveedor' : 'cliente'}-desc` ? 'rotate-180' : '']"
+                  v-if="sortBy.startsWith(isEquipos ? 'nombre' : (isCompra ? 'proveedor' : 'cliente'))"
+                  :class="['w-4 h-4 transition-transform duration-200', sortBy === `${isEquipos ? 'nombre' : (isCompra ? 'proveedor' : 'cliente')}-desc` ? 'rotate-180' : '']"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -110,6 +113,8 @@
                 </svg>
               </div>
             </th>
+
+            <!-- Campo extra -->
             <th
               v-if="config.mostrarCampoExtra"
               class="group px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100/60 transition-colors duration-150"
@@ -128,6 +133,8 @@
                 </svg>
               </div>
             </th>
+
+            <!-- Total -->
             <th
               class="group px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100/60 transition-colors duration-150"
               @click="onSort('total')"
@@ -145,9 +152,13 @@
                 </svg>
               </div>
             </th>
+
+            <!-- Productos -->
             <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
               Productos
             </th>
+
+            <!-- Estado -->
             <th
               class="group px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100/60 transition-colors duration-150"
               @click="onSort('estado')"
@@ -165,11 +176,14 @@
                 </svg>
               </div>
             </th>
+
+            <!-- Acciones -->
             <th class="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
               Acciones
             </th>
           </tr>
         </thead>
+
         <tbody class="bg-white divide-y divide-gray-200/40">
           <template v-if="items.length > 0">
             <tr
@@ -189,40 +203,54 @@
                 </div>
               </td>
 
-              <!-- Proveedor/Cliente -->
+              <!-- Cliente/Proveedor | Equipo -->
               <td class="px-6 py-4">
                 <div class="flex flex-col space-y-0.5">
-                  <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800">
+                  <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800" v-if="!isEquipos">
                     {{ isCompra ? (doc.proveedor?.nombre_razon_social || 'Sin proveedor') : (doc.cliente?.nombre || 'Sin cliente') }}
                   </div>
-                  <div v-if="isCompra ? doc.proveedor?.email : doc.cliente?.email" class="text-xs text-gray-500 truncate max-w-48">
+                  <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800" v-else>
+                    {{ doc.nombre || 'Sin nombre' }}
+                  </div>
+
+                  <div
+                    v-if="!isEquipos && (isCompra ? doc.proveedor?.email : doc.cliente?.email)"
+                    class="text-xs text-gray-500 truncate max-w-48"
+                  >
                     {{ isCompra ? doc.proveedor?.email : doc.cliente?.email }}
+                  </div>
+
+                  <div v-if="isEquipos && (doc.modelo || doc.marca)" class="text-xs text-gray-500 truncate max-w-48">
+                    {{ [doc.marca, doc.modelo].filter(Boolean).join(' · ') }}
                   </div>
                 </div>
               </td>
 
-              <!-- Campo extra (ID/Número) -->
+              <!-- Campo extra -->
               <td v-if="config.mostrarCampoExtra" class="px-6 py-4">
                 <div class="text-sm font-mono font-medium text-gray-700 bg-gray-100/60 px-2 py-1 rounded-md inline-block">
-                  #{{ doc[config.campoExtra.key] || 'N/A' }}
+                  #{{ (doc[config.campoExtra.key] ?? 'N/A') || 'N/A' }}
                 </div>
               </td>
 
               <!-- Total -->
               <td class="px-6 py-4">
                 <div class="text-sm font-semibold text-gray-900">
-                  ${{ formatearMoneda(doc.total) }}
+                  <template v-if="typeof doc.total !== 'undefined' && doc.total !== null">
+                    ${{ formatearMoneda(doc.total) }}
+                  </template>
+                  <template v-else>-</template>
                 </div>
               </td>
 
               <!-- Productos -->
               <td
                 class="px-6 py-4 relative"
-                @mouseenter="showProductTooltip(doc, $event)"
+                @mouseenter="doc.productos?.length ? showProductTooltip(doc, $event) : null"
                 @mouseleave="hideProductTooltip"
-                @mousemove="updateTooltipPosition($event)"
+                @mousemove="doc.productos?.length ? updateTooltipPosition($event) : null"
               >
-                <div class="flex items-center text-sm text-gray-600 cursor-help hover:text-gray-800 transition-colors duration-150">
+                <div class="flex items-center text-sm text-gray-600" :class="doc.productos?.length ? 'cursor-help hover:text-gray-800 transition-colors duration-150' : 'opacity-60'">
                   <div class="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center mr-2 group-hover:bg-blue-100 transition-colors duration-150">
                     <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
@@ -255,7 +283,6 @@
               <!-- Acciones -->
               <td class="px-6 py-4">
                 <div class="flex items-center justify-end space-x-1">
-                  <!-- Ver -->
                   <button
                     @click="onVerDetalles(doc)"
                     class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-1"
@@ -264,7 +291,6 @@
                     <font-awesome-icon icon="eye" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
                   </button>
 
-                  <!-- Editar -->
                   <button
                     v-if="config.acciones.editar"
                     @click="onEditar(doc.id)"
@@ -274,7 +300,6 @@
                     <font-awesome-icon icon="edit" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
                   </button>
 
-                  <!-- Duplicar -->
                   <button
                     v-if="config.acciones.duplicar && tipo === 'cotizaciones'"
                     @click="onDuplicar(doc)"
@@ -284,7 +309,6 @@
                     <font-awesome-icon icon="copy" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
                   </button>
 
-                  <!-- Imprimir -->
                   <button
                     v-if="config.acciones.imprimir"
                     @click="onImprimir(doc)"
@@ -294,37 +318,34 @@
                     <font-awesome-icon icon="print" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
                   </button>
 
-                  <!-- Renovar -->
-<button
-  v-if="config.acciones.renovar && doc.estado !== 'suspendido' && ['activo', 'proximo_vencimiento', 'vencido'].includes(doc.estado)"
-  @click="emit('renovar', doc)"
-  class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:ring-offset-1"
-  title="Renovar contrato"
->
-  <font-awesome-icon icon="sync-alt" class="w-4 h-4 transition-transform duration-200 group-hover/btn:rotate-180" />
-</button>
+                  <!-- Botones de rentas -->
+                  <button
+                    v-if="config.acciones.renovar && doc.estado !== 'suspendido' && ['activo', 'proximo_vencimiento', 'vencido'].includes(doc.estado)"
+                    @click="onRenovar(doc)"
+                    class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:ring-offset-1"
+                    title="Renovar contrato"
+                  >
+                    <font-awesome-icon icon="sync-alt" class="w-4 h-4 transition-transform duration-200 group-hover/btn:rotate-180" />
+                  </button>
 
-<!-- Suspender -->
-<button
-  v-if="config.acciones.suspender && doc.estado === 'activo'"
-  @click="emit('suspender', doc)"
-  class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-orange-50 text-orange-600 hover:bg-orange-100 hover:text-orange-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:ring-offset-1"
-  title="Suspender contrato"
->
-  <font-awesome-icon icon="pause" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
-</button>
+                  <button
+                    v-if="config.acciones.suspender && doc.estado === 'activo'"
+                    @click="onSuspender(doc)"
+                    class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-orange-50 text-orange-600 hover:bg-orange-100 hover:text-orange-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:ring-offset-1"
+                    title="Suspender contrato"
+                  >
+                    <font-awesome-icon icon="pause" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
+                  </button>
 
-<!-- Reactivar -->
-<button
-  v-if="config.acciones.reactivar && doc.estado === 'suspendido'"
-  @click="emit('reactivar', doc)"
-  class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:ring-offset-1"
-  title="Reactivar contrato"
->
-  <font-awesome-icon icon="play" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
-</button>
+                  <button
+                    v-if="config.acciones.reactivar && doc.estado === 'suspendido'"
+                    @click="onReactivar(doc)"
+                    class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:ring-offset-1"
+                    title="Reactivar contrato"
+                  >
+                    <font-awesome-icon icon="play" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
+                  </button>
 
-                  <!-- Eliminar -->
                   <button
                     v-if="config.acciones.eliminar"
                     @click="onEliminar(doc.id)"
@@ -364,77 +385,47 @@
 import { computed, ref } from 'vue';
 
 const props = defineProps({
-  documentos: {
-    type: Array,
-    default: () => []
-  },
+  documentos: { type: Array, default: () => [] },
   tipo: {
     type: String,
     required: true,
     validator: (value) => ['cotizaciones', 'pedidos', 'ventas', 'compras', 'ordenescompra', 'rentas', 'equipos'].includes(value)
   },
-  searchTerm: {
-    type: String,
-    default: ''
-  },
-  sortBy: {
-    type: String,
-    default: 'fecha-desc'
-  },
-  filtroEstado: {
-    type: String,
-    default: ''
-  }
+  searchTerm: { type: String, default: '' },
+  sortBy: { type: String, default: 'fecha-desc' },
+  filtroEstado: { type: String, default: '' }
 });
 
 const emit = defineEmits([
-  'ver-detalles',
-  'editar',
-  'eliminar',
-  'duplicar',
-  'imprimir',
-  'sort',
-  'renovar',
-  'suspender',
-  'reactivar'
+  'ver-detalles','editar','eliminar','duplicar','imprimir','sort','renovar','suspender','reactivar'
 ]);
 
-// Determine if tipo is 'compras'
 const isCompra = computed(() => props.tipo === 'compras');
+const isEquipos = computed(() => props.tipo === 'equipos');
 
-// Tooltip State
+// Tooltip state
 const showTooltip = ref(false);
 const hoveredDoc = ref(null);
 const tooltipPosition = ref({ x: 0, y: 0 });
 let tooltipTimeout = null;
 
-// Tooltip Positioning
-const tooltipStyle = computed(() => {
-  const OFFSET = 20;
-  const TOOLTIP_WIDTH = 320;
-  const TOOLTIP_HEIGHT = 384;
-  const VIEWPORT_PADDING = 16;
+// Safe window (evita fallos en SSR/build)
+const getViewport = () => {
+  if (typeof window === 'undefined') return { w: 1280, h: 800 };
+  return { w: window.innerWidth, h: window.innerHeight };
+};
 
-  const viewportWidth = window.innerWidth;
-  const viewportHeight = window.innerHeight;
+const tooltipStyle = computed(() => {
+  const OFFSET = 20, TOOLTIP_WIDTH = 320, TOOLTIP_HEIGHT = 384, VIEWPORT_PADDING = 16;
+  const { w, h } = getViewport();
 
   let x = tooltipPosition.value.x + OFFSET;
   let y = tooltipPosition.value.y - (TOOLTIP_HEIGHT / 2);
 
-  // Horizontal adjustment
-  if (x + TOOLTIP_WIDTH > viewportWidth - VIEWPORT_PADDING) {
-    x = tooltipPosition.value.x - TOOLTIP_WIDTH - OFFSET;
-  }
-  if (x < VIEWPORT_PADDING) {
-    x = VIEWPORT_PADDING;
-  }
-
-  // Vertical adjustment
-  if (y < VIEWPORT_PADDING) {
-    y = VIEWPORT_PADDING;
-  } else if (y + TOOLTIP_HEIGHT > viewportHeight - VIEWPORT_PADDING) {
-    y = viewportHeight - TOOLTIP_HEIGHT - VIEWPORT_PADDING;
-  }
+  if (x + TOOLTIP_WIDTH > w - VIEWPORT_PADDING) x = tooltipPosition.value.x - TOOLTIP_WIDTH - OFFSET;
+  if (x < VIEWPORT_PADDING) x = VIEWPORT_PADDING;
+  if (y < VIEWPORT_PADDING) y = VIEWPORT_PADDING;
+  else if (y + TOOLTIP_HEIGHT > h - VIEWPORT_PADDING) y = h - TOOLTIP_HEIGHT - VIEWPORT_PADDING;
 
   return {
     left: `${x}px`,
@@ -444,14 +435,12 @@ const tooltipStyle = computed(() => {
   };
 });
 
-// Tooltip Functions
 const showProductTooltip = (doc, event) => {
+  if (!doc?.productos?.length) return;
   clearTimeout(tooltipTimeout);
   hoveredDoc.value = doc;
   updateTooltipPosition(event);
-  tooltipTimeout = setTimeout(() => {
-    showTooltip.value = true;
-  }, 500);
+  tooltipTimeout = setTimeout(() => { showTooltip.value = true; }, 500);
 };
 
 const hideProductTooltip = () => {
@@ -463,19 +452,14 @@ const hideProductTooltip = () => {
 };
 
 const updateTooltipPosition = (event) => {
-  tooltipPosition.value = {
-    x: event.clientX,
-    y: event.clientY
-  };
+  tooltipPosition.value = { x: event.clientX, y: event.clientY };
 };
 
-// Configuration
+// Config por tipo
 const configCache = new Map();
 
 const config = computed(() => {
-  if (configCache.has(props.tipo)) {
-    return configCache.get(props.tipo);
-  }
+  if (configCache.has(props.tipo)) return configCache.get(props.tipo);
 
   const configs = {
     cotizaciones: {
@@ -540,49 +524,39 @@ const config = computed(() => {
         'cancelado': { label: 'Cancelado', classes: 'bg-red-100 text-red-700', color: 'bg-red-400' }
       }
     },
-
     equipos: {
-        titulo: 'Equipos',
-        mostrarCampoExtra: true,
-        campoExtra: { key: 'serial', label: 'Serial' },
-        acciones: { editar: true, duplicar: false, imprimir: true, eliminar: true },
-        estados: {
-            'borrador': { label: 'Borrador', classes: 'bg-gray-100 text-gray-700', color: 'bg-gray-400' },
-            'pendiente': { label: 'Pendiente', classes: 'bg-yellow-100 text-yellow-700', color: 'bg-yellow-400' },
-            'confirmado': { label: 'Confirmado', classes: 'bg-blue-100 text-blue-700', color: 'bg-blue-400' },
-            'en_preparacion': { label: 'En Preparación', classes: 'bg-orange-100 text-orange-700', color: 'bg-orange-400' },
-            'listo_entrega': { label: 'Listo para Entrega', classes: 'bg-purple-100 text-purple-700', color: 'bg-purple-400' },
-            'entregado': { label: 'Entregado', classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
-            'cancelado': { label: 'Cancelado', classes: 'bg-red-100 text-red-700', color: 'bg-red-400' }
-        }
+      titulo: 'Equipos',
+      mostrarCampoExtra: true,
+      // IMPORTANT: tu Index usa numero_serie/codigo_interno
+      campoExtra: { key: 'numero_serie', label: 'Serie' },
+      acciones: { editar: true, duplicar: false, imprimir: true, eliminar: true },
+      estados: {
+        'borrador': { label: 'Borrador', classes: 'bg-gray-100 text-gray-700', color: 'bg-gray-400' },
+        'pendiente': { label: 'Pendiente', classes: 'bg-yellow-100 text-yellow-700', color: 'bg-yellow-400' },
+        'confirmado': { label: 'Confirmado', classes: 'bg-blue-100 text-blue-700', color: 'bg-blue-400' },
+        'en_preparacion': { label: 'En Preparación', classes: 'bg-orange-100 text-orange-700', color: 'bg-orange-400' },
+        'listo_entrega': { label: 'Listo para Entrega', classes: 'bg-purple-100 text-purple-700', color: 'bg-purple-400' },
+        'entregado': { label: 'Entregado', classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
+        'cancelado': { label: 'Cancelado', classes: 'bg-red-100 text-red-700', color: 'bg-red-400' }
+      }
     },
-
-
-  rentas: {
-  titulo: 'Rentas',
-  mostrarCampoExtra: true,
-  campoExtra: { key: 'numero_contrato', label: 'N° Contrato' },
-  acciones: {
-    editar: true,
-    duplicar: true,
-    imprimir: true,
-    eliminar: true,
-    renovar: true,
-    suspender: true,
-    reactivar: true
-  },
-  estados: {
-    'borrador': { label: 'Borrador', classes: 'bg-gray-100 text-gray-700', color: 'bg-gray-400' },
-    'activo': { label: 'Activo', classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
-    'proximo_vencimiento': { label: 'Próximo Vencimiento', classes: 'bg-orange-100 text-orange-700', color: 'bg-orange-400' },
-    'vencido': { label: 'Vencido', classes: 'bg-red-100 text-red-700', color: 'bg-red-400' },
-    'moroso': { label: 'Moroso', classes: 'bg-red-200 text-red-800', color: 'bg-red-500' },
-    'suspendido': { label: 'Suspendido', classes: 'bg-yellow-100 text-yellow-700', color: 'bg-yellow-400' },
-    'finalizado': { label: 'Finalizado', classes: 'bg-gray-100 text-gray-600', color: 'bg-gray-400' },
-    'anulado': { label: 'Anulado', classes: 'bg-gray-100 text-gray-500', color: 'bg-gray-400' },
-    'sin_estado': { label: 'Sin Estado', classes: 'bg-gray-100 text-gray-500', color: 'bg-gray-400' }
-  },
-}
+    rentas: {
+      titulo: 'Rentas',
+      mostrarCampoExtra: true,
+      campoExtra: { key: 'numero_contrato', label: 'N° Contrato' },
+      acciones: { editar: true, duplicar: true, imprimir: true, eliminar: true, renovar: true, suspender: true, reactivar: true },
+      estados: {
+        'borrador': { label: 'Borrador', classes: 'bg-gray-100 text-gray-700', color: 'bg-gray-400' },
+        'activo': { label: 'Activo', classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
+        'proximo_vencimiento': { label: 'Próximo Vencimiento', classes: 'bg-orange-100 text-orange-700', color: 'bg-orange-400' },
+        'vencido': { label: 'Vencido', classes: 'bg-red-100 text-red-700', color: 'bg-red-400' },
+        'moroso': { label: 'Moroso', classes: 'bg-red-200 text-red-800', color: 'bg-red-500' },
+        'suspendido': { label: 'Suspendido', classes: 'bg-yellow-100 text-yellow-700', color: 'bg-yellow-400' },
+        'finalizado': { label: 'Finalizado', classes: 'bg-gray-100 text-gray-600', color: 'bg-gray-400' },
+        'anulado': { label: 'Anulado', classes: 'bg-gray-100 text-gray-500', color: 'bg-gray-400' },
+        'sin_estado': { label: 'Sin Estado', classes: 'bg-gray-100 text-gray-500', color: 'bg-gray-400' }
+      }
+    }
   };
 
   const result = configs[props.tipo] || configs.cotizaciones;
@@ -590,25 +564,20 @@ const config = computed(() => {
   return result;
 });
 
-// Formatting Functions
+// Cache de formatos
 const formatCache = new Map();
 
 const formatearFecha = (date) => {
   if (!date) return 'Fecha no disponible';
   const cacheKey = `fecha-${date}`;
-  if (formatCache.has(cacheKey)) {
-    return formatCache.get(cacheKey);
-  }
+  if (formatCache.has(cacheKey)) return formatCache.get(cacheKey);
   try {
-    const formatted = new Date(date).toLocaleDateString('es-MX', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+    const time = new Date(date).getTime();
+    if (Number.isNaN(time)) return 'Fecha inválida';
+    const formatted = new Date(time).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
     formatCache.set(cacheKey, formatted);
     return formatted;
-  } catch (error) {
-    console.error('Error formatting date:', date, error);
+  } catch {
     return 'Fecha inválida';
   }
 };
@@ -616,50 +585,34 @@ const formatearFecha = (date) => {
 const formatearHora = (date) => {
   if (!date) return '';
   const cacheKey = `hora-${date}`;
-  if (formatCache.has(cacheKey)) {
-    return formatCache.get(cacheKey);
-  }
+  if (formatCache.has(cacheKey)) return formatCache.get(cacheKey);
   try {
-    const formatted = new Date(date).toLocaleTimeString('es-MX', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    const time = new Date(date).getTime();
+    if (Number.isNaN(time)) return '';
+    const formatted = new Date(time).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
     formatCache.set(cacheKey, formatted);
     return formatted;
-  } catch (error) {
-    console.error('Error formatting time:', date, error);
+  } catch {
     return '';
   }
 };
 
 const formatearMoneda = (num) => {
-  const value = parseFloat(num) || 0;
-  const cacheKey = `moneda-${value}`;
-  if (formatCache.has(cacheKey)) {
-    return formatCache.get(cacheKey);
-  }
-  const formatted = new Intl.NumberFormat('es-MX', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(value);
+  const value = parseFloat(num);
+  const safe = Number.isFinite(value) ? value : 0;
+  const cacheKey = `moneda-${safe}`;
+  if (formatCache.has(cacheKey)) return formatCache.get(cacheKey);
+  const formatted = new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(safe);
   formatCache.set(cacheKey, formatted);
   return formatted;
 };
 
-// Estado Functions
-const obtenerClasesEstado = (estado) => {
-  return config.value.estados[estado]?.classes || 'bg-gray-100 text-gray-700';
-};
+// Estados
+const obtenerClasesEstado = (estado) => config.value.estados[estado]?.classes || 'bg-gray-100 text-gray-700';
+const obtenerColorPuntoEstado = (estado) => config.value.estados[estado]?.color || 'bg-gray-400';
+const obtenerLabelEstado = (estado) => config.value.estados[estado]?.label || 'Pendiente';
 
-const obtenerColorPuntoEstado = (estado) => {
-  return config.value.estados[estado]?.color || 'bg-gray-400';
-};
-
-const obtenerLabelEstado = (estado) => {
-  return config.value.estados[estado]?.label || 'Pendiente';
-};
-
-// Filtered and Sorted Items
+// Items filtrados y ordenados
 const items = computed(() => {
   if (!Array.isArray(props.documentos)) {
     console.warn('⚠️ Documentos is not an array:', props.documentos);
@@ -668,41 +621,50 @@ const items = computed(() => {
 
   let filtered = props.documentos.slice();
 
-  // Search Filter
   if (props.searchTerm) {
     const term = props.searchTerm.toLowerCase();
     filtered = filtered.filter(doc => {
+      if (isEquipos.value) {
+        return (
+          (doc.nombre || '').toLowerCase().includes(term) ||
+          (doc.modelo || '').toLowerCase().includes(term) ||
+          (doc.marca || '').toLowerCase().includes(term) ||
+          (doc.numero_serie || '').toLowerCase().includes(term)
+        );
+      }
       if (isCompra.value) {
         return (
           (doc.proveedor?.nombre_razon_social || '').toLowerCase().includes(term) ||
           doc.productos?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
           (doc.numero_compra || doc.id || '').toString().toLowerCase().includes(term)
         );
-      } else {
-        return (
-          (doc.cliente?.nombre || '').toLowerCase().includes(term) ||
-          doc.productos?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
-          (doc.numero_pedido || doc.numero_factura || doc.id || '').toString().toLowerCase().includes(term)
-        );
       }
+      return (
+        (doc.cliente?.nombre || '').toLowerCase().includes(term) ||
+        doc.productos?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
+        (doc.numero_pedido || doc.numero_factura || doc.id || '').toString().toLowerCase().includes(term)
+      );
     });
   }
 
-  // Estado Filter
   if (props.filtroEstado) {
     filtered = filtered.filter(doc => doc.estado === props.filtroEstado);
   }
 
-  // Sorting
   const [field, direction] = props.sortBy.split('-');
+
+  const getDate = (d) => {
+    const t = new Date(d).getTime();
+    return Number.isNaN(t) ? 0 : t;
+  };
 
   return filtered.sort((a, b) => {
     let aVal, bVal;
 
     switch (field) {
       case 'fecha':
-        aVal = new Date(a.created_at || a.fecha).getTime();
-        bVal = new Date(b.created_at || b.fecha).getTime();
+        aVal = getDate(a.created_at || a.fecha);
+        bVal = getDate(b.created_at || b.fecha);
         break;
       case 'cliente':
         aVal = (a.cliente?.nombre || '').toLowerCase();
@@ -712,17 +674,21 @@ const items = computed(() => {
         aVal = (a.proveedor?.nombre_razon_social || '').toLowerCase();
         bVal = (b.proveedor?.nombre_razon_social || '').toLowerCase();
         break;
+      case 'nombre': // para equipos
+        aVal = (a.nombre || '').toLowerCase();
+        bVal = (b.nombre || '').toLowerCase();
+        break;
       case 'total':
-        aVal = parseFloat(a.total) || 0;
-        bVal = parseFloat(b.total) || 0;
+        aVal = parseFloat(a.total); aVal = Number.isFinite(aVal) ? aVal : 0;
+        bVal = parseFloat(b.total); bVal = Number.isFinite(bVal) ? bVal : 0;
         break;
       case 'estado':
         aVal = a.estado || '';
         bVal = b.estado || '';
         break;
       default:
-        aVal = a[field] || 0;
-        bVal = b[field] || 0;
+        aVal = a?.[field] ?? '';
+        bVal = b?.[field] ?? '';
     }
 
     const comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
@@ -732,12 +698,16 @@ const items = computed(() => {
 
 const total = computed(() => props.documentos?.length || 0);
 
-// Event Handlers
+// Emits helpers
 const onVerDetalles = (doc) => emit('ver-detalles', doc);
 const onEditar = (id) => emit('editar', id);
 const onEliminar = (id) => emit('eliminar', id);
 const onDuplicar = (doc) => emit('duplicar', doc);
 const onImprimir = (doc) => emit('imprimir', doc);
+const onRenovar = (doc) => emit('renovar', doc);
+const onSuspender = (doc) => emit('suspender', doc);
+const onReactivar = (doc) => emit('reactivar', doc);
+
 const onSort = (field) => {
   const current = props.sortBy.startsWith(field) ? props.sortBy : `${field}-desc`;
   const newOrder = current === `${field}-desc` ? `${field}-asc` : `${field}-desc`;
@@ -746,59 +716,23 @@ const onSort = (field) => {
 </script>
 
 <style scoped>
-.custom-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: #d1d5db #f3f4f6;
-}
+.custom-scrollbar { scrollbar-width: thin; scrollbar-color: #d1d5db #f3f4f6; }
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: #f3f4f6; border-radius: 3px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
 
-.custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: #f3f4f6;
-  border-radius: 3px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #d1d5db;
-  border-radius: 3px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
-}
-
-.line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  line-height: 1.4;
-}
+.line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4; }
 
 @media (prefers-contrast: high) {
-  .bg-gray-50 {
-    background-color: #f9fafb;
-  }
-
-  .border-gray-200 {
-    border-color: #d1d5db;
-  }
+  .bg-gray-50 { background-color: #f9fafb; }
+  .border-gray-200 { border-color: #d1d5db; }
 }
 
-button:focus-visible {
-  outline: 2px solid;
-  outline-offset: 2px;
-}
+button:focus-visible { outline: 2px solid; outline-offset: 2px; }
 
 @media (hover: none) {
-  .hover\:bg-gray-50:hover {
-    background-color: transparent;
-  }
-
-  .group:hover {
-    transform: none;
-  }
+  .hover\:bg-gray-50:hover { background-color: transparent; }
+  .group:hover { transform: none; }
 }
 </style>
