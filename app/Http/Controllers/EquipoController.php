@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Inertia\Inertia;
 use App\Models\Equipo;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class EquipoController extends Controller
 {
@@ -14,7 +15,7 @@ class EquipoController extends Controller
         $equipos = Equipo::query()
             ->latest()
             ->paginate(10)
-            ->withQueryString();
+            ->appends(request()->query());
 
         return Inertia::render('Equipos/Index', [
             'equipos' => $equipos,
