@@ -253,6 +253,18 @@
           </div>
         </div>
 
+        <!-- Sección: Preferencias -->
+        <div class="border-b border-gray-200 pb-6 mt-6">
+          <h2 class="text-lg font-medium text-gray-900 mb-4">Preferencias</h2>
+          <InputLabel for="acepta_marketing">
+            <div class="flex items-center">
+              <Checkbox id="acepta_marketing" v-model:checked="form.acepta_marketing" />
+              <span class="ml-2 text-sm text-gray-700">Acepta recibir promociones</span>
+            </div>
+            <InputError class="mt-2" :message="form.errors.acepta_marketing" />
+          </InputLabel>
+        </div>
+
         <!-- Botones de acción -->
         <div class="flex justify-end space-x-4 pt-6 border-t border-gray-200">
           <button
@@ -289,6 +301,9 @@ import { Head, useForm } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import FormField from '@/Components/FormField.vue';
+import InputLabel from '@/Components/InputLabel.vue';
+import InputError from '@/Components/InputError.vue';
+import Checkbox from '@/Components/Checkbox.vue';
 
 // Define las opciones para el componente layout
 defineOptions({ layout: AppLayout });
@@ -315,7 +330,8 @@ const props = defineProps({
       codigo_postal: '',
       municipio: '',
       estado: '',
-      pais: ''
+      pais: '',
+      acepta_marketing: false,
     })
   }
 });
@@ -398,7 +414,8 @@ const form = useForm({
   codigo_postal: props.cliente.codigo_postal,
   municipio: props.cliente.municipio,
   estado: props.cliente.estado,
-  pais: props.cliente.pais
+  pais: props.cliente.pais,
+  acepta_marketing: props.cliente.acepta_marketing,
 });
 
 // --- Propiedades computadas ---

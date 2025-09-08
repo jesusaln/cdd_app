@@ -25,11 +25,10 @@ class ClienteFactory extends Factory
             'municipio' => $this->faker->city,
             'estado' => $this->faker->state,
             'pais' => 'México',
-            'tipo_persona' => 'Moral',
-
+            'tipo_persona' => 'moral',
             'activo' => true,
             'notas' => null,
-
+            'acepta_marketing' => $this->faker->boolean(),
         ];
     }
 }

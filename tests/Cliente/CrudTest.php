@@ -61,6 +61,7 @@ class CrudTest extends TestCase
             'tipo_persona' => 'moral',
             'activo' => true,
             'notas' => 'Cliente importante',
+            'acepta_marketing' => true,
 
         ];
 
@@ -151,6 +152,7 @@ class CrudTest extends TestCase
             'tipo_persona' => 'moral', // Debe ser 'fisica' o 'moral'
             'activo' => false,
             'notas' => 'Actualizado en test',
+            'acepta_marketing' => false,
 
 
         ];

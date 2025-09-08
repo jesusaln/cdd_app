@@ -36,6 +36,7 @@ class ModelTest extends TestCase
             'tipo_persona',
             'activo',
             'notas',
+            'acepta_marketing',
         ];
 
         sort($expected);
@@ -50,9 +51,10 @@ class ModelTest extends TestCase
         $casts = $cliente->getCasts();
 
         $this->assertArrayHasKey('activo', $casts);
-
+        $this->assertArrayHasKey('acepta_marketing', $casts);
 
         $this->assertEquals('boolean', $casts['activo']);
+        $this->assertEquals('boolean', $casts['acepta_marketing']);
     }
 
     public function test_puede_tener_relacion_con_cotizaciones()
@@ -69,5 +71,15 @@ class ModelTest extends TestCase
 
         $this->assertTrue($cliente->activo);
         $this->assertIsBool($cliente->activo);
+    }
+
+    public function test_atributo_acepta_marketing_se_castea_como_booleano()
+    {
+        $cliente = Cliente::factory()->create([
+            'acepta_marketing' => true,
+        ]);
+
+        $this->assertTrue($cliente->acepta_marketing);
+        $this->assertIsBool($cliente->acepta_marketing);
     }
 }

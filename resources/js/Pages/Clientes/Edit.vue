@@ -155,7 +155,7 @@
         <!-- Sección: Dirección -->
         <div>
           <h2 class="text-lg font-medium text-gray-900 mb-4">Dirección</h2>
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div class="md:col-span-2">
               <FormField
                 v-model="form.calle"
@@ -241,6 +241,18 @@
           </div>
         </div>
 
+        <!-- Sección: Preferencias -->
+        <div class="border-b border-gray-200 pb-6 mt-6">
+          <h2 class="text-lg font-medium text-gray-900 mb-4">Preferencias</h2>
+          <InputLabel for="acepta_marketing">
+            <div class="flex items-center">
+              <Checkbox id="acepta_marketing" v-model:checked="form.acepta_marketing" />
+              <span class="ml-2 text-sm text-gray-700">Acepta recibir promociones</span>
+            </div>
+            <InputError class="mt-2" :message="form.errors.acepta_marketing" />
+          </InputLabel>
+        </div>
+
         <!-- Botones de acción -->
         <div class="flex justify-end space-x-4 pt-6 border-t border-gray-200">
           <button
@@ -276,6 +288,9 @@ import { Head, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import FormField from '@/Components/FormField.vue';
+import InputLabel from '@/Components/InputLabel.vue';
+import InputError from '@/Components/InputError.vue';
+import Checkbox from '@/Components/Checkbox.vue';
 
 defineOptions({ layout: AppLayout });
 
@@ -364,7 +379,8 @@ const form = useForm({
   codigo_postal: props.cliente.codigo_postal,
   municipio: props.cliente.municipio,
   estado: props.cliente.estado,
-  pais: props.cliente.pais
+  pais: props.cliente.pais,
+  acepta_marketing: props.cliente.acepta_marketing,
 });
 
 // Propiedades computadas para la UI y validación general
