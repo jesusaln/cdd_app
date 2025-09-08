@@ -14,6 +14,10 @@ class Cliente extends Model implements AuditableContract
 
     protected $fillable = [
         'nombre_razon_social',
+        'tipo_persona',
+        'tipo_identificacion',
+        'identificacion',
+        'curp',
         'rfc',
         'regimen_fiscal',
         'uso_cfdi',
@@ -27,7 +31,6 @@ class Cliente extends Model implements AuditableContract
         'municipio',
         'estado',
         'pais',
-        'tipo_persona',
         'activo',
         'notas',
     ];
@@ -36,33 +39,78 @@ class Cliente extends Model implements AuditableContract
         'activo' => 'boolean',
     ];
 
+    protected $attributes = [
+        'activo' => true,
+    ];
+
+    protected $auditExclude = [
+        'updated_at',
+    ];
+
     /**
-     * Get the cotizaciones for the cliente.
+     * Boot model events
+     */
+    protected static function booted()
+    {
+        static::creating(function ($cliente) {
+            if (is_null($cliente->activo)) {
+                $cliente->activo = true;
+            }
+        });
+    }
+
+    /**
+     * Relaciones
      */
     public function cotizaciones(): HasMany
     {
         return $this->hasMany(Cotizacion::class);
     }
 
-    /**
-     * Get the ventas for the cliente.
-     */
     public function ventas(): HasMany
     {
         return $this->hasMany(Venta::class);
     }
 
-    /**
-     * Get the facturas for the cliente.
-     */
     public function facturas(): HasMany
     {
         return $this->hasMany(Factura::class);
     }
 
-
     public function pedidos(): HasMany
     {
         return $this->hasMany(Pedido::class);
+    }
+
+    /**
+     * Scopes
+     */
+    public function scopeActivos($query)
+    {
+        return $query->where('activo', true);
+    }
+
+    public function scopeInactivos($query)
+    {
+        return $query->where('activo', false);
+    }
+
+    /**
+     * Accessors
+     */
+    protected $appends = ['direccion_completa'];
+
+    public function getDireccionCompletaAttribute(): string
+    {
+        return trim(sprintf(
+            '%s %s%s, %s, %s, %s, %s',
+            $this->calle,
+            $this->numero_exterior,
+            $this->numero_interior ? " Int. {$this->numero_interior}" : '',
+            $this->colonia,
+            $this->codigo_postal,
+            $this->municipio,
+            $this->estado
+        ));
     }
 }

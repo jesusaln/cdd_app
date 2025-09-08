@@ -14,27 +14,32 @@ return new class extends Migration
         Schema::create('clientes', function (Blueprint $table) {
             $table->id();
             $table->string('nombre_razon_social'); // Nombre o razón social
-            $table->string('tipo_persona'); // Tipo de persona (Física o Moral)
-            $table->string('tipo_identificacion')->nullable(); // Tipo de identificación (INE, Pasaporte, etc.)
-            $table->string('identificacion')->nullable(); // Número de identificación
-            $table->string('curp')->nullable(); // CURP (opcional)
-            $table->string('rfc', 13)->unique(); // RFC (13 caracteres)
-            $table->string('regimen_fiscal'); // Clave del régimen fiscal
-            $table->string('uso_cfdi'); // Clave de uso del CFDI
-            $table->string('email'); // Correo electrónico (único)
-            $table->string('telefono')->nullable(); // Teléfono (opcional)
-            $table->string('calle'); // Calle
-            $table->string('numero_exterior'); // Número exterior
-            $table->string('numero_interior')->nullable(); // Número interior (opcional)
-            $table->string('colonia'); // Colonia
-            $table->string('codigo_postal', 5); // Código postal (5 dígitos)
-            $table->string('municipio'); // Municipio o alcaldía
-            $table->string('estado'); // Estado
-            $table->string('pais')->default('México'); // País (por defecto, México)
+            $table->string('tipo_persona'); // fisica|moral
+            $table->string('tipo_identificacion')->nullable();
+            $table->string('identificacion')->nullable();
+            $table->string('curp')->nullable();
+            $table->string('rfc', 13)->unique(); // 12 moral / 13 fisica (cabe)
+            $table->string('regimen_fiscal'); // clave SAT
+            $table->string('uso_cfdi'); // clave SAT
+            $table->string('email'); // NO unique (puede repetirse)
+            $table->string('telefono')->nullable();
+            $table->string('calle');
+            $table->string('numero_exterior');
+            $table->string('numero_interior')->nullable();
+            $table->string('colonia');
+            $table->string('codigo_postal', 5);
+            $table->string('municipio');
+            $table->string('estado');
+            $table->string('pais')->default('México');
             $table->text('notas')->nullable();
-            $table->boolean('activo')->default(true); // Estado del cliente (activo/inactivo)
-
+            $table->boolean('activo')->default(true);
             $table->timestamps();
+
+            // índices útiles para búsquedas/orden (opcionales pero recomendables)
+            $table->index(['nombre_razon_social']);
+            $table->index(['email']);
+            $table->index(['activo']);
+            $table->index(['created_at']);
         });
     }
 

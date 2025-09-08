@@ -222,8 +222,8 @@ const crearNuevaRenta = () => {
 </script>
 
 <template>
-  <Head title="Rentas" />
   <div class="rentas-index bg-gray-50 min-h-screen">
+    <Head title="Rentas" />
     <!-- Header principal -->
     <div class="bg-white shadow-sm border-b border-gray-200 px-6 py-8">
       <div class="max-w-7xl mx-auto">
@@ -235,9 +235,9 @@ const crearNuevaRenta = () => {
         </div>
       </div>
     </div>
-    <!-- Contenido principal -->
+
     <div class="max-w-8xl mx-auto px-6 py-8">
-      <!-- Header de filtros y estadísticas -->
+
       <UniversalHeader
         :total="estadisticas.total"
         :aprobadas="estadisticas.activas"
@@ -270,7 +270,7 @@ const crearNuevaRenta = () => {
           <template v-for="link in rentas.links">
             <Link
               v-if="link.url"
-              :key="link.label"
+              :key="link.label + '-link'"
               :href="link.url"
               v-html="link.label"
               :class="[
@@ -282,14 +282,14 @@ const crearNuevaRenta = () => {
             />
             <span
               v-else
-              :key="link.label"
+              :key="link.label + '-span'"
               v-html="link.label"
               class="px-3 py-2 text-sm border text-gray-400 cursor-not-allowed"
             ></span>
           </template>
         </div>
       </div>
-      <!-- Modales -->
+
       <Modales
         :show="showModal"
         :mode="modalMode"
