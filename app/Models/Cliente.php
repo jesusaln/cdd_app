@@ -30,10 +30,12 @@ class Cliente extends Model implements AuditableContract
         'tipo_persona',
         'activo',
         'notas',
+        'acepta_marketing',
     ];
 
     protected $casts = [
         'activo' => 'boolean',
+        'acepta_marketing' => 'boolean',
     ];
 
     /**

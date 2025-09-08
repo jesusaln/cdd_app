@@ -15,7 +15,7 @@ class ClienteSeeder extends Seeder
             ['rfc' => 'XAXX010101000'],
             [
                 'nombre_razon_social' => 'PUBLICO EN GENERAL',
-                'tipo_persona' => 'Fisica',
+                'tipo_persona' => 'fisica',
                 'rfc' => 'XAXX010101000',
                 'regimen_fiscal' => '616',
                 'uso_cfdi' => 'G03',
@@ -28,7 +28,8 @@ class ClienteSeeder extends Seeder
                 'municipio' => 'NO ESPECIFICADO',
                 'estado' => 'CIUDAD DE MEXICO',
                 'pais' => 'MEXICO',
-                'activo' => true
+                'activo' => true,
+                'acepta_marketing' => false,
             ]
         );
 
@@ -75,12 +76,13 @@ class ClienteSeeder extends Seeder
 
             for ($i = 0; $i < 15; $i++) {
                 $tipoPersona = $faker->randomElement(['Fisica', 'Moral']);
+                $tipoPersonaLower = strtolower($tipoPersona);
 
                 Cliente::create([
-                    'nombre_razon_social' => $tipoPersona === 'Fisica' ?
+                    'nombre_razon_social' => $tipoPersonaLower === 'fisica' ?
                         $faker->name() :
                         $faker->company(),
-                    'tipo_persona' => $tipoPersona,
+                    'tipo_persona' => $tipoPersonaLower,
                     'rfc' => $this->generarRFC($tipoPersona),
                     'regimen_fiscal' => $faker->randomElement($regimenesFiscales),
                     'uso_cfdi' => $faker->randomElement($usosCFDI),
@@ -94,7 +96,8 @@ class ClienteSeeder extends Seeder
                     'municipio' => $faker->city(),
                     'estado' => $faker->randomElement($estadosMexicanos),
                     'pais' => 'MEXICO',
-                    'activo' => $faker->boolean(90)
+                    'activo' => $faker->boolean(90),
+                    'acepta_marketing' => $faker->boolean(),
                 ]);
             }
         }
