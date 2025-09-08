@@ -28,7 +28,10 @@ class DatabaseSeeder extends Seeder
             CitaSeeder::class,
             CotizacionSeeder::class,
             CotizacionItemSeeder::class,
-            
+            SatRegimenesFiscalesSeeder::class,
+            SatUsosCfdiSeeder::class,
+            SatEstadosSeeder::class,
+
         ]);
     }
     //hola

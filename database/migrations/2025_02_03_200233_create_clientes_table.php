@@ -13,33 +13,56 @@ return new class extends Migration
     {
         Schema::create('clientes', function (Blueprint $table) {
             $table->id();
-            $table->string('nombre_razon_social'); // Nombre o razón social
-            $table->string('tipo_persona'); // fisica|moral
-            $table->string('tipo_identificacion')->nullable();
-            $table->string('identificacion')->nullable();
-            $table->string('curp')->nullable();
-            $table->string('rfc', 13)->unique(); // 12 moral / 13 fisica (cabe)
-            $table->string('regimen_fiscal'); // clave SAT
-            $table->string('uso_cfdi'); // clave SAT
-            $table->string('email'); // NO unique (puede repetirse)
-            $table->string('telefono')->nullable();
-            $table->string('calle');
-            $table->string('numero_exterior');
-            $table->string('numero_interior')->nullable();
-            $table->string('colonia');
-            $table->string('codigo_postal', 5);
-            $table->string('municipio');
-            $table->string('estado');
-            $table->string('pais')->default('México');
+
+            $table->string('nombre_razon_social', 255);
+            $table->enum('tipo_persona', ['fisica', 'moral']);
+
+            $table->string('tipo_identificacion', 20)->nullable();
+            $table->string('identificacion', 50)->nullable();
+            $table->string('curp', 18)->nullable();
+
+            $table->string('rfc', 13)->unique()->comment('12 moral, 13 física');
+
+            // Fiscales (claves SAT)
+            $table->char('regimen_fiscal', 3);
+            $table->char('uso_cfdi', 3);
+
+            // Contacto
+            $table->string('email', 255);
+            $table->string('telefono', 20)->nullable();
+
+            // Dirección MX
+            $table->string('calle', 150);
+            $table->string('numero_exterior', 30);
+            $table->string('numero_interior', 30)->nullable();
+            $table->string('colonia', 150);
+            $table->char('codigo_postal', 5);
+            $table->string('municipio', 120);
+            $table->char('estado', 3)->comment('SAT c_Estado');
+            $table->char('pais', 2)->default('MX');
+
             $table->text('notas')->nullable();
             $table->boolean('activo')->default(true);
+
             $table->timestamps();
 
-            // índices útiles para búsquedas/orden (opcionales pero recomendables)
+            // Índices
             $table->index(['nombre_razon_social']);
             $table->index(['email']);
             $table->index(['activo']);
             $table->index(['created_at']);
+            $table->fullText(['nombre_razon_social', 'email', 'rfc']);
+
+            // CHECKS (MySQL 8+)
+            $table->check("pais = 'MX'");
+            $table->check("codigo_postal REGEXP '^[0-9]{5}$'");
+            $table->check("rfc REGEXP '^[A-ZÑ&]{3,4}[0-9]{6}[A-Z0-9]{3}$'");
+            $table->check("curp IS NULL OR curp REGEXP '^[A-Z][AEIOU][A-Z]{2}[0-9]{6}[HM][A-Z]{5}[A-Z0-9][0-9]$'");
+        });
+
+        Schema::table('clientes', function (Blueprint $table) {
+            $table->foreign('regimen_fiscal')->references('clave')->on('sat_regimenes_fiscales');
+            $table->foreign('uso_cfdi')->references('clave')->on('sat_usos_cfdi');
         });
     }
 
