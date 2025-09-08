@@ -73,7 +73,7 @@
               label="Tipo de Persona"
               type="select"
               id="tipo_persona"
-              :options="selectOptions(props.catalogs.tiposPersona)"
+              :options="optionsTiposPersona"
               :error="form.errors.tipo_persona"
               @change="handleTipoPersonaChange"
               required
@@ -84,7 +84,7 @@
               label="RFC"
               type="text"
               id="rfc"
-              :maxlength="form.tipo_persona === 'fisica' ? 13 : 12"
+              :maxlength="form.tipo_persona === 'fisica' ? 13 : 13"
               :error="form.errors.rfc"
               :placeholder="form.tipo_persona === 'fisica' ? 'ABCD123456EFG' : 'ABC123456EFG'"
               @input="onRfcInput"
@@ -96,7 +96,7 @@
               label="Régimen Fiscal"
               type="select"
               id="regimen_fiscal"
-              :options="selectOptions(regimenesFiltrados, true)"
+              :options="optionsRegimenesFiltrados"
               :error="form.errors.regimen_fiscal"
               required
             />
@@ -106,7 +106,7 @@
               label="Uso CFDI"
               type="select"
               id="uso_cfdi"
-              :options="selectOptions(props.catalogs.usosCFDI)"
+              :options="optionsUsos"
               :error="form.errors.uso_cfdi"
               required
             />
@@ -165,6 +165,7 @@
               id="codigo_postal"
               :error="form.errors.codigo_postal"
               maxlength="5"
+              @input="onCpInput"
               required
             />
 
@@ -183,7 +184,7 @@
               label="Estado"
               type="select"
               id="estado"
-              :options="selectOptions(props.catalogs.estados)"
+              :options="optionsEstados"
               :error="form.errors.estado"
               required
             />
@@ -194,7 +195,7 @@
               type="text"
               id="pais"
               :error="form.errors.pais"
-              @blur="toUpper('pais')"
+              readonly
               required
             />
           </div>
@@ -224,79 +225,109 @@
 </template>
 
 <script setup>
-import { Head, useForm, router } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
-import AppLayout from '@/Layouts/AppLayout.vue';
-import FormField from '@/Components/FormField.vue';
+import { Head, useForm } from '@inertiajs/vue3'
+import { computed, ref, watch } from 'vue'
+import AppLayout from '@/Layouts/AppLayout.vue'
+import FormField from '@/Components/FormField.vue'
 
-defineOptions({ layout: AppLayout });
+defineOptions({ layout: AppLayout })
 
 const props = defineProps({
-  catalogs: { type: Object, required: true },
-  cliente:  { type: Object, required: true }
-});
+  catalogs: { type: Object, required: true },  // {estados, regimenesFiscales, usosCFDI, tiposPersona}
+  cliente:  { type: Object, required: true }   // defaults para create
+})
 
-const showSuccessMessage = ref(false);
+const showSuccessMessage = ref(false)
 
-const form = useForm({ ...props.cliente });
+// Inicializa el form con defaults; forzamos país MX si no viene
+const form = useForm({
+  ...props.cliente,
+  pais: props.cliente.pais || 'MX',
+})
 
-const hasGlobalErrors = computed(() => Object.keys(form.errors).length > 0);
+const hasGlobalErrors = computed(() => Object.keys(form.errors).length > 0)
 
 const isFormValid = computed(() => {
   const requiredFields = [
     'nombre_razon_social','email','tipo_persona','rfc','regimen_fiscal','uso_cfdi',
     'calle','numero_exterior','colonia','codigo_postal','municipio','estado','pais'
-  ];
+  ]
   return requiredFields.every(f => form[f] !== null && form[f] !== undefined && String(form[f]).trim() !== '')
-    && Object.keys(form.errors).length === 0;
-});
+    && Object.keys(form.errors).length === 0
+})
 
-// Helpers para selects (convierte {value,label} a {value,text} si tu FormField lo requiere)
-const selectOptions = (arr, includeEmpty = false) => {
-  const options = (arr || []).map(o => ({ value: o.value, text: o.label, disabled: o.disabled || false }));
-  if (includeEmpty && options.length && options[0].value !== '') {
-    options.unshift({ value: '', text: 'Selecciona una opción', disabled: true });
-  }
-  return options;
-};
+/**
+ * Builders de opciones para <FormField type="select" />
+ * Aceptan catálogos crudos desde BD y convierten a { value, text }
+ */
+const optionsTiposPersona = computed(() =>
+  (props.catalogs.tiposPersona || []).map(t => ({ value: t.value, text: t.label }))
+)
 
-// Filtrar regímenes por tipo_persona usando endpoint o local
-const regimenesFiltrados = computed(() => {
-  // props.catalogs.regimenesFiscales ya viene completo; en el back se valida por tipo.
-  return props.catalogs.regimenesFiscales;
-});
+const optionsEstados = computed(() => {
+  const base = (props.catalogs.estados || []).map(e => ({
+    value: e.clave,
+    text: `${e.clave} — ${e.nombre}`
+  }))
+  return prependPlaceholder(base)
+})
 
-const handleTipoPersonaChange = () => {
-  form.rfc = '';
-  form.regimen_fiscal = '';
-};
+const optionsRegimenesFiltrados = computed(() => {
+  const arr = (props.catalogs.regimenesFiscales || [])
+    .filter(r => form.tipo_persona === 'moral' ? r.persona_moral : r.persona_fisica)
+    .map(r => ({ value: r.clave, text: `${r.clave} — ${r.descripcion}` }))
+  return prependPlaceholder(arr)
+})
 
+const optionsUsos = computed(() => {
+  const arr = (props.catalogs.usosCFDI || [])
+    .map(u => ({ value: u.clave, text: `${u.clave} — ${u.descripcion}` }))
+  return prependPlaceholder(arr)
+})
+
+function prependPlaceholder(arr) {
+  return [{ value: '', text: 'Selecciona una opción', disabled: true }, ...arr]
+}
+
+// Reacciones
+watch(() => form.tipo_persona, () => {
+  // si cambias tipo, limpia RFC y régimen para evitar inconsistencias
+  form.rfc = ''
+  form.regimen_fiscal = ''
+})
+
+/** Normalizadores de inputs */
 const onRfcInput = (e) => {
-  const value = e.target.value.toUpperCase().replace(/[^A-ZÑ&0-9]/g, '');
-  form.rfc = value;
-};
+  const value = e.target.value.toUpperCase().replace(/[^A-ZÑ&0-9]/g, '')
+  form.rfc = value.slice(0, 13) // tope 13; el backend valida 12/13 según sea el caso
+}
+
+const onCpInput = (e) => {
+  const digits = (e.target.value || '').replace(/\D+/g, '')
+  form.codigo_postal = digits.slice(0, 5)
+}
 
 const toUpper = (campo) => {
-  if (form[campo] && campo !== 'email') form[campo] = String(form[campo]).toUpperCase().trim();
-};
+  if (campo !== 'email' && form[campo]) form[campo] = String(form[campo]).toUpperCase().trim()
+}
 
 const resetForm = () => {
-  Object.keys(form.data()).forEach(k => form[k] = props.cliente[k] ?? '');
-  form.clearErrors();
-  showSuccessMessage.value = false;
-};
+  Object.keys(form.data()).forEach(k => form[k] = props.cliente[k] ?? (k === 'pais' ? 'MX' : ''))
+  form.clearErrors()
+  showSuccessMessage.value = false
+}
 
 const submit = () => {
-  showSuccessMessage.value = false;
+  showSuccessMessage.value = false
   form.post(route('clientes.store'), {
     preserveScroll: true,
     onSuccess: () => {
-      showSuccessMessage.value = true;
+      showSuccessMessage.value = true
       setTimeout(() => {
-        showSuccessMessage.value = false;
-        resetForm();
-      }, 2000);
+        showSuccessMessage.value = false
+        resetForm()
+      }, 2000)
     }
-  });
-};
+  })
+}
 </script>

@@ -4,13 +4,15 @@ namespace App\Http\Controllers;
 
 use Inertia\Inertia;
 use App\Models\Cliente;
+use App\Models\SatEstado;
+use App\Models\SatRegimenFiscal;
+use App\Models\SatUsoCfdi;
 use App\Http\Requests\StoreClienteRequest;
 use App\Http\Requests\UpdateClienteRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -22,126 +24,64 @@ class ClienteController extends Controller
     private const ITEMS_PER_PAGE = 10;
     private const CACHE_TTL = 60;
 
-    private const TIPOS_PERSONA = [
-        'fisica' => 'Persona Física',
-        'moral'  => 'Persona Moral',
-    ];
-
-    private const REGIMENES_FISCALES = [
-        '601' => 'General de Ley Personas Morales',
-        '603' => 'Personas Morales con Fines no Lucrativos',
-        '605' => 'Sueldos y Salarios e Ingresos Asimilados a Salarios',
-        '606' => 'Arrendamiento',
-        '607' => 'Régimen de Enajenación o Adquisición de Bienes',
-        '608' => 'Demás ingresos',
-        '609' => 'Consolidación',
-        '610' => 'Residentes en el Extranjero sin Establecimiento Permanente en México',
-        '611' => 'Ingresos por Dividendos (socios y accionistas)',
-        '612' => 'Personas Físicas con Actividades Empresariales y Profesionales',
-        '614' => 'Ingresos por intereses',
-        '615' => 'Régimen de los ingresos por obtención de premios',
-        '616' => 'Sin obligaciones fiscales',
-        '620' => 'Sociedades Cooperativas de Producción que optan por diferir sus ingresos',
-        '621' => 'Incorporación Fiscal',
-        '622' => 'Actividades Agrícolas, Ganaderas, Silvícolas y Pesqueras',
-        '623' => 'Opcional para Grupos de Sociedades',
-        '624' => 'Coordinados',
-        '625' => 'Régimen de las Actividades Empresariales con ingresos a través de Plataformas Tecnológicas',
-        '626' => 'Régimen Simplificado de Confianza',
-        '628' => 'Hidrocarburos',
-        '629' => 'De los Regímenes Fiscales Preferentes y de las Empresas Multinacionales',
-        '630' => 'Enajenación de acciones en bolsa de valores',
-    ];
-
-    private const REGIMENES_FISICA = ['605', '606', '607', '608', '610', '611', '612', '614', '615', '616', '621', '625', '626'];
-    private const REGIMENES_MORAL  = ['601', '603', '609', '620', '622', '623', '624', '628', '629', '630'];
-
-    private const USOS_CFDI = [
-        'G01' => 'Adquisición de mercancías',
-        'G02' => 'Devoluciones, descuentos o bonificaciones',
-        'G03' => 'Gastos en general',
-        'I01' => 'Construcciones',
-        'I02' => 'Mobiliario y equipo de oficina por inversiones',
-        'I03' => 'Equipo de transporte',
-        'I04' => 'Equipo de cómputo y accesorios',
-        'I05' => 'Dados, troqueles, moldes, matrices y herramental',
-        'I06' => 'Comunicaciones telefónicas',
-        'I07' => 'Comunicaciones satelitales',
-        'I08' => 'Otra maquinaria y equipo',
-        'D01' => 'Honorarios médicos, dentales y gastos hospitalarios',
-        'D02' => 'Gastos médicos por incapacidad o discapacidad',
-        'D03' => 'Gastos funerales',
-        'D04' => 'Donativos',
-        'D05' => 'Intereses reales efectivamente pagados por créditos hipotecarios (casa habitación)',
-        'D06' => 'Aportaciones voluntarias al SAR',
-        'D07' => 'Primas por seguros de gastos médicos',
-        'D08' => 'Gastos de transportación escolar obligatoria',
-        'D09' => 'Depósitos en cuentas para el ahorro, primas que tengan como base planes de pensiones',
-        'D10' => 'Pagos por servicios educativos (colegiaturas)',
-        'S01' => 'Sin efectos fiscales',
-        'CP01' => 'Pagos',
-        'CN01' => 'Nómina',
-    ];
-
-    private const ESTADOS_MEXICO = [
-        'Aguascalientes',
-        'Baja California',
-        'Baja California Sur',
-        'Campeche',
-        'Chiapas',
-        'Chihuahua',
-        'Coahuila',
-        'Colima',
-        'Ciudad de México',
-        'Durango',
-        'Guanajuato',
-        'Guerrero',
-        'Hidalgo',
-        'Jalisco',
-        'México',
-        'Michoacán',
-        'Morelos',
-        'Nayarit',
-        'Nuevo León',
-        'Oaxaca',
-        'Puebla',
-        'Querétaro',
-        'Quintana Roo',
-        'San Luis Potosí',
-        'Sinaloa',
-        'Sonora',
-        'Tabasco',
-        'Tamaulipas',
-        'Tlaxcala',
-        'Veracruz',
-        'Yucatán',
-        'Zacatecas'
-    ];
-
-    // ========================= Helpers de catálogos =========================
+    // ========================= Helpers de catálogos (DB + Cache) =========================
     private function getTiposPersona(): array
     {
-        return Cache::remember('tipos_persona', self::CACHE_TTL, fn() => self::TIPOS_PERSONA);
+        // Usamos valores fijos pero mínimos (no hardcodeamos regímenes/estados/usos)
+        return Cache::remember('tipos_persona', self::CACHE_TTL, fn() => [
+            'fisica' => 'Persona Física',
+            'moral'  => 'Persona Moral',
+        ]);
     }
+
     private function getRegimenesFiscales(): array
     {
-        return Cache::remember('regimenes_fiscales', self::CACHE_TTL, fn() => self::REGIMENES_FISCALES);
+        return Cache::remember('regimenes_fiscales_db', self::CACHE_TTL, function () {
+            return SatRegimenFiscal::orderBy('clave')
+                ->get(['clave', 'descripcion', 'persona_fisica', 'persona_moral'])
+                ->keyBy('clave')
+                ->toArray();
+        });
     }
+
     private function getUsosCFDI(): array
     {
-        return Cache::remember('usos_cfdi', self::CACHE_TTL, fn() => self::USOS_CFDI);
+        return Cache::remember('usos_cfdi_db', self::CACHE_TTL, function () {
+            return SatUsoCfdi::orderBy('clave')
+                ->get(['clave', 'descripcion', 'persona_fisica', 'persona_moral'])
+                ->keyBy('clave')
+                ->toArray();
+        });
     }
+
     private function getEstadosMexico(): array
     {
-        return Cache::remember('estados_mexico', self::CACHE_TTL, fn() => array_combine(self::ESTADOS_MEXICO, self::ESTADOS_MEXICO));
+        // Estados SAT (3 letras) -> nombre
+        return Cache::remember('estados_mexico_db', self::CACHE_TTL, function () {
+            return SatEstado::orderBy('nombre')
+                ->get(['clave', 'nombre'])
+                ->pluck('nombre', 'clave') // ['SON' => 'Sonora', ...]
+                ->toArray();
+        });
+    }
+
+    private function estadosSatCsv(): string
+    {
+        return implode(',', array_keys($this->getEstadosMexico())); // "AGU,BCN,..."
     }
 
     private function formatForVueSelect(array $options, bool $includeEmpty = false, bool $showCode = false): array
     {
-        $formatted = collect($options)->map(function ($label, $value) use ($showCode) {
+        // $options puede venir como ['clave' => ['descripcion'=>..., ...]] o ['clave' => 'texto'].
+        $formatted = collect($options)->map(function ($value, $key) use ($showCode) {
+            if (is_array($value)) {
+                $label = $value['descripcion'] ?? ($value['nombre'] ?? $key);
+            } else {
+                $label = $value;
+            }
             return [
-                'value' => $value,
-                'label' => $showCode ? "{$value} - {$label}" : $label
+                'value' => $key,
+                'label' => $showCode ? "{$key} - {$label}" : $label,
             ];
         })->values()->toArray();
 
@@ -156,33 +96,37 @@ class ClienteController extends Controller
         $tipos = $this->getTiposPersona();
         return $tipos[$codigo] ?? $codigo;
     }
+
     private function getRegimenFiscalNombre(string $codigo): string
     {
         $reg = $this->getRegimenesFiscales();
-        return $reg[$codigo] ?? $codigo;
+        return isset($reg[$codigo]) ? ($reg[$codigo]['descripcion'] ?? $codigo) : $codigo;
     }
+
     private function getUsoCFDINombre(string $codigo): string
     {
         $u = $this->getUsosCFDI();
-        return $u[$codigo] ?? $codigo;
+        return isset($u[$codigo]) ? ($u[$codigo]['descripcion'] ?? $codigo) : $codigo;
     }
 
-    private function transformClientesPaginator($paginator)
+    private function getEstadoNombre(?string $clave): ?string
     {
-        $collection = $paginator->getCollection();
-
-        $collection->transform(function ($cliente) {
-            $cliente->tipo_persona_nombre   = $this->getTipoPersonaNombre($cliente->tipo_persona);
-            $cliente->regimen_fiscal_nombre = $this->getRegimenFiscalNombre($cliente->regimen_fiscal);
-            $cliente->uso_cfdi_nombre       = $this->getUsoCFDINombre($cliente->uso_cfdi);
-            $cliente->estado_texto          = $cliente->activo ? 'Activo' : 'Inactivo';
-            return $cliente;
-        });
-
-        $paginator->setCollection($collection);
-        return $paginator;
+        if (!$clave) return null;
+        $est = $this->getEstadosMexico();
+        return $est[$clave] ?? $clave;
     }
 
+    private function getCatalogData(): array
+    {
+        return [
+            'tiposPersona'      => $this->formatForVueSelect($this->getTiposPersona(), true),
+            'regimenesFiscales' => $this->formatForVueSelect($this->getRegimenesFiscales(), true, true),
+            'usosCFDI'          => $this->formatForVueSelect($this->getUsosCFDI(), true, true),
+            'estados'           => $this->formatForVueSelect($this->getEstadosMexico(), true),
+        ];
+    }
+
+    // ========================= Query base =========================
     private function buildSearchQuery(Request $request)
     {
         $query = Cliente::query();
@@ -206,17 +150,34 @@ class ClienteController extends Controller
         if ($request->filled('uso_cfdi')) {
             $query->where('uso_cfdi', $request->get('uso_cfdi'));
         }
-
-        // importante: permitir activo=0 (false)
         if ($request->has('activo') && $request->get('activo') !== '') {
             $query->where('activo', filter_var($request->get('activo'), FILTER_VALIDATE_BOOLEAN));
         }
-
         if ($request->filled('estado')) {
             $query->where('estado', $request->get('estado'));
         }
 
+        // precarga descripciones para vistas
+        $query->with(['regimen', 'uso', 'estadoSat']);
+
         return $query;
+    }
+
+    private function transformClientesPaginator($paginator)
+    {
+        $collection = $paginator->getCollection();
+
+        $collection->transform(function ($cliente) {
+            $cliente->tipo_persona_nombre   = $this->getTipoPersonaNombre($cliente->tipo_persona);
+            $cliente->regimen_fiscal_nombre = $cliente->regimen?->descripcion ?? $this->getRegimenFiscalNombre($cliente->regimen_fiscal);
+            $cliente->uso_cfdi_nombre       = $cliente->uso?->descripcion ?? $this->getUsoCFDINombre($cliente->uso_cfdi);
+            $cliente->estado_nombre         = $cliente->estadoSat?->nombre ?? $this->getEstadoNombre($cliente->estado);
+            $cliente->estado_texto          = $cliente->activo ? 'Activo' : 'Inactivo';
+            return $cliente;
+        });
+
+        $paginator->setCollection($collection);
+        return $paginator;
     }
 
     // ========================= Validaciones =========================
@@ -228,9 +189,9 @@ class ClienteController extends Controller
             'max:13',
             'regex:/^[A-ZÑ&]{3,4}[0-9]{6}[A-Z0-9]{3}$/',
             function ($attribute, $value, $fail) use ($clienteId) {
+                $value = strtoupper(trim($value));
                 $query = Cliente::where('rfc', $value);
                 if ($clienteId) $query->where('id', '!=', $clienteId);
-
                 if ($query->exists()) {
                     if ($value === 'XAXX010101000') {
                         $fail('Ya existe el cliente genérico. No se pueden crear múltiples clientes con RFC genérico.');
@@ -244,16 +205,20 @@ class ClienteController extends Controller
 
     private function getRegimenFiscalValidationRules(): array
     {
+        // validamos en DB + compatibilidad con tipo_persona
         return [
             'required',
             'string',
+            'exists:sat_regimenes_fiscales,clave',
             function ($attribute, $value, $fail) {
                 $tipo = request()->input('tipo_persona');
-                if ($tipo === 'fisica' && !in_array($value, self::REGIMENES_FISICA)) {
-                    $fail('El régimen fiscal no es válido para persona física.');
+                $rf = SatRegimenFiscal::find($value);
+                if (!$rf) return; // exists ya fallará
+                if ($tipo === 'fisica' && !$rf->persona_fisica) {
+                    $fail('El régimen fiscal no es válido para Persona Física.');
                 }
-                if ($tipo === 'moral' && !in_array($value, self::REGIMENES_MORAL)) {
-                    $fail('El régimen fiscal no es válido para persona moral.');
+                if ($tipo === 'moral' && !$rf->persona_moral) {
+                    $fail('El régimen fiscal no es válido para Persona Moral.');
                 }
             },
         ];
@@ -261,13 +226,15 @@ class ClienteController extends Controller
 
     private function getValidationRules(?int $clienteId = null): array
     {
+        $estadosCsv = $this->estadosSatCsv();
+
         return [
             'nombre_razon_social' => 'required|string|max:255|regex:/^[a-zA-Z0-9ñÑáéíóúÁÉÍÓÚüÜ\s\.,&\-\']+$/',
             'tipo_persona'        => 'required|in:fisica,moral',
             'rfc'                 => $this->getRfcValidationRules($clienteId),
             'regimen_fiscal'      => $this->getRegimenFiscalValidationRules(),
-            'uso_cfdi'            => 'required|string|in:' . implode(',', array_keys(self::USOS_CFDI)),
-            'email'               => ['required', 'email:rfc,dns', 'max:255'], // SIN unicidad
+            'uso_cfdi'            => 'required|string|exists:sat_usos_cfdi,clave',
+            'email'               => ['required', 'email:rfc,dns', 'max:255'],
             'telefono'            => 'nullable|string|max:20|regex:/^[0-9+\-\s()]+$/',
             'calle'               => 'required|string|max:255',
             'numero_exterior'     => 'required|string|max:20',
@@ -275,8 +242,8 @@ class ClienteController extends Controller
             'colonia'             => 'required|string|max:255',
             'codigo_postal'       => 'required|string|size:5|regex:/^[0-9]{5}$/',
             'municipio'           => 'required|string|max:255',
-            'estado'              => 'required|string|max:255|in:' . implode(',', self::ESTADOS_MEXICO),
-            'pais'                => 'required|string|max:255',
+            'estado'              => "required|string|size:3|in:$estadosCsv", // clave SAT (3 letras)
+            'pais'                => 'required|string|in:MX',
             'notas'               => 'nullable|string|max:1000',
             'activo'              => 'boolean',
         ];
@@ -292,8 +259,9 @@ class ClienteController extends Controller
             'rfc.required'                 => 'El RFC es obligatorio.',
             'rfc.regex'                    => 'El RFC no tiene un formato válido.',
             'regimen_fiscal.required'      => 'El régimen fiscal es obligatorio.',
+            'regimen_fiscal.exists'        => 'El régimen fiscal no existe en el catálogo.',
             'uso_cfdi.required'            => 'El uso de CFDI es obligatorio.',
-            'uso_cfdi.in'                  => 'El uso de CFDI seleccionado no es válido.',
+            'uso_cfdi.exists'              => 'El uso de CFDI seleccionado no es válido.',
             'email.required'               => 'El email es obligatorio.',
             'email.email'                  => 'El email debe tener un formato válido.',
             'telefono.regex'               => 'El teléfono solo debe contener números, espacios, paréntesis, guiones y el signo +.',
@@ -307,6 +275,7 @@ class ClienteController extends Controller
             'estado.required'              => 'El estado es obligatorio.',
             'estado.in'                    => 'El estado seleccionado no es válido.',
             'pais.required'                => 'El país es obligatorio.',
+            'pais.in'                      => 'El país debe ser MX.',
             'notas.max'                    => 'Las notas no pueden exceder 1000 caracteres.',
         ];
     }
@@ -314,20 +283,11 @@ class ClienteController extends Controller
     private function formatClienteForView(Cliente $c): Cliente
     {
         $c->tipo_persona_nombre   = $this->getTipoPersonaNombre($c->tipo_persona);
-        $c->regimen_fiscal_nombre = $this->getRegimenFiscalNombre($c->regimen_fiscal);
-        $c->uso_cfdi_nombre       = $this->getUsoCFDINombre($c->uso_cfdi);
+        $c->regimen_fiscal_nombre = $c->regimen?->descripcion ?? $this->getRegimenFiscalNombre($c->regimen_fiscal);
+        $c->uso_cfdi_nombre       = $c->uso?->descripcion ?? $this->getUsoCFDINombre($c->uso_cfdi);
+        $c->estado_nombre         = $c->estadoSat?->nombre ?? $this->getEstadoNombre($c->estado);
         $c->estado_texto          = $c->activo ? 'Activo' : 'Inactivo';
         return $c;
-    }
-
-    private function getCatalogData(): array
-    {
-        return [
-            'tiposPersona'     => $this->formatForVueSelect($this->getTiposPersona(), true),
-            'regimenesFiscales' => $this->formatForVueSelect($this->getRegimenesFiscales(), true, true),
-            'usosCFDI'         => $this->formatForVueSelect($this->getUsosCFDI(), true, true),
-            'estados'          => $this->formatForVueSelect($this->getEstadosMexico(), true),
-        ];
     }
 
     // ============================= CRUD =============================
@@ -348,7 +308,7 @@ class ClienteController extends Controller
             $clientes = $query->paginate(self::ITEMS_PER_PAGE)->appends($request->query());
             $clientes = $this->transformClientesPaginator($clientes);
 
-            $clientesCount  = Cliente::count();
+            $clientesCount   = Cliente::count();
             $clientesActivos = Cliente::where('activo', true)->count();
 
             return Inertia::render('Clientes/Index', [
@@ -376,12 +336,11 @@ class ClienteController extends Controller
                 'catalogs' => $this->getCatalogData(),
                 'cliente'  => [
                     'id' => null,
-                    // todos requieren datos fiscales -> no hay requiere_factura
                     'nombre_razon_social' => '',
-                    'tipo_persona'        => 'fisica',
+                    'tipo_persona'        => 'moral',
                     'rfc'                 => '',
                     'regimen_fiscal'      => '',
-                    'uso_cfdi'            => '',
+                    'uso_cfdi'            => 'G03', // preferencia por defecto
                     'email'               => '',
                     'telefono'            => '',
                     'calle'               => '',
@@ -391,7 +350,7 @@ class ClienteController extends Controller
                     'codigo_postal'       => '',
                     'municipio'           => '',
                     'estado'              => '',
-                    'pais'                => 'México',
+                    'pais'                => 'MX', // forzado a MX
                 ]
             ]);
         } catch (Exception $e) {
@@ -406,9 +365,10 @@ class ClienteController extends Controller
             DB::beginTransaction();
 
             $data = $request->validated();
-            $data['rfc']                   = strtoupper(trim($data['rfc']));
-            $data['email']                 = strtolower(trim($data['email']));
-            $data['nombre_razon_social']   = trim($data['nombre_razon_social']);
+            $data['rfc']                 = strtoupper(trim($data['rfc']));
+            $data['email']               = strtolower(trim($data['email']));
+            $data['nombre_razon_social'] = trim($data['nombre_razon_social']);
+            $data['pais']                = 'MX';
 
             $cliente = Cliente::create($data);
 
@@ -430,6 +390,7 @@ class ClienteController extends Controller
     public function show(Cliente $cliente)
     {
         try {
+            $cliente->load(['regimen', 'uso', 'estadoSat']);
             $cliente = $this->formatClienteForView($cliente);
             return Inertia::render('Clientes/Show', ['cliente' => $cliente]);
         } catch (ModelNotFoundException $e) {
@@ -444,7 +405,9 @@ class ClienteController extends Controller
     public function edit(Cliente $cliente)
     {
         try {
+            $cliente->load(['regimen', 'uso', 'estadoSat']);
             $cliente = $this->formatClienteForView($cliente);
+
             return Inertia::render('Clientes/Edit', [
                 'cliente'  => $cliente,
                 'catalogs' => $this->getCatalogData(),
@@ -468,6 +431,7 @@ class ClienteController extends Controller
             $data['rfc']                 = strtoupper(trim($data['rfc']));
             $data['email']               = strtolower(trim($data['email']));
             $data['nombre_razon_social'] = trim($data['nombre_razon_social']);
+            $data['pais']                = 'MX';
 
             $cliente->update($data);
 
@@ -493,12 +457,9 @@ class ClienteController extends Controller
     {
         try {
             DB::beginTransaction();
-
             $cliente->delete();
-
             DB::commit();
             Log::info('Cliente eliminado', ['cliente_id' => $cliente->id]);
-
             return redirect()->route('clientes.index')->with('success', 'Cliente eliminado correctamente');
         } catch (ModelNotFoundException $e) {
             DB::rollBack();
@@ -516,11 +477,8 @@ class ClienteController extends Controller
     {
         try {
             DB::beginTransaction();
-
             $cliente->update(['activo' => !$cliente->activo]);
-
             DB::commit();
-
             return redirect()->back()->with('success', $cliente->activo ? 'Cliente activado correctamente' : 'Cliente desactivado correctamente');
         } catch (ModelNotFoundException $e) {
             DB::rollBack();
@@ -578,7 +536,6 @@ class ClienteController extends Controller
                 return response()->json(['success' => false, 'message' => 'Formato de email inválido'], 422);
             }
 
-            // Email puede repetirse: devolvemos solo validación de formato
             return response()->json(['success' => true, 'message' => 'Email con formato válido']);
         } catch (Exception $e) {
             Log::error('Error validando email: ' . $e->getMessage(), ['email' => $request->input('email')]);
@@ -594,10 +551,16 @@ class ClienteController extends Controller
                 return response()->json(['success' => false, 'message' => 'Tipo de persona inválido'], 422);
             }
 
-            $todos    = $this->getRegimenesFiscales();
-            $validos  = $tipoPersona === 'fisica' ? self::REGIMENES_FISICA : self::REGIMENES_MORAL;
-            $filtrados = array_intersect_key($todos, array_flip($validos));
-            $opciones = $this->formatForVueSelect($filtrados, true, true);
+            $validos = SatRegimenFiscal::query()
+                ->when($tipoPersona === 'fisica', fn($q) => $q->where('persona_fisica', true))
+                ->when($tipoPersona === 'moral',  fn($q) => $q->where('persona_moral', true))
+                ->orderBy('clave')
+                ->get(['clave', 'descripcion']);
+
+            $opciones = [['value' => '', 'label' => 'Selecciona una opción']];
+            foreach ($validos as $r) {
+                $opciones[] = ['value' => $r->clave, 'label' => "{$r->clave} - {$r->descripcion}"];
+            }
 
             return response()->json(['success' => true, 'regimenes' => $opciones]);
         } catch (Exception $e) {
@@ -610,9 +573,9 @@ class ClienteController extends Controller
     {
         try {
             $query = trim($request->input('q', ''));
-            $limit = min($request->input('limit', 10), 50);
+            $limit = min((int) $request->input('limit', 10), 50);
 
-            if (strlen($query) < 2) {
+            if (mb_strlen($query) < 2) {
                 return response()->json(['success' => false, 'message' => 'Mínimo 2 caracteres para búsqueda'], 422);
             }
 
@@ -627,12 +590,12 @@ class ClienteController extends Controller
                 ->get();
 
             $resultados = $clientes->map(fn($c) => [
-                'id'          => $c->id,
-                'nombre'      => $c->nombre_razon_social,
-                'rfc'         => $c->rfc,
-                'email'       => $c->email,
+                'id'           => $c->id,
+                'nombre'       => $c->nombre_razon_social,
+                'rfc'          => $c->rfc,
+                'email'        => $c->email,
                 'tipo_persona' => $this->getTipoPersonaNombre($c->tipo_persona),
-                'label'       => "{$c->nombre_razon_social} ({$c->rfc})"
+                'label'        => "{$c->nombre_razon_social} ({$c->rfc})"
             ]);
 
             return response()->json(['success' => true, 'clientes' => $resultados]);
@@ -669,7 +632,8 @@ class ClienteController extends Controller
                     'Email',
                     'Teléfono',
                     'Dirección Completa',
-                    'Estado',
+                    'Estado (clave)',
+                    'Estado (nombre)',
                     'Código Postal',
                     'Activo',
                     'Notas',
@@ -696,10 +660,11 @@ class ClienteController extends Controller
                         $cliente->telefono,
                         $direccion,
                         $cliente->estado,
+                        $this->getEstadoNombre($cliente->estado),
                         $cliente->codigo_postal,
                         $cliente->activo ? 'Sí' : 'No',
                         $cliente->notas,
-                        $cliente->created_at->format('d/m/Y H:i:s')
+                        $cliente->created_at?->format('d/m/Y H:i:s')
                     ]);
                 }
                 fclose($file);
@@ -720,20 +685,24 @@ class ClienteController extends Controller
         try {
             $stats = Cache::remember('clientes_stats', 5, function () {
                 return [
-                    'total'          => Cliente::count(),
-                    'activos'        => Cliente::where('activo', true)->count(),
-                    'inactivos'      => Cliente::where('activo', false)->count(),
+                    'total'            => Cliente::count(),
+                    'activos'          => Cliente::where('activo', true)->count(),
+                    'inactivos'        => Cliente::where('activo', false)->count(),
                     'personas_fisicas' => Cliente::where('tipo_persona', 'fisica')->count(),
                     'personas_morales' => Cliente::where('tipo_persona', 'moral')->count(),
-                    'nuevos_mes'     => Cliente::whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->count(),
-                    'top_regimenes'  => Cliente::select('regimen_fiscal')->selectRaw('COUNT(*) as total')->groupBy('regimen_fiscal')
+                    'nuevos_mes'       => Cliente::whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->count(),
+                    'top_regimenes'    => Cliente::select('regimen_fiscal')->selectRaw('COUNT(*) as total')->groupBy('regimen_fiscal')
                         ->orderByDesc('total')->limit(5)->get()->map(fn($item) => [
                             'regimen' => $item->regimen_fiscal,
                             'nombre'  => $this->getRegimenFiscalNombre($item->regimen_fiscal),
                             'total'   => $item->total
                         ]),
-                    'top_estados'    => Cliente::select('estado')->selectRaw('COUNT(*) as total')->groupBy('estado')
-                        ->orderByDesc('total')->limit(5)->get()
+                    'top_estados'      => Cliente::select('estado')->selectRaw('COUNT(*) as total')->groupBy('estado')
+                        ->orderByDesc('total')->limit(5)->get()->map(fn($item) => [
+                            'estado' => $item->estado,
+                            'nombre' => $this->getEstadoNombre($item->estado),
+                            'total'  => $item->total,
+                        ]),
                 ];
             });
 
@@ -748,9 +717,9 @@ class ClienteController extends Controller
     {
         try {
             Cache::forget('tipos_persona');
-            Cache::forget('regimenes_fiscales');
-            Cache::forget('usos_cfdi');
-            Cache::forget('estados_mexico');
+            Cache::forget('regimenes_fiscales_db');
+            Cache::forget('usos_cfdi_db');
+            Cache::forget('estados_mexico_db');
             Cache::forget('clientes_stats');
 
             Log::info('Cache de clientes limpiada', ['usuario' => Auth::id()]);

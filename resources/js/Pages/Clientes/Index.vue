@@ -257,15 +257,15 @@ onMounted(() => {
     <div class="max-w-8xl mx-auto px-6 py-8">
       <!-- Header universal reutilizable -->
       <UniversalHeader
-        :total="estadisticas.total"
-        :aprobadas="estadisticas.aprobadas"
-        :pendientes="estadisticas.pendientes"
-        v-model:search-term="searchTerm"
-        v-model:sort-by="sortBy"
-        v-model:filtro-estado="filtroEstado"
-        :config="headerConfig"
-        @limpiar-filtros="handleLimpiarFiltros"
-      />
+    :total="props.stats.total"
+    :aprobadas="props.stats.activos"
+    :pendientes="props.stats.inactivos"
+    v-model:search-term="searchTerm"
+    v-model:sort-by="sortBy"
+    v-model:filtro-estado="filtroEstado"
+    :config="headerConfig"
+    @limpiar-filtros="handleLimpiarFiltros"
+  />
 
       <!-- Tabla (reutilizamos DocumentosTable con tipo='clientes') -->
       <div class="mt-6">
