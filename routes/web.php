@@ -29,6 +29,7 @@ use App\Http\Controllers\OrdenCompraController;
 use App\Http\Controllers\DatabaseBackupController;
 use App\Http\Controllers\EquipoController;
 use App\Http\Controllers\RentasController;
+use App\Http\Controllers\BitacoraActividadController;
 
 
 
@@ -99,6 +100,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::resource('mantenimientos', MantenimientoController::class)->names('mantenimientos');
     Route::resource('equipos', EquipoController::class);
     Route::resource('rentas', RentasController::class);
+    Route::resource('bitacora-actividades', BitacoraActividadController::class)->names('bitacora-actividades');
+
 
     // =====================================================
     // RUTAS ESPECÍFICAS DE CLIENTES
@@ -167,5 +170,14 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
             Route::post('/restore/{path}', [DatabaseBackupController::class, 'restore'])->name('restore');
             Route::post('/clean', [DatabaseBackupController::class, 'clean'])->name('clean');
         });
+    });
+
+
+
+
+    Route::middleware(['auth', 'verified'])->group(function () {
+        Route::resource('bitacora', BitacoraActividadController::class)
+            ->parameters(['bitacora' => 'bitacora'])
+            ->names('bitacora');
     });
 });

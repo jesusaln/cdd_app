@@ -150,6 +150,21 @@
           </ul>
         </div>
 
+        <!-- Bitácora -->
+        <div class="mb-6">
+          <h3
+            v-show="!isSidebarCollapsed"
+            class="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider"
+          >
+            Bitácora
+          </h3>
+          <ul class="space-y-1">
+            <NavLink href="/bitacora" icon="clipboard-list" :collapsed="isSidebarCollapsed" :title="isSidebarCollapsed ? 'Bitácora' : null">
+              Bitácora
+            </NavLink>
+          </ul>
+        </div>
+
         <!-- Taller -->
         <div class="mb-6">
           <h3

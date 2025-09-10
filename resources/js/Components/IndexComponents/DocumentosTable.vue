@@ -95,16 +95,18 @@
               </div>
             </th>
 
-            <!-- Cliente/Proveedor | Equipo -->
+            <!-- Cliente/Proveedor | Equipo | (Clientes) Nombre -->
             <th
               class="group px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100/60 transition-colors duration-150"
-              @click="onSort(isEquipos ? 'nombre' : (isCompra ? 'proveedor' : 'cliente'))"
+              @click="onSort(isEquipos ? 'nombre' : (isCompra ? 'proveedor' : (isClientes ? 'nombre' : 'cliente')))"
             >
               <div class="flex items-center space-x-1">
-                <span>{{ isEquipos ? 'Equipo' : (isCompra ? 'Proveedor' : 'Cliente') }}</span>
+                <span>
+                  {{ isEquipos ? 'Equipo' : (isCompra ? 'Proveedor' : (isClientes ? 'Cliente' : 'Cliente')) }}
+                </span>
                 <svg
-                  v-if="sortBy.startsWith(isEquipos ? 'nombre' : (isCompra ? 'proveedor' : 'cliente'))"
-                  :class="['w-4 h-4 transition-transform duration-200', sortBy === `${isEquipos ? 'nombre' : (isCompra ? 'proveedor' : 'cliente')}-desc` ? 'rotate-180' : '']"
+                  v-if="sortBy.startsWith(isEquipos ? 'nombre' : (isCompra ? 'proveedor' : (isClientes ? 'nombre' : 'cliente')))"
+                  :class="['w-4 h-4 transition-transform duration-200', sortBy === `${isEquipos ? 'nombre' : (isCompra ? 'proveedor' : (isClientes ? 'nombre' : 'cliente'))}-desc` ? 'rotate-180' : '']"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -136,6 +138,7 @@
 
             <!-- Total -->
             <th
+              v-if="config.mostrarTotal !== false"
               class="group px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100/60 transition-colors duration-150"
               @click="onSort('total')"
             >
@@ -154,7 +157,10 @@
             </th>
 
             <!-- Productos -->
-            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+            <th
+              v-if="config.mostrarProductos !== false"
+              class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider"
+            >
               Productos
             </th>
 
@@ -203,21 +209,27 @@
                 </div>
               </td>
 
-              <!-- Cliente/Proveedor | Equipo -->
+              <!-- Cliente/Proveedor | Equipo | Clientes -->
               <td class="px-6 py-4">
                 <div class="flex flex-col space-y-0.5">
-                  <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800" v-if="!isEquipos">
+                  <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800" v-if="!isEquipos && !isClientes">
                     {{ isCompra ? (doc.proveedor?.nombre_razon_social || 'Sin proveedor') : (doc.cliente?.nombre || 'Sin cliente') }}
+                  </div>
+                  <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800" v-else-if="isClientes">
+                    {{ doc.nombre_razon_social || 'Sin nombre' }}
                   </div>
                   <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800" v-else>
                     {{ doc.nombre || 'Sin nombre' }}
                   </div>
 
                   <div
-                    v-if="!isEquipos && (isCompra ? doc.proveedor?.email : doc.cliente?.email)"
+                    v-if="!isEquipos && !isClientes && (isCompra ? doc.proveedor?.email : doc.cliente?.email)"
                     class="text-xs text-gray-500 truncate max-w-48"
                   >
                     {{ isCompra ? doc.proveedor?.email : doc.cliente?.email }}
+                  </div>
+                  <div v-else-if="isClientes && doc.email" class="text-xs text-gray-500 truncate max-w-48">
+                    {{ doc.email }}
                   </div>
 
                   <div v-if="isEquipos && (doc.modelo || doc.marca)" class="text-xs text-gray-500 truncate max-w-48">
@@ -234,7 +246,7 @@
               </td>
 
               <!-- Total -->
-              <td class="px-6 py-4">
+              <td v-if="config.mostrarTotal !== false" class="px-6 py-4">
                 <div class="text-sm font-semibold text-gray-900">
                   <template v-if="typeof doc.total !== 'undefined' && doc.total !== null">
                     ${{ formatearMoneda(doc.total) }}
@@ -245,6 +257,7 @@
 
               <!-- Productos -->
               <td
+                v-if="config.mostrarProductos !== false"
                 class="px-6 py-4 relative"
                 @mouseenter="doc.productos?.length ? showProductTooltip(doc, $event) : null"
                 @mouseleave="hideProductTooltip"
@@ -269,14 +282,14 @@
               <!-- Estado -->
               <td class="px-6 py-4">
                 <span
-                  :class="obtenerClasesEstado(doc.estado)"
+                  :class="obtenerClasesEstado(isClientes ? (doc.activo ? '1' : '0') : doc.estado)"
                   class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150 hover:shadow-sm"
                 >
                   <span
                     class="w-2 h-2 rounded-full mr-2 transition-all duration-150"
-                    :class="obtenerColorPuntoEstado(doc.estado)"
+                    :class="obtenerColorPuntoEstado(isClientes ? (doc.activo ? '1' : '0') : doc.estado)"
                   ></span>
-                  {{ obtenerLabelEstado(doc.estado) }}
+                  {{ obtenerLabelEstado(isClientes ? (doc.activo ? '1' : '0') : doc.estado) }}
                 </span>
               </td>
 
@@ -361,7 +374,7 @@
 
           <!-- Empty State -->
           <tr v-else>
-            <td :colspan="config.mostrarCampoExtra ? 7 : 6" class="px-6 py-16 text-center">
+            <td :colspan="config.mostrarCampoExtra ? (config.mostrarTotal !== false ? (config.mostrarProductos !== false ? 7 : 6) : (config.mostrarProductos !== false ? 6 : 5)) : (config.mostrarTotal !== false ? (config.mostrarProductos !== false ? 6 : 5) : (config.mostrarProductos !== false ? 5 : 4))" class="px-6 py-16 text-center">
               <div class="flex flex-col items-center space-y-4">
                 <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                   <svg class="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -389,19 +402,31 @@ const props = defineProps({
   tipo: {
     type: String,
     required: true,
-    validator: (value) => ['cotizaciones', 'pedidos', 'ventas', 'compras', 'ordenescompra', 'rentas', 'equipos'].includes(value)
+    validator: (value) => ['cotizaciones', 'pedidos', 'ventas', 'compras', 'ordenescompra', 'rentas', 'equipos', 'clientes'].includes(value)
   },
   searchTerm: { type: String, default: '' },
   sortBy: { type: String, default: 'fecha-desc' },
-  filtroEstado: { type: String, default: '' }
+  filtroEstado: { type: String, default: '' },
+   mapeo: {
+    type: Object,
+        default: () => ({
+      nombre: 'nombre_razon_social',
+      rfc: 'rfc',
+     activo: 'activo',
+      fecha: 'created_at'
+    })
+  }
 });
+
+
 
 const emit = defineEmits([
   'ver-detalles','editar','eliminar','duplicar','imprimir','sort','renovar','suspender','reactivar'
 ]);
 
-const isCompra = computed(() => props.tipo === 'compras');
-const isEquipos = computed(() => props.tipo === 'equipos');
+const isCompra   = computed(() => props.tipo === 'compras');
+const isEquipos  = computed(() => props.tipo === 'equipos');
+const isClientes = computed(() => props.tipo === 'clientes');
 
 // Tooltip state
 const showTooltip = ref(false);
@@ -527,7 +552,6 @@ const config = computed(() => {
     equipos: {
       titulo: 'Equipos',
       mostrarCampoExtra: true,
-      // IMPORTANT: tu Index usa numero_serie/codigo_interno
       campoExtra: { key: 'numero_serie', label: 'Serie' },
       acciones: { editar: true, duplicar: false, imprimir: true, eliminar: true },
       estados: {
@@ -556,6 +580,18 @@ const config = computed(() => {
         'anulado': { label: 'Anulado', classes: 'bg-gray-100 text-gray-500', color: 'bg-gray-400' },
         'sin_estado': { label: 'Sin Estado', classes: 'bg-gray-100 text-gray-500', color: 'bg-gray-400' }
       }
+    },
+    clientes: {
+      titulo: 'Clientes',
+      mostrarCampoExtra: true,
+      mostrarTotal: false,
+      mostrarProductos: false,
+      campoExtra: { key: 'rfc', label: 'RFC' },
+      acciones: { editar: true, duplicar: false, imprimir: false, eliminar: true },
+      estados: {
+        '1': { label: 'Activo',   classes: 'bg-emerald-100 text-emerald-700', color: 'bg-emerald-400' },
+        '0': { label: 'Inactivo', classes: 'bg-red-100 text-red-700',        color: 'bg-red-400' },
+      }
     }
   };
 
@@ -581,6 +617,8 @@ const formatearFecha = (date) => {
     return 'Fecha inválida';
   }
 };
+
+
 
 const formatearHora = (date) => {
   if (!date) return '';
@@ -624,6 +662,15 @@ const items = computed(() => {
   if (props.searchTerm) {
     const term = props.searchTerm.toLowerCase();
     filtered = filtered.filter(doc => {
+      if (isClientes.value) {
+        return (
+          (doc.nombre_razon_social || '').toLowerCase().includes(term) ||
+          (doc.rfc || '').toLowerCase().includes(term) ||
+          (doc.email || '').toLowerCase().includes(term) ||
+          (doc.municipio || '').toLowerCase().includes(term) ||
+          (doc.estado || '').toLowerCase().includes(term)
+        );
+      }
       if (isEquipos.value) {
         return (
           (doc.nombre || '').toLowerCase().includes(term) ||
@@ -640,7 +687,7 @@ const items = computed(() => {
         );
       }
       return (
-        (doc.cliente?.nombre || '').toLowerCase().includes(term) ||
+        (doc.cliente?.nombre_razon_social || '').toLowerCase().includes(term) ||
         doc.productos?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
         (doc.numero_pedido || doc.numero_factura || doc.id || '').toString().toLowerCase().includes(term)
       );
@@ -648,7 +695,12 @@ const items = computed(() => {
   }
 
   if (props.filtroEstado) {
-    filtered = filtered.filter(doc => doc.estado === props.filtroEstado);
+    filtered = filtered.filter(doc => {
+      if (isClientes.value) {
+        return String(doc.activo ? 1 : 0) === props.filtroEstado; // '1' activos, '0' inactivos
+      }
+      return doc.estado === props.filtroEstado;
+    });
   }
 
   const [field, direction] = props.sortBy.split('-');
@@ -667,24 +719,37 @@ const items = computed(() => {
         bVal = getDate(b.created_at || b.fecha);
         break;
       case 'cliente':
-        aVal = (a.cliente?.nombre || '').toLowerCase();
-        bVal = (b.cliente?.nombre || '').toLowerCase();
+        aVal = (a.cliente?.nombre_razon_social || '').toLowerCase();
+        bVal = (b.cliente?.nombre_razon_social || '').toLowerCase();
         break;
       case 'proveedor':
         aVal = (a.proveedor?.nombre_razon_social || '').toLowerCase();
         bVal = (b.proveedor?.nombre_razon_social || '').toLowerCase();
         break;
-      case 'nombre': // para equipos
-        aVal = (a.nombre || '').toLowerCase();
-        bVal = (b.nombre || '').toLowerCase();
+      case 'nombre': // clientes o equipos
+        aVal = (isClientes.value ? (a.nombre_razon_social || '') : (a.nombre || '')).toLowerCase();
+        bVal = (isClientes.value ? (b.nombre_razon_social || '') : (b.nombre || '')).toLowerCase();
+        break;
+      case 'rfc':
+        aVal = (a.rfc || '').toLowerCase();
+        bVal = (b.rfc || '').toLowerCase();
+        break;
+      case 'email':
+        aVal = (a.email || '').toLowerCase();
+        bVal = (b.email || '').toLowerCase();
         break;
       case 'total':
         aVal = parseFloat(a.total); aVal = Number.isFinite(aVal) ? aVal : 0;
         bVal = parseFloat(b.total); bVal = Number.isFinite(bVal) ? bVal : 0;
         break;
       case 'estado':
-        aVal = a.estado || '';
-        bVal = b.estado || '';
+        if (isClientes.value) {
+          aVal = a.activo ? '1' : '0';
+          bVal = b.activo ? '1' : '0';
+        } else {
+          aVal = a.estado || '';
+          bVal = b.estado || '';
+        }
         break;
       default:
         aVal = a?.[field] ?? '';
