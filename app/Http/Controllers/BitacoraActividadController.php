@@ -11,27 +11,51 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Log;
 
 class BitacoraActividadController extends Controller
 {
     const TIPOS = ['soporte', 'mantenimiento', 'instalacion', 'cotizacion', 'visita', 'administrativo', 'otro'];
+    // ✅ AHORA EN ESPAÑOL — para que coincida con Requests, Modelo y BD
     const ESTADOS = ['pendiente', 'en_proceso', 'completado', 'cancelado'];
 
     public function index(Request $request)
     {
         $filters = $request->only(['q', 'usuario', 'cliente', 'desde', 'hasta', 'tipo', 'estado']);
 
-        $actividades = BitacoraActividad::with(['usuario:id,name', 'cliente:id,nombre_razon_social'])
-            ->rangoFechas($filters['desde'] ?? null, $filters['hasta'] ?? null)
+        Log::info('Filtros recibidos:', $filters);
+
+        $estadoSeleccionado = $filters['estado'] ?? '';
+        $estadosAMostrar = $this->determinarEstadosAMostrar($estadoSeleccionado);
+
+        Log::info('Estados a mostrar:', $estadosAMostrar);
+
+        $aplicarFiltroHoy = $this->debeAplicarFiltroHoy($filters);
+        Log::info('¿Aplicar filtro hoy?', ['valor' => $aplicarFiltroHoy]);
+
+        [$desde, $hasta] = $this->validarFechas($filters['desde'] ?? null, $filters['hasta'] ?? null);
+
+        $query = BitacoraActividad::with(['usuario:id,name', 'cliente:id,nombre_razon_social'])
+            ->whereIn('estado', $estadosAMostrar);
+
+        if ($aplicarFiltroHoy) {
+            $query->soloHoyOMantenerEnProceso();
+        }
+
+        $query->rangoFechas($desde, $hasta)
             ->deUsuario($filters['usuario'] ?? null)
             ->deCliente($filters['cliente'] ?? null)
             ->buscar($filters['q'] ?? null)
-            ->when($filters['tipo'] ?? null, fn($q, $v) => $q->where('tipo', $v))
-            ->when($filters['estado'] ?? null, fn($q, $v) => $q->where('estado', $v))
-            ->orderByDesc('fecha')
+            ->when($filters['tipo'] ?? null, fn($q, $v) => $q->where('tipo', $v));
+
+        Log::info('SQL generado:', [$query->toSql(), $query->getBindings()]);
+
+        $actividades = $query->orderByDesc('fecha')
             ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
+
+        Log::info('Total de actividades encontradas:', ['total' => $actividades->total()]);
 
         return Inertia::render('Bitacora/Index', [
             'actividades' => $actividades,
@@ -41,6 +65,61 @@ class BitacoraActividadController extends Controller
             'tipos'       => self::TIPOS,
             'estados'     => self::ESTADOS,
         ]);
+    }
+
+    /**
+     * Determina qué estados mostrar según la selección del usuario
+     */
+    private function determinarEstadosAMostrar(string $estadoSeleccionado): array
+    {
+        switch ($estadoSeleccionado) {
+            case 'todos':
+                return self::ESTADOS;
+
+            case 'completado':
+                return ['completado'];
+
+            case 'cancelado':
+                return ['cancelado'];
+
+            case 'pendiente':
+                return ['pendiente'];
+
+            case 'en_proceso':
+                return ['en_proceso'];
+
+            default:
+                // Vista por defecto: solo pendientes y en proceso
+                return ['pendiente', 'en_proceso'];
+        }
+    }
+
+    /**
+     * Determina si debe aplicar el filtro de "solo hoy + mantener en proceso"
+     */
+    private function debeAplicarFiltroHoy(array $filters): bool
+    {
+        $sinFiltrosFecha = empty($filters['desde']) && empty($filters['hasta']);
+        $sinEstadoEspecifico = empty($filters['estado']);
+
+        return $sinFiltrosFecha && $sinEstadoEspecifico;
+    }
+
+    /**
+     * Valida y normaliza fechas de entrada
+     */
+    private function validarFechas(?string $desde, ?string $hasta): array
+    {
+        try {
+            $desde = $desde ? Carbon::parse($desde)->toDateString() : null;
+            $hasta = $hasta ? Carbon::parse($hasta)->toDateString() : null;
+            if ($desde && $hasta && $desde > $hasta) {
+                [$desde, $hasta] = [$hasta, $desde];
+            }
+        } catch (\Exception $e) {
+            $desde = $hasta = null;
+        }
+        return [$desde, $hasta];
     }
 
     public function create()
@@ -60,6 +139,7 @@ class BitacoraActividadController extends Controller
         $data['adjuntos'] = $data['adjuntos'] ?? [];
 
         BitacoraActividad::create($data);
+
         return redirect()
             ->route('bitacora.index')
             ->with('success', 'Actividad registrada correctamente.');
@@ -108,6 +188,7 @@ class BitacoraActividadController extends Controller
         $data['adjuntos'] = $data['adjuntos'] ?? $bitacora->adjuntos ?? [];
 
         $bitacora->update($data);
+
         return redirect()
             ->route('bitacora.index')
             ->with('success', 'Actividad actualizada correctamente.');
@@ -116,6 +197,7 @@ class BitacoraActividadController extends Controller
     public function destroy(BitacoraActividad $bitacora): RedirectResponse
     {
         $bitacora->delete();
+
         return redirect()
             ->back()
             ->with('success', 'Actividad eliminada.');

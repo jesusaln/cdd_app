@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 
 class BitacoraActividad extends Model
@@ -41,7 +42,6 @@ class BitacoraActividad extends Model
         'costo_mxn'     => 'decimal:2',
     ];
 
-    // Enviar estos campos calculados en las respuestas JSON (Inertia)
     protected $appends = ['fecha_fmt', 'hora_fmt'];
 
     // ===== Relaciones =====
@@ -55,65 +55,105 @@ class BitacoraActividad extends Model
         return $this->belongsTo(Cliente::class, 'cliente_id');
     }
 
-    // ===== Accessors / atributos calculados =====
-
-    // Duración en minutos
+    // ===== Accessors =====
     public function getDuracionMinutosAttribute(): ?int
     {
         if (!$this->inicio_at || !$this->fin_at) return null;
         return $this->inicio_at->diffInMinutes($this->fin_at);
     }
 
-    // Fecha formateada (ej. "10 sep 2025")
     public function getFechaFmtAttribute(): ?string
     {
         if (!$this->fecha) return null;
-
-        // Usa locale español de MX si está disponible
-        $this->fecha->locale('es_MX');
-
-        // translatedFormat respeta el locale
         return $this->fecha->translatedFormat('d M Y');
-        // Alternativa con ISO:
-        // return $this->fecha->isoFormat('DD MMM YYYY'); // requiere ->locale('es')
     }
 
-    // Hora formateada en zona America/Hermosillo (24h)
     public function getHoraFmtAttribute(): ?string
     {
         if ($this->inicio_at) {
-            // inicio_at viene como Carbon por el cast; convertimos a Hermosillo
-            return $this->inicio_at->copy()->setTimezone('America/Hermosillo')->format('H:i');
+            return $this->inicio_at
+                ->copy()
+                ->setTimezone('America/Hermosillo')
+                ->format('H:i');
         }
-        // Fallback a campo 'hora' (string "HH:mm")
         return $this->hora ?: null;
     }
 
-    // ===== Scopes para filtros =====
-    public function scopeDeUsuario($q, $userId)
+    // ===== Scopes (CORREGIDOS) =====
+
+    public function scopeDeUsuario(Builder $q, $userId): Builder
     {
         return $q->when($userId, fn($qq) => $qq->where('user_id', $userId));
     }
 
-    public function scopeDeCliente($q, $clienteId)
+    public function scopeDeCliente(Builder $q, $clienteId): Builder
     {
         return $q->when($clienteId, fn($qq) => $qq->where('cliente_id', $clienteId));
     }
 
-    public function scopeRangoFechas($q, $desde, $hasta)
+    public function scopeRangoFechas(Builder $q, $desde, $hasta): Builder
     {
-        return $q->when($desde, fn($qq) => $qq->whereDate('fecha', '>=', $desde))
-            ->when($hasta, fn($qq) => $qq->whereDate('fecha', '<=', $hasta));
+        if ($desde) {
+            try {
+                $desde = Carbon::parse($desde)->toDateString();
+                $q->whereDate('fecha', '>=', $desde);
+            } catch (\Exception $e) {
+                // Ignorar filtro si la fecha es inválida
+            }
+        }
+
+        if ($hasta) {
+            try {
+                $hasta = Carbon::parse($hasta)->toDateString();
+                $q->whereDate('fecha', '<=', $hasta);
+            } catch (\Exception $e) {
+                // Ignorar filtro si la fecha es inválida
+            }
+        }
+
+        return $q;
     }
 
-    public function scopeBuscar($q, $term)
+    public function scopeBuscar(Builder $q, ?string $term): Builder
     {
-        return $q->when($term, function ($qq) use ($term) {
-            $like = "%{$term}%";
-            $qq->where(function ($w) use ($like) {
-                $w->where('titulo', 'like', $like)
-                    ->orWhere('descripcion', 'like', $like);
-            });
+        $term = trim((string) $term);
+        if ($term === '') {
+            return $q;
+        }
+
+        $like = '%' . $term . '%';
+
+        return $q->where(function (Builder $w) use ($like) {
+            $w->where('titulo', 'like', $like)
+                ->orWhere('descripcion', 'like', $like)
+                ->orWhere('ubicacion', 'like', $like)
+                ->orWhereHas('cliente', fn($cq) => $cq->where('nombre_razon_social', 'like', $like))
+                ->orWhereHas('usuario', fn($uq) => $uq->where('name', 'like', $like));
         });
+    }
+
+    public function scopeSoloHoyOMantenerEnProceso(Builder $q, string $tz = 'America/Hermosillo'): Builder
+    {
+        try {
+            $hoy = Carbon::now($tz)->toDateString();
+        } catch (\Exception $e) {
+            $hoy = now()->toDateString(); // fallback
+        }
+
+        return $q->where(function (Builder $w) use ($hoy) {
+            $w->whereDate('fecha', $hoy)
+                ->orWhere('estado', 'en_proceso'); // ← SOLO el valor que existe en tu BD
+        });
+    }
+
+    // Opcionales, si los usas en otros lugares:
+    public function scopeSinCancelados(Builder $q): Builder
+    {
+        return $q->where('estado', '!=', 'cancelado');
+    }
+
+    public function scopeSinCompletados(Builder $q): Builder
+    {
+        return $q->where('estado', '!=', 'completado');
     }
 }

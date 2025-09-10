@@ -41,34 +41,82 @@
               <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
               </svg>
-              <input v-model="form.q" type="text" placeholder="Buscar por título o descripción..."
-                     class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+              <input
+                v-model="form.q"
+                type="text"
+                placeholder="Buscar por título, descripción o cliente..."
+                @input="debounceSearch"
+                class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+              >
             </div>
           </div>
-          <select v-model="form.usuario" class="md:col-span-2 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+
+          <select
+            v-model="form.usuario"
+            @change="apply"
+            class="md:col-span-2 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
             <option value="">Todos los empleados</option>
             <option v-for="u in usuarios" :key="u.id" :value="u.id">{{ u.name }}</option>
           </select>
-          <select v-model="form.cliente" class="md:col-span-3 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+
+          <select
+            v-model="form.cliente"
+            @change="apply"
+            class="md:col-span-3 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
             <option value="">Todos los clientes</option>
             <option v-for="c in clientes" :key="c.id" :value="c.id">{{ c.nombre_razon_social }}</option>
           </select>
-          <select v-model="form.tipo" class="md:col-span-2 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+
+          <select
+            v-model="form.tipo"
+            @change="apply"
+            class="md:col-span-2 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
             <option value="">Todos los tipos</option>
             <option v-for="t in tipos" :key="t" :value="t">{{ t }}</option>
           </select>
-          <select v-model="form.estado" class="md:col-span-2 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-            <option value="">Todos los estados</option>
-            <option v-for="e in estados" :key="e" :value="e">{{ e }}</option>
+
+          <!-- ESTADO corregido -->
+          <select
+            v-model="form.estado"
+            @change="apply"
+            class="md:col-span-2 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="">Por defecto (pendientes + en proceso)</option>
+            <option value="todos">Ver todos los estados</option>
+            <option value="pendiente">Solo pendientes</option>
+            <option value="en_proceso">Solo en proceso</option>
+            <option value="completado">Solo completados</option>
+            <option value="cancelado">Solo cancelados</option>
           </select>
-          <input type="date" v-model="form.desde" class="md:col-span-2 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-          <input type="date" v-model="form.hasta" class="md:col-span-2 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+
+          <input
+            type="date"
+            v-model="form.desde"
+            @change="apply"
+            placeholder="Desde..."
+            class="md:col-span-2 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+
+          <input
+            type="date"
+            v-model="form.hasta"
+            @change="apply"
+            placeholder="Hasta..."
+            class="md:col-span-2 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+
           <div class="md:col-span-2 flex gap-2">
-            <button @click="apply" class="flex-1 px-4 py-2 rounded-lg bg-gray-900 text-white">Filtrar</button>
+            <button @click="apply" :disabled="loading" class="flex-1 px-4 py-2 rounded-lg bg-gray-900 text-white disabled:opacity-50">
+              {{ loading ? 'Filtrando...' : 'Filtrar' }}
+            </button>
             <button @click="limpiarFiltros" class="flex-1 px-4 py-2 rounded-lg border">Limpiar</button>
           </div>
         </div>
       </div>
+
       <!-- Stats Cards -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -116,6 +164,7 @@
           </div>
         </div>
       </div>
+
       <!-- Content Area -->
       <div v-if="actividadesData.length > 0" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <!-- Table View -->
@@ -166,10 +215,17 @@
           <div class="p-4 flex items-center justify-between text-sm">
             <div>Mostrando {{ actividades.from }}-{{ actividades.to }} de {{ actividades.total }}</div>
             <div class="flex gap-2">
-              <Link v-for="link in actividades.links" :key="link.label" :href="link.url || '#'" v-html="link.label" :class="['px-3 py-1 rounded', link.active ? 'bg-gray-900 text-white' : 'border']"/>
+              <Link
+                v-for="link in actividades.links"
+                :key="(link.url || '') + '-' + link.label"
+                :href="link.url || '#'"
+                v-html="link.label"
+                :class="['px-3 py-1 rounded', link.active ? 'bg-gray-900 text-white' : 'border']"
+              />
             </div>
           </div>
         </div>
+
         <!-- Card View -->
         <div v-else class="p-6">
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -198,11 +254,18 @@
           <div class="p-4 flex items-center justify-between text-sm">
             <div>Mostrando {{ actividades.from }}-{{ actividades.to }} de {{ actividades.total }}</div>
             <div class="flex gap-2">
-              <Link v-for="link in actividades.links" :key="link.label" :href="link.url || '#'" v-html="link.label" :class="['px-3 py-1 rounded', link.active ? 'bg-gray-900 text-white' : 'border']"/>
+              <Link
+                v-for="link in actividades.links"
+                :key="(link.url || '') + '-' + link.label"
+                :href="link.url || '#'"
+                v-html="link.label"
+                :class="['px-3 py-1 rounded', link.active ? 'bg-gray-900 text-white' : 'border']"
+              />
             </div>
           </div>
         </div>
       </div>
+
       <!-- Empty State -->
       <div v-else class="text-center py-12">
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-12">
@@ -222,6 +285,7 @@
           </div>
         </div>
       </div>
+
       <!-- Modal Detalles -->
       <Transition name="modal" appear>
         <div v-if="mostrarModalDetalles" class="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex justify-center items-center z-50 p-4">
@@ -252,13 +316,15 @@
     </div>
   </div>
 </template>
+
 <script setup>
 import { Head, Link, router } from '@inertiajs/vue3'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
 defineOptions({ layout: AppLayout })
+
 const props = defineProps({
-  actividades: { type: Object, required: true }, // Paginado Laravel
+  actividades: { type: Object, required: true },
   filters: { type: Object, default: () => ({}) },
   usuarios: { type: Array, default: () => [] },
   clientes: { type: Array, default: () => [] },
@@ -268,20 +334,9 @@ const props = defineProps({
 
 function formatDate(dateString) {
   if (!dateString) return '—'
-
-  // Parsear la fecha, asumiendo que el formato es ISO (como "2025-09-10T07:00:00.000000Z")
   const date = new Date(dateString)
-
-  // Verificar si la fecha es válida
-  if (isNaN(date.getTime())) {
-    return '—'
-  }
-
-  return date.toLocaleDateString('es-ES', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
+  if (isNaN(date.getTime())) return '—'
+  return date.toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
 const vistaTabla = ref(true)
@@ -295,6 +350,27 @@ const form = ref({
   estado: props.filters?.estado ?? '',
 })
 
+const loading = ref(false)
+
+// Watcher para detectar cambios en los filtros programáticamente
+watch(() => form.value, (newValue, oldValue) => {
+  // Solo aplicar si no es el cambio inicial y si no es la búsqueda (que tiene debounce)
+  if (oldValue && JSON.stringify(newValue) !== JSON.stringify(oldValue)) {
+    const hasTextSearchChanged = newValue.q !== oldValue.q
+    if (!hasTextSearchChanged) {
+      apply()
+    }
+  }
+}, { deep: true })
+
+let timeoutId = null
+function debounceSearch() {
+  clearTimeout(timeoutId)
+  timeoutId = setTimeout(() => {
+    apply()
+  }, 500)
+}
+
 const actividadesData = computed(() => props.actividades?.data ?? [])
 const actividadesPagina = computed(() => actividadesData.value.length)
 const completadasPagina = computed(() => actividadesData.value.filter(a => a.estado === 'completado').length)
@@ -304,20 +380,37 @@ const horasRegistradasPagina = computed(() => {
   const horas = (mins / 60)
   return horas.toFixed(1)
 })
+
 const tieneFiltros = computed(() => {
   const { q, usuario, cliente, desde, hasta, tipo, estado } = form.value
   return !!(q || usuario || cliente || desde || hasta || tipo || estado)
 })
 
 function toggleView() { vistaTabla.value = !vistaTabla.value }
-function apply() { router.get(route('bitacora.index'), form.value, { preserveState: true, replace: true }) }
+
+function apply() {
+  loading.value = true;
+
+  // ✅ ¡Eliminado el mapeo! Backend y frontend ya usan español.
+  router.get(route('bitacora.index'), {
+    ...form.value,
+    page: 1
+  }, {
+    preserveState: true,
+    replace: true,
+    onFinish: () => {
+      loading.value = false;
+    }
+  });
+}
+
 function limpiarFiltros() {
   form.value = { q: '', usuario: '', cliente: '', desde: '', hasta: '', tipo: '', estado: '' }
   apply()
 }
 
 function claseEstado(est) {
-  switch(est) {
+  switch (est) {
     case 'completado': return 'bg-green-100 text-green-800'
     case 'en_proceso': return 'bg-blue-100 text-blue-800'
     case 'pendiente': return 'bg-yellow-100 text-yellow-800'
@@ -327,17 +420,17 @@ function claseEstado(est) {
 }
 
 function diffMinutos(inicio, fin) {
-  if(!inicio || !fin) return 0
+  if (!inicio || !fin) return 0
   const i = new Date(inicio)
   const f = new Date(fin)
   const ms = f - i
-  if(isNaN(ms) || ms < 0) return 0
+  if (isNaN(ms) || ms < 0) return 0
   return Math.round(ms / 60000)
 }
 
 function formatearDuracion(inicio, fin) {
   const m = diffMinutos(inicio, fin)
-  if(!m) return '—'
+  if (!m) return '—'
   const h = Math.floor(m / 60)
   const mm = m % 60
   return h ? `${h}h ${mm}m` : `${mm}m`
@@ -349,6 +442,7 @@ const actividadSeleccionada = ref(null)
 function abrirModal(a) { actividadSeleccionada.value = a; mostrarModalDetalles.value = true }
 function cerrarModal() { actividadSeleccionada.value = null; mostrarModalDetalles.value = false }
 </script>
+
 <style scoped>
 /* Transiciones para modales */
 .modal-enter-active, .modal-leave-active { transition: all 0.3s ease; }

@@ -10,6 +10,7 @@
     "start": "concurrently \"npm run laravel\" \"npm run dev\""
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.4.3",
     "@inertiajs/vue3": "^1.0.14",
     "@tailwindcss/forms": "^0.5.7",
     "@tailwindcss/typography": "^0.5.10",
@@ -24,10 +25,9 @@
     "vue": "^3.3.13"
   },
   "dependencies": {
-    "@capacitor/android": "7.3.0",
+    "@capacitor/android": "^7.3.0",
     "@capacitor/app": "7.0.1",
-    "@capacitor/cli": "7.3.0",
-    "@capacitor/core": "7.3.0",
+    "@capacitor/core": "^7.3.0",
     "@capacitor/haptics": "7.0.1",
     "@capacitor/keyboard": "7.0.1",
     "@capacitor/status-bar": "7.0.1",
