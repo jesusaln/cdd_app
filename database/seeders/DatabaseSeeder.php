@@ -6,21 +6,23 @@ use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     *
-     * @return void
-     */
-    public function run()
+    public function run(): void
     {
-        // Llama a otros seeders, como RolesAndPermissionsSeeder
         $this->call([
+            // 1) Catálogos base, PERO primero los SAT
             RolesAndPermissionsSeeder::class,
             AlmacenSeeder::class,
             MarcaSeeder::class,
             CategoriaSeeder::class,
             ServicioSeeder::class,
             ProveedorSeeder::class,
+
+            // ✅ SAT primero (necesarios para clientes)
+            SatRegimenesFiscalesSeeder::class,
+            SatUsosCfdiSeeder::class,
+            SatEstadosSeeder::class,
+
+            // 2) Ahora sí, dependientes
             ClienteSeeder::class,
             ProductoSeeder::class,
             TecnicoSeeder::class,
@@ -28,11 +30,9 @@ class DatabaseSeeder extends Seeder
             CitaSeeder::class,
             CotizacionSeeder::class,
             CotizacionItemSeeder::class,
-            SatRegimenesFiscalesSeeder::class,
-            SatUsosCfdiSeeder::class,
-            SatEstadosSeeder::class,
 
+            // 3) Datos que referencian usuarios/clientes/etc.
+            BitacoraActividadSeeder::class,
         ]);
     }
-    //hola
 }

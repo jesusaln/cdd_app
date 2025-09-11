@@ -9,20 +9,28 @@
         </div>
       </div>
 
+      <!-- Resumen de errores -->
       <div v-if="hasGlobalErrors" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
         <div class="flex">
           <div class="ml-3">
             <h3 class="text-sm font-medium text-red-800">Error en el formulario</h3>
             <div class="mt-2 text-sm text-red-700">
               <ul class="list-disc list-inside space-y-1">
-                <li v-for="(error, key) in form.errors" :key="key">{{ Array.isArray(error) ? error[0] : error }}</li>
+                <li v-for="(error, key) in form.errors" :key="key">
+                  {{ Array.isArray(error) ? error[0] : error }}
+                </li>
               </ul>
             </div>
           </div>
         </div>
       </div>
 
-      <div v-if="showSuccessMessage" class="mb-6 p-4 bg-green-50 border border-green-200 rounded-md">
+      <!-- Mensaje de éxito -->
+      <div
+        v-if="showSuccessMessage"
+        class="mb-6 p-4 bg-green-50 border border-green-200 rounded-md"
+        aria-live="polite"
+      >
         <p class="text-sm font-medium text-green-800">Cliente creado exitosamente</p>
       </div>
 
@@ -32,35 +40,67 @@
           <h2 class="text-lg font-medium text-gray-900 mb-4">Información General</h2>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div class="md:col-span-2">
-              <FormField
-                v-model="form.nombre_razon_social"
-                label="Nombre/Razón Social"
-                type="text"
-                id="nombre_razon_social"
-                :error="form.errors.nombre_razon_social"
-                @blur="toUpper('nombre_razon_social')"
-                required
-              />
+              <div class="mb-4">
+                <label for="nombre_razon_social" class="block text-sm font-medium text-gray-700">
+                  Nombre/Razón Social <span class="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="nombre_razon_social"
+                  v-model="form.nombre_razon_social"
+                  @blur="toUpper('nombre_razon_social')"
+                  :class="[
+                    'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                    form.errors.nombre_razon_social ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                  ]"
+                  required
+                />
+                <div v-if="form.errors.nombre_razon_social" class="mt-2 text-sm text-red-600">
+                  {{ form.errors.nombre_razon_social }}
+                </div>
+              </div>
             </div>
 
-            <FormField
-              v-model="form.email"
-              label="Email"
-              type="email"
-              id="email"
-              :error="form.errors.email"
-              placeholder="correo@ejemplo.com"
-              required
-            />
+            <div class="mb-4">
+              <label for="email" class="block text-sm font-medium text-gray-700">
+                Email <span class="text-red-500">*</span>
+              </label>
+              <input
+                type="email"
+                id="email"
+                v-model="form.email"
+                placeholder="correo@ejemplo.com"
+                autocomplete="email"
+                :class="[
+                  'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                  form.errors.email ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                ]"
+                required
+              />
+              <div v-if="form.errors.email" class="mt-2 text-sm text-red-600">
+                {{ form.errors.email }}
+              </div>
+            </div>
 
-            <FormField
-              v-model="form.telefono"
-              label="Teléfono"
-              type="tel"
-              id="telefono"
-              :error="form.errors.telefono"
-              placeholder="Opcional"
-            />
+            <div class="mb-4">
+              <label for="telefono" class="block text-sm font-medium text-gray-700">
+                Teléfono
+              </label>
+              <input
+                type="tel"
+                id="telefono"
+                v-model="form.telefono"
+                placeholder="Opcional"
+                autocomplete="tel"
+                :class="[
+                  'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                  form.errors.telefono ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                ]"
+              />
+              <div v-if="form.errors.telefono" class="mt-2 text-sm text-red-600">
+                {{ form.errors.telefono }}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -68,48 +108,114 @@
         <div class="border-b border-gray-200 pb-6">
           <h2 class="text-lg font-medium text-gray-900 mb-4">Información Fiscal</h2>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <FormField
-              v-model="form.tipo_persona"
-              label="Tipo de Persona"
-              type="select"
-              id="tipo_persona"
-              :options="optionsTiposPersona"
-              :error="form.errors.tipo_persona"
-              @change="handleTipoPersonaChange"
-              required
-            />
+            <div class="mb-4">
+              <label for="tipo_persona" class="block text-sm font-medium text-gray-700">
+                Tipo de Persona <span class="text-red-500">*</span>
+              </label>
+              <select
+                id="tipo_persona"
+                v-model="form.tipo_persona"
+                @change="onTipoPersonaChange"
+                :class="[
+                  'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                  form.errors.tipo_persona ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                ]"
+                required
+              >
+                <option value="">Selecciona una opción</option>
+                <option value="fisica">Persona Física</option>
+                <option value="moral">Persona Moral</option>
+              </select>
+              <div v-if="form.errors.tipo_persona" class="mt-2 text-sm text-red-600">
+                {{ form.errors.tipo_persona }}
+              </div>
+            </div>
 
-            <FormField
-              v-model="form.rfc"
-              label="RFC"
-              type="text"
-              id="rfc"
-              :maxlength="form.tipo_persona === 'fisica' ? 13 : 13"
-              :error="form.errors.rfc"
-              :placeholder="form.tipo_persona === 'fisica' ? 'ABCD123456EFG' : 'ABC123456EFG'"
-              @input="onRfcInput"
-              required
-            />
+            <div class="mb-4">
+              <label for="rfc" class="block text-sm font-medium text-gray-700">
+                RFC <span class="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                id="rfc"
+                :maxlength="rfcMaxLength"
+                :placeholder="rfcPlaceholder"
+                :value="form.rfc"
+                @input="onRfcInput"
+                :disabled="!form.tipo_persona"
+                :class="[
+                  'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                  form.errors.rfc ? 'border-red-300 bg-red-50' : 'border-gray-300',
+                  !form.tipo_persona ? 'bg-gray-100 text-gray-400' : ''
+                ]"
+                required
+              />
+              <div v-if="form.errors.rfc" class="mt-2 text-sm text-red-600">
+                {{ form.errors.rfc }}
+              </div>
+              <div v-if="!form.tipo_persona" class="mt-1 text-xs text-gray-500">
+                Primero selecciona el tipo de persona
+              </div>
+            </div>
 
-            <FormField
-              v-model="form.regimen_fiscal"
-              label="Régimen Fiscal"
-              type="select"
-              id="regimen_fiscal"
-              :options="optionsRegimenesFiltrados"
-              :error="form.errors.regimen_fiscal"
-              required
-            />
+            <div class="mb-4">
+              <label for="regimen_fiscal" class="block text-sm font-medium text-gray-700">
+                Régimen Fiscal <span class="text-red-500">*</span>
+              </label>
+              <select
+                id="regimen_fiscal"
+                v-model="form.regimen_fiscal"
+                :disabled="!form.tipo_persona"
+                :class="[
+                  'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                  form.errors.regimen_fiscal ? 'border-red-300 bg-red-50' : 'border-gray-300',
+                  !form.tipo_persona ? 'bg-gray-100 text-gray-400' : ''
+                ]"
+                required
+              >
+                <option value="">Selecciona una opción</option>
+                <option
+                  v-for="regimen in regimenesFiltrados"
+                  :key="regimen.value"
+                  :value="regimen.value"
+                >
+                  {{ regimen.text }}
+                </option>
+              </select>
+              <div v-if="form.errors.regimen_fiscal" class="mt-2 text-sm text-red-600">
+                {{ form.errors.regimen_fiscal }}
+              </div>
+              <div v-if="!form.tipo_persona" class="mt-1 text-xs text-gray-500">
+                Primero selecciona el tipo de persona
+              </div>
+            </div>
 
-            <FormField
-              v-model="form.uso_cfdi"
-              label="Uso CFDI"
-              type="select"
-              id="uso_cfdi"
-              :options="optionsUsos"
-              :error="form.errors.uso_cfdi"
-              required
-            />
+            <div class="mb-4">
+              <label for="uso_cfdi" class="block text-sm font-medium text-gray-700">
+                Uso CFDI <span class="text-red-500">*</span>
+              </label>
+              <select
+                id="uso_cfdi"
+                v-model="form.uso_cfdi"
+                :class="[
+                  'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                  form.errors.uso_cfdi ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                ]"
+                required
+              >
+                <option value="">Selecciona una opción</option>
+                <option
+                  v-for="uso in usosCFDI"
+                  :key="uso.value"
+                  :value="uso.value"
+                >
+                  {{ uso.text }}
+                </option>
+              </select>
+              <div v-if="form.errors.uso_cfdi" class="mt-2 text-sm text-red-600">
+                {{ form.errors.uso_cfdi }}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -118,86 +224,187 @@
           <h2 class="text-lg font-medium text-gray-900 mb-4">Dirección</h2>
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div class="md:col-span-2">
-              <FormField
-                v-model="form.calle"
-                label="Calle"
-                type="text"
-                id="calle"
-                :error="form.errors.calle"
-                @blur="toUpper('calle')"
-                required
-              />
+              <div class="mb-4">
+                <label for="calle" class="block text-sm font-medium text-gray-700">
+                  Calle <span class="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="calle"
+                  v-model="form.calle"
+                  @blur="toUpper('calle')"
+                  :class="[
+                    'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                    form.errors.calle ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                  ]"
+                  required
+                />
+                <div v-if="form.errors.calle" class="mt-2 text-sm text-red-600">
+                  {{ form.errors.calle }}
+                </div>
+              </div>
             </div>
 
-            <FormField
-              v-model="form.numero_exterior"
-              label="Número Exterior"
-              type="text"
-              id="numero_exterior"
-              :error="form.errors.numero_exterior"
-              @blur="toUpper('numero_exterior')"
-              required
-            />
+            <div class="mb-4">
+              <label for="numero_exterior" class="block text-sm font-medium text-gray-700">
+                Número Exterior <span class="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                id="numero_exterior"
+                v-model="form.numero_exterior"
+                @blur="toUpper('numero_exterior')"
+                :class="[
+                  'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                  form.errors.numero_exterior ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                ]"
+                required
+              />
+              <div v-if="form.errors.numero_exterior" class="mt-2 text-sm text-red-600">
+                {{ form.errors.numero_exterior }}
+              </div>
+            </div>
 
-            <FormField
-              v-model="form.numero_interior"
-              label="Número Interior"
-              type="text"
-              id="numero_interior"
-              :error="form.errors.numero_interior"
-              @blur="toUpper('numero_interior')"
-            />
+            <div class="mb-4">
+              <label for="numero_interior" class="block text-sm font-medium text-gray-700">
+                Número Interior
+              </label>
+              <input
+                type="text"
+                id="numero_interior"
+                v-model="form.numero_interior"
+                @blur="toUpper('numero_interior')"
+                :class="[
+                  'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                  form.errors.numero_interior ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                ]"
+              />
+              <div v-if="form.errors.numero_interior" class="mt-2 text-sm text-red-600">
+                {{ form.errors.numero_interior }}
+              </div>
+            </div>
 
-            <FormField
-              v-model="form.colonia"
-              label="Colonia"
-              type="text"
-              id="colonia"
-              :error="form.errors.colonia"
-              @blur="toUpper('colonia')"
-              required
-            />
+            <div class="mb-4">
+              <label for="colonia" class="block text-sm font-medium text-gray-700">
+                Colonia <span class="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                id="colonia"
+                v-model="form.colonia"
+                @blur="toUpper('colonia')"
+                :class="[
+                  'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                  form.errors.colonia ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                ]"
+                required
+              />
+              <div v-if="form.errors.colonia" class="mt-2 text-sm text-red-600">
+                {{ form.errors.colonia }}
+              </div>
+            </div>
 
-            <FormField
-              v-model="form.codigo_postal"
-              label="Código Postal"
-              type="text"
-              id="codigo_postal"
-              :error="form.errors.codigo_postal"
-              maxlength="5"
-              @input="onCpInput"
-              required
-            />
+            <div class="mb-4">
+              <label for="codigo_postal" class="block text-sm font-medium text-gray-700">
+                Código Postal <span class="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                id="codigo_postal"
+                maxlength="5"
+                pattern="[0-9]{5}"
+                :value="form.codigo_postal"
+                @input="onCpInput"
+                placeholder="12345"
+                :class="[
+                  'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                  form.errors.codigo_postal ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                ]"
+                required
+              />
+              <div v-if="form.errors.codigo_postal" class="mt-2 text-sm text-red-600">
+                {{ form.errors.codigo_postal }}
+              </div>
+            </div>
 
-            <FormField
-              v-model="form.municipio"
-              label="Municipio"
-              type="text"
-              id="municipio"
-              :error="form.errors.municipio"
-              @blur="toUpper('municipio')"
-              required
-            />
+            <div class="mb-4">
+              <label for="municipio" class="block text-sm font-medium text-gray-700">
+                Municipio <span class="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                id="municipio"
+                v-model="form.municipio"
+                @blur="toUpper('municipio')"
+                :class="[
+                  'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                  form.errors.municipio ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                ]"
+                required
+              />
+              <div v-if="form.errors.municipio" class="mt-2 text-sm text-red-600">
+                {{ form.errors.municipio }}
+              </div>
+            </div>
 
-            <FormField
-              v-model="form.estado"
-              label="Estado"
-              type="select"
-              id="estado"
-              :options="optionsEstados"
-              :error="form.errors.estado"
-              required
-            />
+            <div class="mb-4">
+              <label for="estado" class="block text-sm font-medium text-gray-700">
+                Estado <span class="text-red-500">*</span>
+              </label>
+              <select
+                id="estado"
+                v-model="form.estado"
+                :class="[
+                  'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                  form.errors.estado ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                ]"
+                required
+              >
+                <option value="">Selecciona una opción</option>
+                <option
+                  v-for="estado in estados"
+                  :key="estado.value"
+                  :value="estado.value"
+                >
+                  {{ estado.text }}
+                </option>
+              </select>
+              <div v-if="form.errors.estado" class="mt-2 text-sm text-red-600">
+                {{ form.errors.estado }}
+              </div>
+            </div>
 
-            <FormField
-              v-model="form.pais"
-              label="País"
-              type="text"
-              id="pais"
-              :error="form.errors.pais"
-              readonly
-              required
-            />
+            <div class="mb-4">
+              <label for="pais" class="block text-sm font-medium text-gray-700">
+                País <span class="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                id="pais"
+                v-model="form.pais"
+                readonly
+                class="mt-1 block w-full rounded-md border-gray-300 bg-gray-50 shadow-sm sm:text-sm"
+              />
+              <div v-if="form.errors.pais" class="mt-2 text-sm text-red-600">
+                {{ form.errors.pais }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Información de debug (remover en producción) -->
+        <div v-if="isDevelopment" class="bg-gray-50 p-4 rounded-md text-xs">
+          <h3 class="font-semibold mb-2">Debug Info:</h3>
+          <p>Formulario válido: {{ isFormValid }}</p>
+          <p>Campos requeridos llenos: {{ requiredFieldsFilled }}</p>
+          <p>Sin errores: {{ !hasGlobalErrors }}</p>
+          <div class="mt-2">
+            <strong>Valores actuales:</strong>
+            <ul class="ml-4 list-disc">
+              <li v-for="field in requiredFields" :key="field">
+                {{ field }}: "{{ form[field] }}" ({{ typeof form[field] }})
+              </li>
+            </ul>
           </div>
         </div>
 
@@ -206,16 +413,22 @@
             type="button"
             @click="resetForm"
             :disabled="form.processing"
-            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none"
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Limpiar
           </button>
           <button
             type="submit"
             :disabled="form.processing || !isFormValid"
-            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none"
+            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <span v-if="form.processing">Guardando...</span>
+            <span v-if="form.processing" class="flex items-center">
+              <svg class="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Guardando...
+            </span>
             <span v-else>Crear Cliente</span>
           </button>
         </div>
@@ -233,92 +446,172 @@ import FormField from '@/Components/FormField.vue'
 defineOptions({ layout: AppLayout })
 
 const props = defineProps({
-  catalogs: { type: Object, required: true },  // {estados, regimenesFiscales, usosCFDI, tiposPersona}
-  cliente:  { type: Object, required: true }   // defaults para create
+  catalogs: { type: Object, required: true },
+  cliente: { type: Object, required: true }
 })
 
 const showSuccessMessage = ref(false)
+const isDevelopment = ref(import.meta.env?.DEV || false)
 
-// Inicializa el form con defaults; forzamos país MX si no viene
-const form = useForm({
-  ...props.cliente,
-  pais: props.cliente.pais || 'MX',
+// Inicializa form con valores por defecto seguros
+const initFormData = () => ({
+  nombre_razon_social: props.cliente?.nombre_razon_social || '',
+  email: props.cliente?.email || '',
+  telefono: props.cliente?.telefono || '',
+  tipo_persona: props.cliente?.tipo_persona || '',
+  rfc: props.cliente?.rfc || '',
+  regimen_fiscal: props.cliente?.regimen_fiscal || '',
+  uso_cfdi: props.cliente?.uso_cfdi || '',
+  calle: props.cliente?.calle || '',
+  numero_exterior: props.cliente?.numero_exterior || '',
+  numero_interior: props.cliente?.numero_interior || '',
+  colonia: props.cliente?.colonia || '',
+  codigo_postal: props.cliente?.codigo_postal || '',
+  municipio: props.cliente?.municipio || '',
+  estado: props.cliente?.estado || '',
+  pais: props.cliente?.pais || 'MX',
 })
+
+const form = useForm(initFormData())
 
 const hasGlobalErrors = computed(() => Object.keys(form.errors).length > 0)
 
-const isFormValid = computed(() => {
-  const requiredFields = [
-    'nombre_razon_social','email','tipo_persona','rfc','regimen_fiscal','uso_cfdi',
-    'calle','numero_exterior','colonia','codigo_postal','municipio','estado','pais'
-  ]
-  return requiredFields.every(f => form[f] !== null && form[f] !== undefined && String(form[f]).trim() !== '')
-    && Object.keys(form.errors).length === 0
+const requiredFields = [
+  'nombre_razon_social', 'email', 'tipo_persona', 'rfc',
+  'regimen_fiscal', 'uso_cfdi', 'calle', 'numero_exterior',
+  'colonia', 'codigo_postal', 'municipio', 'estado', 'pais'
+]
+
+const requiredFieldsFilled = computed(() => {
+  return requiredFields.every(field => {
+    const value = form[field]
+    return value !== null &&
+           value !== undefined &&
+           String(value).trim() !== '' &&
+           String(value).trim() !== 'null' &&
+           String(value).trim() !== 'undefined'
+  })
 })
 
-/**
- * Builders de opciones para <FormField type="select" />
- * Aceptan catálogos crudos desde BD y convierten a { value, text }
- */
-const optionsTiposPersona = computed(() =>
-  (props.catalogs.tiposPersona || []).map(t => ({ value: t.value, text: t.label }))
-)
+const isFormValid = computed(() => {
+  return requiredFieldsFilled.value && !hasGlobalErrors.value && !form.processing
+})
 
-const optionsEstados = computed(() => {
-  const base = (props.catalogs.estados || []).map(e => ({
+// Opciones para selects
+const estados = computed(() => {
+  return (props.catalogs?.estados || []).map(e => ({
     value: e.clave,
     text: `${e.clave} — ${e.nombre}`
   }))
-  return prependPlaceholder(base)
 })
 
-const optionsRegimenesFiltrados = computed(() => {
-  const arr = (props.catalogs.regimenesFiscales || [])
-    .filter(r => form.tipo_persona === 'moral' ? r.persona_moral : r.persona_fisica)
-    .map(r => ({ value: r.clave, text: `${r.clave} — ${r.descripcion}` }))
-  return prependPlaceholder(arr)
+const regimenesFiltrados = computed(() => {
+  if (!form.tipo_persona) return []
+
+  return (props.catalogs?.regimenesFiscales || [])
+    .filter(r => {
+      return form.tipo_persona === 'moral' ? r.persona_moral : r.persona_fisica
+    })
+    .map(r => ({
+      value: r.clave,
+      text: `${r.clave} — ${r.descripcion}`
+    }))
 })
 
-const optionsUsos = computed(() => {
-  const arr = (props.catalogs.usosCFDI || [])
-    .map(u => ({ value: u.clave, text: `${u.clave} — ${u.descripcion}` }))
-  return prependPlaceholder(arr)
+const usosCFDI = computed(() => {
+  return (props.catalogs?.usosCFDI || []).map(u => ({
+    value: u.clave,
+    text: `${u.clave} — ${u.descripcion}`
+  }))
 })
 
-function prependPlaceholder(arr) {
-  return [{ value: '', text: 'Selecciona una opción', disabled: true }, ...arr]
-}
+// Configuración dinámica del RFC
+const rfcMaxLength = computed(() => form.tipo_persona === 'fisica' ? 13 : 12)
+const rfcPlaceholder = computed(() =>
+  form.tipo_persona === 'fisica' ? 'ABCD123456EFG' : 'ABC123456EF'
+)
 
-// Reacciones
-watch(() => form.tipo_persona, () => {
-  // si cambias tipo, limpia RFC y régimen para evitar inconsistencias
+// Watchers
+watch(() => form.tipo_persona, (newVal, oldVal) => {
+  if (newVal !== oldVal) {
+    form.rfc = ''
+    form.regimen_fiscal = ''
+    form.clearErrors(['rfc', 'regimen_fiscal'])
+  }
+})
+
+// Funciones de manejo de input
+const onTipoPersonaChange = () => {
   form.rfc = ''
   form.regimen_fiscal = ''
-})
-
-/** Normalizadores de inputs */
-const onRfcInput = (e) => {
-  const value = e.target.value.toUpperCase().replace(/[^A-ZÑ&0-9]/g, '')
-  form.rfc = value.slice(0, 13) // tope 13; el backend valida 12/13 según sea el caso
+  form.clearErrors(['rfc', 'regimen_fiscal'])
 }
 
-const onCpInput = (e) => {
-  const digits = (e.target.value || '').replace(/\D+/g, '')
+const onRfcInput = (event) => {
+  const value = event.target ? event.target.value : event
+  const cleaned = String(value).toUpperCase().replace(/[^A-ZÑ&0-9]/g, '')
+  const maxLen = rfcMaxLength.value
+  form.rfc = cleaned.slice(0, maxLen)
+
+  // Limpiar error si el campo ahora tiene contenido válido
+  if (form.rfc && form.errors.rfc) {
+    form.clearErrors('rfc')
+  }
+}
+
+const onCpInput = (event) => {
+  const value = event.target ? event.target.value : event
+  const digits = String(value).replace(/\D/g, '')
   form.codigo_postal = digits.slice(0, 5)
+
+  // Limpiar error si el campo ahora tiene contenido válido
+  if (form.codigo_postal && form.errors.codigo_postal) {
+    form.clearErrors('codigo_postal')
+  }
 }
 
 const toUpper = (campo) => {
-  if (campo !== 'email' && form[campo]) form[campo] = String(form[campo]).toUpperCase().trim()
+  if (form[campo] && typeof form[campo] === 'string') {
+    form[campo] = form[campo].toUpperCase().trim()
+
+    // Limpiar error si el campo ahora tiene contenido
+    if (form[campo] && form.errors[campo]) {
+      form.clearErrors(campo)
+    }
+  }
 }
 
+// Funciones principales
 const resetForm = () => {
-  Object.keys(form.data()).forEach(k => form[k] = props.cliente[k] ?? (k === 'pais' ? 'MX' : ''))
+  const newData = initFormData()
+  Object.keys(newData).forEach(key => {
+    form[key] = newData[key]
+  })
   form.clearErrors()
   showSuccessMessage.value = false
 }
 
 const submit = () => {
+  // Limpiar mensajes previos
   showSuccessMessage.value = false
+
+  // Validación antes de enviar
+  if (!isFormValid.value) {
+    console.warn('Formulario no válido, evitando envío')
+    return
+  }
+
+  // Limpiar y normalizar datos antes del envío
+  const dataToSend = { ...form.data() }
+
+  // Asegurar que todos los campos requeridos tengan valores válidos
+  requiredFields.forEach(field => {
+    if (!dataToSend[field] || String(dataToSend[field]).trim() === '') {
+      console.error(`Campo requerido vacío: ${field}`)
+      return
+    }
+  })
+
   form.post(route('clientes.store'), {
     preserveScroll: true,
     onSuccess: () => {
@@ -326,7 +619,10 @@ const submit = () => {
       setTimeout(() => {
         showSuccessMessage.value = false
         resetForm()
-      }, 2000)
+      }, 3000)
+    },
+    onError: (errors) => {
+      console.error('Errores de validación:', errors)
     }
   })
 }

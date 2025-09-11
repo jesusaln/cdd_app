@@ -15,7 +15,7 @@ class ClienteSeeder extends Seeder
             ['rfc' => 'XAXX010101000'],
             [
                 'nombre_razon_social' => 'PUBLICO EN GENERAL',
-                'tipo_persona' => 'Fisica',
+                'tipo_persona' => 'fisica', // ¡minúsculas para coincidir con enum!
                 'rfc' => 'XAXX010101000',
                 'regimen_fiscal' => '616',
                 'uso_cfdi' => 'G03',
@@ -26,8 +26,8 @@ class ClienteSeeder extends Seeder
                 'colonia' => 'CENTRO',
                 'codigo_postal' => '00000',
                 'municipio' => 'NO ESPECIFICADO',
-                'estado' => 'CIUDAD DE MEXICO',
-                'pais' => 'MEXICO',
+                'estado' => 'DIF', // ⬅️ ¡Clave SAT, no nombre!
+                'pais' => 'MX',    // ⬅️ ¡Debe coincidir con tu migración (char 2, default 'MX')!
                 'activo' => true
             ]
         );
@@ -38,46 +38,46 @@ class ClienteSeeder extends Seeder
 
             $regimenesFiscales = ['601', '603', '605', '606', '608', '610', '615', '616', '620'];
             $usosCFDI = ['G01', 'G02', 'G03', 'I01', 'I02', 'I03', 'I04', 'I05', 'I06', 'I07', 'I08'];
-            $estadosMexicanos = [
-                'AGUASCALIENTES',
-                'BAJA CALIFORNIA',
-                'BAJA CALIFORNIA SUR',
-                'CAMPECHE',
-                'CHIAPAS',
-                'CHIHUAHUA',
-                'CIUDAD DE MÉXICO',
-                'COAHUILA',
-                'COLIMA',
-                'DURANGO',
-                'ESTADO DE MÉXICO',
-                'GUANAJUATO',
-                'GUERRERO',
-                'HIDALGO',
-                'JALISCO',
-                'MICHOACÁN',
-                'MORELOS',
-                'NAYARIT',
-                'NUEVO LEÓN',
-                'OAXACA',
-                'PUEBLA',
-                'QUERÉTARO',
-                'QUINTANA ROO',
-                'SAN LUIS POTOSÍ',
-                'SINALOA',
-                'SONORA',
-                'TABASCO',
-                'TAMAULIPAS',
-                'TLAXCALA',
-                'VERACRUZ',
-                'YUCATÁN',
-                'ZACATECAS'
+
+            // ⬇️ Ahora usamos CLAVES de estados, no nombres
+            $clavesEstados = [
+                'AGU',
+                'BCN',
+                'BCS',
+                'CAM',
+                'CHP',
+                'CHH',
+                'DIF',
+                'DUR',
+                'GUA',
+                'GRO',
+                'HID',
+                'JAL',
+                'MEX',
+                'MIC',
+                'MOR',
+                'NAY',
+                'NLE',
+                'OAX',
+                'PUE',
+                'QUE',
+                'ROO',
+                'SIN',
+                'SLP',
+                'SON',
+                'TAB',
+                'TAM',
+                'TLA',
+                'VER',
+                'YUC',
+                'ZAC'
             ];
 
             for ($i = 0; $i < 15; $i++) {
-                $tipoPersona = $faker->randomElement(['Fisica', 'Moral']);
+                $tipoPersona = $faker->randomElement(['fisica', 'moral']); // ¡minúsculas!
 
                 Cliente::create([
-                    'nombre_razon_social' => $tipoPersona === 'Fisica' ?
+                    'nombre_razon_social' => $tipoPersona === 'fisica' ?
                         $faker->name() :
                         $faker->company(),
                     'tipo_persona' => $tipoPersona,
@@ -92,26 +92,22 @@ class ClienteSeeder extends Seeder
                     'colonia' => $faker->citySuffix(),
                     'codigo_postal' => $faker->postcode(),
                     'municipio' => $faker->city(),
-                    'estado' => $faker->randomElement($estadosMexicanos),
-                    'pais' => 'MEXICO',
+                    'estado' => $faker->randomElement($clavesEstados), // ⬅️ ¡Clave!
+                    'pais' => 'MX', // ⬅️ ¡Importante!
                     'activo' => $faker->boolean(90)
                 ]);
             }
         }
     }
 
-    /**
-     * Genera un RFC válido para pruebas
-     */
     private function generarRFC(string $tipoPersona): string
     {
         $faker = \Faker\Factory::create('es_MX');
 
-        if ($tipoPersona === 'Fisica') {
+        if ($tipoPersona === 'fisica') {
             return $faker->unique()->regexify('[A-Z]{4}[0-9]{6}[A-Z0-9]{3}');
         }
 
-        // Para persona moral
         return $faker->unique()->regexify('[A-Z]{3}[0-9]{6}[A-Z0-9]{3}');
     }
 }

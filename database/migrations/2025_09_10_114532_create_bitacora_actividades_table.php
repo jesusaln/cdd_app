@@ -31,7 +31,7 @@ return new class extends Migration
             $table->dateTime('inicio_at')->nullable();
             $table->dateTime('fin_at')->nullable();
 
-            $table->enum('tipo', ['soporte','mantenimiento','instalacion','cotizacion','visita','administrativo','otro'])->default('soporte');
+            $table->enum('tipo', ['soporte','mantenimiento','instalacion','cotizacion','visita','administrativo', 'cobranza', 'otro'])->default('soporte');
             $table->enum('estado', ['pendiente','en_proceso','completado','cancelado'])->default('completado');
             $table->unsignedTinyInteger('prioridad')->default(3);
 

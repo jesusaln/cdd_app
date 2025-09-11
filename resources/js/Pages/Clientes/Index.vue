@@ -13,6 +13,13 @@ import Modales from '@/Components/IndexComponents/Modales.vue'
 
 defineOptions({ layout: AppLayout })
 
+
+// onMounted(() => {
+//   console.log('Clientes recibidos:', props.clientes.data)
+//   const flash = page.props.flash
+//   if (flash?.success) notyf.success(flash.success)
+//   if (flash?.error) notyf.error(flash.error)
+// })
 /**
  * Props esperadas desde ClienteController@index:
  * - clientes: paginator (con .data)

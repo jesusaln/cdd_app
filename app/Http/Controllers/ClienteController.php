@@ -331,59 +331,55 @@ class ClienteController extends Controller
 
     public function create()
     {
-        try {
-            return Inertia::render('Clientes/Create', [
-                'catalogs' => $this->getCatalogData(),
-                'cliente'  => [
-                    'id' => null,
-                    'nombre_razon_social' => '',
-                    'tipo_persona'        => 'moral',
-                    'rfc'                 => '',
-                    'regimen_fiscal'      => '',
-                    'uso_cfdi'            => 'G03', // preferencia por defecto
-                    'email'               => '',
-                    'telefono'            => '',
-                    'calle'               => '',
-                    'numero_exterior'     => '',
-                    'numero_interior'     => '',
-                    'colonia'             => '',
-                    'codigo_postal'       => '',
-                    'municipio'           => '',
-                    'estado'              => '',
-                    'pais'                => 'MX', // forzado a MX
-                ]
-            ]);
-        } catch (Exception $e) {
-            Log::error('Error en ClienteController@create: ' . $e->getMessage());
-            return redirect()->route('clientes.index')->with('error', 'Error al cargar el formulario de creación.');
-        }
+        return Inertia::render('Clientes/Create', [
+            'catalogs' => [
+                'tiposPersona' => [
+                    ['value' => 'fisica', 'label' => 'Persona Física'],
+                    ['value' => 'moral', 'label' => 'Persona Moral'],
+                ],
+                'estados' => SatEstado::all(['clave', 'nombre'])->toArray(),
+                'regimenesFiscales' => SatRegimenFiscal::all(['clave', 'descripcion', 'persona_fisica', 'persona_moral'])->toArray(),
+                'usosCFDI' => SatUsoCfdi::all(['clave', 'descripcion', 'persona_fisica', 'persona_moral'])->toArray(),
+            ],
+            'cliente' => [ // valores por defecto
+                'tipo_persona' => 'fisica',
+                'pais' => 'MX',
+            ],
+        ]);
     }
 
     public function store(StoreClienteRequest $request)
     {
-        try {
-            DB::beginTransaction();
+        DB::beginTransaction();
 
+        try {
             $data = $request->validated();
+
+            // Normalización de datos
             $data['rfc']                 = strtoupper(trim($data['rfc']));
             $data['email']               = strtolower(trim($data['email']));
             $data['nombre_razon_social'] = trim($data['nombre_razon_social']);
-            $data['pais']                = 'MX';
+            $data['pais']                = 'MX'; // Forzado
 
             $cliente = Cliente::create($data);
 
             DB::commit();
+
             Log::info('Cliente creado', ['id' => $cliente->id]);
 
+            // Redirige a la lista con mensaje de éxito
             return redirect()->route('clientes.index')->with('success', 'Cliente creado correctamente');
-        } catch (ValidationException $e) {
+        } catch (\Exception $e) {
             DB::rollBack();
-            Log::warning('Validación fallida al crear cliente', $e->errors());
+
+            Log::error('Error al crear cliente: ' . $e->getMessage(), [
+                'data' => $request->all(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            // En lugar de redirect()->back()->with('error'), lanza el error
+            // Inertia lo manejará y lo mostrará en form.errors
             throw $e;
-        } catch (Exception $e) {
-            DB::rollBack();
-            Log::error('Error al crear cliente: ' . $e->getMessage(), ['data' => $request->all(), 'trace' => $e->getTraceAsString()]);
-            return redirect()->back()->with('error', 'Hubo un problema al crear el cliente.')->withInput();
         }
     }
 
@@ -424,10 +420,12 @@ class ClienteController extends Controller
 
     public function update(UpdateClienteRequest $request, Cliente $cliente)
     {
-        try {
-            DB::beginTransaction();
+        DB::beginTransaction();
 
+        try {
             $data = $request->validated();
+
+            // Normalización
             $data['rfc']                 = strtoupper(trim($data['rfc']));
             $data['email']               = strtolower(trim($data['email']));
             $data['nombre_razon_social'] = trim($data['nombre_razon_social']);
@@ -436,20 +434,27 @@ class ClienteController extends Controller
             $cliente->update($data);
 
             DB::commit();
+
             Log::info('Cliente actualizado', ['cliente_id' => $cliente->id]);
 
+            // ✅ Redirige con mensaje flash (asegúrate de leerlo en el frontend)
             return redirect()->route('clientes.index')->with('success', 'Cliente actualizado correctamente');
         } catch (ModelNotFoundException $e) {
             DB::rollBack();
             Log::warning('Cliente no encontrado para actualización', ['id' => $cliente->id ?? 'N/A']);
+
+            // ✅ En lugar de redirect()->back(), lanza error 404 o redirige
             return redirect()->route('clientes.index')->with('error', 'Cliente no encontrado.');
-        } catch (ValidationException $e) {
+        } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Error al actualizar cliente: ' . $e->getMessage(), [
+                'cliente_id' => $cliente->id ?? 'N/A',
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            // ✅ ¡NO uses redirect()->back()! Lanza la excepción.
+            // Inertia la capturará y la mostrará en form.errors
             throw $e;
-        } catch (Exception $e) {
-            DB::rollBack();
-            Log::error('Error al actualizar cliente: ' . $e->getMessage(), ['cliente_id' => $cliente->id ?? 'N/A', 'trace' => $e->getTraceAsString()]);
-            return redirect()->back()->with('error', 'Hubo un problema al actualizar el cliente.')->withInput();
         }
     }
 

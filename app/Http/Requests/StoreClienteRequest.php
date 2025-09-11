@@ -3,15 +3,13 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreClienteRequest extends FormRequest
 {
     public function rules()
     {
-        $regimenesFisicas = ['605', '606', '607', '608', '610', '611', '612', '614', '615', '616', '621', '625', '626'];
-        $regimenesMorales = ['601', '603', '609', '620', '622', '623', '624', '628'];
-
-        $rules = [
+        return [
             'nombre_razon_social' => 'required|string|max:255',
             'tipo_persona' => 'required|in:fisica,moral',
             'rfc' => [
@@ -23,42 +21,67 @@ class StoreClienteRequest extends FormRequest
                     if ($value !== 'XAXX010101000' && \App\Models\Cliente::where('rfc', $value)->exists()) {
                         $fail('El RFC ya está registrado.');
                     }
-                    if ($this->tipo_persona === 'fisica' && strlen($value) !== 13) {
+                    $tipoPersona = $this->input('tipo_persona');
+                    if ($tipoPersona === 'fisica' && strlen($value) !== 13) {
                         $fail('El RFC debe tener exactamente 13 caracteres para persona física.');
                     }
-                    if ($this->tipo_persona === 'moral' && strlen($value) !== 12) {
+                    if ($tipoPersona === 'moral' && strlen($value) !== 12) {
                         $fail('El RFC debe tener exactamente 12 caracteres para persona moral.');
                     }
                 },
             ],
             'regimen_fiscal' => [
                 'required',
-                'string',
-                function ($attribute, $value, $fail) use ($regimenesFisicas, $regimenesMorales) {
-                    if ($this->tipo_persona === 'fisica' && !in_array($value, $regimenesFisicas)) {
+                Rule::exists('sat_regimenes_fiscales', 'clave'),
+                function ($attribute, $value, $fail) {
+                    $tipoPersona = $this->input('tipo_persona');
+                    $regimen = \App\Models\SatRegimenFiscal::where('clave', $value)->first();
+                    if (!$regimen) {
+                        $fail('El régimen fiscal no existe en el catálogo.');
+                        return;
+                    }
+                    if ($tipoPersona === 'fisica' && !$regimen->persona_fisica) {
                         $fail('El régimen fiscal no es válido para persona física.');
                     }
-                    if ($this->tipo_persona === 'moral' && !in_array($value, $regimenesMorales)) {
+                    if ($tipoPersona === 'moral' && !$regimen->persona_moral) {
                         $fail('El régimen fiscal no es válido para persona moral.');
                     }
                 },
             ],
-            'uso_cfdi' => 'required|string|in:G01,G02,G03,I01,I02,I03,I04,I05,I06,I07,I08,D01,D02,D03,D04,D05,D06,D07,D08,D09,D10,S01,CP01,CN01',
-            'email' => 'required|email|max:255|',
+            'uso_cfdi' => [
+                'required',
+                Rule::exists('sat_usos_cfdi', 'clave'),
+                function ($attribute, $value, $fail) {
+                    $tipoPersona = $this->input('tipo_persona');
+                    $uso = \App\Models\SatUsoCfdi::where('clave', $value)->first();
+                    if (!$uso) {
+                        $fail('El uso de CFDI no existe en el catálogo.');
+                        return;
+                    }
+                    if ($tipoPersona === 'fisica' && !$uso->persona_fisica) {
+                        $fail('El uso de CFDI no es válido para persona física.');
+                    }
+                    if ($tipoPersona === 'moral' && !$uso->persona_moral) {
+                        $fail('El uso de CFDI no es válido para persona moral.');
+                    }
+                },
+            ],
+            'email' => 'required|email|max:255',
             'telefono' => 'nullable|string|max:20|regex:/^[0-9+\-\s()]+$/',
             'calle' => 'required|string|max:255',
             'numero_exterior' => 'required|string|max:20',
             'numero_interior' => 'nullable|string|max:20',
             'colonia' => 'required|string|max:255',
-            'codigo_postal' => 'required|size:5',
+            'codigo_postal' => 'required|size:5|regex:/^[0-9]{5}$/',
             'municipio' => 'required|string|max:255',
-            'estado' => 'required|string|max:255',
-            'pais' => 'required|string|max:255',
+            'estado' => [
+                'required',
+                Rule::exists('sat_estados', 'clave'),
+            ],
+            'pais' => 'required|string|size:2',
             'activo' => 'nullable|boolean',
             'notas' => 'nullable|string',
             'acepta_marketing' => 'nullable|boolean',
         ];
-
-        return $rules;
     }
 }

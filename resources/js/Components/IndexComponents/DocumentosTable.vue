@@ -212,36 +212,41 @@
               <!-- Cliente/Proveedor | Equipo | Clientes -->
               <td class="px-6 py-4">
                 <div class="flex flex-col space-y-0.5">
+                  <!-- Para cotizaciones/pedidos/ventas/compras -->
                   <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800" v-if="!isEquipos && !isClientes">
                     {{ isCompra ? (doc.proveedor?.nombre_razon_social || 'Sin proveedor') : (doc.cliente?.nombre || 'Sin cliente') }}
                   </div>
+                  <!-- Para clientes: usamos TITULO -->
                   <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800" v-else-if="isClientes">
-                    {{ doc.nombre_razon_social || 'Sin nombre' }}
+                    {{ doc.titulo || 'Sin nombre' }}
                   </div>
+                  <!-- Para equipos -->
                   <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800" v-else>
                     {{ doc.nombre || 'Sin nombre' }}
                   </div>
 
+                  <!-- Emails -->
                   <div
                     v-if="!isEquipos && !isClientes && (isCompra ? doc.proveedor?.email : doc.cliente?.email)"
                     class="text-xs text-gray-500 truncate max-w-48"
                   >
                     {{ isCompra ? doc.proveedor?.email : doc.cliente?.email }}
                   </div>
-                  <div v-else-if="isClientes && doc.email" class="text-xs text-gray-500 truncate max-w-48">
-                    {{ doc.email }}
+                  <div v-else-if="isClientes && doc.subtitulo" class="text-xs text-gray-500 truncate max-w-48">
+                    {{ doc.subtitulo }}
                   </div>
 
+                  <!-- Equipos -->
                   <div v-if="isEquipos && (doc.modelo || doc.marca)" class="text-xs text-gray-500 truncate max-w-48">
                     {{ [doc.marca, doc.modelo].filter(Boolean).join(' · ') }}
                   </div>
                 </div>
               </td>
 
-              <!-- Campo extra -->
+              <!-- Campo extra (RFC para clientes) -->
               <td v-if="config.mostrarCampoExtra" class="px-6 py-4">
                 <div class="text-sm font-mono font-medium text-gray-700 bg-gray-100/60 px-2 py-1 rounded-md inline-block">
-                  #{{ (doc[config.campoExtra.key] ?? 'N/A') || 'N/A' }}
+                  {{ isClientes ? (doc.extra || 'N/A') : (doc[config.campoExtra.key] || 'N/A') }}
                 </div>
               </td>
 
@@ -282,14 +287,14 @@
               <!-- Estado -->
               <td class="px-6 py-4">
                 <span
-                  :class="obtenerClasesEstado(isClientes ? (doc.activo ? '1' : '0') : doc.estado)"
+                  :class="obtenerClasesEstado(isClientes ? (doc.estado === 'activo' ? '1' : '0') : doc.estado)"
                   class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150 hover:shadow-sm"
                 >
                   <span
                     class="w-2 h-2 rounded-full mr-2 transition-all duration-150"
-                    :class="obtenerColorPuntoEstado(isClientes ? (doc.activo ? '1' : '0') : doc.estado)"
+                    :class="obtenerColorPuntoEstado(isClientes ? (doc.estado === 'activo' ? '1' : '0') : doc.estado)"
                   ></span>
-                  {{ obtenerLabelEstado(isClientes ? (doc.activo ? '1' : '0') : doc.estado) }}
+                  {{ obtenerLabelEstado(isClientes ? (doc.estado === 'activo' ? '1' : '0') : doc.estado) }}
                 </span>
               </td>
 
@@ -407,18 +412,16 @@ const props = defineProps({
   searchTerm: { type: String, default: '' },
   sortBy: { type: String, default: 'fecha-desc' },
   filtroEstado: { type: String, default: '' },
-   mapeo: {
+  mapeo: {
     type: Object,
-        default: () => ({
+    default: () => ({
       nombre: 'nombre_razon_social',
       rfc: 'rfc',
-     activo: 'activo',
+      activo: 'activo',
       fecha: 'created_at'
     })
   }
 });
-
-
 
 const emit = defineEmits([
   'ver-detalles','editar','eliminar','duplicar','imprimir','sort','renovar','suspender','reactivar'
@@ -618,8 +621,6 @@ const formatearFecha = (date) => {
   }
 };
 
-
-
 const formatearHora = (date) => {
   if (!date) return '';
   const cacheKey = `hora-${date}`;
@@ -664,11 +665,10 @@ const items = computed(() => {
     filtered = filtered.filter(doc => {
       if (isClientes.value) {
         return (
-          (doc.nombre_razon_social || '').toLowerCase().includes(term) ||
-          (doc.rfc || '').toLowerCase().includes(term) ||
-          (doc.email || '').toLowerCase().includes(term) ||
-          (doc.municipio || '').toLowerCase().includes(term) ||
-          (doc.estado || '').toLowerCase().includes(term)
+          (doc.titulo || '').toLowerCase().includes(term) || // nombre_razon_social
+          (doc.extra || '').toLowerCase().includes(term) ||  // rfc
+          (doc.subtitulo || '').toLowerCase().includes(term) || // email
+          (doc.meta?.direccion || '').toLowerCase().includes(term)
         );
       }
       if (isEquipos.value) {
@@ -697,7 +697,7 @@ const items = computed(() => {
   if (props.filtroEstado) {
     filtered = filtered.filter(doc => {
       if (isClientes.value) {
-        return String(doc.activo ? 1 : 0) === props.filtroEstado; // '1' activos, '0' inactivos
+        return (doc.estado === 'activo' ? '1' : '0') === props.filtroEstado;
       }
       return doc.estado === props.filtroEstado;
     });
@@ -727,16 +727,16 @@ const items = computed(() => {
         bVal = (b.proveedor?.nombre_razon_social || '').toLowerCase();
         break;
       case 'nombre': // clientes o equipos
-        aVal = (isClientes.value ? (a.nombre_razon_social || '') : (a.nombre || '')).toLowerCase();
-        bVal = (isClientes.value ? (b.nombre_razon_social || '') : (b.nombre || '')).toLowerCase();
+        aVal = (isClientes.value ? (a.titulo || '') : (a.nombre || '')).toLowerCase();
+        bVal = (isClientes.value ? (b.titulo || '') : (b.nombre || '')).toLowerCase();
         break;
       case 'rfc':
-        aVal = (a.rfc || '').toLowerCase();
-        bVal = (b.rfc || '').toLowerCase();
+        aVal = (isClientes.value ? (a.extra || '') : (a.rfc || '')).toLowerCase();
+        bVal = (isClientes.value ? (b.extra || '') : (b.rfc || '')).toLowerCase();
         break;
       case 'email':
-        aVal = (a.email || '').toLowerCase();
-        bVal = (b.email || '').toLowerCase();
+        aVal = (a.subtitulo || '').toLowerCase();
+        bVal = (b.subtitulo || '').toLowerCase();
         break;
       case 'total':
         aVal = parseFloat(a.total); aVal = Number.isFinite(aVal) ? aVal : 0;
@@ -744,8 +744,8 @@ const items = computed(() => {
         break;
       case 'estado':
         if (isClientes.value) {
-          aVal = a.activo ? '1' : '0';
-          bVal = b.activo ? '1' : '0';
+          aVal = a.estado === 'activo' ? '1' : '0';
+          bVal = b.estado === 'activo' ? '1' : '0';
         } else {
           aVal = a.estado || '';
           bVal = b.estado || '';

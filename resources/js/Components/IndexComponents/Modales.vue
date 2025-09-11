@@ -119,6 +119,34 @@
                 </p>
               </div>
 
+              <!-- CLIENTES -->
+              <div v-else-if="isClientes">
+                <p class="text-sm text-gray-600">
+                  <strong>Nombre/Razón Social:</strong> {{ selected.nombre_razon_social || 'Sin nombre' }}
+                </p>
+                <p class="text-sm text-gray-600" v-if="selected.email">
+                  <strong>Email:</strong> {{ selected.email }}
+                </p>
+                <p class="text-sm text-gray-600" v-if="selected.telefono">
+                  <strong>Teléfono:</strong> {{ selected.telefono }}
+                </p>
+                <p class="text-sm text-gray-600">
+                  <strong>Fecha de registro:</strong>
+                  {{ formatearFecha(selected.created_at) }}
+                </p>
+                <p class="text-sm text-gray-600">
+                  <strong>Estado:</strong>
+                  <span
+                    :class="obtenerClasesEstado(selected.activo ? '1' : '0')"
+                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                  >
+                    <span class="w-1.5 h-1.5 rounded-full mr-1.5" :class="obtenerColorPuntoEstado(selected.activo ? '1' : '0')"></span>
+                    {{ obtenerLabelEstado(selected.activo ? '1' : '0') }}
+                  </span>
+                </p>
+              </div>
+
+              <!-- Otros (cotizaciones, pedidos, etc.) -->
               <div v-else>
                 <p class="text-sm text-gray-600">
                   <strong>Cliente:</strong> {{ selected.cliente?.nombre || 'Sin cliente' }}
@@ -165,11 +193,28 @@
                     <strong>Número de serie:</strong> {{ selected.numero_serie }}
                   </p>
                 </template>
+
+                <!-- Dirección para clientes -->
+                <div v-if="isClientes && (selected.calle || selected.colonia || selected.municipio)" class="mt-3 pt-3 border-t border-gray-200">
+                  <p class="text-sm font-medium text-gray-900 mb-1">Dirección</p>
+                  <p class="text-sm text-gray-600">
+                    {{ [
+                      selected.calle,
+                      selected.numero_exterior,
+                      selected.numero_interior ? 'Int. ' + selected.numero_interior : null,
+                      selected.colonia,
+                      selected.codigo_postal,
+                      selected.municipio,
+                      selected.estado,
+                      selected.pais
+                    ].filter(Boolean).join(', ') || 'Sin dirección' }}
+                  </p>
+                </div>
               </div>
             </div>
 
-            <!-- Tabla de productos (no aplica a equipos) -->
-            <div v-if="!isEquipos && selected.productos?.length" class="mt-4">
+            <!-- Tabla de productos (no aplica a equipos ni clientes) -->
+            <div v-if="!isEquipos && !isClientes && selected.productos?.length" class="mt-4">
               <h4 class="text-sm font-medium text-gray-900 mb-2">Productos</h4>
               <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
@@ -220,7 +265,7 @@
                 </table>
               </div>
             </div>
-            <p v-else-if="!isEquipos" class="text-sm text-gray-600">No hay productos asociados.</p>
+            <p v-else-if="!isEquipos && !isClientes" class="text-sm text-gray-600">No hay productos asociados.</p>
           </div>
           <div v-else class="text-sm text-gray-600">No hay datos disponibles.</div>
 
@@ -306,16 +351,34 @@
               </div>
             </template>
 
+            <!-- CLIENTES -->
+            <template v-if="isClientes">
+              <button
+                v-if="config.acciones.imprimir"
+                @click="onImprimir"
+                class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                Imprimir
+              </button>
+              <button
+                v-if="config.acciones.editar"
+                @click="onEditar"
+                class="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+              >
+                Editar
+              </button>
+            </template>
+
             <!-- Comunes -->
             <button
-              v-if="config.acciones.imprimir"
+              v-if="!isClientes && config.acciones.imprimir"
               @click="onImprimir"
               class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
             >
               Imprimir
             </button>
             <button
-              v-if="config.acciones.editar"
+              v-if="!isClientes && config.acciones.editar"
               @click="onEditar"
               class="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
             >
@@ -420,7 +483,7 @@ const props = defineProps({
   tipo: {
     type: String,
     required: true,
-    validator: (v) => ['cotizaciones','pedidos','ventas','compras','ordenescompra','rentas','equipos'].includes(v)
+    validator: (v) => ['cotizaciones','pedidos','ventas','compras','ordenescompra','rentas','equipos','clientes'].includes(v) // ✅ AGREGADO 'clientes'
   }
 })
 
@@ -433,7 +496,7 @@ const emit = defineEmits([
   'enviar-pedido',
   'enviar-a-venta',
 
-  // 👇 NUEVOS (para evitar warnings y habilitar acciones)
+  // Acciones para equipos
   'renovar', 'suspender', 'reactivar',
   'cambiar-estado', 'programar-mantenimiento',
   'marcar-disponible', 'marcar-reparacion', 'marcar-fuera-servicio'
@@ -443,6 +506,7 @@ const isCotizaciones = computed(() => props.tipo === 'cotizaciones')
 const isPedidos = computed(() => props.tipo === 'pedidos')
 const isRentas = computed(() => props.tipo === 'rentas')
 const isEquipos = computed(() => props.tipo === 'equipos')
+const isClientes = computed(() => props.tipo === 'clientes') // ✅ NUEVO
 
 // Estados de confirmación
 const showConfirmReenvioPedido = ref(false)
@@ -534,6 +598,17 @@ const config = computed(() => {
         reparacion: { label: 'Reparación', classes: 'bg-orange-100 text-orange-700', color: 'bg-orange-500' },
         fuera_servicio: { label: 'Fuera de servicio', classes: 'bg-rose-100 text-rose-700', color: 'bg-rose-500' },
         sin_estado: { label: 'Sin Estado', classes: 'bg-gray-100 text-gray-600', color: 'bg-gray-400' }
+      })
+    },
+    // ✅ CONFIGURACIÓN PARA CLIENTES
+    clientes: {
+      titulo: 'Cliente',
+      mostrarCampoExtra: true,
+      campoExtra: { key: 'rfc', label: 'RFC' },
+      acciones: { editar: true, imprimir: false, enviarPedido: false, enviarAVenta: false },
+      estados: baseEstados({
+        '1': { label: 'Activo',   classes: 'bg-emerald-100 text-emerald-700', color: 'bg-emerald-400' },
+        '0': { label: 'Inactivo', classes: 'bg-red-100 text-red-700',        color: 'bg-red-400' },
       })
     }
   }
