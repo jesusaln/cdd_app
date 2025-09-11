@@ -546,8 +546,8 @@ const regimenesFiltrados = computed(() => {
       return form.tipo_persona === 'moral' ? r.persona_moral : r.persona_fisica
     })
     .map(r => {
-      const clave = r.clave || r.codigo || r.id || r.value
-      let descripcion = r.descripcion || r.nombre || r.text || r.label || clave
+      const clave = (r.clave || r.codigo || r.id || r.value || '').toString().trim()
+      let descripcion = (r.descripcion || r.nombre || r.text || r.label || clave).toString().trim()
 
       // Evitar duplicar el formato
       if (!descripcion.startsWith(`${clave} —`)) {
@@ -559,9 +559,9 @@ const regimenesFiltrados = computed(() => {
         text: descripcion
       }
     })
-    // ✅ ELIMINAR DUPLICADOS POR VALUE
+    // ✅ ELIMINAR DUPLICADOS POR VALUE (normalizado)
     .filter((item, index, self) =>
-      index === self.findIndex(t => t.value === item.value)
+      index === self.findIndex(t => t.value.toString().trim().toUpperCase() === item.value.toString().trim().toUpperCase())
     )
 })
 

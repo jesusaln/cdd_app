@@ -120,8 +120,8 @@ class ClienteController extends Controller
     {
         return [
             'tiposPersona'      => $this->formatForVueSelect($this->getTiposPersona(), true),
-            'regimenesFiscales' => $this->formatForVueSelect($this->getRegimenesFiscales(), true, true),
-            'usosCFDI'          => $this->formatForVueSelect($this->getUsosCFDI(), true, true),
+            'regimenesFiscales' => $this->formatForVueSelect($this->getRegimenesFiscales(), true, false), // ← false aquí
+            'usosCFDI'          => $this->formatForVueSelect($this->getUsosCFDI(), true, false),          // ← false aquí
             'estados'           => $this->formatForVueSelect($this->getEstadosMexico(), true),
         ];
     }
