@@ -241,22 +241,7 @@ const crearNuevaCotizacion = () => router.visit('/cotizaciones/create')
 
   <div class="cotizaciones-index min-h-screen bg-gray-50">
     <!-- Header principal -->
-    <div class="bg-white shadow-sm border-b border-gray-200 px-6 py-8">
-      <div class="max-w-7xl mx-auto">
-        <div class="flex items-center justify-between">
-          <div>
-            <h1 class="text-3xl font-bold text-gray-900 mb-2">Gestión de Cotizaciones</h1>
-            <p class="text-gray-600">Administra y gestiona todas tus cotizaciones de manera eficiente</p>
-          </div>
-          <button
-            class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white"
-            @click="crearNuevaCotizacion"
-          >
-            Nueva Cotización
-          </button>
-        </div>
-      </div>
-    </div>
+
 
     <!-- Contenido principal -->
     <div class="max-w-8xl mx-auto px-6 py-8">
