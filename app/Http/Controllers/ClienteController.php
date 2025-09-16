@@ -10,7 +10,6 @@ use App\Models\SatUsoCfdi;
 use App\Http\Requests\StoreClienteRequest;
 use App\Http\Requests\UpdateClienteRequest;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +18,11 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Validation\ValidationException;
 use Exception;
 use Facturapi\Facturapi;
+use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\ClientesExport;
+
+
 
 class ClienteController extends Controller
 {
@@ -128,41 +132,44 @@ class ClienteController extends Controller
     }
 
     // ========================= Query base =========================
+    // En tu ClienteController (o trait/repo)
     private function buildSearchQuery(Request $request)
     {
-        $query = Cliente::query();
+        $q = \App\Models\Cliente::query()->with(['estadoSat', 'regimen', 'uso']);
 
-        if ($request->filled('search')) {
-            $search = trim($request->get('search'));
-            $query->where(function ($q) use ($search) {
-                $q->where('nombre_razon_social', 'like', "%{$search}%")
-                    ->orWhere('rfc', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%")
-                    ->orWhere('telefono', 'like', "%{$search}%");
+        if ($s = trim((string) $request->input('search', ''))) {
+            $q->where(function ($w) use ($s) {
+                $w->where('nombre_razon_social', 'like', "%{$s}%")
+                    ->orWhere('rfc', 'like', "%{$s}%")
+                    ->orWhere('email', 'like', "%{$s}%");
             });
         }
 
-        if ($request->filled('tipo_persona')) {
-            $query->where('tipo_persona', $request->get('tipo_persona'));
+        if ($tp = $request->input('tipo_persona')) {
+            $q->where('tipo_persona', $tp);
         }
-        if ($request->filled('regimen_fiscal')) {
-            $query->where('regimen_fiscal', $request->get('regimen_fiscal'));
+        if ($rf = $request->input('regimen_fiscal')) {
+            $q->where('regimen_fiscal', $rf);
         }
-        if ($request->filled('uso_cfdi')) {
-            $query->where('uso_cfdi', $request->get('uso_cfdi'));
+        if ($uso = $request->input('uso_cfdi')) {
+            $q->where('uso_cfdi', $uso);
         }
-        if ($request->has('activo') && $request->get('activo') !== '') {
-            $query->where('activo', filter_var($request->get('activo'), FILTER_VALIDATE_BOOLEAN));
-        }
-        if ($request->filled('estado')) {
-            $query->where('estado', $request->get('estado'));
+        if ($edo = $request->input('estado')) {
+            $q->where('estado', $edo);
         }
 
-        // precarga descripciones para vistas
-        $query->with(['regimen', 'uso', 'estadoSat']);
+        // CLAVE: solo filtrar si activo viene como '0' o '1'
+        if ($request->query->has('activo')) {
+            $val = $request->query('activo');
+            if ($val !== '' && $val !== null) {
+                // aceptar '0'/'1' o 0/1
+                $q->where('activo', in_array($val, ['1', 1], true));
+            }
+        }
 
-        return $query;
+        return $q->orderByDesc('created_at');
     }
+
 
     private function transformClientesPaginator($paginator)
     {
@@ -824,7 +831,4 @@ class ClienteController extends Controller
         }
         return false;
     }
-
-
 }
-

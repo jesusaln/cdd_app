@@ -17,6 +17,7 @@
         "laravel/jetstream": "^5.3",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.9",
+        "maatwebsite/excel": "^3.1",
         "owen-it/laravel-auditing": "^14.0",
         "spatie/laravel-permission": "^6.16",
         "tightenco/ziggy": "^2.5"

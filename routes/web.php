@@ -33,6 +33,10 @@ use App\Http\Controllers\BitacoraActividadController;
 
 
 
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/clientes/export', [ClienteController::class, 'export'])
+        ->name('clientes.export');
+});
 
 
 /*

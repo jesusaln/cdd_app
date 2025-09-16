@@ -158,6 +158,35 @@
               </div>
             </div>
 
+            <!-- NUEVO: CURP -->
+            <div class="mb-4">
+              <label for="curp" class="block text-sm font-medium text-gray-700">
+                CURP
+                <span v-if="form.tipo_persona === 'fisica'" class="text-gray-400">(opcional)</span>
+              </label>
+              <input
+                type="text"
+                id="curp"
+                :maxlength="18"
+                :placeholder="form.tipo_persona === 'fisica' ? 'ABCD880321HXXLRN09' : 'No aplica para Persona Moral'"
+                :value="form.curp"
+                @input="onCurpInput"
+                :disabled="form.tipo_persona === 'moral' || !form.tipo_persona"
+                :class="[
+                  'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                  form.errors.curp ? 'border-red-300 bg-red-50' : 'border-gray-300',
+                  (form.tipo_persona === 'moral' || !form.tipo_persona) ? 'bg-gray-100 text-gray-400' : ''
+                ]"
+              />
+              <div v-if="form.errors.curp" class="mt-2 text-sm text-red-600">
+                {{ form.errors.curp }}
+              </div>
+              <div class="mt-1 text-xs text-gray-500">
+                {{ curpHelperText }}
+              </div>
+            </div>
+            <!-- /NUEVO: CURP -->
+
             <div class="mb-4">
               <label for="regimen_fiscal" class="block text-sm font-medium text-gray-700">
                 Régimen Fiscal <span class="text-red-500">*</span>
@@ -441,7 +470,7 @@
 import { Head, useForm } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import FormField from '@/Components/FormField.vue'
+// import FormField from '@/Components/FormField.vue' // (No se usa en esta versión)
 
 defineOptions({ layout: AppLayout })
 
@@ -460,6 +489,7 @@ const initFormData = () => ({
   telefono: props.cliente?.telefono || '',
   tipo_persona: props.cliente?.tipo_persona || '',
   rfc: props.cliente?.rfc || '',
+  curp: props.cliente?.curp || '',                 // <<< NUEVO
   regimen_fiscal: props.cliente?.regimen_fiscal || '',
   uso_cfdi: props.cliente?.uso_cfdi || '',
   calle: props.cliente?.calle || '',
@@ -481,6 +511,7 @@ const requiredFields = [
   'regimen_fiscal', 'uso_cfdi', 'calle', 'numero_exterior',
   'colonia', 'codigo_postal', 'municipio', 'estado', 'pais'
 ]
+// Nota: CURP NO es requerida (backend la valida como nullable)
 
 const requiredFieldsFilled = computed(() => {
   return requiredFields.every(field => {
@@ -509,9 +540,7 @@ const regimenesFiltrados = computed(() => {
   if (!form.tipo_persona) return []
 
   return (props.catalogs?.regimenesFiscales || [])
-    .filter(r => {
-      return form.tipo_persona === 'moral' ? r.persona_moral : r.persona_fisica
-    })
+    .filter(r => (form.tipo_persona === 'moral' ? r.persona_moral : r.persona_fisica))
     .map(r => ({
       value: r.clave,
       text: `${r.clave} — ${r.descripcion}`
@@ -525,10 +554,13 @@ const usosCFDI = computed(() => {
   }))
 })
 
-// Configuración dinámica del RFC
+// Configuración dinámica RFC/CURP
 const rfcMaxLength = computed(() => form.tipo_persona === 'fisica' ? 13 : 12)
-const rfcPlaceholder = computed(() =>
-  form.tipo_persona === 'fisica' ? 'ABCD123456EFG' : 'ABC123456EF'
+const rfcPlaceholder = computed(() => form.tipo_persona === 'fisica' ? 'ABCD123456EFG' : 'ABC123456EF')
+const curpHelperText = computed(() =>
+  form.tipo_persona === 'moral'
+    ? 'CURP no aplica para Personas Morales.'
+    : 'Formato CURP: 18 caracteres (solo A–Z y 0–9).'
 )
 
 // Watchers
@@ -537,10 +569,16 @@ watch(() => form.tipo_persona, (newVal, oldVal) => {
     form.rfc = ''
     form.regimen_fiscal = ''
     form.clearErrors(['rfc', 'regimen_fiscal'])
+
+    // Si cambia a moral, limpiamos CURP y deshabilitamos
+    if (newVal === 'moral') {
+      form.curp = ''
+      form.clearErrors('curp')
+    }
   }
 })
 
-// Funciones de manejo de input
+// Handlers
 const onTipoPersonaChange = () => {
   form.rfc = ''
   form.regimen_fiscal = ''
@@ -552,59 +590,47 @@ const onRfcInput = (event) => {
   const cleaned = String(value).toUpperCase().replace(/[^A-ZÑ&0-9]/g, '')
   const maxLen = rfcMaxLength.value
   form.rfc = cleaned.slice(0, maxLen)
+  if (form.rfc && form.errors.rfc) form.clearErrors('rfc')
+}
 
-  // Limpiar error si el campo ahora tiene contenido válido
-  if (form.rfc && form.errors.rfc) {
-    form.clearErrors('rfc')
-  }
+// NUEVO: normalización CURP
+const onCurpInput = (event) => {
+  const value = event.target ? event.target.value : event
+  form.curp = String(value).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 18)
+  if (form.curp && form.errors.curp) form.clearErrors('curp')
 }
 
 const onCpInput = (event) => {
   const value = event.target ? event.target.value : event
   const digits = String(value).replace(/\D/g, '')
   form.codigo_postal = digits.slice(0, 5)
-
-  // Limpiar error si el campo ahora tiene contenido válido
-  if (form.codigo_postal && form.errors.codigo_postal) {
-    form.clearErrors('codigo_postal')
-  }
+  if (form.codigo_postal && form.errors.codigo_postal) form.clearErrors('codigo_postal')
 }
 
 const toUpper = (campo) => {
   if (form[campo] && typeof form[campo] === 'string') {
     form[campo] = form[campo].toUpperCase().trim()
-
-    // Limpiar error si el campo ahora tiene contenido
-    if (form[campo] && form.errors[campo]) {
-      form.clearErrors(campo)
-    }
+    if (form[campo] && form.errors[campo]) form.clearErrors(campo)
   }
 }
 
-// Funciones principales
+// Acciones
 const resetForm = () => {
   const newData = initFormData()
-  Object.keys(newData).forEach(key => {
-    form[key] = newData[key]
-  })
+  Object.keys(newData).forEach(key => { form[key] = newData[key] })
   form.clearErrors()
   showSuccessMessage.value = false
 }
 
 const submit = () => {
-  // Limpiar mensajes previos
   showSuccessMessage.value = false
-
-  // Validación antes de enviar
   if (!isFormValid.value) {
     console.warn('Formulario no válido, evitando envío')
     return
   }
 
-  // Limpiar y normalizar datos antes del envío
+  // (opcional) verificación local de requeridos
   const dataToSend = { ...form.data() }
-
-  // Asegurar que todos los campos requeridos tengan valores válidos
   requiredFields.forEach(field => {
     if (!dataToSend[field] || String(dataToSend[field]).trim() === '') {
       console.error(`Campo requerido vacío: ${field}`)
