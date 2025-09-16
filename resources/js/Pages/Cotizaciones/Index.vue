@@ -1,6 +1,6 @@
 <!-- /resources/js/Pages/Cotizaciones/Index.vue -->
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { router, Head } from '@inertiajs/vue3'
 import axios from 'axios'
 import { Notyf } from 'notyf'
@@ -10,8 +10,7 @@ import { generarPDF } from '@/Utils/pdfGenerator'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import UniversalHeader from '@/Components/IndexComponents/UniversalHeader.vue'
 import DocumentosTable from '@/Components/IndexComponents/DocumentosTable.vue'
-import Modal from '@/Components/IndexComponents/Modales.vue' // Asegúrate que esta ruta exista y exporte default
-// import Modal from '@/Components/DocumentoModal.vue' // <- Si el anterior falla, usa este
+import Modal from '@/Components/IndexComponents/Modales.vue'
 
 defineOptions({ layout: AppLayout })
 
@@ -23,38 +22,38 @@ const props = defineProps({
 })
 
 /* =========================
+   Configuración de notificaciones
+========================= */
+const notyf = new Notyf({
+  duration: 4000,
+  position: { x: 'right', y: 'top' },
+  types: [
+    { type: 'success', background: '#10b981', icon: false },
+    { type: 'error', background: '#ef4444', icon: false },
+    { type: 'warning', background: '#f59e0b', icon: false }
+  ]
+})
+
+/* =========================
    Estado local y modal
 ========================= */
 const showModal = ref(false)
-const fila = ref(null)               // Fila seleccionada para el modal
-const modalMode = ref('details')     // 'details' | 'confirm'
-const selectedId = ref(null)         // Para eliminar
+const fila = ref(null)
+const modalMode = ref('details')
+const selectedId = ref(null)
+const loading = ref(false)
 
 const abrirDetalles = (row) => {
   fila.value = row || null
   modalMode.value = 'details'
   showModal.value = true
 }
+
 const cerrarModal = () => {
   showModal.value = false
   fila.value = null
   selectedId.value = null
 }
-
-/* Auditoría segura para el modal */
-const auditoriaForModal = computed(() => {
-  const r = fila.value
-  if (!r) return null
-  const meta = r.metadata || {}
-  return {
-    creado_por:       r.creado_por_nombre       || r.created_by_user_name || meta.creado_por       || null,
-    actualizado_por:  r.actualizado_por_nombre  || r.updated_by_user_name || meta.actualizado_por  || null,
-    eliminado_por:    r.eliminado_por_nombre    || r.deleted_by_user_name || meta.eliminado_por    || null,
-    creado_en:        r.created_at              || meta.creado_en         || null,
-    actualizado_en:   r.updated_at              || meta.actualizado_en    || null,
-    eliminado_en:     r.deleted_at              || meta.eliminado_en      || null,
-  }
-})
 
 /* =========================
    Filtros, orden y datos
@@ -62,29 +61,206 @@ const auditoriaForModal = computed(() => {
 const searchTerm = ref('')
 const sortBy = ref('fecha-desc')
 const filtroEstado = ref('')
-
-const notyf = new Notyf({
-  duration: 4000,
-  position: { x: 'right', y: 'top' },
-  types: [
-    { type: 'success', background: '#10b981', icon: false },
-    { type: 'error', background: '#ef4444', icon: false }
-  ]
-})
-
 const cotizacionesOriginales = ref([...props.cotizaciones])
 
+/* =========================
+   Auditoría segura para el modal
+========================= */
+const auditoriaForModal = computed(() => {
+  const r = fila.value
+  if (!r) return null
+
+  const meta = r.metadata || {}
+  return {
+    creado_por: r.creado_por_nombre || r.created_by_user_name || meta.creado_por || 'N/A',
+    actualizado_por: r.actualizado_por_nombre || r.updated_by_user_name || meta.actualizado_por || 'N/A',
+    eliminado_por: r.eliminado_por_nombre || r.deleted_by_user_name || meta.eliminado_por || null,
+    creado_en: r.created_at || meta.creado_en || null,
+    actualizado_en: r.updated_at || meta.actualizado_en || null,
+    eliminado_en: r.deleted_at || meta.eliminado_en || null,
+  }
+})
+
+/* =========================
+   Filtrado y ordenamiento
+========================= */
+const cotizacionesFiltradas = computed(() => {
+  let result = [...cotizacionesOriginales.value]
+
+  // Aplicar filtro de búsqueda
+  if (searchTerm.value.trim()) {
+    const search = searchTerm.value.toLowerCase().trim()
+    result = result.filter(cotizacion => {
+      const cliente = cotizacion.cliente?.nombre?.toLowerCase() || ''
+      const numero = String(cotizacion.numero || cotizacion.id || '').toLowerCase()
+      const estado = cotizacion.estado?.toLowerCase() || ''
+
+      return cliente.includes(search) ||
+             numero.includes(search) ||
+             estado.includes(search)
+    })
+  }
+
+  // Aplicar filtro de estado
+  if (filtroEstado.value) {
+    result = result.filter(cotizacion => cotizacion.estado === filtroEstado.value)
+  }
+
+  // Aplicar ordenamiento
+  if (sortBy.value) {
+    const [field, order] = sortBy.value.split('-')
+    const isDesc = order === 'desc'
+
+    result.sort((a, b) => {
+      let valueA, valueB
+
+      switch (field) {
+        case 'fecha':
+          valueA = new Date(a.fecha || a.created_at || 0)
+          valueB = new Date(b.fecha || b.created_at || 0)
+          break
+        case 'cliente':
+          valueA = a.cliente?.nombre || ''
+          valueB = b.cliente?.nombre || ''
+          break
+        case 'total':
+          valueA = parseFloat(a.total || 0)
+          valueB = parseFloat(b.total || 0)
+          break
+        case 'estado':
+          valueA = a.estado || ''
+          valueB = b.estado || ''
+          break
+        default:
+          valueA = a[field] || ''
+          valueB = b[field] || ''
+      }
+
+      if (valueA < valueB) return isDesc ? 1 : -1
+      if (valueA > valueB) return isDesc ? -1 : 1
+      return 0
+    })
+  }
+
+  return result
+})
+
+/* =========================
+   Paginación
+========================= */
+const currentPage = ref(1)
+const itemsPerPage = ref(10)
+
+const totalPages = computed(() => {
+  const filtered = cotizacionesFiltradas.value
+  return Math.ceil((filtered?.length || 0) / itemsPerPage.value)
+})
+
+const paginatedCotizaciones = computed(() => {
+  const filtered = cotizacionesFiltradas.value
+  if (!filtered || !Array.isArray(filtered)) return []
+
+  const start = (currentPage.value - 1) * itemsPerPage.value
+  const end = start + itemsPerPage.value
+  return filtered.slice(start, end)
+})
+
+const visiblePages = computed(() => {
+  const pages = []
+  const total = totalPages.value
+  const current = currentPage.value
+
+  if (total <= 7) {
+    // Mostrar todas las páginas si hay 7 o menos
+    for (let i = 1; i <= total; i++) {
+      pages.push(i)
+    }
+  } else {
+    // Lógica corregida para evitar duplicaciones
+    if (current <= 3) {
+      // Si estamos en las primeras 3 páginas, mostrar 1,2,3,4,5
+      for (let i = 1; i <= 5; i++) {
+        pages.push(i)
+      }
+    } else if (current >= total - 2) {
+      // Si estamos en las últimas 3 páginas, mostrar las últimas 5
+      for (let i = total - 4; i <= total; i++) {
+        pages.push(i)
+      }
+    } else {
+      // En el medio, mostrar página actual ± 2
+      for (let i = current - 2; i <= current + 2; i++) {
+        pages.push(i)
+      }
+    }
+  }
+
+  return pages
+})
+
+const goToPage = (page) => {
+  if (page >= 1 && page <= totalPages.value) {
+    currentPage.value = page
+  }
+}
+
+const nextPage = () => {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++
+  }
+}
+
+const prevPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value--
+  }
+}
+
+// Watchers para props y filtros
 watch(() => props.cotizaciones, (newVal) => {
-  console.log('Cotizaciones recibidas:', newVal)
-  cotizacionesOriginales.value = [...newVal]
+  if (Array.isArray(newVal)) {
+    cotizacionesOriginales.value = [...newVal]
+  }
 }, { deep: true, immediate: true })
 
+// Resetear página al cambiar filtros
+watch([searchTerm, filtroEstado], () => {
+  currentPage.value = 1
+})
+
+// Ajustar página si se queda sin elementos después de eliminar
+watch(totalPages, (newTotal) => {
+  if (currentPage.value > newTotal && newTotal > 0) {
+    currentPage.value = newTotal
+  }
+})
+
 const estadisticas = computed(() => {
-  const stats = { total: cotizacionesOriginales.value.length, aprobadas: 0, pendientes: 0 }
-  cotizacionesOriginales.value.forEach(c => {
-    if (c.estado === 'aprobado') stats.aprobadas++
-    else if (c.estado === 'pendiente') stats.pendientes++
+  const originales = cotizacionesOriginales.value || []
+  const stats = {
+    total: originales.length,
+    aprobadas: 0,
+    pendientes: 0,
+    rechazadas: 0
+  }
+
+  originales.forEach(c => {
+    if (!c) return
+    switch (c.estado) {
+      case 'aprobado':
+      case 'aprobada':
+        stats.aprobadas++
+        break
+      case 'pendiente':
+        stats.pendientes++
+        break
+      case 'rechazado':
+      case 'rechazada':
+        stats.rechazadas++
+        break
+    }
   })
+
   return stats
 })
 
@@ -92,157 +268,242 @@ const handleLimpiarFiltros = () => {
   searchTerm.value = ''
   sortBy.value = 'fecha-desc'
   filtroEstado.value = ''
+  currentPage.value = 1
   notyf.success('Filtros limpiados correctamente')
 }
-
-watch([searchTerm, sortBy, filtroEstado], ([newSearch, newSort, newEstado]) => {
-  console.log('Filtros cambiaron:', { search: newSearch, sort: newSort, estado: newEstado })
-})
 
 const updateSort = (newSort) => {
   if (newSort && typeof newSort === 'string') {
     sortBy.value = newSort
-    console.log('Ordenamiento actualizado:', newSort)
+    currentPage.value = 1 // Resetear página al cambiar ordenamiento
   }
 }
 
 /* =========================
-   Reglas/acciones
+   Validaciones y utilidades
 ========================= */
-function puedeEnviarAPedido(_cotizacion) {
-  // Por ahora permitimos siempre. Ajusta con tu regla real
+function puedeEnviarAPedido(cotizacion) {
+  if (!cotizacion) return false
+  return cotizacion.estado === 'aprobado' || cotizacion.estado === 'aprobada'
+}
+
+function validarCotizacion(cotizacion) {
+  if (!cotizacion?.id) {
+    throw new Error('ID de cotización no válido')
+  }
   return true
 }
 
-const verDetalles = (cotizacion) => {
-  if (!cotizacion) {
-    notyf.error('Cotización no válida')
-    return
+function validarCotizacionParaPDF(doc) {
+  if (!doc.id) throw new Error('ID del documento no encontrado')
+  if (!doc.cliente?.nombre) throw new Error('Datos del cliente no encontrados')
+  if (!Array.isArray(doc.productos) || !doc.productos.length) {
+    throw new Error('Lista de productos no válida')
   }
-  abrirDetalles(cotizacion)
+  if (!doc.fecha) throw new Error('Fecha no especificada')
+  return true
+}
+
+/* =========================
+   Acciones CRUD
+========================= */
+const verDetalles = (cotizacion) => {
+  try {
+    validarCotizacion(cotizacion)
+    abrirDetalles(cotizacion)
+  } catch (error) {
+    notyf.error(error.message)
+  }
 }
 
 const editarCotizacion = (id) => {
-  if (!id) return notyf.error('ID de cotización no válido')
-  router.visit(`/cotizaciones/${id}/edit`)
+  try {
+    const cotizacionId = id || fila.value?.id
+    if (!cotizacionId) throw new Error('ID de cotización no válido')
+
+    router.visit(`/cotizaciones/${cotizacionId}/edit`)
+  } catch (error) {
+    notyf.error(error.message)
+  }
 }
 
 const editarFila = (id) => {
-  // usado por el Modal @editar
-  editarCotizacion(id || fila.value?.id)
+  editarCotizacion(id)
 }
 
-const duplicarCotizacion = (cotizacion) => {
-  if (!cotizacion?.id) return notyf.error('Documento no válido')
-  if (confirm(`¿Duplicar cotización #${cotizacion.id}?`)) {
+const duplicarCotizacion = async (cotizacion) => {
+  try {
+    validarCotizacion(cotizacion)
+
+    if (!confirm(`¿Duplicar cotización #${cotizacion.numero || cotizacion.id}?`)) {
+      return
+    }
+
+    loading.value = true
+
     router.post(`/cotizaciones/${cotizacion.id}/duplicate`, {}, {
-      onSuccess: () => {
-        notyf.success('Cotización duplicada')
+      onStart: () => {
+        notyf.success('Duplicando cotización...')
       },
-      onError: () => {
-        notyf.error('Error al duplicar')
+      onSuccess: () => {
+        notyf.success('Cotización duplicada exitosamente')
+      },
+      onError: (errors) => {
+        console.error('Error al duplicar:', errors)
+        notyf.error('Error al duplicar la cotización')
+      },
+      onFinish: () => {
+        loading.value = false
       }
     })
+  } catch (error) {
+    notyf.error(error.message)
+    loading.value = false
   }
 }
 
 const imprimirCotizacion = async (cotizacion) => {
-  const doc = {
-    ...cotizacion,
-    fecha: cotizacion.fecha || cotizacion.created_at || new Date().toISOString()
-  }
-
-  if (!doc.id)              return notyf.error('Error: ID del documento no encontrado')
-  if (!doc.cliente?.nombre) return notyf.error('Error: Datos del cliente no encontrados')
-  if (!Array.isArray(doc.productos) || !doc.productos.length) return notyf.error('Error: Lista de productos no válida')
-  if (!doc.fecha)           return notyf.error('Error: Fecha no especificada')
-
   try {
+    const doc = {
+      ...cotizacion,
+      fecha: cotizacion.fecha || cotizacion.created_at || new Date().toISOString()
+    }
+
+    validarCotizacionParaPDF(doc)
+
+    loading.value = true
     notyf.success('Generando PDF...')
+
     await generarPDF('Cotización', doc)
     notyf.success('PDF generado correctamente')
-  } catch (e) {
-    console.error(e)
-    notyf.error(`Error al generar el PDF: ${e.message}`)
+
+  } catch (error) {
+    console.error('Error al generar PDF:', error)
+    notyf.error(`Error al generar el PDF: ${error.message}`)
+  } finally {
+    loading.value = false
   }
 }
 
 const imprimirFila = () => {
-  if (!fila.value) return
-  imprimirCotizacion(fila.value)
+  if (fila.value) {
+    imprimirCotizacion(fila.value)
+  }
 }
 
 const confirmarEliminacion = (id) => {
-  if (!id) return notyf.error('ID de cotización no válido')
-  selectedId.value = id
-  modalMode.value = 'confirm'
-  showModal.value = true
+  try {
+    if (!id) throw new Error('ID de cotización no válido')
+
+    selectedId.value = id
+    modalMode.value = 'confirm'
+    showModal.value = true
+  } catch (error) {
+    notyf.error(error.message)
+  }
 }
 
-const eliminarCotizacion = () => {
-  if (!selectedId.value) return notyf.error('No se seleccionó ninguna cotización')
+const eliminarCotizacion = async () => {
+  try {
+    if (!selectedId.value) throw new Error('No se seleccionó ninguna cotización')
 
-  router.delete(`/cotizaciones/${selectedId.value}`, {
-    onSuccess: () => {
-      notyf.success('Cotización eliminada exitosamente')
-      cotizacionesOriginales.value = cotizacionesOriginales.value.filter(c => c.id !== selectedId.value)
-      cerrarModal()
-    },
-    onError: (errors) => {
-      console.error('Error al eliminar:', errors)
-      notyf.error('Error al eliminar la cotización')
-    }
-  })
+    loading.value = true
+
+    router.delete(`/cotizaciones/${selectedId.value}`, {
+      onStart: () => {
+        notyf.success('Eliminando cotización...')
+      },
+      onSuccess: () => {
+        notyf.success('Cotización eliminada exitosamente')
+        // Actualizar datos locales
+        cotizacionesOriginales.value = cotizacionesOriginales.value.filter(
+          c => c.id !== selectedId.value
+        )
+        cerrarModal()
+
+        // Ajustar página si es necesario
+        if (paginatedCotizaciones.value.length === 0 && currentPage.value > 1) {
+          currentPage.value--
+        }
+      },
+      onError: (errors) => {
+        console.error('Error al eliminar:', errors)
+        notyf.error('Error al eliminar la cotización')
+      },
+      onFinish: () => {
+        loading.value = false
+      }
+    })
+  } catch (error) {
+    notyf.error(error.message)
+    loading.value = false
+  }
 }
 
 const enviarAPedido = async (cotizacionData) => {
-  const doc = cotizacionData?.id ? cotizacionData : fila.value
-  if (!doc?.id) return notyf.error('Documento no válido')
-  if (!puedeEnviarAPedido(doc)) return notyf.error('No se puede enviar a pedido en este momento.')
-
   try {
+    const doc = cotizacionData?.id ? cotizacionData : fila.value
+    validarCotizacion(doc)
+
+    if (!puedeEnviarAPedido(doc)) {
+      throw new Error('La cotización debe estar aprobada para enviarla a pedido')
+    }
+
+    loading.value = true
     notyf.success('Enviando cotización a pedido...')
+
     const { data } = await axios.post(`/cotizaciones/${doc.id}/enviar-pedido`, {
       forzarReenvio: !!cotizacionData?.forzarReenvio
     })
 
     if (data?.success) {
-      notyf.success(data.message || 'Cotización enviada a pedido')
-      // marcar localmente
-      const i = cotizacionesOriginales.value.findIndex(c => c.id === doc.id)
-      if (i !== -1) cotizacionesOriginales.value[i] = { ...cotizacionesOriginales.value[i], estado: 'enviado_a_pedido' }
+      notyf.success(data.message || 'Cotización enviada a pedido exitosamente')
+
+      // Actualizar estado local
+      const index = cotizacionesOriginales.value.findIndex(c => c.id === doc.id)
+      if (index !== -1) {
+        cotizacionesOriginales.value[index] = {
+          ...cotizacionesOriginales.value[index],
+          estado: 'enviado_a_pedido'
+        }
+      }
+
       cerrarModal()
-      // Navega si quieres:
-      // router.visit(route('pedidos.index'))
     } else {
-      notyf.error(data?.error || 'No se pudo enviar a pedido')
+      throw new Error(data?.error || 'No se pudo enviar a pedido')
     }
+
   } catch (error) {
-    console.error(error)
-    let msg = 'Error desconocido al enviar a pedido'
-    if (error.response?.data?.error) msg = error.response.data.error
-    else if (error.response?.data?.message) msg = error.response.data.message
-    else if (error.message) msg = error.message
-    notyf.error(msg)
+    console.error('Error al enviar a pedido:', error)
+
+    let mensaje = 'Error desconocido al enviar a pedido'
+    if (error.response?.data?.error) {
+      mensaje = error.response.data.error
+    } else if (error.response?.data?.message) {
+      mensaje = error.response.data.message
+    } else if (error.message) {
+      mensaje = error.message
+    }
+
+    notyf.error(mensaje)
+  } finally {
+    loading.value = false
   }
 }
 
-/* No aplica convertir a venta desde cotizaciones, pero el Modal lo emite.
-   Dejamos handler con aviso elegante. */
 const enviarAVenta = () => {
-  notyf.error('Esta acción no está disponible desde Cotizaciones.')
+  notyf.warning('Esta acción no está disponible desde Cotizaciones.')
 }
 
-const crearNuevaCotizacion = () => router.visit('/cotizaciones/create')
+const crearNuevaCotizacion = () => {
+  router.visit('/cotizaciones/create')
+}
 </script>
 
 <template>
   <Head title="Cotizaciones" />
 
   <div class="cotizaciones-index min-h-screen bg-gray-50">
-    <!-- Header principal -->
-
-
     <!-- Contenido principal -->
     <div class="max-w-8xl mx-auto px-6 py-8">
       <!-- Header de filtros y estadísticas -->
@@ -253,14 +514,40 @@ const crearNuevaCotizacion = () => router.visit('/cotizaciones/create')
         v-model:search-term="searchTerm"
         v-model:sort-by="sortBy"
         v-model:filtro-estado="filtroEstado"
-        :config="{ module: 'cotizaciones', createButtonText: 'Nueva Cotización', searchPlaceholder: 'Buscar por cliente, número...' }"
+        :config="{
+          module: 'cotizaciones',
+          createButtonText: 'Nueva Cotización',
+          searchPlaceholder: 'Buscar por cliente, número...'
+        }"
         @limpiar-filtros="handleLimpiarFiltros"
       />
+
+      <!-- Información de paginación -->
+      <div class="flex justify-between items-center mb-4 text-sm text-gray-600">
+        <div>
+          Mostrando {{ (currentPage - 1) * itemsPerPage + 1 }} -
+          {{ Math.min(currentPage * itemsPerPage, cotizacionesFiltradas.length) }}
+          de {{ cotizacionesFiltradas.length }} cotizaciones
+        </div>
+        <div class="flex items-center space-x-2">
+          <span>Elementos por página:</span>
+          <select
+            v-model="itemsPerPage"
+            @change="currentPage = 1"
+            class="border border-gray-300 rounded px-2 py-1 text-sm"
+          >
+            <option value="10">10</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+      </div>
 
       <!-- Tabla de documentos -->
       <div class="mt-6">
         <DocumentosTable
-          :documentos="cotizacionesOriginales"
+          :documentos="paginatedCotizaciones"
           tipo="cotizaciones"
           :search-term="searchTerm"
           :sort-by="sortBy"
@@ -273,6 +560,64 @@ const crearNuevaCotizacion = () => router.visit('/cotizaciones/create')
           @sort="updateSort"
         />
       </div>
+
+      <!-- Controles de paginación -->
+      <div v-if="totalPages > 1" class="flex justify-center items-center space-x-2 mt-6">
+  <button
+    @click="prevPage"
+    :disabled="currentPage === 1"
+    class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+  >
+    Anterior
+  </button>
+
+  <div class="flex space-x-1">
+    <!-- Primera página (solo si no está en visiblePages) -->
+    <template v-if="!visiblePages.includes(1) && totalPages > 7">
+      <button
+        @click="goToPage(1)"
+        class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+      >
+        1
+      </button>
+      <span class="px-3 py-2 text-sm text-gray-500">...</span>
+    </template>
+
+    <!-- Páginas visibles -->
+    <button
+      v-for="page in visiblePages"
+      :key="page"
+      @click="goToPage(page)"
+      :class="[
+        'px-3 py-2 text-sm font-medium border border-gray-300 rounded-md',
+        page === currentPage
+          ? 'bg-blue-500 text-white border-blue-500'
+          : 'text-gray-700 bg-white hover:bg-gray-50'
+      ]"
+    >
+      {{ page }}
+    </button>
+
+    <!-- Última página (solo si no está en visiblePages) -->
+    <template v-if="!visiblePages.includes(totalPages) && totalPages > 7">
+      <span class="px-3 py-2 text-sm text-gray-500">...</span>
+      <button
+        @click="goToPage(totalPages)"
+        class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+      >
+        {{ totalPages }}
+      </button>
+    </template>
+  </div>
+
+  <button
+    @click="nextPage"
+    :disabled="currentPage === totalPages"
+    class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+  >
+    Siguiente
+  </button>
+</div>
     </div>
 
     <!-- Modal de detalles / confirmación -->
@@ -285,19 +630,67 @@ const crearNuevaCotizacion = () => router.visit('/cotizaciones/create')
       @close="cerrarModal"
       @confirm-delete="eliminarCotizacion"
       @imprimir="imprimirFila"
-      @editar="(id) => editarFila(id)"
+      @editar="editarFila"
       @enviar-pedido="enviarAPedido"
       @enviar-a-venta="enviarAVenta"
     />
+
+    <!-- Loading overlay -->
+    <div v-if="loading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white p-6 rounded-lg shadow-lg">
+        <div class="flex items-center space-x-3">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          <span class="text-gray-700">Procesando...</span>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.cotizaciones-index { min-height: 100vh; background-color: #f9fafb; }
-@media (max-width: 640px) {
-  .cotizaciones-index .max-w-7xl { padding-left: 1rem; padding-right: 1rem; }
-  .cotizaciones-index h1 { font-size: 1.5rem; }
+.cotizaciones-index {
+  min-height: 100vh;
+  background-color: #f9fafb;
 }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-.cotizaciones-index > * { animation: fadeIn 0.3s ease-out; }
+
+@media (max-width: 640px) {
+  .cotizaciones-index .max-w-8xl {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  .cotizaciones-index h1 {
+    font-size: 1.5rem;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.cotizaciones-index > * {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Estilos adicionales para la paginación */
+.pagination-info {
+  font-size: 0.875rem;
+  color: #4b5563;
+}
+
+.pagination-controls button:focus {
+  outline: none;
+  /* Approximate Tailwind's ring-2 + ring-blue-500 + ring-offset-2 */
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.18);
+}
+
+.loading-overlay {
+  backdrop-filter: blur(2px);
+}
 </style>
