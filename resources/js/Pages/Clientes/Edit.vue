@@ -72,6 +72,7 @@
                 type="email"
                 id="email"
                 v-model="form.email"
+                @blur="() => validateEmail(form.email)"
                 placeholder="correo@ejemplo.com"
                 autocomplete="email"
                 :class="[
@@ -141,10 +142,11 @@
               <input
                 type="text"
                 id="rfc"
+                v-model="form.rfc"
                 :maxlength="rfcMaxLength"
                 :placeholder="rfcPlaceholder"
-                :value="form.rfc"
                 @input="onRfcInput"
+                @blur="() => { toUpper('rfc'); validateRfc(form.rfc, props.cliente.id) }"
                 :disabled="!form.tipo_persona"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
@@ -158,6 +160,33 @@
               </div>
               <div v-if="!form.tipo_persona" class="mt-1 text-xs text-gray-500">
                 Primero selecciona el tipo de persona
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <label for="curp" class="block text-sm font-medium text-gray-700">
+                CURP
+              </label>
+              <input
+                type="text"
+                id="curp"
+                v-model="form.curp"
+                @input="onCurpInput"
+                @blur="toUpper('curp')"
+                :disabled="form.tipo_persona === 'moral'"
+                :maxlength="18"
+                :placeholder="form.tipo_persona === 'fisica' ? 'ABCD123456HMEFGH99' : 'Opcional'"
+                :class="[
+                  'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                  form.errors.curp ? 'border-red-300 bg-red-50' : 'border-gray-300',
+                  form.tipo_persona === 'moral' ? 'bg-gray-100 text-gray-400' : ''
+                ]"
+              />
+              <div v-if="form.errors.curp" class="mt-2 text-sm text-red-600">
+                {{ form.errors.curp }}
+              </div>
+              <div v-if="form.tipo_persona === 'moral'" class="mt-1 text-xs text-gray-500">
+                Opcional para personas morales
               </div>
             </div>
 
@@ -456,6 +485,7 @@
 
 <script setup>
 import { Head, Link, useForm } from '@inertiajs/vue3'
+import axios from 'axios'
 import { computed, ref, watch } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
@@ -476,6 +506,7 @@ const initFormData = () => ({
   telefono: props.cliente?.telefono || '',
   tipo_persona: props.cliente?.tipo_persona || '',
   rfc: props.cliente?.rfc || '',
+  curp: props.cliente?.curp || '',
   regimen_fiscal: props.cliente?.regimen_fiscal || '',
   uso_cfdi: props.cliente?.uso_cfdi || '',
   calle: props.cliente?.calle || '',
@@ -645,6 +676,53 @@ const resetForm = () => {
   })
   form.clearErrors()
   showSuccessMessage.value = false
+}
+
+const onCurpInput = (event) => {
+  const value = event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')
+  form.curp = value.slice(0, 18)
+  if (form.curp && form.errors.curp) {
+    form.clearErrors('curp')
+  }
+}
+
+// AJAX Validation
+const validateRfc = async (rfc, clienteId = null) => {
+  if (!rfc.trim()) return
+
+  try {
+    const params = { rfc: rfc.trim() }
+    if (clienteId) params.cliente_id = clienteId
+
+    const response = await axios.get(route('clientes.validarRfc'), { params })
+    if (response.data.success) {
+      form.clearErrors('rfc')
+      if (response.data.exists) {
+        form.setError('rfc', response.data.message)
+      }
+    } else {
+      form.setError('rfc', response.data.message)
+    }
+  } catch (error) {
+    console.error('Error validating RFC:', error)
+    form.setError('rfc', 'Error al validar RFC')
+  }
+}
+
+const validateEmail = async (email) => {
+  if (!email.trim()) return
+
+  try {
+    const response = await axios.get(route('clientes.validarEmail'), { params: { email: email.trim() } })
+    if (response.data.success) {
+      form.clearErrors('email')
+    } else {
+      form.setError('email', response.data.message)
+    }
+  } catch (error) {
+    console.error('Error validating email:', error)
+    form.setError('email', 'Error al validar email')
+  }
 }
 
 const submit = () => {

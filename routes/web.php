@@ -106,8 +106,12 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // =====================================================
     // RUTAS ESPECÍFICAS DE CLIENTES
     // =====================================================
-    Route::post('/validar-rfc', [ClienteController::class, 'validarRfc'])->name('clientes.validarRfc');
-    Route::get('/clientes/check-email', [ClienteController::class, 'checkEmail'])->name('clientes.checkEmail');
+    Route::post('/clientes/validar-rfc', [ClienteController::class, 'validarRfc'])->name('clientes.validarRfc');
+    Route::get('/clientes/validar-email', [ClienteController::class, 'validarEmail'])->name('clientes.validarEmail');
+    Route::get('/clientes/export', [ClienteController::class, 'export'])->name('clientes.export');
+    Route::post('/clientes/search', [ClienteController::class, 'search'])->name('clientes.search');
+    Route::get('/clientes/stats', [ClienteController::class, 'stats'])->name('clientes.stats');
+    Route::post('/clientes/clear-cache', [ClienteController::class, 'clearCache'])->name('clientes.clearCache');
     Route::put('/clientes/{cliente}/toggle', [ClienteController::class, 'toggle'])->name('clientes.toggle');
 
     // =====================================================

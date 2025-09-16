@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Validation\ValidationException;
 use Exception;
+use Facturapi\Facturapi;
 
 class ClienteController extends Controller
 {
@@ -363,6 +364,11 @@ class ClienteController extends Controller
 
             $cliente = Cliente::create($data);
 
+            // Integrar con Facturapi si no tiene ID
+            if (empty($cliente->facturapi_customer_id)) {
+                $this->createOrUpdateFacturapiCustomer($cliente);
+            }
+
             DB::commit();
 
             Log::info('Cliente creado', ['id' => $cliente->id]);
@@ -430,6 +436,11 @@ class ClienteController extends Controller
             $data['email']               = strtolower(trim($data['email']));
             $data['nombre_razon_social'] = trim($data['nombre_razon_social']);
             $data['pais']                = 'MX';
+
+            // Integrar o actualizar en Facturapi si es necesario
+            if (empty($cliente->facturapi_customer_id) || $this->shouldUpdateFacturapi($cliente, $data)) {
+                $this->createOrUpdateFacturapiCustomer($cliente, $data);
+            }
 
             $cliente->update($data);
 
@@ -735,4 +746,85 @@ class ClienteController extends Controller
             return response()->json(['success' => false, 'message' => 'Error interno del servidor'], 500);
         }
     }
+
+    /**
+     * Create or update customer in Facturapi.
+     */
+    private function createOrUpdateFacturapiCustomer(Cliente $cliente, array $data = null): void
+    {
+        try {
+            $facturapi = new Facturapi(config('facturapi.api_key'));
+
+            $useData = $data !== null;
+
+            $nombre = $useData ? ($data['nombre_razon_social'] ?? $cliente->nombre_razon_social) : $cliente->nombre_razon_social;
+            $email = $useData ? ($data['email'] ?? $cliente->email) : $cliente->email;
+            $rfc = $useData ? ($data['rfc'] ?? $cliente->rfc) : $cliente->rfc;
+            $codigo_postal = $useData ? ($data['codigo_postal'] ?? $cliente->codigo_postal) : $cliente->codigo_postal;
+            $municipio = $useData ? ($data['municipio'] ?? $cliente->municipio) : $cliente->municipio;
+            $estado = $useData ? ($data['estado'] ?? $cliente->estado) : $cliente->estado;
+            $pais = 'MX';
+            $uso_cfdi = $useData ? ($data['uso_cfdi'] ?? $cliente->uso_cfdi) : $cliente->uso_cfdi;
+
+            $calle = $useData ? ($data['calle'] ?? $cliente->calle) : $cliente->calle;
+            $numero_exterior = $useData ? ($data['numero_exterior'] ?? $cliente->numero_exterior) : $cliente->numero_exterior;
+            $numero_interior = $useData ? ($data['numero_interior'] ?? $cliente->numero_interior) : $cliente->numero_interior;
+            $colonia = $useData ? ($data['colonia'] ?? $cliente->colonia) : $cliente->colonia;
+
+            $address1 = trim(implode(' ', array_filter([
+                $calle,
+                $numero_exterior,
+                $numero_interior ? "Int. {$numero_interior}" : null,
+                $colonia,
+                $municipio
+            ])));
+
+            $customerData = [
+                'name' => $nombre,
+                'email' => $email,
+                'rfc' => $rfc,
+                'address1' => $address1,
+                'postal_code' => $codigo_postal,
+                'city' => $municipio,
+                'state' => $estado,
+                'country' => $pais,
+                'cfdi_use' => $uso_cfdi,
+            ];
+
+            if ($cliente->facturapi_customer_id) {
+                // Update existing
+                $customer = $facturapi->customers->update($cliente->facturapi_customer_id, $customerData);
+                Log::info('Facturapi customer updated', ['customer_id' => $cliente->facturapi_customer_id]);
+            } else {
+                // Create new
+                $customer = $facturapi->customers->create($customerData);
+                $cliente->update(['facturapi_customer_id' => $customer->id]);
+                Log::info('Facturapi customer created', ['customer_id' => $customer->id]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error integrating with Facturapi', [
+                'cliente_id' => $cliente->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            // No throw, allow save without Facturapi if API down
+        }
+    }
+
+    /**
+     * Determine if Facturapi customer should be updated.
+     */
+    private function shouldUpdateFacturapi(Cliente $cliente, array $data): bool
+    {
+        $fieldsToWatch = ['nombre_razon_social', 'email', 'rfc', 'calle', 'numero_exterior', 'numero_interior', 'colonia', 'codigo_postal', 'municipio', 'estado', 'pais', 'uso_cfdi'];
+        foreach ($fieldsToWatch as $field) {
+            if (isset($data[$field]) && $data[$field] !== $cliente->{$field}) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
 }
+

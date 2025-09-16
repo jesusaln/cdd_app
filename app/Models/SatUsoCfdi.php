@@ -3,9 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class SatUsoCfdi extends Model
 {
+
+    use HasFactory;
+
     protected $table = 'sat_usos_cfdi';
 
     public $incrementing = false;        // La PK no es autoincremental

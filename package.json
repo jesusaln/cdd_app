@@ -41,7 +41,8 @@
     "lodash-es": "^4.17.21",
     "notyf": "^3.10.0",
     "vuelidate": "^0.7.7",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "ziggy-js": "^2.6.0"
   },
   "name": "my-app",
   "version": "0.0.0"

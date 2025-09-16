@@ -1,5 +1,6 @@
 <template>
-  <div :class="{'mb-4': type !== 'checkbox', 'flex items-center': type === 'checkbox'}">
+  <div :class="{'mb-4': type !== 'checkbox', 'flex items-center gap-2': type === 'checkbox'}">
+    <!-- Label (no checkbox) -->
     <label
       v-if="label && type !== 'checkbox'"
       :for="id"
@@ -22,6 +23,7 @@
       :aria-invalid="hasError ? 'true' : 'false'"
       :aria-describedby="hasError ? `${id}-error` : undefined"
     >
+      <option v-if="placeholder" disabled value="">{{ placeholder }}</option>
       <option
         v-for="option in options"
         :key="option.value"
@@ -48,7 +50,25 @@
       :aria-describedby="hasError ? `${id}-error` : undefined"
     ></textarea>
 
-    <!-- INPUT -->
+    <!-- CHECKBOX -->
+    <div v-else-if="type === 'checkbox'" class="items-center">
+      <input
+        :id="id"
+        type="checkbox"
+        :checked="Boolean(props.modelValue)"
+        @change="onCheckboxChange"
+        class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+        :required="required"
+        :disabled="disabled"
+        :aria-invalid="hasError ? 'true' : 'false'"
+        :aria-describedby="hasError ? `${id}-error` : undefined"
+      />
+      <label v-if="label" :for="id" class="text-sm text-gray-700 select-none">
+        {{ label }} <span v-if="required" class="text-red-500">*</span>
+      </label>
+    </div>
+
+    <!-- INPUT (resto de tipos) -->
     <input
       v-else
       :id="id"
@@ -63,27 +83,30 @@
       :min="min"
       :max="max"
       :step="step"
-      :list="datalist ? `${id}-datalist` : null"
+      :list="datalist && datalist.length ? `${id}-datalist` : null"
       :aria-invalid="hasError ? 'true' : 'false'"
       :aria-describedby="hasError ? `${id}-error` : undefined"
     />
 
     <!-- DATALIST -->
-    <div v-if="datalist && datalist.length > 0">
-      <datalist :id="`${id}-datalist`">
-        <option v-for="item in datalist" :key="item" :value="item"></option>
-      </datalist>
-    </div>
+    <datalist v-if="datalist && datalist.length" :id="`${id}-datalist`">
+      <option v-for="item in datalist" :key="item" :value="item"></option>
+    </datalist>
 
     <!-- ERROR -->
     <p v-if="hasError" :id="`${id}-error`" class="mt-1 text-sm text-red-600">
       {{ displayError }}
     </p>
+
+    <!-- Helper text (solo si hay y no hay error) -->
+    <p v-else-if="hasHelperText" class="mt-1 text-xs text-gray-500">
+      {{ helperText }}
+    </p>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed } from 'vue'
 
 const props = defineProps({
   modelValue: [String, Number, Boolean],
@@ -92,6 +115,7 @@ const props = defineProps({
   type: { type: String, default: 'text' },
   options: { type: Array, default: () => [] },
   error: { type: [String, Array], default: '' },
+  touched: { type: Boolean, default: false },
   placeholder: String,
   required: { type: Boolean, default: false },
   disabled: { type: Boolean, default: false },
@@ -100,24 +124,39 @@ const props = defineProps({
   max: [String, Number],
   step: [String, Number],
   datalist: { type: Array, default: () => [] },
-});
+  helperText: { type: String, default: '' }, // nuevo
+})
 
-const emit = defineEmits(['update:modelValue', 'input', 'change', 'clear-error']);
+const emit = defineEmits(['update:modelValue', 'input', 'change', 'clear-error'])
 
-const hasError = computed(() => (Array.isArray(props.error) ? props.error.length > 0 : !!props.error));
-const displayError = computed(() => (Array.isArray(props.error) ? (props.error[0] ?? '') : (props.error || '')));
+const hasError = computed(() =>
+  props.touched && (Array.isArray(props.error) ? props.error.length > 0 : !!props.error)
+)
+const displayError = computed(() =>
+  Array.isArray(props.error) ? (props.error[0] ?? '') : (props.error || '')
+)
+const hasHelperText = computed(() =>
+  !hasError.value && typeof props.helperText === 'string' && props.helperText.trim() !== ''
+)
 
 function onInput(e) {
-  const v = e.target.value;
-  emit('update:modelValue', v); // v-model
-  emit('input', v);             // para listeners del padre
-  emit('clear-error', props.id); // pedir limpiar error de este campo
+  const v = e.target.value
+  emit('update:modelValue', v)
+  emit('input', v)
+  emit('clear-error', props.id)
 }
 
 function onChange(e) {
-  const v = e.target.value;
-  emit('update:modelValue', v);
-  emit('change', v);
-  emit('clear-error', props.id);
+  const v = e.target.value
+  emit('update:modelValue', v)
+  emit('change', v)
+  emit('clear-error', props.id)
+}
+
+function onCheckboxChange(e) {
+  const v = e.target.checked
+  emit('update:modelValue', v)
+  emit('change', v)
+  emit('clear-error', props.id)
 }
 </script>
