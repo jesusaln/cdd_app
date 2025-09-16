@@ -19,23 +19,22 @@ const notyf = new Notyf({
   position: { x: 'right', y: 'top' },
   types: [
     { type: 'success', background: '#10b981', icon: false },
-    { type: 'error', background: '#ef4444', icon: false }
+    { type: 'error', background: '#ef4444', icon: false },
+    { type: 'warning', background: '#f59e0b', icon: false }
   ]
 })
 
 const page = usePage()
-
-// ---------- Flash messages ----------
 onMounted(() => {
   const flash = page.props.flash
   if (flash?.success) notyf.success(flash.success)
   if (flash?.error) notyf.error(flash.error)
 })
 
-// Props (compatible con array o paginator)
+// Props (array o paginator)
 const props = defineProps({
-  productos: { type: [Object, Array], required: true }, // Array o paginator
-  stats: { type: Object, default: () => ({}) }, // Opcional; computamos local si no
+  productos: { type: [Object, Array], required: true },
+  stats: { type: Object, default: () => ({}) },
   catalogs: { type: Object, default: () => ({}) },
   filters: { type: Object, default: () => ({}) },
   sorting: { type: Object, default: () => ({ sort_by: 'nombre', sort_direction: 'asc' }) },
@@ -50,9 +49,9 @@ const selectedId = ref(null)
 // Filtros/ordenamiento
 const searchTerm = ref(props.filters?.search ?? '')
 const sortBy = ref(mapSortingToHeader(props.sorting))
-const filtroEstado = ref('') // Sin default para mostrar todos
+const filtroEstado = ref('')
 
-// Header configurable
+// Header
 const headerConfig = {
   module: 'productos',
   createButtonText: 'Nuevo Producto',
@@ -68,7 +67,6 @@ const productosOriginales = ref(
       : []
 )
 
-// Watch para updates Inertia
 watch(() => props.productos, (nuevo) => {
   productosOriginales.value =
     Array.isArray(nuevo?.data)
@@ -78,46 +76,95 @@ watch(() => props.productos, (nuevo) => {
         : []
 }, { deep: true })
 
-// ---------- Estadísticas (locales si no del backend) ----------
+// ---------- Helper para estado del stock ----------
+const getStockStatus = (stock) => {
+  if (stock <= 0) return { status: 'agotado', color: 'text-red-600', bg: 'bg-red-50' }
+  if (stock <= 10) return { status: 'bajo', color: 'text-amber-600', bg: 'bg-amber-50' }
+  return { status: 'disponible', color: 'text-green-600', bg: 'bg-green-50' }
+}
+
+// ---------- Stats (total, en stock, bajo stock, agotado) ----------
 const estadisticas = computed(() => {
   const data = productosOriginales.value
   const total = data.length
-  const activos = data.filter(p => p.estado === 'activo' || (p.stock || 0) > 0).length
-  const inactivos = total - activos
-  return props.stats.total ? props.stats : { total, activos, inactivos }
+  const enStock = data.filter(p => Number(p.stock ?? p.cantidad_disponible ?? 0) > 10).length
+  const bajoStock = data.filter(p => {
+    const stock = Number(p.stock ?? p.cantidad_disponible ?? 0)
+    return stock > 0 && stock <= 10
+  }).length
+  const agotado = data.filter(p => Number(p.stock ?? p.cantidad_disponible ?? 0) <= 0).length
+
+  // UniversalHeader espera { total, aprobadas, pendientes }
+  // Usamos aprobadas para "en stock" y pendientes para "necesita atención" (bajo stock + agotado)
+  return {
+    total,
+    aprobadas: enStock,
+    pendientes: bajoStock + agotado,
+    detalles: {
+      enStock,
+      bajoStock,
+      agotado
+    }
+  }
 })
 
-// ---------- Transformación para DocumentosTable (sin duplicación de SKU) ----------
+// ---------- Mapeo para DocumentosTable ----------
 const productosDocumentos = computed(() => {
   return productosOriginales.value.map(p => {
-    const stock = p.stock || 0
-    const estadoStr = p.estado === 'activo' ? 'disponible' : (stock > 0 ? 'agotado' : 'descontinuado')
-    const price = p.precio_venta || 0
-    const priceFormatted = price.toLocaleString('es-MX', {minimumFractionDigits: 2})
+    const stock = Number(p.stock ?? p.cantidad_disponible ?? 0)
+    const price = Number(p.precio_venta ?? p.precio ?? 0)
+    const stockStatus = getStockStatus(stock)
+
+    // Estado más detallado basado en stock
+    let estadoStr = 'activo'
+    if (p.estado !== 'activo') {
+      estadoStr = 'inactivo'
+    } else if (stock <= 0) {
+      estadoStr = 'agotado'
+    } else if (stock <= 10) {
+      estadoStr = 'bajo-stock'
+    }
+
+    const precioTxt = price.toLocaleString('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+      minimumFractionDigits: 2
+    })
+
+    // Stock más prominente en la información extra
+    const stockTxt = `${stock} unidades`
+    const extraTxt = `${precioTxt} • Stock: ${stockTxt}`
 
     return {
       id: p.id,
-      nombre: p.nombre || 'Sin nombre', // Para render/search
-      titulo: p.nombre || 'Sin nombre', // Fallback genérico
-      subtitulo: (p.descripcion || '').substring(0, 100) + (p.descripcion && p.descripcion.length > 100 ? '...' : ''),
+      nombre: p.nombre || 'Sin nombre',
+      titulo: p.nombre || 'Sin nombre',
+      // SKU como sublínea
+      subtitulo: (p.sku || p.codigo_barras) ? `SKU: ${p.sku || p.codigo_barras}` : '',
       estado: estadoStr,
-      sku: p.codigo_barras || 'N/A', // Value plain para columna extra y search
-      codigo_barras: p.codigo_barras || 'N/A', // Para search
-      precio_venta: price, // Para columna precio
-      extra: `$${priceFormatted}`, // ← Solo precio, sin SKU para evitar duplicación
+      sku: p.sku || p.codigo_barras || 'N/A',
+      codigo_barras: p.codigo_barras || p.sku || 'N/A',
+
+      // columnas de la tabla
+      precio_venta: price,
+      stock: stock,
+      stock_status: stockStatus,
+      extra: extraTxt,
       fecha: p.created_at,
+
       meta: {
-        stock: stock,
+        stock,
         precio: price,
-        sku: p.codigo_barras || 'N/A',
-        descripcion: p.descripcion || ''
+        sku: p.sku || p.codigo_barras || 'N/A',
+        descripcion: p.descripcion || '',
+        stockStatus
       },
       raw: p
     }
   })
 })
 
-// ---------- Handlers (sin cambios) ----------
+// ---------- Handlers ----------
 function handleLimpiarFiltros () {
   searchTerm.value = ''
   sortBy.value = 'nombre-asc'
@@ -150,7 +197,6 @@ const confirmarEliminacion = (id) => {
 
 const eliminarProducto = () => {
   if (!selectedId.value) return notyf.error('No hay producto seleccionado')
-
   router.delete(route('productos.destroy', selectedId.value), {
     preserveScroll: true,
     onSuccess: () => {
@@ -200,7 +246,24 @@ const exportProductos = () => {
   window.location.href = url
 }
 
-// ---------- Filtrado/Ordenamiento (sin cambios) ----------
+// Función para alertar sobre productos con bajo stock
+const verificarBajoStock = () => {
+  const productosConBajoStock = productosOriginales.value.filter(p => {
+    const stock = Number(p.stock ?? p.cantidad_disponible ?? 0)
+    return stock > 0 && stock <= 10
+  })
+
+  if (productosConBajoStock.length > 0) {
+    notyf.warning(`${productosConBajoStock.length} productos con stock bajo`)
+  }
+}
+
+onMounted(() => {
+  // Verificar stock bajo al cargar
+  verificarBajoStock()
+})
+
+// ---------- Filtrado/Orden ----------
 const productosFiltradosYOrdenados = computed(() => {
   let arr = [...productosDocumentos.value]
 
@@ -215,20 +278,43 @@ const productosFiltradosYOrdenados = computed(() => {
   }
 
   if (filtroEstado.value) {
-    arr = arr.filter(d => d.estado === filtroEstado.value)
+    if (filtroEstado.value === 'bajo-stock') {
+      arr = arr.filter(d => d.estado === 'bajo-stock')
+    } else if (filtroEstado.value === 'agotado') {
+      arr = arr.filter(d => d.estado === 'agotado')
+    } else {
+      arr = arr.filter(d => (d.estado || '').toLowerCase() === filtroEstado.value)
+    }
   }
 
   const [campo, dir] = sortBy.value.split('-')
   arr.sort((a, b) => {
     let va = '', vb = ''
-    if (campo === 'nombre') { va = (a.nombre || a.titulo || '').toLowerCase(); vb = (b.nombre || b.titulo || '').toLowerCase() }
-    else if (campo === 'fecha') {
-      va = new Date(a.fecha || ''); vb = new Date(b.fecha || '')
-      return dir === 'asc' ? (va > vb ? 1 : -1) : (vb > va ? 1 : -1)
+    if (campo === 'nombre') {
+      va = (a.nombre || a.titulo || '').toLowerCase()
+      vb = (b.nombre || b.titulo || '').toLowerCase()
     }
-    else if (campo === 'precio') { va = a.precio_venta || 0; vb = b.precio_venta || 0 }
-    else if (campo === 'estado') { va = a.estado || ''; vb = b.estado || '' }
-    else { va = (a.nombre || a.titulo || '').toLowerCase(); vb = (b.nombre || b.titulo || '').toLowerCase() }
+    else if (campo === 'fecha') {
+      va = new Date(a.fecha || '').getTime()
+      vb = new Date(b.fecha || '').getTime()
+      return dir === 'asc' ? va - vb : vb - va
+    }
+    else if (campo === 'precio') {
+      va = a.precio_venta || 0
+      vb = b.precio_venta || 0
+    }
+    else if (campo === 'stock') {
+      va = a.stock || 0
+      vb = b.stock || 0
+    }
+    else if (campo === 'estado') {
+      va = (a.estado || '').toLowerCase()
+      vb = (b.estado || '').toLowerCase()
+    }
+    else {
+      va = (a.nombre || a.titulo || '').toLowerCase()
+      vb = (b.nombre || b.titulo || '').toLowerCase()
+    }
 
     if (typeof va === 'number' && typeof vb === 'number') {
       return dir === 'asc' ? va - vb : vb - va
@@ -247,6 +333,7 @@ function mapSortingToHeader (sorting) {
   if (by === 'nombre') return `nombre-${dir}`
   if (by === 'created_at') return `fecha-${dir}`
   if (by === 'precio_venta') return `precio-${dir}`
+  if (by === 'stock') return `stock-${dir}`
   return 'nombre-asc'
 }
 </script>
@@ -257,8 +344,8 @@ function mapSortingToHeader (sorting) {
     <div class="max-w-8xl mx-auto px-6 py-8">
       <UniversalHeader
         :total="estadisticas.total"
-        :aprobadas="estadisticas.activos"
-        :pendientes="estadisticas.inactivos"
+        :aprobadas="estadisticas.aprobadas"
+        :pendientes="estadisticas.pendientes"
         v-model:search-term="searchTerm"
         v-model:sort-by="sortBy"
         v-model:filtro-estado="filtroEstado"
@@ -266,7 +353,66 @@ function mapSortingToHeader (sorting) {
         @limpiar-filtros="handleLimpiarFiltros"
       />
 
-      <div class="mt-4 flex justify-end">
+      <!-- Estadísticas detalladas del stock -->
+      <div class="mt-4 mb-6 grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div class="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-gray-600">Total Productos</p>
+              <p class="text-2xl font-bold text-gray-900">{{ estadisticas.total }}</p>
+            </div>
+            <div class="p-2 bg-blue-50 rounded-lg">
+              <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-gray-600">En Stock</p>
+              <p class="text-2xl font-bold text-green-600">{{ estadisticas.detalles.enStock }}</p>
+            </div>
+            <div class="p-2 bg-green-50 rounded-lg">
+              <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-gray-600">Stock Bajo</p>
+              <p class="text-2xl font-bold text-amber-600">{{ estadisticas.detalles.bajoStock }}</p>
+            </div>
+            <div class="p-2 bg-amber-50 rounded-lg">
+              <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-gray-600">Agotado</p>
+              <p class="text-2xl font-bold text-red-600">{{ estadisticas.detalles.agotado }}</p>
+            </div>
+            <div class="p-2 bg-red-50 rounded-lg">
+              <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end">
         <button
           @click="exportProductos"
           class="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition ease-in-out duration-150"
@@ -287,7 +433,8 @@ function mapSortingToHeader (sorting) {
             subtitulo: 'subtitulo',
             extra: 'extra',
             estado: 'estado',
-            fecha: 'fecha'
+            fecha: 'fecha',
+            stock: 'stock'
           }"
           :search-term="searchTerm"
           :sort-by="sortBy"
@@ -325,10 +472,24 @@ function mapSortingToHeader (sorting) {
     padding-left: 1rem;
     padding-right: 1rem;
   }
+  .productos-index .grid-cols-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.productos-index > * { animation: fadeIn 0.3s ease-out; }
+.productos-index > * {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Animaciones para las tarjetas de estadísticas */
+.productos-index .grid > div {
+  transition: all 0.2s ease-in-out;
+}
+.productos-index .grid > div:hover {
+  transform: translateY(-2px);
+  shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.15);
+}
 </style>

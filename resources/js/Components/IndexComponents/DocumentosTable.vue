@@ -230,52 +230,69 @@
               <!-- Cliente/Proveedor | Clientes | Equipos | Productos -->
               <td class="px-6 py-4">
                 <div class="flex flex-col space-y-0.5">
-                  <!-- ventas/pedidos/compras -->
-                  <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800" v-if="!isEquipos && !isClientes && !isProductos">
-                    {{ isCompra ? (doc.proveedor?.nombre_razon_social || 'Sin proveedor') : (doc.cliente?.nombre || 'Sin cliente') }}
-                  </div>
-                  <!-- clientes -->
-                  <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800" v-else-if="isClientes">
-                    {{ doc.titulo || 'Sin nombre' }}
-                  </div>
-                  <!-- productos -->
-                    <!-- Productos -->
-<div v-if="isProductos" class="text-sm font-medium text-gray-900 group-hover:text-gray-800">
-  {{ doc.nombre || doc.titulo || 'Sin nombre' }}
-  <div v-if="doc.sku || doc.codigo_barras" class="text-xs text-gray-500 truncate max-w-48">
-    {{ doc.sku || doc.codigo_barras }}
-  </div>
-</div>
-                  <!-- equipos -->
-                  <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800" v-else>
-                    {{ doc.nombre || 'Sin nombre' }}
+                  <!-- Para productos -->
+                  <div v-if="isProductos" class="space-y-1">
+                    <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800">
+                      {{ doc.nombre || doc.titulo || 'Sin nombre' }}
+                    </div>
+                    <div v-if="doc.descripcion" class="text-xs text-gray-500 line-clamp-2 max-w-48">
+                      {{ doc.descripcion }}
+                    </div>
+                    <div v-if="doc.categoria" class="text-xs text-gray-500">
+                      Categoría: {{ doc.categoria }}
+                    </div>
                   </div>
 
-                  <!-- sublíneas -->
-                  <div
-                    v-if="!isEquipos && !isClientes && !isProductos && (isCompra ? doc.proveedor?.email : doc.cliente?.email)"
-                    class="text-xs text-gray-500 truncate max-w-48"
-                  >
-                    {{ isCompra ? doc.proveedor?.email : doc.cliente?.email }}
-                  </div>
+                  <!-- Otros tipos -->
+                  <template v-else>
+                    <!-- ventas/pedidos/compras -->
+                    <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800" v-if="!isEquipos && !isClientes">
+                      {{ isCompra ? (doc.proveedor?.nombre_razon_social || 'Sin proveedor') : (doc.cliente?.nombre || 'Sin cliente') }}
+                    </div>
+                    <!-- clientes -->
+                    <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800" v-else-if="isClientes">
+                      {{ doc.titulo || 'Sin nombre' }}
+                    </div>
+                    <!-- equipos -->
+                    <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800" v-else>
+                      {{ doc.nombre || 'Sin nombre' }}
+                    </div>
 
-                  <div v-else-if="isClientes && doc.subtitulo" class="text-xs text-gray-500 truncate max-w-48">
-                    {{ doc.subtitulo }}
-                  </div>
+                    <!-- sublíneas -->
+                    <div
+                      v-if="!isEquipos && !isClientes && (isCompra ? doc.proveedor?.email : doc.cliente?.email)"
+                      class="text-xs text-gray-500 truncate max-w-48"
+                    >
+                      {{ isCompra ? doc.proveedor?.email : doc.cliente?.email }}
+                    </div>
 
-                  <div v-else-if="isProductos && (doc.sku || doc.codigo_barras)" class="text-xs text-gray-500 truncate max-w-48">
-                    SKU: {{ doc.sku || doc.codigo_barras }}
-                  </div>
+                    <div v-else-if="isClientes && doc.subtitulo" class="text-xs text-gray-500 truncate max-w-48">
+                      {{ doc.subtitulo }}
+                    </div>
 
-                  <div v-if="isEquipos && (doc.modelo || doc.marca)" class="text-xs text-gray-500 truncate max-w-48">
-                    {{ [doc.marca, doc.modelo].filter(Boolean).join(' · ') }}
-                  </div>
+                    <div v-if="isEquipos && (doc.modelo || doc.marca)" class="text-xs text-gray-500 truncate max-w-48">
+                      {{ [doc.marca, doc.modelo].filter(Boolean).join(' · ') }}
+                    </div>
+                  </template>
                 </div>
               </td>
 
               <!-- Campo extra -->
-              <td v-if="config.mostrarCampoExtra && !isProductos" class="px-6 py-4">
-                <div class="text-sm font-mono font-medium text-gray-700 bg-gray-100/60 px-2 py-1 rounded-md inline-block">
+              <td v-if="config.mostrarCampoExtra" class="px-6 py-4">
+                <!-- Productos: Stock + SKU/Código -->
+                <div v-if="isProductos" class="space-y-1.5">
+                  <div class="flex items-center space-x-2">
+                    <div class="text-xs font-medium text-gray-600 bg-blue-50 px-2 py-1 rounded-md">
+                      Stock: {{ (doc.stock ?? doc.cantidad ?? doc.existencia ?? doc.meta?.stock ?? 0) }} und
+                    </div>
+                  </div>
+                  <div v-if="doc.sku || doc.codigo_barras" class="text-xs font-mono text-gray-500 bg-gray-100/60 px-2 py-0.5 rounded">
+                    {{ doc.sku || doc.codigo_barras }}
+                  </div>
+                </div>
+
+                <!-- Otros tipos -->
+                <div v-else class="text-sm font-mono font-medium text-gray-700 bg-gray-100/60 px-2 py-1 rounded-md inline-block">
                   {{ isClientes ? (doc.extra || 'N/A') : (doc[config.campoExtra.key] || doc.codigo_barras || 'N/A') }}
                 </div>
               </td>
@@ -634,21 +651,24 @@ const config = computed(() => {
         '0': { label: 'Inactivo', classes: 'bg-red-100 text-red-700',        color: 'bg-red-400' },
       }
     },
- productos: {
-  titulo: 'Productos',
-  mostrarCampoExtra: false,   // <- desactiva la columna extra
-  mostrarPrecio: true,
-  mostrarTotal: false,
-  mostrarProductos: false,
-  campoExtra: { key: 'sku', label: 'SKU' },
-  acciones: { editar: true, duplicar: false, imprimir: false, eliminar: true },
-  estados: {
-    'disponible':   { label: 'Disponible',   classes: 'bg-emerald-100 text-emerald-700', color: 'bg-emerald-400' },
-    'agotado':      { label: 'Agotado',      classes: 'bg-yellow-100 text-yellow-700',   color: 'bg-yellow-400' },
-    'descontinuado':{ label: 'Descontinuado',classes: 'bg-red-100 text-red-700',         color: 'bg-red-400' }
-  }
-}
-
+    // 👇 CONFIG MEJORADA PARA PRODUCTOS
+    productos: {
+      titulo: 'Productos',
+      mostrarCampoExtra: true,   // Columna "Campo extra" visible
+      mostrarPrecio: true,       // Columna "Precio" visible
+      mostrarTotal: false,       // Puedes cambiar a true si necesitas "Total"
+      mostrarProductos: false,   // No aplica columna "Productos" para el módulo productos
+      campoExtra: { key: 'stock', label: 'Stock' }, // El header de la columna extra dirá "Stock"
+      acciones: { editar: true, duplicar: false, imprimir: false, eliminar: true },
+      estados: {
+        'disponible':    { label: 'Disponible',    classes: 'bg-emerald-100 text-emerald-700', color: 'bg-emerald-400' },
+        'bajo_stock':    { label: 'Bajo Stock',    classes: 'bg-orange-100 text-orange-700',   color: 'bg-orange-400' },
+        'agotado':       { label: 'Agotado',       classes: 'bg-yellow-100 text-yellow-700',   color: 'bg-yellow-400' },
+        'descontinuado': { label: 'Descontinuado', classes: 'bg-red-100 text-red-700',         color: 'bg-red-400' },
+        'activo':        { label: 'Activo',        classes: 'bg-emerald-100 text-emerald-700', color: 'bg-emerald-400' },
+        'inactivo':      { label: 'Inactivo',      classes: 'bg-gray-100 text-gray-600',       color: 'bg-gray-400' }
+      }
+    }
   };
 
   const result = configs[props.tipo] || configs.cotizaciones;
@@ -733,7 +753,8 @@ const items = computed(() => {
         return (
           (doc.nombre || '').toLowerCase().includes(term) ||
           (doc.sku || doc.codigo_barras || '').toLowerCase().includes(term) ||
-          (doc.estado || '').toLowerCase().includes(term)
+          (doc.estado || '').toLowerCase().includes(term) ||
+          (doc.descripcion || '').toLowerCase().includes(term)
         );
       }
       if (isEquipos.value) {
@@ -806,6 +827,12 @@ const items = computed(() => {
       case 'precio':
         aVal = obtenerPrecio(a);
         bVal = obtenerPrecio(b);
+        break;
+      case 'stock': // 👈 ordenar por stock cuando config.campoExtra.key === 'stock'
+        aVal = parseInt(a.stock ?? a.cantidad ?? a.existencia ?? a.meta?.stock ?? 0);
+        bVal = parseInt(b.stock ?? b.cantidad ?? b.existencia ?? b.meta?.stock ?? 0);
+        aVal = Number.isFinite(aVal) ? aVal : 0;
+        bVal = Number.isFinite(bVal) ? bVal : 0;
         break;
       case 'total':
         aVal = parseFloat(a.total); aVal = Number.isFinite(aVal) ? aVal : 0;

@@ -1,8 +1,7 @@
 <!-- /resources/js/Pages/Clientes/Index.vue -->
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { Head, router, usePage } from '@inertiajs/vue3'
-import { route } from 'ziggy-js';
+import { Head, router, usePage, Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { Notyf } from 'notyf'
 import 'notyf/notyf.min.css'
@@ -17,26 +16,10 @@ defineOptions({ layout: AppLayout })
 
 // onMounted(() => {
 //   console.log('Clientes recibidos:', props.clientes.data)
+//   const flash = page.props.flash
+//   if (flash?.success) notyf.success(flash.success)
+//   if (flash?.error) notyf.error(flash.error)
 // })
-
-// ---------- Notificaciones ----------
-const notyf = new Notyf({
-  duration: 4000,
-  position: { x: 'right', y: 'top' },
-  types: [
-    { type: 'success', background: '#10b981', icon: false },
-    { type: 'error', background: '#ef4444', icon: false }
-  ]
-})
-
-const page = usePage()
-
-// ---------- Flash messages ----------
-onMounted(() => {
-  const flash = page.props.flash
-  if (flash?.success) notyf.success(flash.success)
-  if (flash?.error) notyf.error(flash.error)
-})
 /**
  * Props esperadas desde ClienteController@index:
  * - clientes: paginator (con .data)
@@ -57,10 +40,19 @@ const props = defineProps({
 })
 
 // ---------- Notificaciones ----------
+const notyf = new Notyf({
+  duration: 4000,
+  position: { x: 'right', y: 'top' },
+  types: [
+    { type: 'success', background: '#10b981', icon: false },
+    { type: 'error', background: '#ef4444', icon: false }
+  ]
+})
+
+const page = usePage()
 
 // ---------- Estado UI ----------
 const showModal = ref(false)
-const timeoutRef = ref(null)
 const modalMode = ref('details') // 'details' | 'confirm'
 const selectedCliente = ref(null)
 const selectedId = ref(null)
@@ -101,25 +93,26 @@ const documentosClientes = computed(() => {
     const direccion = [
       c.calle,
       c.numero_exterior,
-      (c.numero_interior ? `Int. ${c.numero_interior}` : ''),
+      c.numero_interior,
       c.colonia,
-      `${c.codigo_postal} ${c.municipio}`,
-      `${c.estado_nombre}, ${c.pais}`
+      c.codigo_postal,
+      c.municipio,
+      c.estado,
+      c.pais
     ].filter(Boolean).join(', ')
 
     return {
       id: c.id,
-      titulo: c.nombre_razon_social,
-      subtitulo: c.email,
-      estado: c.activo ? 'activo' : 'inactivo',
-      extra: `RFC: ${c.rfc}`,
-      fecha: c.created_at,
+      titulo: c.nombre_razon_social,            // principal
+      subtitulo: c.email || '',                 // debajo
+      estado: c.activo ? 'activo' : 'inactivo', // badge/estado
+      extra: c.rfc,                              // rfc como etiqueta secundaria
+      fecha: c.created_at,                       // para orden por fecha
       meta: {
-        telefono: c.telefono || 'N/A',
-        direccion: direccion || 'Sin dirección',
-        estado_nombre: c.estado_nombre || c.estado
+        telefono: c.telefono || '',
+        direccion
       },
-      raw: c
+      raw: c                                     // guardamos el original
     }
   })
 })
@@ -184,50 +177,6 @@ const eliminarCliente = () => {
 const duplicarNoSoportado = () => notyf.error('Duplicar no está disponible para clientes')
 const imprimirNoSoportado = () => notyf.error('Imprimir no está disponible para clientes')
 
-// Toggle activo/inactivo
-const toggleCliente = (id) => {
-  if (!id) return notyf.error('ID inválido')
-
-  const cliente = clientesOriginales.value.find(c => c.id === id)
-  if (!cliente) return notyf.error('Cliente no encontrado')
-
-  const nuevoEstado = !cliente.activo
-  const mensaje = nuevoEstado ? 'Cliente activado' : 'Cliente desactivado'
-
-  router.put(route('clientes.toggle', id), {
-    preserveScroll: true,
-    onSuccess: () => {
-      notyf.success(mensaje + ' correctamente')
-      // Update local
-      const idx = clientesOriginales.value.findIndex(c => c.id === id)
-      if (idx !== -1) {
-        clientesOriginales.value[idx].activo = nuevoEstado
-        clientesOriginales.value[idx].estado_texto = nuevoEstado ? 'Activo' : 'Inactivo'
-      }
-    },
-    onError: (errors) => {
-      console.error(errors)
-      notyf.error('No se pudo cambiar el estado del cliente')
-    }
-  })
-}
-
-// Exportar clientes
-const exportClientes = () => {
-  // Construir query string con filtros actuales para export consistente
-  const params = new URLSearchParams({
-    search: searchTerm.value,
-    tipo_persona: props.filters?.tipo_persona || '',
-    regimen_fiscal: props.filters?.regimen_fiscal || '',
-    uso_cfdi: props.filters?.uso_cfdi || '',
-    activo: filtroEstado.value ? (filtroEstado.value === 'activo' ? '1' : '0') : '',
-    estado: props.filters?.estado || ''
-  }).toString()
-
-  const url = route('clientes.export') + (params ? `?${params}` : '')
-  window.location.href = url // Download directo
-}
-
 // ---------- Búsqueda / Orden / Filtro estado (lado cliente) ----------
 // Si tu DocumentosTable ya maneja search/sort/filters internamente, pásale estos v-models.
 // Si NO, podrías filtrar/ordenar aquí y pasarle el resultado.
@@ -254,10 +203,7 @@ const clientesFiltradosYOrdenados = computed(() => {
   arr.sort((a, b) => {
     let va = '', vb = ''
     if (campo === 'nombre') { va = (a.titulo || '').toLowerCase(); vb = (b.titulo || '').toLowerCase() }
-    else if (campo === 'fecha') {
-      va = new Date(a.fecha || '1970-01-01').getTime();
-      vb = new Date(b.fecha || '1970-01-01').getTime();
-    }
+    else if (campo === 'fecha') { va = a.fecha || ''; vb = b.fecha || '' }
     else { va = (a.titulo || '').toLowerCase(); vb = (b.titulo || '').toLowerCase() }
 
     if (va > vb) return dir === 'asc' ? 1 : -1
@@ -279,33 +225,12 @@ function mapSortingToHeader (sorting) {
   return 'fecha-desc'
 }
 
-// ---------- Server-side filtering ----------
-function applyFilters() {
-  const params = {
-    search: searchTerm.value || null,
-    sort_by: sortBy.value.startsWith('nombre-') ? 'nombre_razon_social' : 'created_at',
-    sort_direction: sortBy.value.endsWith('-asc') ? 'asc' : 'desc',
-    activo: filtroEstado.value === 'activo' ? 1 : (filtroEstado.value === 'inactivo' ? 0 : null)
-  };
-
-  // Remove null/undefined values
-  Object.keys(params).forEach(key => {
-    if (params[key] == null) delete params[key];
-  });
-
-  router.get(route('clientes.index'), params, {
-    preserveState: true,
-    preserveScroll: true,
-    only: ['clientes', 'stats', 'filters', 'sorting']
-  });
-}
-
-// Watch changes to sync with server (debounce manual for search)
-watch([searchTerm, sortBy, filtroEstado], () => {
-  // Simple debounce: 500ms delay
-  if (timeoutRef.value) clearTimeout(timeoutRef.value);
-  timeoutRef.value = setTimeout(applyFilters, 500);
-});
+// ---------- Flash messages ----------
+onMounted(() => {
+  const flash = page.props.flash
+  if (flash?.success) notyf.success(flash.success)
+  if (flash?.error) notyf.error(flash.error)
+})
 </script>
 
 <template>
@@ -318,9 +243,9 @@ watch([searchTerm, sortBy, filtroEstado], () => {
     <div class="max-w-8xl mx-auto px-6 py-8">
       <!-- Header universal reutilizable -->
       <UniversalHeader
-    :total="estadisticas.total"
-    :aprobadas="estadisticas.aprobadas"
-    :pendientes="estadisticas.pendientes"
+    :total="props.stats.total"
+    :aprobadas="props.stats.activos"
+    :pendientes="props.stats.inactivos"
     v-model:search-term="searchTerm"
     v-model:sort-by="sortBy"
     v-model:filtro-estado="filtroEstado"
@@ -328,30 +253,16 @@ watch([searchTerm, sortBy, filtroEstado], () => {
     @limpiar-filtros="handleLimpiarFiltros"
   />
 
-  <!-- Botón Exportar -->
-  <div class="mt-4 flex justify-end">
-    <button
-      @click="exportClientes"
-      class="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition ease-in-out duration-150"
-    >
-      <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-      </svg>
-      Exportar CSV
-    </button>
-  </div>
-
       <!-- Tabla (reutilizamos DocumentosTable con tipo='clientes') -->
       <div class="mt-6">
         <DocumentosTable
           :documentos="clientesFiltradosYOrdenados"
           tipo="clientes"
           :mapeo="{
-    nombre: 'titulo',
-    subtitulo: 'subtitulo',
-    extra: 'extra',
-    estado: 'estado',
-    fecha: 'fecha'
+    nombre: 'cliente.nombre',     // ej. viene dentro de cliente.nombre
+    rfc: 'cliente.datos_fiscales.rfc',
+    activo: 'cliente.activo',
+    fecha: 'cliente.fecha_registro'
   }"
           :search-term="searchTerm"
           :sort-by="sortBy"
@@ -361,33 +272,8 @@ watch([searchTerm, sortBy, filtroEstado], () => {
           @duplicar="duplicarNoSoportado"
           @imprimir="imprimirNoSoportado"
           @eliminar="confirmarEliminacion"
-          @toggle="toggleCliente"
           @sort="updateSort"
         />
-      </div>
-
-      <!-- Paginación -->
-      <div class="mt-8 flex justify-center">
-        <nav v-if="props.clientes.last_page > 1" class="flex items-center space-x-2">
-          <!-- Prev -->
-          <button
-            v-if="props.clientes.prev_page_url"
-            @click="router.visit(props.clientes.prev_page_url)"
-            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
-          >
-            Anterior
-          </button>
-          <span class="px-4 py-2 text-gray-700">{{ props.clientes.from }} - {{ props.clientes.to }} de {{ props.clientes.total }}</span>
-          <!-- Next -->
-          <button
-            v-if="props.clientes.next_page_url"
-            @click="router.visit(props.clientes.next_page_url)"
-            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
-          >
-            Siguiente
-          </button>
-        </nav>
-        <span v-else class="px-4 py-2 text-gray-700">{{ props.clientes.total }} clientes</span>
       </div>
     </div>
 
@@ -410,7 +296,7 @@ watch([searchTerm, sortBy, filtroEstado], () => {
   background-color: #f9fafb;
 }
 @media (max-width: 640px) {
-  .clientes-index .max-w-8xl {
+  .clientes-index .max-w-7xl {
     padding-left: 1rem;
     padding-right: 1rem;
   }
