@@ -27,7 +27,7 @@
           <div class="p-6">
             <BuscarCliente
               ref="buscarClienteRef"
-              :clientes="clientesList"
+              :clientes="clientesActivos"
               :cliente-seleccionado="clienteSeleccionado"
               @cliente-seleccionado="onClienteSeleccionado"
               @crear-nuevo-cliente="crearNuevoCliente"
@@ -171,8 +171,28 @@ const props = defineProps({
   servicios: { type: Array, default: () => [] },
 });
 
-// Copia reactiva de clientes para evitar mutación de props
-const clientesList = ref([...props.clientes]);
+// Filtrar solo clientes activos
+const clientesActivos = computed(() => {
+  return props.clientes.filter(cliente => {
+    // Verificar diferentes formas de representar el estado activo
+    const estado = cliente.estado || cliente.status || cliente.activo;
+
+    // Manejar diferentes tipos de valores para estado activo
+    if (typeof estado === 'string') {
+      return estado.toLowerCase() === 'activo' || estado.toLowerCase() === 'active';
+    } else if (typeof estado === 'boolean') {
+      return estado === true;
+    } else if (typeof estado === 'number') {
+      return estado === 1;
+    }
+
+    // Si no hay campo de estado, asumir que está activo (por compatibilidad)
+    return true;
+  });
+});
+
+// Copia reactiva de clientes activos para evitar mutación de props
+const clientesList = ref([]);
 
 // Formulario
 const form = useForm({
@@ -258,16 +278,24 @@ const onClienteSeleccionado = (cliente) => {
 
 const crearNuevoCliente = async (nombreBuscado) => {
   try {
-    const response = await axios.post(route('clientes.store'), { nombre_razon_social: nombreBuscado });
+    const response = await axios.post(route('clientes.store'), {
+      nombre_razon_social: nombreBuscado,
+      estado: 'activo' // Asegurar que el nuevo cliente sea activo
+    });
     const nuevoCliente = response.data;
 
-    // Actualizar la copia reactiva en lugar de mutar props
-    if (!clientesList.value.some(c => c.id === nuevoCliente.id)) {
-      clientesList.value.push(nuevoCliente);
-    }
+    // Verificar que el nuevo cliente esté activo antes de agregarlo
+    if (nuevoCliente.estado === 'activo' || nuevoCliente.estado === 'Activo' || nuevoCliente.estado === true || nuevoCliente.estado === 1) {
+      // Actualizar la copia reactiva solo con clientes activos
+      if (!clientesList.value.some(c => c.id === nuevoCliente.id)) {
+        clientesList.value.push(nuevoCliente);
+      }
 
-    onClienteSeleccionado(nuevoCliente);
-    showNotification(`Cliente creado: ${nuevoCliente.nombre_razon_social}`);
+      onClienteSeleccionado(nuevoCliente);
+      showNotification(`Cliente creado: ${nuevoCliente.nombre_razon_social}`);
+    } else {
+      showNotification('No se puede seleccionar un cliente inactivo', 'error');
+    }
   } catch (error) {
     console.error('Error al crear cliente:', error);
     showNotification('No se pudo crear el cliente', 'error');
@@ -416,6 +444,15 @@ const validarDatos = () => {
     return false;
   }
 
+  // Verificar que el cliente seleccionado siga activo
+  const clienteActivo = clientesActivos.value.find(c => c.id === form.cliente_id);
+  if (!clienteActivo) {
+    showNotification('El cliente seleccionado no está activo', 'error');
+    clienteSeleccionado.value = null;
+    form.cliente_id = '';
+    return false;
+  }
+
   if (selectedProducts.value.length === 0) {
     showNotification('Agrega al menos un producto o servicio', 'error');
     return false;
@@ -518,11 +555,24 @@ const saveState = () => {
 
 // Lifecycle hooks
 onMounted(() => {
+  // Inicializar la lista de clientes activos
+  clientesList.value = [...clientesActivos.value];
+
   const savedData = loadFromLocalStorage('cotizacionEnProgreso');
   if (savedData && typeof savedData === 'object') {
     try {
-      form.cliente_id = savedData.cliente_id || '';
-      clienteSeleccionado.value = savedData.cliente || null;
+      // Verificar que el cliente guardado siga activo
+      if (savedData.cliente_id && savedData.cliente) {
+        const clienteActivo = clientesActivos.value.find(c => c.id === savedData.cliente_id);
+        if (clienteActivo) {
+          form.cliente_id = savedData.cliente_id;
+          clienteSeleccionado.value = savedData.cliente;
+        } else {
+          // Cliente ya no está activo, limpiar selección
+          showNotification('El cliente guardado ya no está activo', 'info');
+        }
+      }
+
       selectedProducts.value = Array.isArray(savedData.selectedProducts) ? savedData.selectedProducts : [];
       quantities.value = savedData.quantities || {};
       prices.value = savedData.prices || {};

@@ -36,6 +36,11 @@ class Cliente extends Model implements AuditableContract
         'pais',            // 'MX'
         'activo',
         'notas',
+
+        // ------ Facturación / Facturapi ------
+        'facturapi_customer_id',
+        'cfdi_default_use',
+        'payment_form_default',
     ];
 
     protected $casts = [
@@ -59,6 +64,9 @@ class Cliente extends Model implements AuditableContract
         'estado_nombre',
         'regimen_descripcion',
         'uso_cfdi_descripcion',
+        // Efectivos para Facturapi (con fallback a defaults de config):
+        'cfdi_use_effective',
+        'payment_form_effective',
     ];
 
     /**
@@ -188,7 +196,7 @@ class Cliente extends Model implements AuditableContract
     }
 
     // ------------------------------------------------------------------
-    // Accessors
+    // Accessors (incluye descripciones SAT y helpers Facturapi)
     // ------------------------------------------------------------------
 
     public function getDireccionCompletaAttribute(): string
@@ -219,5 +227,23 @@ class Cliente extends Model implements AuditableContract
     public function getUsoCfdiDescripcionAttribute(): ?string
     {
         return optional($this->uso)->descripcion;
+    }
+
+    /**
+     * Helpers para facturación (con fallback a config/facturapi.php)
+     * - cfdi_use_effective: usa cfdi_default_use, si no uso_cfdi, si no config('facturapi.defaults.use', 'G03')
+     * - payment_form_effective: usa payment_form_default o config('facturapi.defaults.payment_form', '03')
+     */
+    public function getCfdiUseEffectiveAttribute(): string
+    {
+        return $this->cfdi_default_use
+            ?: $this->uso_cfdi
+            ?: (string) config('facturapi.defaults.use', 'G03');
+    }
+
+    public function getPaymentFormEffectiveAttribute(): string
+    {
+        return $this->payment_form_default
+            ?: (string) config('facturapi.defaults.payment_form', '03');
     }
 }
