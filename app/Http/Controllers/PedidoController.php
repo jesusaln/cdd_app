@@ -10,17 +10,13 @@ use App\Models\VentaItem;
 use App\Models\Producto;
 use App\Models\Servicio;
 use App\Enums\EstadoPedido;
+use App\Enums\EstadoVenta;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Carbon\Carbon;
-use Illuminate\Support\Facades\Validator;
-use Exception;
-use App\Enums\EstadoVenta;
-
 
 class PedidoController extends Controller
 {
@@ -230,7 +226,7 @@ class PedidoController extends Controller
         $pedido = Pedido::with(['cliente', 'items.pedible'])->findOrFail($id);
 
         // Permitir edición solo si está en Borrador o Pendiente
-        if (!in_array($pedido->estado, [EstadoPedido::Borrador, EstadoPedido::Pendiente])) {
+        if (!in_array($pedido->estado, [EstadoPedido::Borrador, EstadoPedido::Pendiente], true)) {
             return Redirect::route('pedidos.show', $pedido->id)
                 ->with('warning', 'Solo pedidos en borrador o pendientes pueden ser editados');
         }
@@ -278,7 +274,7 @@ class PedidoController extends Controller
         $pedido = Pedido::findOrFail($id);
 
         // Permitir edición solo si está en Borrador o Pendiente
-        if (!in_array($pedido->estado, [EstadoPedido::Borrador, EstadoPedido::Pendiente])) {
+        if (!in_array($pedido->estado, [EstadoPedido::Borrador, EstadoPedido::Pendiente], true)) {
             return Redirect::back()->with('error', 'Solo pedidos en borrador o pendientes pueden ser actualizados');
         }
 
@@ -308,52 +304,59 @@ class PedidoController extends Controller
         $iva = $subtotalFinal * 0.16;
         $total = $subtotalFinal + $iva;
 
+        // Guarda el estado ANTES de actualizar (clave del fix)
+        $estadoAnterior = $pedido->estado;
+
         // Determinar el nuevo estado: si está en Borrador, cambiarlo a Pendiente
         $nuevoEstado = $pedido->estado === EstadoPedido::Borrador
             ? EstadoPedido::Pendiente
             : $pedido->estado;
 
-        $pedido->update([
-            'cliente_id' => $validated['cliente_id'],
-            'numero_pedido' => $validated['numero_pedido'],
-            'subtotal' => $subtotal,
-            'descuento_general' => $descuentoGeneralMonto,
-            'iva' => $iva,
-            'total' => $total,
-            'fecha' => now(),
-            'estado' => $nuevoEstado,
-            'notas' => $request->notas,
-        ]);
-
-        // Eliminar ítems anteriores
-        $pedido->items()->delete();
-
-        // Guardar nuevos ítems
-        foreach ($validated['productos'] as $itemData) {
-            $class = $itemData['tipo'] === 'producto' ? Producto::class : Servicio::class;
-            $modelo = $class::find($itemData['id']);
-
-            if (!$modelo) {
-                Log::warning("Ítem no encontrado: {$class} con ID {$itemData['id']}");
-                continue;
-            }
-
-            $subtotalItem = $itemData['cantidad'] * $itemData['precio'];
-            $descuentoMontoItem = $subtotalItem * ($itemData['descuento'] / 100);
-
-            PedidoItem::create([
-                'pedido_id' => $pedido->id,
-                'pedible_id' => $itemData['id'],
-                'pedible_type' => $class,
-                'cantidad' => $itemData['cantidad'],
-                'precio' => $itemData['precio'],
-                'descuento' => $itemData['descuento'],
-                'subtotal' => $subtotalItem,
-                'descuento_monto' => $descuentoMontoItem,
+        // Atomicidad: actualización + refresco de items
+        DB::transaction(function () use (&$pedido, $validated, $subtotal, $descuentoGeneralMonto, $iva, $total, $nuevoEstado, $request) {
+            $pedido->update([
+                'cliente_id' => $validated['cliente_id'],
+                'numero_pedido' => $validated['numero_pedido'],
+                'subtotal' => $subtotal,
+                'descuento_general' => $descuentoGeneralMonto,
+                'iva' => $iva,
+                'total' => $total,
+                'fecha' => now(),
+                'estado' => $nuevoEstado,
+                'notas' => $request->notas,
             ]);
-        }
 
-        $mensajeExito = $nuevoEstado === EstadoPedido::Pendiente && $pedido->estado === EstadoPedido::Borrador
+            // Eliminar ítems anteriores
+            $pedido->items()->delete();
+
+            // Guardar nuevos ítems
+            foreach ($validated['productos'] as $itemData) {
+                $class = $itemData['tipo'] === 'producto' ? Producto::class : Servicio::class;
+                $modelo = $class::find($itemData['id']);
+
+                if (!$modelo) {
+                    Log::warning("Ítem no encontrado: {$class} con ID {$itemData['id']}");
+                    continue;
+                }
+
+                $subtotalItem = $itemData['cantidad'] * $itemData['precio'];
+                $descuentoMontoItem = $subtotalItem * ($itemData['descuento'] / 100);
+
+                PedidoItem::create([
+                    'pedido_id' => $pedido->id,
+                    'pedible_id' => $itemData['id'],
+                    'pedible_type' => $class,
+                    'cantidad' => $itemData['cantidad'],
+                    'precio' => $itemData['precio'],
+                    'descuento' => $itemData['descuento'],
+                    'subtotal' => $subtotalItem,
+                    'descuento_monto' => $descuentoMontoItem,
+                ]);
+            }
+        });
+
+        // Mensaje basado en el estado ANTERIOR
+        $mensajeExito = ($estadoAnterior === EstadoPedido::Borrador && $nuevoEstado === EstadoPedido::Pendiente)
             ? 'Pedido actualizado y cambiado a estado pendiente exitosamente'
             : 'Pedido actualizado exitosamente';
 
@@ -371,7 +374,7 @@ class PedidoController extends Controller
                 $pedido = Pedido::with('cotizacion')->findOrFail($id);
 
                 // Verificar que el pedido puede ser eliminado
-                if (!in_array($pedido->estado, [EstadoPedido::Borrador, EstadoPedido::Pendiente])) {
+                if (!in_array($pedido->estado, [EstadoPedido::Borrador, EstadoPedido::Pendiente], true)) {
                     return Redirect::back()->with('error', 'Solo pedidos en borrador o pendientes pueden ser eliminados');
                 }
 
@@ -441,7 +444,7 @@ class PedidoController extends Controller
             return Redirect::route('pedidos.index')
                 ->with('success', 'Pedido duplicado correctamente.');
         } catch (\Exception $e) {
-            DB::rollback();
+            DB::rollBack();
             Log::error('Error duplicando pedido: ' . $e->getMessage());
 
             return Redirect::back()
@@ -450,15 +453,9 @@ class PedidoController extends Controller
     }
 
     /**
-     * Generate a unique numero_pedido.
+     * Convertir un pedido en venta.
+     * - Se unifican nombres con VentaController (numero_venta, fecha, ventable_*).
      */
-    private function generarNumeroPedido()
-    {
-        $ultimo = Pedido::orderBy('id', 'desc')->first();
-        $numero = $ultimo ? $ultimo->id + 1 : 1;
-        return 'PED-' . date('Ymd') . '-' . str_pad($numero, 5, '0', STR_PAD_LEFT);
-    }
-
     public function enviarAVenta(Request $request, $id)
     {
         try {
@@ -507,27 +504,27 @@ class PedidoController extends Controller
                     'error' => 'Este pedido ya fue convertido en venta',
                     'requiere_confirmacion' => true,
                     'venta_id' => $ventaExistente->id,
-                    'numero_venta' => $ventaExistente->numero_factura
+                    'numero_venta' => $ventaExistente->numero_venta
                 ], 409); // 409 Conflict
             }
 
-            // Generar número de venta
+            // Generar número de venta (formato propio de este controlador)
             $numeroVenta = $this->generarNumeroVenta();
 
-            // Crear la venta
+            // Crear la venta (nombres alineados con VentaController)
             $venta = new Venta();
             $venta->fill([
                 'cliente_id' => $pedido->cliente_id,
                 'pedido_id' => $pedido->id,
-                'numero_factura' => $numeroVenta,
-                'fecha_venta' => now(),
+                'numero_venta' => $numeroVenta,
+                'fecha' => now(),
                 'estado' => EstadoVenta::Borrador,
                 'subtotal' => $pedido->subtotal,
                 'descuento_general' => $pedido->descuento_general,
                 'iva' => $pedido->iva,
                 'total' => $pedido->total,
                 'notas' => "Generado desde pedido #{$pedido->numero_pedido}",
-                'user_id' => $request->user()->id,
+                'user_id' => $request->user()->id ?? null,
             ]);
             $venta->save();
 
@@ -535,8 +532,8 @@ class PedidoController extends Controller
             foreach ($pedido->items as $item) {
                 VentaItem::create([
                     'venta_id' => $venta->id,
-                    'vendible_id' => $item->pedible_id,
-                    'vendible_type' => $item->pedible_type,
+                    'ventable_id' => $item->pedible_id,     // ← unificado con VentaController
+                    'ventable_type' => $item->pedible_type, // ← unificado con VentaController
                     'cantidad' => $item->cantidad,
                     'precio' => $item->precio,
                     'descuento' => $item->descuento,
@@ -545,18 +542,14 @@ class PedidoController extends Controller
                 ]);
             }
 
-            // Opcional: cambiar estado del pedido
-            // $pedido->estado = EstadoPedido::ConvertidoAVenta;
-            // $pedido->save();
-
             DB::commit();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Venta creada exitosamente',
                 'venta_id' => $venta->id,
-                'numero_factura' => $venta->numero_factura,
-                'items_count' => $venta->items->count(),
+                'numero_venta' => $venta->numero_venta,
+                'items_count' => $venta->items()->count(),
                 'total' => $venta->total
             ]);
         } catch (\Exception $e) {
@@ -588,16 +581,27 @@ class PedidoController extends Controller
             EstadoPedido::Borrador,
         ];
 
-        return in_array($pedido->estado, $estadosValidos);
+        return in_array($pedido->estado, $estadosValidos, true);
     }
 
     /**
      * Genera un número de venta único.
+     * (Formato local a este controlador: VEN-######)
      */
     private function generarNumeroVenta(): string
     {
         $ultimo = Venta::orderBy('id', 'desc')->first();
         $numero = $ultimo ? $ultimo->id + 1 : 1;
         return 'VEN-' . str_pad($numero, 6, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Genera un número de pedido único.
+     */
+    private function generarNumeroPedido()
+    {
+        $ultimo = Pedido::orderBy('id', 'desc')->first();
+        $numero = $ultimo ? $ultimo->id + 1 : 1;
+        return 'PED-' . date('Ymd') . '-' . str_pad($numero, 5, '0', STR_PAD_LEFT);
     }
 }

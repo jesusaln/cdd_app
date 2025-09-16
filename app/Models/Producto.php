@@ -4,6 +4,10 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Producto extends Model
 {
@@ -31,67 +35,74 @@ class Producto extends Model
         'estado',
     ];
 
-    // Relacionar con otras tablas
-    public function categoria()
+    /* =========================
+     * Relaciones base
+     * ========================= */
+
+    /** @return BelongsTo<Categoria, Producto> */
+    public function categoria(): BelongsTo
     {
         return $this->belongsTo(Categoria::class);
     }
 
-    public function marca()
+    /** @return BelongsTo<Marca, Producto> */
+    public function marca(): BelongsTo
     {
         return $this->belongsTo(Marca::class);
     }
 
-    public function proveedor()
+    /** @return BelongsTo<Proveedor, Producto> */
+    public function proveedor(): BelongsTo
     {
         return $this->belongsTo(Proveedor::class);
     }
 
-    // Relación con el almacén
-    public function almacen()
+    /** @return BelongsTo<Almacen, Producto> */
+    public function almacen(): BelongsTo
     {
         return $this->belongsTo(Almacen::class);
     }
 
-
-
-    public function compras()
+    /** @return BelongsToMany<Compra> */
+    public function compras(): BelongsToMany
     {
         return $this->belongsToMany(Compra::class)->withPivot('cantidad', 'precio');
     }
 
-
-    public function inventarios()
+    /** @return HasMany<Inventario> */
+    public function inventarios(): HasMany
     {
         return $this->hasMany(Inventario::class);
     }
 
-    public function pedidos()
+    /* =========================================================================
+     * Relaciones polimórficas UNIFICADAS a *items (coinciden con tus controladores)
+     * ========================================================================= */
+
+    /** Ítems en ventas donde este producto fue usado. @return MorphMany<VentaItem> */
+    public function ventaItems(): MorphMany
     {
-        return $this->morphToMany(Pedido::class, 'pedible', 'pedido_producto')
-            ->withPivot('precio', 'cantidad');
+        return $this->morphMany(VentaItem::class, 'ventable');
     }
 
-    public function ventas()
+    /** Ítems en pedidos donde este producto fue usado. @return MorphMany<PedidoItem> */
+    public function pedidoItems(): MorphMany
     {
-        return $this->morphToMany(Venta::class, 'vendible', 'venta_producto')
-            ->withPivot('precio', 'cantidad');
+        return $this->morphMany(PedidoItem::class, 'pedible');
     }
 
-    public function cotizaciones()
+    /** Ítems en cotizaciones donde este producto fue usado. @return MorphMany<CotizacionItem> */
+    public function cotizacionItems(): MorphMany
     {
-        return $this->morphToMany(Cotizacion::class, 'cotizable', 'cotizacion_producto')
-            ->withPivot(['cantidad', 'precio', 'descuento', 'subtotal', 'descuento_monto'])
-            ->using(CotizacionProducto::class)
-            ->withTimestamps();
+        return $this->morphMany(CotizacionItem::class, 'cotizable');
     }
-    /**
-     * Scope para filtrar productos activos
-     */
+
+    /* =========================
+     * Scopes
+     * ========================= */
+
     public function scopeActive($query)
     {
-        return $query->where('estado', 'activo'); // Ajusta según los valores que uses
+        return $query->where('estado', 'activo');
     }
-
-    // ... (el resto de tus métodos)
 }

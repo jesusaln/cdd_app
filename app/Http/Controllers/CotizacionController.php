@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Cotizacion;
 use App\Models\Pedido;
+use App\Models\Venta;
 use App\Enums\EstadoPedido;
-use App\Models\PedidoItem;
 use App\Models\Cliente;
 use App\Models\Producto;
 use App\Models\Servicio;
@@ -18,11 +18,10 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
-
-
 class CotizacionController extends Controller
 {
     use AuthorizesRequests;
+
     /**
      * Display a listing of the resource.
      */
@@ -39,7 +38,7 @@ class CotizacionController extends Controller
                     $cotizable = $item->cotizable;
                     return [
                         'id' => $cotizable->id,
-                        'nombre' => $cotizable->nombre ?? 'Sin nombre', // Corrected: Use nombre instead of nombre_razon_social
+                        'nombre' => $cotizable->nombre ?? 'Sin nombre',
                         'tipo' => $item->cotizable_type === Producto::class ? 'producto' : 'servicio',
                         'cantidad' => $item->cantidad,
                         'precio' => $item->precio,
@@ -49,11 +48,11 @@ class CotizacionController extends Controller
 
                 return [
                     'id' => $cotizacion->id,
-                    'fecha' => $cotizacion->created_at->format('Y-m-d'), // ✅ Añadido
+                    'fecha' => $cotizacion->created_at->format('Y-m-d'),
                     'created_at' => $cotizacion->created_at->format('Y-m-d\TH:i:sP'),
                     'cliente' => [
                         'id' => $cotizacion->cliente->id,
-                        'nombre' => $cotizacion->cliente->nombre_razon_social ?? 'Sin nombre', // Corrected: Use nombre_razon_social
+                        'nombre' => $cotizacion->cliente->nombre_razon_social ?? 'Sin nombre',
                         'email' => $cotizacion->cliente->email,
                         'telefono' => $cotizacion->cliente->telefono,
                         'rfc' => $cotizacion->cliente->rfc,
@@ -67,13 +66,12 @@ class CotizacionController extends Controller
                         'municipio' => $cotizacion->cliente->municipio,
                         'estado' => $cotizacion->cliente->estado,
                         'pais' => $cotizacion->cliente->pais,
-
                     ],
                     'productos' => $items->toArray(),
                     'total' => $cotizacion->total,
                     'estado' => $cotizacion->estado->value,
-                    'created_at' => $cotizacion->created_at->format('Y-m-d\TH:i:sP'), //nunca modificar
-                    'numero_cotizacion' => $cotizacion->numero_cotizacion
+                    'created_at' => $cotizacion->created_at->format('Y-m-d\TH:i:sP'), // nunca modificar
+                    'numero_cotizacion' => $cotizacion->numero_cotizacion,
                 ];
             });
 
@@ -152,7 +150,7 @@ class CotizacionController extends Controller
             $class = $item['tipo'] === 'producto' ? Producto::class : Servicio::class;
             $modelo = $class::find($item['id']);
 
-            if (! $modelo) {
+            if (!$modelo) {
                 Log::warning("Ítem no encontrado: {$class} con ID {$item['id']}");
                 continue;
             }
@@ -209,8 +207,8 @@ class CotizacionController extends Controller
                 'estado' => $cotizacion->estado->value,
             ],
             'canConvert' => $cotizacion->estado === EstadoCotizacion::Aprobada,
-            'canEdit' => $cotizacion->estado === EstadoCotizacion::Pendiente,
-            'canDelete' => $cotizacion->estado === EstadoCotizacion::Pendiente,
+            'canEdit' => in_array($cotizacion->estado, [EstadoCotizacion::Borrador, EstadoCotizacion::Pendiente], true),
+            'canDelete' => in_array($cotizacion->estado, [EstadoCotizacion::Borrador, EstadoCotizacion::Pendiente], true),
         ]);
     }
 
@@ -222,7 +220,7 @@ class CotizacionController extends Controller
         $cotizacion = Cotizacion::with(['cliente', 'items.cotizable'])->findOrFail($id);
 
         // Permitir edición solo si está en Borrador o Pendiente
-        if (!in_array($cotizacion->estado, [EstadoCotizacion::Borrador, EstadoCotizacion::Pendiente])) {
+        if (!in_array($cotizacion->estado, [EstadoCotizacion::Borrador, EstadoCotizacion::Pendiente], true)) {
             return Redirect::route('cotizaciones.show', $cotizacion->id)
                 ->with('warning', 'Solo cotizaciones en borrador o pendientes pueden ser editadas');
         }
@@ -258,6 +256,7 @@ class CotizacionController extends Controller
             'servicios' => Servicio::select('id', 'nombre', 'precio', 'descripcion')->get(),
         ]);
     }
+
     /**
      * Update the specified resource in storage.
      */
@@ -266,7 +265,7 @@ class CotizacionController extends Controller
         $cotizacion = Cotizacion::findOrFail($id);
 
         // Permitir edición solo si está en Borrador o Pendiente
-        if (!in_array($cotizacion->estado, [EstadoCotizacion::Borrador, EstadoCotizacion::Pendiente])) {
+        if (!in_array($cotizacion->estado, [EstadoCotizacion::Borrador, EstadoCotizacion::Pendiente], true)) {
             return Redirect::back()->with('error', 'Solo cotizaciones en borrador o pendientes pueden ser actualizadas');
         }
 
@@ -282,66 +281,71 @@ class CotizacionController extends Controller
             'notas' => 'nullable|string',
         ]);
 
+        // Cálculos
         $subtotal = 0;
-        foreach ($validated['productos'] as $item) {
-            $subtotal += $item['cantidad'] * $item['precio'];
-        }
-
         $descuentoItems = 0;
         foreach ($validated['productos'] as $item) {
             $subtotalItem = $item['cantidad'] * $item['precio'];
+            $subtotal += $subtotalItem;
             $descuentoItems += $subtotalItem * ($item['descuento'] / 100);
         }
 
-        $descuentoGeneralMonto = ($subtotal - $descuentoItems) * ($request->descuento_general / 100);
+        $descuentoGeneralMonto = ($subtotal - $descuentoItems) * (($request->descuento_general ?? 0) / 100);
         $subtotalFinal = ($subtotal - $descuentoItems) - $descuentoGeneralMonto;
         $iva = $subtotalFinal * 0.16;
         $total = $subtotalFinal + $iva;
 
-        // Determinar el nuevo estado: si está en Borrador, cambiarlo a Pendiente
+        // CLAVE: guardar estado anterior antes de actualizar
+        $estadoAnterior = $cotizacion->estado;
+
+        // Determinar nuevo estado: si está en Borrador, cambiarlo a Pendiente
         $nuevoEstado = $cotizacion->estado === EstadoCotizacion::Borrador
             ? EstadoCotizacion::Pendiente
             : $cotizacion->estado;
 
-        $cotizacion->update([
-            'cliente_id' => $validated['cliente_id'],
-            'subtotal' => $subtotal,
-            'descuento_general' => $descuentoGeneralMonto,
-            'iva' => $iva,
-            'total' => $total,
-            'notas' => $request->notas,
-            'estado' => $nuevoEstado, // Actualizar el estado
-        ]);
-
-        // Eliminar ítems anteriores
-        $cotizacion->items()->delete();
-
-        // Guardar nuevos ítems
-        foreach ($validated['productos'] as $itemData) {
-            $class = $itemData['tipo'] === 'producto' ? Producto::class : Servicio::class;
-            $modelo = $class::find($itemData['id']);
-
-            if (! $modelo) {
-                Log::warning("Ítem no encontrado: {$class} con ID {$itemData['id']}");
-                continue;
-            }
-
-            $subtotalItem = $itemData['cantidad'] * $itemData['precio'];
-            $descuentoMontoItem = $subtotalItem * ($itemData['descuento'] / 100);
-
-            CotizacionItem::create([
-                'cotizacion_id' => $cotizacion->id,
-                'cotizable_id' => $itemData['id'],
-                'cotizable_type' => $class,
-                'cantidad' => $itemData['cantidad'],
-                'precio' => $itemData['precio'],
-                'descuento' => $itemData['descuento'],
-                'subtotal' => $subtotalItem,
-                'descuento_monto' => $descuentoMontoItem,
+        // Atomicidad: actualizar cabecera + refrescar items
+        DB::transaction(function () use (&$cotizacion, $validated, $subtotal, $descuentoGeneralMonto, $iva, $total, $nuevoEstado, $request) {
+            $cotizacion->update([
+                'cliente_id' => $validated['cliente_id'],
+                'subtotal' => $subtotal,
+                'descuento_general' => $descuentoGeneralMonto,
+                'iva' => $iva,
+                'total' => $total,
+                'notas' => $request->notas,
+                'estado' => $nuevoEstado,
             ]);
-        }
 
-        $mensajeExito = $nuevoEstado === EstadoCotizacion::Pendiente && $cotizacion->estado === EstadoCotizacion::Borrador
+            // Eliminar ítems anteriores
+            $cotizacion->items()->delete();
+
+            // Guardar nuevos ítems
+            foreach ($validated['productos'] as $itemData) {
+                $class = $itemData['tipo'] === 'producto' ? Producto::class : Servicio::class;
+                $modelo = $class::find($itemData['id']);
+
+                if (!$modelo) {
+                    Log::warning("Ítem no encontrado: {$class} con ID {$itemData['id']}");
+                    continue;
+                }
+
+                $subtotalItem = $itemData['cantidad'] * $itemData['precio'];
+                $descuentoMontoItem = $subtotalItem * ($itemData['descuento'] / 100);
+
+                CotizacionItem::create([
+                    'cotizacion_id' => $cotizacion->id,
+                    'cotizable_id' => $itemData['id'],
+                    'cotizable_type' => $class,
+                    'cantidad' => $itemData['cantidad'],
+                    'precio' => $itemData['precio'],
+                    'descuento' => $itemData['descuento'],
+                    'subtotal' => $subtotalItem,
+                    'descuento_monto' => $descuentoMontoItem,
+                ]);
+            }
+        });
+
+        // Mensaje basado en el estado ANTERIOR
+        $mensajeExito = ($estadoAnterior === EstadoCotizacion::Borrador && $nuevoEstado === EstadoCotizacion::Pendiente)
             ? 'Cotización actualizada y cambiada a estado pendiente exitosamente'
             : 'Cotización actualizada exitosamente';
 
@@ -356,7 +360,7 @@ class CotizacionController extends Controller
     {
         $cotizacion = Cotizacion::findOrFail($id);
 
-        if (!in_array($cotizacion->estado, [EstadoCotizacion::Borrador, EstadoCotizacion::Pendiente, EstadoCotizacion::Aprobada])) {
+        if (!in_array($cotizacion->estado, [EstadoCotizacion::Borrador, EstadoCotizacion::Pendiente, EstadoCotizacion::Aprobada], true)) {
             return Redirect::back()->with('error', 'Solo cotizaciones pendientes pueden ser eliminadas');
         }
 
@@ -367,9 +371,9 @@ class CotizacionController extends Controller
             ->with('success', 'Cotización eliminada exitosamente');
     }
 
-
     /**
      * Convertir cotización a venta.
+     * (Nota: la unificación completa con VentaItem/ventable_* la hacemos en el paso #8)
      */
     public function convertirAVenta($id)
     {
@@ -381,7 +385,8 @@ class CotizacionController extends Controller
 
         DB::beginTransaction();
         try {
-            $venta = \App\Models\Venta::create([
+            // Import ya declarado arriba: use App\Models\Venta;
+            $venta = Venta::create([
                 'cliente_id' => $cotizacion->cliente_id,
                 'total' => $cotizacion->total,
             ]);
@@ -390,13 +395,13 @@ class CotizacionController extends Controller
                 $class = $item->cotizable_type;
                 $id = $item->cotizable_id;
 
-                if ($class === \App\Models\Producto::class) {
+                if ($class === Producto::class) {
                     $venta->productos()->attach($id, [
                         'cantidad' => $item->cantidad,
                         'precio' => $item->precio,
                     ]);
-                    $class::find($id)->decrement('stock', $item->cantidad);
-                } elseif ($class === \App\Models\Servicio::class) {
+                    Producto::find($id)?->decrement('stock', $item->cantidad);
+                } elseif ($class === Servicio::class) {
                     $venta->servicios()->attach($id, [
                         'cantidad' => $item->cantidad,
                         'precio' => $item->precio,
@@ -414,16 +419,19 @@ class CotizacionController extends Controller
         }
     }
 
+
+    /**
+     * Duplicar una cotización.
+     */
     public function duplicate(Request $request, $id)
     {
         $cotizacion = Cotizacion::with('cliente', 'items.cotizable')->findOrFail($id);
-        //$this->authorize('create', Cotizacion::class);
 
         DB::beginTransaction();
         try {
             // Duplicar la cotización
             $nueva = $cotizacion->replicate();
-            $nueva->estado = EstadoCotizacion::Borrador; // Asegúrate de usar el enum correctamente
+            $nueva->estado = EstadoCotizacion::Borrador;
             $nueva->created_at = now();
             $nueva->updated_at = now();
             $nueva->save();
@@ -443,21 +451,20 @@ class CotizacionController extends Controller
 
             DB::commit();
 
-            // Redirigir a la página de detalles de la nueva cotización
-
             return Redirect::route('cotizaciones.index')
                 ->with('success', 'Cotización duplicada correctamente.');
         } catch (\Exception $e) {
-            DB::rollback();
+            DB::rollBack();
             Log::error('Error duplicando cotización: ' . $e->getMessage());
-
-            // Redirigir de vuelta con un mensaje de error
             return Redirect::back()
                 ->with('error', 'Error al duplicar la cotización.');
         }
     }
 
-
+    /**
+     * Enviar a Pedido.
+     * (Nota: la unificación completa de pivots se atiende en el paso #8)
+     */
     public function enviarAPedido($id)
     {
         try {
@@ -529,11 +536,7 @@ class CotizacionController extends Controller
             }
 
             // Actualizar estado de la cotización
-
             $cotizacion->update(['estado' => EstadoCotizacion::EnviadoAPedido]);
-
-            //$cotizacion->estado = EstadoCotizacion::EnviadoAPedido;
-            //$cotizacion->save();
 
             DB::commit();
 
@@ -542,14 +545,14 @@ class CotizacionController extends Controller
                 'message' => 'Pedido creado exitosamente',
                 'pedido_id' => $pedido->id,
                 'numero_pedido' => $pedido->numero_pedido,
-                'items_count' => $pedido->items->count()
+                'items_count' => $pedido->items()->count()
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
                 'success' => false,
                 'error' => 'Error interno al procesar el pedido',
-                'details' => env('APP_DEBUG') ? $e->getMessage() : null
+                'details' => app()->environment('local') ? $e->getMessage() : null
             ], 500);
         }
     }

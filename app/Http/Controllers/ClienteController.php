@@ -158,14 +158,16 @@ class ClienteController extends Controller
             $q->where('estado', $edo);
         }
 
-        // CLAVE: solo filtrar si activo viene como '0' o '1'
+        // CLAVE: solo filtrar si 'activo' viene exactamente como '0' o '1'
         if ($request->query->has('activo')) {
-            $val = $request->query('activo');
-            if ($val !== '' && $val !== null) {
-                // aceptar '0'/'1' o 0/1
-                $q->where('activo', in_array($val, ['1', 1], true));
+            $val = (string) $request->query('activo');
+
+            if (in_array($val, ['0', '1'], true)) {
+                $q->where('activo', (int) $val); // 0 o 1
             }
+            // Si NO es '0' ni '1', NO filtramos.
         }
+
 
         return $q->orderByDesc('created_at');
     }

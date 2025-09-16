@@ -2,15 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use Inertia\Inertia;
 use App\Models\Producto;
+use App\Models\Servicio;
 use App\Models\Categoria;
 use App\Models\Marca;
 use App\Models\Proveedor;
 use App\Models\Almacen;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Storage;
+use Inertia\Inertia;
 
 class ProductoController extends Controller
 {
@@ -30,10 +31,10 @@ class ProductoController extends Controller
     public function create()
     {
         return Inertia::render('Productos/Create', [
-            'categorias' => Categoria::select('id', 'nombre')->get(),
-            'marcas' => Marca::select('id', 'nombre')->get(),
-            'proveedores' => Proveedor::select('id', 'nombre_razon_social')->get(), // Usa 'nombre_razon_social'
-            'almacenes' => Almacen::select('id', 'nombre')->get(), // Corrección aquí
+            'categorias'  => Categoria::select('id', 'nombre')->get(),
+            'marcas'      => Marca::select('id', 'nombre')->get(),
+            'proveedores' => Proveedor::select('id', 'nombre_razon_social')->get(),
+            'almacenes'   => Almacen::select('id', 'nombre')->get(),
         ]);
     }
 
@@ -43,25 +44,25 @@ class ProductoController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'nombre' => 'required|string|max:255',
-            'descripcion' => 'nullable|string',
-            'codigo' => 'required|string|unique:productos,codigo',
-            'codigo_barras' => 'required|string|unique:productos,codigo_barras',
-            'numero_serie' => 'nullable|string',
-            'categoria_id' => 'required|exists:categorias,id',
-            'marca_id' => 'required|exists:marcas,id',
-            'proveedor_id' => 'nullable|exists:proveedores,id',
-            'almacen_id' => 'nullable|exists:almacenes,id', // Corrección aquí
-            'stock' => 'required|integer|min:0',
-            'stock_minimo' => 'required|integer|min:0',
-            'precio_compra' => 'required|numeric|min:0',
-            'precio_venta' => 'required|numeric|min:0',
-            'impuesto' => 'required|numeric|min:0',
-            'unidad_medida' => 'required|string',
+            'nombre'            => 'required|string|max:255',
+            'descripcion'       => 'nullable|string',
+            'codigo'            => 'required|string|unique:productos,codigo',
+            'codigo_barras'     => 'required|string|unique:productos,codigo_barras',
+            'numero_serie'      => 'nullable|string',
+            'categoria_id'      => 'required|exists:categorias,id',
+            'marca_id'          => 'required|exists:marcas,id',
+            'proveedor_id'      => 'nullable|exists:proveedores,id',
+            'almacen_id'        => 'nullable|exists:almacenes,id',
+            'stock'             => 'required|integer|min:0',
+            'stock_minimo'      => 'required|integer|min:0',
+            'precio_compra'     => 'required|numeric|min:0',
+            'precio_venta'      => 'required|numeric|min:0',
+            'impuesto'          => 'required|numeric|min:0',
+            'unidad_medida'     => 'required|string',
             'fecha_vencimiento' => 'nullable|date',
-            'tipo_producto' => 'required|in:fisico,digital',
-            'imagen' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
-            'estado' => 'required|in:activo,inactivo',
+            'tipo_producto'     => 'required|in:fisico,digital',
+            'imagen'            => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'estado'            => 'required|in:activo,inactivo',
         ]);
 
         if ($request->hasFile('imagen')) {
@@ -76,25 +77,22 @@ class ProductoController extends Controller
     /**
      * Muestra el formulario para editar un producto existente.
      */
-    // Asegúrate de que en tu controlador tengas:
     public function edit($id)
     {
-        $producto = Producto::findOrFail($id);
-        $categorias = Categoria::all();
-        $marcas = Marca::all();
-        $proveedores = Proveedor::all(); // ← Verificar que esté presente
-        $almacenes = Almacen::all();
+        $producto    = Producto::findOrFail($id);
+        $categorias  = Categoria::all(['id', 'nombre']);
+        $marcas      = Marca::all(['id', 'nombre']);
+        $proveedores = Proveedor::all(['id', 'nombre_razon_social']);
+        $almacenes   = Almacen::all(['id', 'nombre']);
 
         return Inertia::render('Productos/Edit', [
-            'producto' => $producto,
-            'categorias' => $categorias,
-            'marcas' => $marcas,
-            'proveedores' => Proveedor::all(['id', 'nombre_razon_social']), // ← Verificar que se pase
-            'almacenes' => $almacenes,
+            'producto'    => $producto,
+            'categorias'  => $categorias,
+            'marcas'      => $marcas,
+            'proveedores' => $proveedores,
+            'almacenes'   => $almacenes,
         ]);
     }
-
-
 
     /**
      * Actualiza un producto existente en la base de datos.
@@ -103,29 +101,30 @@ class ProductoController extends Controller
     {
         $validated = $request->validate([
             // Datos requeridos
-            'nombre' => 'required|string|max:255',
-            'descripcion' => 'nullable|string|max:1000', // Aquí puedes ajustar el límite según lo necesario
-            'precio_venta' => 'required|numeric|min:0',
-            'stock' => 'required|integer|min:0',
-            'categoria_id' => 'required|exists:categorias,id',
-            'proveedor_id' => 'nullable|exists:proveedores,id',
+            'nombre'        => 'required|string|max:255',
+            'descripcion'   => 'nullable|string|max:1000',
+            'precio_venta'  => 'required|numeric|min:0',
+            'stock'         => 'required|integer|min:0',
+            'categoria_id'  => 'required|exists:categorias,id',
+            'proveedor_id'  => 'nullable|exists:proveedores,id',
 
-            // Validaciones para editar (quitar unique)
-            'codigo' => 'nullable|string|unique:productos,codigo,' . $producto->id, // Permite el mismo código para el producto editado
-            'codigo_barras' => 'nullable|string|unique:productos,codigo_barras,' . $producto->id, // Permite el mismo código de barras para el producto editado
-            'numero_serie' => 'nullable|string', // Número de serie opcional
-            'marca_id' => 'required|exists:marcas,id', // Validación para la marca
-            'almacen_id' => 'nullable|exists:almacenes,id', // Almacén opcional
-            'stock_minimo' => 'nullable|integer|min:0', // Stock mínimo
-            'precio_compra' => 'nullable|numeric|min:0', // Precio de compra
-            'impuesto' => 'nullable|numeric|min:0', // Impuesto sobre el producto
-            'unidad_medida' => 'nullable|string', // Unidad de medida
-            'fecha_vencimiento' => 'nullable|date', // Fecha de vencimiento
-            'tipo_producto' => 'nullable|in:fisico,digital', // Tipo de producto (físico o digital)
-            'estado' => 'nullable|in:activo,inactivo', // Estado del producto
+            // Validaciones para editar (permitir mismos códigos del propio producto)
+            'codigo'        => 'nullable|string|unique:productos,codigo,' . $producto->id,
+            'codigo_barras' => 'nullable|string|unique:productos,codigo_barras,' . $producto->id,
 
-            // Validación de imagen
-            'imagen' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'numero_serie'  => 'nullable|string',
+            'marca_id'      => 'required|exists:marcas,id',
+            'almacen_id'    => 'nullable|exists:almacenes,id',
+            'stock_minimo'  => 'nullable|integer|min:0',
+            'precio_compra' => 'nullable|numeric|min:0',
+            'impuesto'      => 'nullable|numeric|min:0',
+            'unidad_medida' => 'nullable|string',
+            'fecha_vencimiento' => 'nullable|date',
+            'tipo_producto' => 'nullable|in:fisico,digital',
+            'estado'        => 'nullable|in:activo,inactivo',
+
+            // Imagen
+            'imagen'        => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
         ]);
 
         if ($request->hasFile('imagen')) {
@@ -151,70 +150,67 @@ class ProductoController extends Controller
 
         $producto->delete();
 
-        // Elimina la notificación en el controlador
+        // Sin notificación adicional
         return redirect()->route('productos.index');
     }
-    // ProductoController.php
+
+    /**
+     * Muestra un producto en JSON (incluye URL de la imagen si existe).
+     */
     public function show($id)
     {
-        // Cargar el producto con sus relaciones
         $producto = Producto::with(['categoria', 'marca', 'proveedor', 'almacen'])->find($id);
 
         if (!$producto) {
             return response()->json(['error' => 'Producto no encontrado'], 404);
         }
-        // Agregar la URL completa de la imagen
-        if ($producto->imagen) {
-            $producto->imagen_url = asset('storage/' . $producto->imagen);
-        } else {
-            $producto->imagen_url = null;
-        }
 
-
+        $producto->imagen_url = $producto->imagen ? asset('storage/' . $producto->imagen) : null;
 
         return response()->json($producto);
     }
 
+    /**
+     * Vista de inventario del producto.
+     */
     public function showInventario($id)
     {
-        // Obtén el producto por su ID
-        $producto = Producto::findOrFail($id);
-
-        // Obtén todos los registros de inventario para ese producto
+        $producto    = Producto::findOrFail($id);
         $inventarios = $producto->inventarios;
 
-        // Devuelve la vista con los datos del inventario
         return Inertia::render('Producto/Inventario', [
-            'producto' => $producto,
+            'producto'    => $producto,
             'inventarios' => $inventarios,
         ]);
     }
 
-
+    /**
+     * Valida stock/precios de una lista de items (producto/servicio).
+     */
     public function validateStock(Request $request): JsonResponse
     {
         $request->validate([
-            'productos' => 'required|array',
-            'productos.*.id' => 'required|integer',
-            'productos.*.tipo' => 'required|string|in:producto,servicio',
+            'productos'         => 'required|array',
+            'productos.*.id'    => 'required|integer',
+            'productos.*.tipo'  => 'required|string|in:producto,servicio',
             'productos.*.cantidad' => 'required|numeric|min:1',
-            'productos.*.precio' => 'required|numeric|min:0', // 👈 esta línea es clave
+            'productos.*.precio'   => 'required|numeric|min:0',
         ]);
 
-        $productos = $request->input('productos');
+        $items = $request->input('productos');
         $errors = [];
         $pricesUpdated = [];
         $valid = true;
 
-        foreach ($productos as $item) {
+        foreach ($items as $item) {
             if ($item['tipo'] === 'producto') {
                 // Validar stock de productos
-                $producto = \App\Models\Producto::find($item['id']);
+                $producto = Producto::find($item['id']);
 
                 if (!$producto) {
                     $errors[] = [
                         'producto' => "Producto ID {$item['id']}",
-                        'mensaje' => 'Producto no encontrado'
+                        'mensaje'  => 'Producto no encontrado',
                     ];
                     $valid = false;
                     continue;
@@ -223,28 +219,28 @@ class ProductoController extends Controller
                 if ($producto->stock < $item['cantidad']) {
                     $errors[] = [
                         'producto' => $producto->nombre,
-                        'mensaje' => "Stock insuficiente. Disponible: {$producto->stock}, Solicitado: {$item['cantidad']}"
+                        'mensaje'  => "Stock insuficiente. Disponible: {$producto->stock}, Solicitado: {$item['cantidad']}",
                     ];
                     $valid = false;
                 }
 
                 // Verificar si el precio ha cambiado
-                if (isset($item['precio']) && $producto->precio_venta != $item['precio']) {
+                if (isset($item['precio']) && (float) $producto->precio_venta !== (float) $item['precio']) {
                     $pricesUpdated[] = [
-                        'id' => $producto->id,
-                        'tipo' => 'producto',
-                        'nombre' => $producto->nombre,
-                        'nuevoPrecio' => $producto->precio_venta
+                        'id'          => $producto->id,
+                        'tipo'        => 'producto',
+                        'nombre'      => $producto->nombre,
+                        'nuevoPrecio' => $producto->precio_venta,
                     ];
                 }
             } else {
-                // Para servicios, solo verificar que existan
-                $servicio = \App\Models\Servicio::find($item['id']);
+                // Servicios: solo verificar existencia
+                $servicio = Servicio::find($item['id']);
 
                 if (!$servicio) {
                     $errors[] = [
                         'producto' => "Servicio ID {$item['id']}",
-                        'mensaje' => 'Servicio no encontrado'
+                        'mensaje'  => 'Servicio no encontrado',
                     ];
                     $valid = false;
                 }
@@ -252,9 +248,9 @@ class ProductoController extends Controller
         }
 
         return response()->json([
-            'valid' => $valid,
-            'errors' => $errors,
-            'pricesUpdated' => $pricesUpdated
+            'valid'         => $valid,
+            'errors'        => $errors,
+            'pricesUpdated' => $pricesUpdated,
         ]);
     }
 }

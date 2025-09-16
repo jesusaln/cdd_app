@@ -87,6 +87,7 @@ class VentaController extends Controller
             'filters' => request()->only(['search', 'estado', 'fecha_inicio', 'fecha_fin'])
         ]);
     }
+
     /**
      * Show the form for creating a new resource.
      */
@@ -271,52 +272,59 @@ class VentaController extends Controller
         $iva = $subtotalFinal * 0.16;
         $total = $subtotalFinal + $iva;
 
+        // Guarda el estado ANTES de actualizar (clave para mensaje)
+        $estadoAnterior = $venta->estado;
+
         // Determinar el nuevo estado: si está en Borrador, cambiarlo a Pendiente
         $nuevoEstado = $venta->estado === EstadoVenta::Borrador
             ? EstadoVenta::Pendiente
             : $venta->estado;
 
-        $venta->update([
-            'cliente_id' => $validated['cliente_id'],
-            'numero_venta' => $validated['numero_venta'],
-            'subtotal' => $subtotal,
-            'descuento_general' => $descuentoGeneralMonto,
-            'iva' => $iva,
-            'total' => $total,
-            'fecha' => now(),
-            'estado' => $nuevoEstado,
-            'notas' => $request->notas,
-        ]);
-
-        // Eliminar ítems anteriores
-        $venta->items()->delete();
-
-        // Guardar nuevos ítems
-        foreach ($validated['productos'] as $itemData) {
-            $class = $itemData['tipo'] === 'producto' ? Producto::class : Servicio::class;
-            $modelo = $class::find($itemData['id']);
-
-            if (!$modelo) {
-                Log::warning("Ítem no encontrado: {$class} con ID {$itemData['id']}");
-                continue;
-            }
-
-            $subtotalItem = $itemData['cantidad'] * $itemData['precio'];
-            $descuentoMontoItem = $subtotalItem * ($itemData['descuento'] / 100);
-
-            VentaItem::create([
-                'venta_id' => $venta->id,
-                'ventable_id' => $itemData['id'],
-                'ventable_type' => $class,
-                'cantidad' => $itemData['cantidad'],
-                'precio' => $itemData['precio'],
-                'descuento' => $itemData['descuento'],
-                'subtotal' => $subtotalItem,
-                'descuento_monto' => $descuentoMontoItem,
+        // Atomicidad: actualización + refresco de items
+        DB::transaction(function () use (&$venta, $validated, $subtotal, $descuentoGeneralMonto, $iva, $total, $nuevoEstado, $request) {
+            $venta->update([
+                'cliente_id' => $validated['cliente_id'],
+                'numero_venta' => $validated['numero_venta'],
+                'subtotal' => $subtotal,
+                'descuento_general' => $descuentoGeneralMonto,
+                'iva' => $iva,
+                'total' => $total,
+                'fecha' => now(),
+                'estado' => $nuevoEstado,
+                'notas' => $request->notas,
             ]);
-        }
 
-        $mensajeExito = $nuevoEstado === EstadoVenta::Pendiente && $venta->estado === EstadoVenta::Borrador
+            // Eliminar ítems anteriores
+            $venta->items()->delete();
+
+            // Guardar nuevos ítems
+            foreach ($validated['productos'] as $itemData) {
+                $class = $itemData['tipo'] === 'producto' ? Producto::class : Servicio::class;
+                $modelo = $class::find($itemData['id']);
+
+                if (!$modelo) {
+                    Log::warning("Ítem no encontrado: {$class} con ID {$itemData['id']}");
+                    continue;
+                }
+
+                $subtotalItem = $itemData['cantidad'] * $itemData['precio'];
+                $descuentoMontoItem = $subtotalItem * ($itemData['descuento'] / 100);
+
+                VentaItem::create([
+                    'venta_id' => $venta->id,
+                    'ventable_id' => $itemData['id'],
+                    'ventable_type' => $class,
+                    'cantidad' => $itemData['cantidad'],
+                    'precio' => $itemData['precio'],
+                    'descuento' => $itemData['descuento'],
+                    'subtotal' => $subtotalItem,
+                    'descuento_monto' => $descuentoMontoItem,
+                ]);
+            }
+        });
+
+        // Usa el estado anterior para construir el mensaje correcto
+        $mensajeExito = ($estadoAnterior === EstadoVenta::Borrador) && ($nuevoEstado === EstadoVenta::Pendiente)
             ? 'Venta actualizada y cambiada a estado pendiente exitosamente'
             : 'Venta actualizada exitosamente';
 
@@ -404,7 +412,7 @@ class VentaController extends Controller
             return Redirect::route('ventas.index')
                 ->with('success', 'Venta duplicada correctamente.');
         } catch (\Exception $e) {
-            DB::rollback();
+            DB::rollBack();
             Log::error('Error duplicando venta: ' . $e->getMessage());
 
             return Redirect::back()
