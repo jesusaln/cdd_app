@@ -1,6 +1,7 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
+import ProductosSeleccionados from '../CreateComponents/ProductosSeleccionados.vue';
 
 // Props configurables para cualquier módulo
 const props = defineProps({
@@ -184,7 +185,38 @@ const defaultConfigs = {
       { value: 'cliente-asc', label: 'Cliente A-Z', icon: 'sort-ascending' },
       { value: 'cliente-desc', label: 'Cliente Z-A', icon: 'sort-descending' }
     ]
-  }
+  },
+
+   productos: {
+  module: 'productos',
+  title: 'Productos',
+  createRoute: '/productos/create',
+  createButtonText: 'Nuevo Producto',
+  searchPlaceholder: 'Buscar por nombre, SKU, descripción…',
+  searchFields: ['nombre', 'sku', 'descripcion'],
+  estadisticas: {
+    total:      { label: 'Total',      icon: 'document',     description: 'Total de productos' },
+    aprobadas:  { label: 'Disponibles', icon: 'check-circle', color: 'green',  description: 'Productos con stock' },
+    pendientes: { label: 'Agotados',    icon: 'x-circle',     color: 'red',    description: 'Productos sin stock' }
+  },
+  estados: [
+    { value: '',               label: 'Todos',         color: 'slate'   },
+    { value: 'disponible',     label: 'Disponibles',   color: 'green'   },
+    { value: 'agotado',        label: 'Agotados',      color: 'red'     },
+    { value: 'descontinuado',  label: 'Descontinuados',color: 'gray'    }
+  ],
+  sortOptions: [
+    { value: 'fecha-desc',   label: 'Más Recientes', icon: 'arrow-down' },
+    { value: 'fecha-asc',    label: 'Más Antiguos',  icon: 'arrow-up'   },
+    { value: 'nombre-asc',   label: 'Nombre A-Z',    icon: 'sort-ascending' },
+    { value: 'nombre-desc',  label: 'Nombre Z-A',    icon: 'sort-descending' },
+    { value: 'precio-desc',  label: 'Precio Mayor',  icon: 'currency-dollar' },
+    { value: 'precio-asc',   label: 'Precio Menor',  icon: 'currency-dollar' }
+  ]
+},
+
+
+
 };
 
 // Configuración final combinando defaults con props

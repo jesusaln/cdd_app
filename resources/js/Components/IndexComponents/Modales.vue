@@ -483,7 +483,7 @@ const props = defineProps({
   tipo: {
     type: String,
     required: true,
-    validator: (v) => ['cotizaciones','pedidos','ventas','compras','ordenescompra','rentas','equipos','clientes'].includes(v) // ✅ AGREGADO 'clientes'
+    validator: (v) => ['cotizaciones','pedidos','ventas','compras','ordenescompra','rentas','equipos','clientes', 'productos'].includes(v) // ✅ AGREGADO 'clientes'
   }
 })
 
@@ -610,6 +610,13 @@ const config = computed(() => {
         '1': { label: 'Activo',   classes: 'bg-emerald-100 text-emerald-700', color: 'bg-emerald-400' },
         '0': { label: 'Inactivo', classes: 'bg-red-100 text-red-700',        color: 'bg-red-400' },
       })
+    },
+    productos: {
+      titulo: 'Producto',
+      mostrarCampoExtra: false,
+      campoExtra: null,
+      acciones: { editar: true, imprimir: false, enviarPedido: false, enviarAVenta: false },
+      estados: baseEstados()
     }
   }
   return configs[props.tipo] || configs.cotizaciones

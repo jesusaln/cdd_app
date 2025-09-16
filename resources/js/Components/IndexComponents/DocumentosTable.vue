@@ -95,18 +95,16 @@
               </div>
             </th>
 
-            <!-- Cliente/Proveedor | Equipo | (Clientes) Nombre -->
+            <!-- Cliente/Proveedor | Equipo | Clientes | Productos -->
             <th
               class="group px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100/60 transition-colors duration-150"
-              @click="onSort(isEquipos ? 'nombre' : (isCompra ? 'proveedor' : (isClientes ? 'nombre' : 'cliente')))"
+              @click="onSort(isEquipos ? 'nombre' : (isCompra ? 'proveedor' : (isClientes || isProductos ? 'nombre' : 'cliente')))"
             >
               <div class="flex items-center space-x-1">
-                <span>
-                  {{ isEquipos ? 'Equipo' : (isCompra ? 'Proveedor' : (isClientes ? 'Cliente' : 'Cliente')) }}
-                </span>
+                <span>{{ isEquipos ? 'Equipo' : (isCompra ? 'Proveedor' : (isClientes ? 'Cliente' : (isProductos ? 'Producto' : 'Cliente'))) }}</span>
                 <svg
-                  v-if="sortBy.startsWith(isEquipos ? 'nombre' : (isCompra ? 'proveedor' : (isClientes ? 'nombre' : 'cliente')))"
-                  :class="['w-4 h-4 transition-transform duration-200', sortBy === `${isEquipos ? 'nombre' : (isCompra ? 'proveedor' : (isClientes ? 'nombre' : 'cliente'))}-desc` ? 'rotate-180' : '']"
+                  v-if="sortBy.startsWith(isEquipos ? 'nombre' : (isCompra ? 'proveedor' : ((isClientes || isProductos) ? 'nombre' : 'cliente')))"
+                  :class="['w-4 h-4 transition-transform duration-200', sortBy === `${isEquipos ? 'nombre' : (isCompra ? 'proveedor' : ((isClientes || isProductos) ? 'nombre' : 'cliente'))}-desc` ? 'rotate-180' : '']"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -127,6 +125,26 @@
                 <svg
                   v-if="sortBy.startsWith(config.campoExtra.key)"
                   :class="['w-4 h-4 transition-transform duration-200', sortBy === `${config.campoExtra.key}-desc` ? 'rotate-180' : '']"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </th>
+
+            <!-- Precio (solo productos) -->
+            <th
+              v-if="config.mostrarPrecio"
+              class="group px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100/60 transition-colors duration-150"
+              @click="onSort('precio')"
+            >
+              <div class="flex items-center space-x-1">
+                <span>Precio</span>
+                <svg
+                  v-if="sortBy.startsWith('precio')"
+                  :class="['w-4 h-4 transition-transform duration-200', sortBy === 'precio-desc' ? 'rotate-180' : '']"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -209,44 +227,63 @@
                 </div>
               </td>
 
-              <!-- Cliente/Proveedor | Equipo | Clientes -->
+              <!-- Cliente/Proveedor | Clientes | Equipos | Productos -->
               <td class="px-6 py-4">
                 <div class="flex flex-col space-y-0.5">
-                  <!-- Para cotizaciones/pedidos/ventas/compras -->
-                  <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800" v-if="!isEquipos && !isClientes">
+                  <!-- ventas/pedidos/compras -->
+                  <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800" v-if="!isEquipos && !isClientes && !isProductos">
                     {{ isCompra ? (doc.proveedor?.nombre_razon_social || 'Sin proveedor') : (doc.cliente?.nombre || 'Sin cliente') }}
                   </div>
-                  <!-- Para clientes: usamos TITULO -->
+                  <!-- clientes -->
                   <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800" v-else-if="isClientes">
                     {{ doc.titulo || 'Sin nombre' }}
                   </div>
-                  <!-- Para equipos -->
+                  <!-- productos -->
+                    <!-- Productos -->
+<div v-if="isProductos" class="text-sm font-medium text-gray-900 group-hover:text-gray-800">
+  {{ doc.nombre || doc.titulo || 'Sin nombre' }}
+  <div v-if="doc.sku || doc.codigo_barras" class="text-xs text-gray-500 truncate max-w-48">
+    {{ doc.sku || doc.codigo_barras }}
+  </div>
+</div>
+                  <!-- equipos -->
                   <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800" v-else>
                     {{ doc.nombre || 'Sin nombre' }}
                   </div>
 
-                  <!-- Emails -->
+                  <!-- sublíneas -->
                   <div
-                    v-if="!isEquipos && !isClientes && (isCompra ? doc.proveedor?.email : doc.cliente?.email)"
+                    v-if="!isEquipos && !isClientes && !isProductos && (isCompra ? doc.proveedor?.email : doc.cliente?.email)"
                     class="text-xs text-gray-500 truncate max-w-48"
                   >
                     {{ isCompra ? doc.proveedor?.email : doc.cliente?.email }}
                   </div>
+
                   <div v-else-if="isClientes && doc.subtitulo" class="text-xs text-gray-500 truncate max-w-48">
                     {{ doc.subtitulo }}
                   </div>
 
-                  <!-- Equipos -->
+                  <div v-else-if="isProductos && (doc.sku || doc.codigo_barras)" class="text-xs text-gray-500 truncate max-w-48">
+                    SKU: {{ doc.sku || doc.codigo_barras }}
+                  </div>
+
                   <div v-if="isEquipos && (doc.modelo || doc.marca)" class="text-xs text-gray-500 truncate max-w-48">
                     {{ [doc.marca, doc.modelo].filter(Boolean).join(' · ') }}
                   </div>
                 </div>
               </td>
 
-              <!-- Campo extra (RFC para clientes) -->
-              <td v-if="config.mostrarCampoExtra" class="px-6 py-4">
+              <!-- Campo extra -->
+              <td v-if="config.mostrarCampoExtra && !isProductos" class="px-6 py-4">
                 <div class="text-sm font-mono font-medium text-gray-700 bg-gray-100/60 px-2 py-1 rounded-md inline-block">
-                  {{ isClientes ? (doc.extra || 'N/A') : (doc[config.campoExtra.key] || 'N/A') }}
+                  {{ isClientes ? (doc.extra || 'N/A') : (doc[config.campoExtra.key] || doc.codigo_barras || 'N/A') }}
+                </div>
+              </td>
+
+              <!-- Precio (solo productos) -->
+              <td v-if="config.mostrarPrecio" class="px-6 py-4">
+                <div class="text-sm font-semibold text-gray-900">
+                  ${{ formatearMoneda(obtenerPrecio(doc)) }}
                 </div>
               </td>
 
@@ -379,7 +416,7 @@
 
           <!-- Empty State -->
           <tr v-else>
-            <td :colspan="config.mostrarCampoExtra ? (config.mostrarTotal !== false ? (config.mostrarProductos !== false ? 7 : 6) : (config.mostrarProductos !== false ? 6 : 5)) : (config.mostrarTotal !== false ? (config.mostrarProductos !== false ? 6 : 5) : (config.mostrarProductos !== false ? 5 : 4))" class="px-6 py-16 text-center">
+            <td :colspan="config.mostrarCampoExtra ? (config.mostrarTotal !== false ? (config.mostrarProductos !== false ? (config.mostrarPrecio ? 8 : 7) : (config.mostrarPrecio ? 7 : 6)) : (config.mostrarProductos !== false ? (config.mostrarPrecio ? 7 : 6) : (config.mostrarPrecio ? 6 : 5))) : (config.mostrarTotal !== false ? (config.mostrarProductos !== false ? (config.mostrarPrecio ? 7 : 6) : (config.mostrarPrecio ? 6 : 5)) : (config.mostrarProductos !== false ? (config.mostrarPrecio ? 6 : 5) : (config.mostrarPrecio ? 5 : 4)))" class="px-6 py-16 text-center">
               <div class="flex flex-col items-center space-y-4">
                 <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                   <svg class="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -407,7 +444,7 @@ const props = defineProps({
   tipo: {
     type: String,
     required: true,
-    validator: (value) => ['cotizaciones', 'pedidos', 'ventas', 'compras', 'ordenescompra', 'rentas', 'equipos', 'clientes'].includes(value)
+    validator: (value) => ['cotizaciones', 'pedidos', 'ventas', 'compras', 'ordenescompra', 'rentas', 'equipos', 'clientes', 'productos'].includes(value)
   },
   searchTerm: { type: String, default: '' },
   sortBy: { type: String, default: 'fecha-desc' },
@@ -427,17 +464,18 @@ const emit = defineEmits([
   'ver-detalles','editar','eliminar','duplicar','imprimir','sort','renovar','suspender','reactivar'
 ]);
 
-const isCompra   = computed(() => props.tipo === 'compras');
-const isEquipos  = computed(() => props.tipo === 'equipos');
-const isClientes = computed(() => props.tipo === 'clientes');
+// Flags
+const isCompra    = computed(() => props.tipo === 'compras');
+const isEquipos   = computed(() => props.tipo === 'equipos');
+const isClientes  = computed(() => props.tipo === 'clientes');
+const isProductos = computed(() => props.tipo === 'productos');
 
-// Tooltip state
+// Tooltip
 const showTooltip = ref(false);
 const hoveredDoc = ref(null);
 const tooltipPosition = ref({ x: 0, y: 0 });
 let tooltipTimeout = null;
 
-// Safe window (evita fallos en SSR/build)
 const getViewport = () => {
   if (typeof window === 'undefined') return { w: 1280, h: 800 };
   return { w: window.innerWidth, h: window.innerHeight };
@@ -595,7 +633,22 @@ const config = computed(() => {
         '1': { label: 'Activo',   classes: 'bg-emerald-100 text-emerald-700', color: 'bg-emerald-400' },
         '0': { label: 'Inactivo', classes: 'bg-red-100 text-red-700',        color: 'bg-red-400' },
       }
-    }
+    },
+ productos: {
+  titulo: 'Productos',
+  mostrarCampoExtra: false,   // <- desactiva la columna extra
+  mostrarPrecio: true,
+  mostrarTotal: false,
+  mostrarProductos: false,
+  campoExtra: { key: 'sku', label: 'SKU' },
+  acciones: { editar: true, duplicar: false, imprimir: false, eliminar: true },
+  estados: {
+    'disponible':   { label: 'Disponible',   classes: 'bg-emerald-100 text-emerald-700', color: 'bg-emerald-400' },
+    'agotado':      { label: 'Agotado',      classes: 'bg-yellow-100 text-yellow-700',   color: 'bg-yellow-400' },
+    'descontinuado':{ label: 'Descontinuado',classes: 'bg-red-100 text-red-700',         color: 'bg-red-400' }
+  }
+}
+
   };
 
   const result = configs[props.tipo] || configs.cotizaciones;
@@ -646,6 +699,11 @@ const formatearMoneda = (num) => {
   return formatted;
 };
 
+const obtenerPrecio = (doc) => {
+  const p = parseFloat(doc.precio ?? doc.precio_venta ?? doc.pv ?? 0);
+  return Number.isFinite(p) ? p : 0;
+};
+
 // Estados
 const obtenerClasesEstado = (estado) => config.value.estados[estado]?.classes || 'bg-gray-100 text-gray-700';
 const obtenerColorPuntoEstado = (estado) => config.value.estados[estado]?.color || 'bg-gray-400';
@@ -665,10 +723,17 @@ const items = computed(() => {
     filtered = filtered.filter(doc => {
       if (isClientes.value) {
         return (
-          (doc.titulo || '').toLowerCase().includes(term) || // nombre_razon_social
-          (doc.extra || '').toLowerCase().includes(term) ||  // rfc
-          (doc.subtitulo || '').toLowerCase().includes(term) || // email
+          (doc.titulo || '').toLowerCase().includes(term) ||
+          (doc.extra || '').toLowerCase().includes(term) ||
+          (doc.subtitulo || '').toLowerCase().includes(term) ||
           (doc.meta?.direccion || '').toLowerCase().includes(term)
+        );
+      }
+      if (isProductos.value) {
+        return (
+          (doc.nombre || '').toLowerCase().includes(term) ||
+          (doc.sku || doc.codigo_barras || '').toLowerCase().includes(term) ||
+          (doc.estado || '').toLowerCase().includes(term)
         );
       }
       if (isEquipos.value) {
@@ -726,9 +791,9 @@ const items = computed(() => {
         aVal = (a.proveedor?.nombre_razon_social || '').toLowerCase();
         bVal = (b.proveedor?.nombre_razon_social || '').toLowerCase();
         break;
-      case 'nombre': // clientes o equipos
-        aVal = (isClientes.value ? (a.titulo || '') : (a.nombre || '')).toLowerCase();
-        bVal = (isClientes.value ? (b.titulo || '') : (b.nombre || '')).toLowerCase();
+      case 'nombre': // clientes/equipos/productos
+        aVal = (isClientes.value ? (a.titulo || '') : (a.nombre || a.titulo || '')).toLowerCase();
+        bVal = (isClientes.value ? (b.titulo || '') : (b.nombre || b.titulo || '')).toLowerCase();
         break;
       case 'rfc':
         aVal = (isClientes.value ? (a.extra || '') : (a.rfc || '')).toLowerCase();
@@ -737,6 +802,10 @@ const items = computed(() => {
       case 'email':
         aVal = (a.subtitulo || '').toLowerCase();
         bVal = (b.subtitulo || '').toLowerCase();
+        break;
+      case 'precio':
+        aVal = obtenerPrecio(a);
+        bVal = obtenerPrecio(b);
         break;
       case 'total':
         aVal = parseFloat(a.total); aVal = Number.isFinite(aVal) ? aVal : 0;
