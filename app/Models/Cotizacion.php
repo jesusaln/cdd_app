@@ -9,10 +9,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\Concerns\Blameable;
 
 class Cotizacion extends Model
+
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes, Blameable;
 
     protected $table = 'cotizaciones';
 
@@ -48,6 +51,20 @@ class Cotizacion extends Model
     public function items(): HasMany
     {
         return $this->hasMany(CotizacionItem::class);
+    }
+
+    // Relaciones de “culpables” (opcionales, para mostrar en UI)
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+    public function updatedBy()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
+    public function deletedBy()
+    {
+        return $this->belongsTo(User::class, 'deleted_by');
     }
 
     /**

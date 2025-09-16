@@ -55,10 +55,49 @@
 
         <!-- Modo: Detalles -->
         <div v-else-if="mode === 'details'" class="space-y-4">
-          <h3 class="text-lg font-medium mb-4 flex items-center gap-2">
+          <h3 class="text-lg font-medium mb-1 flex items-center gap-2">
             Detalles de {{ config.titulo }}
             <span v-if="selected?.id" class="text-sm text-gray-500">#{{ selected.id }}</span>
           </h3>
+
+          <!-- NUEVO: Folio detectado automáticamente -->
+          <p v-if="folioValue" class="text-sm text-gray-600">
+            <strong>{{ folioLabel }}:</strong> {{ folioValue }}
+          </p>
+
+          <!-- NUEVO: Auditoría -->
+          <div v-if="auditoriaBoxVisible" class="mt-2 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <h4 class="text-sm font-semibold text-gray-800 mb-3">Auditoría</h4>
+            <div class="grid md:grid-cols-3 gap-3 text-sm">
+              <div>
+                <span class="text-gray-500">Creado por:</span>
+                <div class="font-medium text-gray-900">
+                  {{ auditoriaSafe.creado_por || '—' }}
+                </div>
+                <div class="text-gray-500">
+                  {{ auditoriaSafe.creado_en || '—' }}
+                </div>
+              </div>
+              <div>
+                <span class="text-gray-500">Actualizado por:</span>
+                <div class="font-medium text-gray-900">
+                  {{ auditoriaSafe.actualizado_por || '—' }}
+                </div>
+                <div class="text-gray-500">
+                  {{ auditoriaSafe.actualizado_en || '—' }}
+                </div>
+              </div>
+              <div v-if="auditoriaSafe.eliminado_en">
+                <span class="text-gray-500">Eliminado por:</span>
+                <div class="font-medium text-gray-900">
+                  {{ auditoriaSafe.eliminado_por || '—' }}
+                </div>
+                <div class="text-gray-500">
+                  {{ auditoriaSafe.eliminado_en || '—' }}
+                </div>
+              </div>
+            </div>
+          </div>
 
           <div v-if="selected" class="space-y-4">
             <!-- Información general -->
@@ -146,7 +185,7 @@
                 </p>
               </div>
 
-              <!-- Otros (cotizaciones, pedidos, etc.) -->
+              <!-- Otros (cotizaciones, pedidos, ventas, etc.) -->
               <div v-else>
                 <p class="text-sm text-gray-600">
                   <strong>Cliente:</strong> {{ selected.cliente?.nombre || 'Sin cliente' }}
@@ -255,6 +294,7 @@
                         ${{ formatearMoneda(producto.precio) }}
                       </td>
                       <td class="px-4 py-2 text-sm text-gray-600">
+                        <!-- Si manejas descuento como % cámbialo a {{ (producto.descuento || 0) + '%' }} -->
                         ${{ formatearMoneda(producto.descuento || 0) }}
                       </td>
                       <td class="px-4 py-2 text-sm text-gray-600">
@@ -483,7 +523,12 @@ const props = defineProps({
   tipo: {
     type: String,
     required: true,
-    validator: (v) => ['cotizaciones','pedidos','ventas','compras','ordenescompra','rentas','equipos','clientes', 'productos'].includes(v) // ✅ AGREGADO 'clientes'
+    validator: (v) => ['cotizaciones','pedidos','ventas','compras','ordenescompra','rentas','equipos','clientes','productos'].includes(v)
+  },
+  // NUEVO: pasar auditoría desde el padre (o venir en selected.metadata)
+  auditoria: {
+    type: Object,
+    default: null // { creado_por, actualizado_por, eliminado_por, creado_en, actualizado_en, eliminado_en }
   }
 })
 
@@ -495,7 +540,6 @@ const emit = defineEmits([
   'editar',
   'enviar-pedido',
   'enviar-a-venta',
-
   // Acciones para equipos
   'renovar', 'suspender', 'reactivar',
   'cambiar-estado', 'programar-mantenimiento',
@@ -503,33 +547,33 @@ const emit = defineEmits([
 ])
 
 const isCotizaciones = computed(() => props.tipo === 'cotizaciones')
-const isPedidos = computed(() => props.tipo === 'pedidos')
-const isRentas = computed(() => props.tipo === 'rentas')
-const isEquipos = computed(() => props.tipo === 'equipos')
-const isClientes = computed(() => props.tipo === 'clientes') // ✅ NUEVO
+const isPedidos      = computed(() => props.tipo === 'pedidos')
+const isRentas       = computed(() => props.tipo === 'rentas')
+const isEquipos      = computed(() => props.tipo === 'equipos')
+const isClientes     = computed(() => props.tipo === 'clientes')
 
 // Estados de confirmación
 const showConfirmReenvioPedido = ref(false)
-const showConfirmReenvioVenta = ref(false)
+const showConfirmReenvioVenta  = ref(false)
 
 // Focus management
 const modalRef = ref(null)
 const focusFirst = () => { try { modalRef.value?.focus() } catch {} }
 watch(() => props.show, (v) => { if (v) setTimeout(focusFirst, 0) })
 
-// Cerrar con tecla ESC también desde window (redundante al keydown del contenedor)
+// Cerrar con tecla ESC también desde window
 const onKey = (e) => { if (e.key === 'Escape' && props.show) onClose() }
 onMounted(() => window.addEventListener('keydown', onKey))
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 
-// Config dinámica por tipo
+// Config dinámica por tipo (NUEVO: activo folio en cotizaciones)
 const config = computed(() => {
   const baseEstados = (map) => map || {}
   const configs = {
     cotizaciones: {
       titulo: 'Cotización',
-      mostrarCampoExtra: false,
-      campoExtra: null,
+      mostrarCampoExtra: true, // habilitado
+      campoExtra: { key: 'numero_cotizacion', label: 'N° Cotización' },
       acciones: { editar: true, imprimir: true, enviarPedido: true, enviarAVenta: false },
       estados: baseEstados({
         borrador: { label: 'Borrador', classes: 'bg-gray-100 text-gray-800', color: 'bg-gray-400' },
@@ -559,7 +603,8 @@ const config = computed(() => {
     ventas: {
       titulo: 'Venta',
       mostrarCampoExtra: true,
-      campoExtra: { key: 'numero_factura', label: 'N° Factura' },
+      // soporta numero_venta o numero_factura
+      campoExtra: { key: null, label: 'N° Venta/Factura' },
       acciones: { editar: false, imprimir: true, enviarPedido: false, enviarAVenta: false },
       estados: baseEstados({
         borrador: { label: 'Borrador', classes: 'bg-gray-100 text-gray-800', color: 'bg-gray-400' },
@@ -600,7 +645,6 @@ const config = computed(() => {
         sin_estado: { label: 'Sin Estado', classes: 'bg-gray-100 text-gray-600', color: 'bg-gray-400' }
       })
     },
-    // ✅ CONFIGURACIÓN PARA CLIENTES
     clientes: {
       titulo: 'Cliente',
       mostrarCampoExtra: true,
@@ -622,13 +666,29 @@ const config = computed(() => {
   return configs[props.tipo] || configs.cotizaciones
 })
 
+// NUEVO: Folio (detecta varias claves según tipo/datos)
+const folioLabel = computed(() => {
+  if (isCotizaciones.value) return 'N° Cotización'
+  if (isPedidos.value)      return 'N° Pedido'
+  if (props.tipo === 'ventas') return 'N° Venta/Factura'
+  if (isRentas.value)       return 'N° Contrato'
+  return 'Folio'
+})
+const folioValue = computed(() => {
+  const s = props.selected || {}
+  // soporta llaves alternativas
+  return s.numero_cotizacion || s.numero_pedido || s.numero_venta || s.numero_factura || s.numero_contrato || null
+})
+
+// NUEVO: Auditoría (usa prop o selected.metadata)
+const auditoriaSafe = computed(() => {
+  return props.auditoria ?? props.selected?.metadata ?? null
+})
+const auditoriaBoxVisible = computed(() => !!auditoriaSafe.value)
+
 // Verificaciones de estado para flujos
-const yaEnviado = computed(() => {
-  return ['enviado_pedido','convertido_pedido'].includes(props.selected?.estado)
-})
-const yaConvertidoAVenta = computed(() => {
-  return ['enviado_venta','facturado','pagado','convertido_venta'].includes(props.selected?.estado)
-})
+const yaEnviado = computed(() => ['enviado_pedido','convertido_pedido'].includes(props.selected?.estado))
+const yaConvertidoAVenta = computed(() => ['enviado_venta','facturado','pagado','convertido_venta'].includes(props.selected?.estado))
 
 // Helpers de formato
 const isNumber = (n) => Number.isFinite(parseFloat(n))
@@ -658,16 +718,16 @@ const obtenerLabelEstado = (estado) => config.value.estados[estado]?.label || 'P
 
 // Flujo cotizaciones/pedidos
 const confirmarEnvioPedido = () => { yaEnviado.value ? (showConfirmReenvioPedido.value = true) : emit('enviar-pedido', props.selected) }
-const confirmarEnvioAVenta = () => { yaConvertidoAVenta.value ? (showConfirmReenvioVenta.value = true) : emit('enviar-a-venta', props.selected) }
-const reenviarAPedido = () => { showConfirmReenvioPedido.value = false; emit('enviar-pedido', { ...props.selected, forzarReenvio: true }) }
-const reenviarAVenta = () => { showConfirmReenvioVenta.value = false; emit('enviar-a-venta', { ...props.selected, forzarReenvio: true }) }
+const confirmarEnvioAVenta  = () => { yaConvertidoAVenta.value ? (showConfirmReenvioVenta.value = true) : emit('enviar-a-venta', props.selected) }
+const reenviarAPedido       = () => { showConfirmReenvioPedido.value = false; emit('enviar-pedido', { ...props.selected, forzarReenvio: true }) }
+const reenviarAVenta        = () => { showConfirmReenvioVenta.value = false; emit('enviar-a-venta', { ...props.selected, forzarReenvio: true }) }
 
 // Emits comunes
-const onCancel = () => emit('close')
+const onCancel  = () => emit('close')
 const onConfirm = () => emit('confirm-delete')
-const onClose = () => emit('close')
-const onImprimir = () => emit('imprimir', props.selected)
-const onEditar = () => emit('editar', props.selected?.id)
+const onClose   = () => emit('close')
+const onImprimir= () => emit('imprimir', props.selected)
+const onEditar  = () => emit('editar', props.selected?.id)
 </script>
 
 <style scoped>

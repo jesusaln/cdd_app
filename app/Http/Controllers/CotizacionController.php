@@ -29,64 +29,94 @@ class CotizacionController extends Controller
      */
     public function index()
     {
-        $cotizaciones = Cotizacion::with(['cliente', 'items.cotizable'])
+        $cotizaciones = \App\Models\Cotizacion::with([
+            'cliente:id,nombre_razon_social,email,telefono,rfc,regimen_fiscal,uso_cfdi,calle,numero_exterior,numero_interior,colonia,codigo_postal,municipio,estado,pais',
+            'items.cotizable',
+            'createdBy:id,name',
+            'updatedBy:id,name',
+        ])
             ->get()
             ->filter(function ($cotizacion) {
-                // Filtrar cotizaciones con cliente y al menos un item válido
+                // Cotizaciones con cliente y al menos un ítem
                 return $cotizacion->cliente !== null && $cotizacion->items->isNotEmpty();
             })
             ->map(function ($cotizacion) {
                 $items = $cotizacion->items->map(function ($item) {
                     $cotizable = $item->cotizable;
+
                     return [
-                        'id' => $cotizable->id,
-                        'nombre' => $cotizable->nombre ?? 'Sin nombre',
-                        'tipo' => $item->cotizable_type === Producto::class ? 'producto' : 'servicio',
-                        'cantidad' => $item->cantidad,
-                        'precio' => $item->precio,
-                        'descuento' => $item->descuento ?? 0,
+                        'id'        => $cotizable?->id,
+                        'nombre'    => $cotizable->nombre ?? 'Sin nombre',
+                        'tipo'      => $item->cotizable_type === \App\Models\Producto::class ? 'producto' : 'servicio',
+                        'cantidad'  => (int) $item->cantidad,
+                        'precio'    => (float) $item->precio,
+                        'descuento' => (float) ($item->descuento ?? 0),
                     ];
                 });
 
+                $createdAtIso = optional($cotizacion->created_at)->toIso8601String();
+                $updatedAtIso = optional($cotizacion->updated_at)->toIso8601String();
+
                 return [
-                    'id' => $cotizacion->id,
-                    'fecha' => $cotizacion->created_at->format('Y-m-d'),
-                    'created_at' => $cotizacion->created_at->format('Y-m-d\TH:i:sP'),
-                    'cliente' => [
-                        'id' => $cotizacion->cliente->id,
-                        'nombre' => $cotizacion->cliente->nombre_razon_social ?? 'Sin nombre',
-                        'email' => $cotizacion->cliente->email,
-                        'telefono' => $cotizacion->cliente->telefono,
-                        'rfc' => $cotizacion->cliente->rfc,
-                        'regimen_fiscal' => $cotizacion->cliente->regimen_fiscal,
-                        'uso_cfdi' => $cotizacion->cliente->uso_cfdi,
-                        'calle' => $cotizacion->cliente->calle,
-                        'numero_exterior' => $cotizacion->cliente->numero_exterior,
-                        'numero_interior' => $cotizacion->cliente->numero_interior,
-                        'colonia' => $cotizacion->cliente->colonia,
-                        'codigo_postal' => $cotizacion->cliente->codigo_postal,
-                        'municipio' => $cotizacion->cliente->municipio,
-                        'estado' => $cotizacion->cliente->estado,
-                        'pais' => $cotizacion->cliente->pais,
-                    ],
-                    'productos' => $items->toArray(),
-                    'total' => $cotizacion->total,
-                    'estado' => $cotizacion->estado->value,
-                    'created_at' => $cotizacion->created_at->format('Y-m-d\TH:i:sP'), // nunca modificar
+                    'id'                => $cotizacion->id,
                     'numero_cotizacion' => $cotizacion->numero_cotizacion,
+
+                    // Fechas
+                    'fecha'       => optional($cotizacion->created_at)->format('Y-m-d'),
+                    'created_at'  => $createdAtIso,   // ← “nunca modificar” (ISO)
+                    'updated_at'  => $updatedAtIso,
+
+                    // Cliente
+                    'cliente' => [
+                        'id'               => $cotizacion->cliente->id,
+                        'nombre'           => $cotizacion->cliente->nombre_razon_social ?? 'Sin nombre',
+                        'email'            => $cotizacion->cliente->email,
+                        'telefono'         => $cotizacion->cliente->telefono,
+                        'rfc'              => $cotizacion->cliente->rfc,
+                        'regimen_fiscal'   => $cotizacion->cliente->regimen_fiscal,
+                        'uso_cfdi'         => $cotizacion->cliente->uso_cfdi,
+                        'calle'            => $cotizacion->cliente->calle,
+                        'numero_exterior'  => $cotizacion->cliente->numero_exterior,
+                        'numero_interior'  => $cotizacion->cliente->numero_interior,
+                        'colonia'          => $cotizacion->cliente->colonia,
+                        'codigo_postal'    => $cotizacion->cliente->codigo_postal,
+                        'municipio'        => $cotizacion->cliente->municipio,
+                        'estado'           => $cotizacion->cliente->estado,
+                        'pais'             => $cotizacion->cliente->pais,
+                    ],
+
+                    // Ítems
+                    'productos' => $items->toArray(),
+
+                    // Totales/estado
+                    'total'  => (float) $cotizacion->total,
+                    'estado' => is_object($cotizacion->estado) ? $cotizacion->estado->value : $cotizacion->estado,
+
+                    // Auditoría (para tu modal y vistas)
+                    'creado_por_nombre'      => $cotizacion->createdBy?->name,
+                    'actualizado_por_nombre' => $cotizacion->updatedBy?->name,
+
+                    // Redundancia segura para el modal (si espera un objeto metadata)
+                    'metadata' => [
+                        'creado_por'     => $cotizacion->createdBy?->name,
+                        'actualizado_por' => $cotizacion->updatedBy?->name,
+                        'creado_en'      => $createdAtIso,
+                        'actualizado_en' => $updatedAtIso,
+                    ],
                 ];
             });
 
-        return Inertia::render('Cotizaciones/Index', [
+        return \Inertia\Inertia::render('Cotizaciones/Index', [
             'cotizaciones' => $cotizaciones->values(),
-            'estados' => collect(EstadoCotizacion::cases())->map(fn($estado) => [
+            'estados' => collect(\App\Enums\EstadoCotizacion::cases())->map(fn($estado) => [
                 'value' => $estado->value,
                 'label' => $estado->label(),
                 'color' => $estado->color()
             ]),
-            'filters' => request()->only(['search', 'estado', 'fecha_inicio', 'fecha_fin'])
+            'filters' => request()->only(['search', 'estado', 'fecha_inicio', 'fecha_fin']),
         ]);
     }
+
 
     /**
      * Show the form for creating a new resource.

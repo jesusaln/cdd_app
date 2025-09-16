@@ -19,15 +19,32 @@ class CreateCotizacionesTable extends Migration
                 ->constrained('clientes')
                 ->onDelete('cascade');
 
+            // Quién creó / quién actualizó por última vez (nullable y nullOnDelete)
+            $table->foreignId('created_by')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+            $table->foreignId('updated_by')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+            // Quién eliminó (para auditoría con SoftDeletes)
+            $table->foreignId('deleted_by')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
             // Identificador legible/externo (único)
             $table->string('numero_cotizacion', 30)->unique();
 
             // Campos de cálculo
-            $table->decimal('subtotal', 10, 2)->nullable();            // Suma de ítems
-            $table->decimal('descuento_general', 10, 2)->default(0);   // Monto del descuento general
-            $table->decimal('descuento_items', 10, 2)->default(0);     // Suma de descuentos por ítem
-            $table->decimal('iva', 10, 2)->nullable();                  // IVA calculado
-            $table->decimal('total', 10, 2)->default(0);               // Total final
+            $table->decimal('subtotal', 10, 2)->nullable();          // Suma de ítems
+            $table->decimal('descuento_general', 10, 2)->default(0); // Monto del descuento general
+            $table->decimal('descuento_items', 10, 2)->default(0);   // Suma de descuentos por ítem
+            $table->decimal('iva', 10, 2)->nullable();               // IVA calculado
+            $table->decimal('total', 10, 2)->default(0);             // Total final
 
             // Estado (compatible con enum EstadoCotizacion)
             $table->string('estado')->default('pendiente');
@@ -35,7 +52,8 @@ class CreateCotizacionesTable extends Migration
             // Notas adicionales
             $table->text('notas')->nullable();
 
-            // Timestamps
+            // Soft delete + timestamps
+            $table->softDeletes(); // agrega deleted_at
             $table->timestamps();
         });
     }
