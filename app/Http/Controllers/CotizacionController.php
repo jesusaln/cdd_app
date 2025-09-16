@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Cotizacion;
+use Illuminate\Validation\Rule;
+
 use App\Models\Pedido;
 use App\Models\Venta;
 use App\Enums\EstadoPedido;
@@ -264,55 +266,72 @@ class CotizacionController extends Controller
     {
         $cotizacion = Cotizacion::findOrFail($id);
 
-        // Permitir edición solo si está en Borrador o Pendiente
+        // (Opcional, si tienes Policy configurada)
+        // $this->authorize('update', $cotizacion);
+
+        // Solo permitir edición en Borrador o Pendiente
         if (!in_array($cotizacion->estado, [EstadoCotizacion::Borrador, EstadoCotizacion::Pendiente], true)) {
             return Redirect::back()->with('error', 'Solo cotizaciones en borrador o pendientes pueden ser actualizadas');
         }
 
         $validated = $request->validate([
-            'cliente_id' => 'required|exists:clientes,id',
-            'productos' => 'required|array',
-            'productos.*.id' => 'required|integer',
-            'productos.*.tipo' => 'required|in:producto,servicio',
+            'cliente_id'           => 'required|exists:clientes,id',
+            'productos'            => 'required|array|min:1',
+            'productos.*.id'       => 'required|integer',
+            'productos.*.tipo'     => 'required|in:producto,servicio',
             'productos.*.cantidad' => 'required|integer|min:1',
-            'productos.*.precio' => 'required|numeric|min:0',
+            'productos.*.precio'   => 'required|numeric|min:0',
             'productos.*.descuento' => 'required|numeric|min:0|max:100',
-            'descuento_general' => 'nullable|numeric|min:0|max:100',
-            'notas' => 'nullable|string',
+            'descuento_general'    => 'nullable|numeric|min:0|max:100',
+            'notas'                => 'nullable|string',
+            // Validación de estado (si llega desde el front, se controla)
+            'estado'               => ['sometimes', Rule::in(array_map(fn($c) => $c->value, EstadoCotizacion::cases()))],
         ]);
 
-        // Cálculos
-        $subtotal = 0;
-        $descuentoItems = 0;
+        // Cálculos: redondeamos a 2 decimales para evitar ruido por flotantes
+        $subtotal = 0.0;
+        $descuentoItems = 0.0;
+
         foreach ($validated['productos'] as $item) {
-            $subtotalItem = $item['cantidad'] * $item['precio'];
+            $subtotalItem = (float) $item['cantidad'] * (float) $item['precio'];
             $subtotal += $subtotalItem;
-            $descuentoItems += $subtotalItem * ($item['descuento'] / 100);
+            $descuentoItems += $subtotalItem * ((float) $item['descuento'] / 100);
         }
 
-        $descuentoGeneralMonto = ($subtotal - $descuentoItems) * (($request->descuento_general ?? 0) / 100);
-        $subtotalFinal = ($subtotal - $descuentoItems) - $descuentoGeneralMonto;
-        $iva = $subtotalFinal * 0.16;
-        $total = $subtotalFinal + $iva;
+        $descuentoGeneralPorc = (float) ($request->descuento_general ?? 0);
+        $descuentoGeneralMonto = ($subtotal - $descuentoItems) * ($descuentoGeneralPorc / 100);
 
-        // CLAVE: guardar estado anterior antes de actualizar
+        $subtotalFinal = ($subtotal - $descuentoItems) - $descuentoGeneralMonto;
+        $iva           = $subtotalFinal * 0.16; // ajusta si tienes IVA configurable
+        $total         = $subtotalFinal + $iva;
+
+        // Redondeo final
+        $subtotal            = round($subtotal, 2);
+        $descuentoItems      = round($descuentoItems, 2);
+        $descuentoGeneralMonto = round($descuentoGeneralMonto, 2);
+        $subtotalFinal       = round($subtotalFinal, 2);
+        $iva                 = round($iva, 2);
+        $total               = round($total, 2);
+
+        // Guardar estado ANTES de actualizar (para mensaje)
         $estadoAnterior = $cotizacion->estado;
 
-        // Determinar nuevo estado: si está en Borrador, cambiarlo a Pendiente
+        // Si estaba en Borrador, pasa a Pendiente; si no, conserva
         $nuevoEstado = $cotizacion->estado === EstadoCotizacion::Borrador
             ? EstadoCotizacion::Pendiente
             : $cotizacion->estado;
 
         // Atomicidad: actualizar cabecera + refrescar items
-        DB::transaction(function () use (&$cotizacion, $validated, $subtotal, $descuentoGeneralMonto, $iva, $total, $nuevoEstado, $request) {
+        DB::transaction(function () use (&$cotizacion, $validated, $subtotal, $descuentoGeneralMonto, $descuentoItems, $iva, $total, $nuevoEstado, $request) {
             $cotizacion->update([
-                'cliente_id' => $validated['cliente_id'],
-                'subtotal' => $subtotal,
+                'cliente_id'        => $validated['cliente_id'],
+                'subtotal'          => $subtotal,
                 'descuento_general' => $descuentoGeneralMonto,
-                'iva' => $iva,
-                'total' => $total,
-                'notas' => $request->notas,
-                'estado' => $nuevoEstado,
+                'descuento_items'   => $descuentoItems,   // ✅ ahora se persiste
+                'iva'               => $iva,
+                'total'             => $total,
+                'notas'             => $request->notas,
+                'estado'            => $nuevoEstado,
             ]);
 
             // Eliminar ítems anteriores
@@ -320,7 +339,7 @@ class CotizacionController extends Controller
 
             // Guardar nuevos ítems
             foreach ($validated['productos'] as $itemData) {
-                $class = $itemData['tipo'] === 'producto' ? Producto::class : Servicio::class;
+                $class  = $itemData['tipo'] === 'producto' ? Producto::class : Servicio::class;
                 $modelo = $class::find($itemData['id']);
 
                 if (!$modelo) {
@@ -328,30 +347,30 @@ class CotizacionController extends Controller
                     continue;
                 }
 
-                $subtotalItem = $itemData['cantidad'] * $itemData['precio'];
-                $descuentoMontoItem = $subtotalItem * ($itemData['descuento'] / 100);
+                $subtotalItem      = (float) $itemData['cantidad'] * (float) $itemData['precio'];
+                $descuentoMontoItem = $subtotalItem * ((float) $itemData['descuento'] / 100);
 
                 CotizacionItem::create([
-                    'cotizacion_id' => $cotizacion->id,
-                    'cotizable_id' => $itemData['id'],
-                    'cotizable_type' => $class,
-                    'cantidad' => $itemData['cantidad'],
-                    'precio' => $itemData['precio'],
-                    'descuento' => $itemData['descuento'],
-                    'subtotal' => $subtotalItem,
-                    'descuento_monto' => $descuentoMontoItem,
+                    'cotizacion_id'   => $cotizacion->id,
+                    'cotizable_id'    => $itemData['id'],
+                    'cotizable_type'  => $class,
+                    'cantidad'        => (int) $itemData['cantidad'],
+                    'precio'          => (float) $itemData['precio'],
+                    'descuento'       => (float) $itemData['descuento'],
+                    'subtotal'        => round($subtotalItem, 2),
+                    'descuento_monto' => round($descuentoMontoItem, 2),
                 ]);
             }
         });
 
-        // Mensaje basado en el estado ANTERIOR
+        // Mensaje usando estado anterior (no el ya mutado)
         $mensajeExito = ($estadoAnterior === EstadoCotizacion::Borrador && $nuevoEstado === EstadoCotizacion::Pendiente)
             ? 'Cotización actualizada y cambiada a estado pendiente exitosamente'
             : 'Cotización actualizada exitosamente';
 
-        return Redirect::route('cotizaciones.index')
-            ->with('success', $mensajeExito);
+        return Redirect::route('cotizaciones.index')->with('success', $mensajeExito);
     }
+
 
     /**
      * Remove the specified resource from storage.
@@ -425,41 +444,69 @@ class CotizacionController extends Controller
      */
     public function duplicate(Request $request, $id)
     {
-        $cotizacion = Cotizacion::with('cliente', 'items.cotizable')->findOrFail($id);
+        $original = Cotizacion::with('cliente', 'items.cotizable')->findOrFail($id);
 
-        DB::beginTransaction();
         try {
-            // Duplicar la cotización
-            $nueva = $cotizacion->replicate();
-            $nueva->estado = EstadoCotizacion::Borrador;
-            $nueva->created_at = now();
-            $nueva->updated_at = now();
-            $nueva->save();
-
-            // Duplicar los ítems
-            foreach ($cotizacion->items as $item) {
-                $nueva->items()->create([
-                    'cotizable_id' => $item->cotizable_id,
-                    'cotizable_type' => $item->cotizable_type,
-                    'cantidad' => $item->cantidad,
-                    'precio' => $item->precio,
-                    'descuento' => $item->descuento,
-                    'subtotal' => $item->subtotal,
-                    'descuento_monto' => $item->descuento_monto,
+            return DB::transaction(function () use ($original) {
+                // Replicar EXCLUYENDO campos problemáticos
+                $nueva = $original->replicate([
+                    'numero_cotizacion', // ← evita duplicar el mismo número
+                    'created_at',
+                    'updated_at',
+                    'estado',
                 ]);
-            }
 
-            DB::commit();
+                // Estado nuevo (borrador) y número único
+                $nueva->estado = EstadoCotizacion::Borrador;
+                $nueva->numero_cotizacion = $this->generarNumeroCotizacionUnico();
+                $nueva->created_at = now();
+                $nueva->updated_at = now();
 
-            return Redirect::route('cotizaciones.index')
-                ->with('success', 'Cotización duplicada correctamente.');
-        } catch (\Exception $e) {
+                // Si usas descuento_items en el modelo, ya viene replicado.
+                // Si no, podrías recalcularlo aquí si lo prefieres.
+
+                $nueva->save();
+
+                // Duplicar ítems (crea el FK cotizacion_id automáticamente)
+                foreach ($original->items as $item) {
+                    $nueva->items()->create([
+                        'cotizable_id'    => $item->cotizable_id,
+                        'cotizable_type'  => $item->cotizable_type,
+                        'cantidad'        => $item->cantidad,
+                        'precio'          => $item->precio,
+                        'descuento'       => $item->descuento,
+                        'subtotal'        => $item->subtotal,
+                        'descuento_monto' => $item->descuento_monto,
+                    ]);
+                }
+
+                return Redirect::route('cotizaciones.index')
+                    ->with('success', 'Cotización duplicada correctamente.');
+            });
+        } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('Error duplicando cotización: ' . $e->getMessage());
-            return Redirect::back()
-                ->with('error', 'Error al duplicar la cotización.');
+            Log::error('Error duplicando cotización: ' . $e->getMessage(), ['id' => $id]);
+            return Redirect::back()->with('error', 'Error al duplicar la cotización.');
         }
     }
+
+
+    /**
+     * Genera un numero_cotizacion único (amigable) evitando colisiones.
+     */
+    private function generarNumeroCotizacionUnico(): string
+    {
+        // Partimos de un contador basado en el id máximo (solo para “bonito”)
+        $seq = (int) ((Cotizacion::max('id') ?? 0) + 1);
+
+        do {
+            $numero = 'COT-' . date('Ymd') . '-' . str_pad($seq, 5, '0', STR_PAD_LEFT);
+            $seq++;
+        } while (Cotizacion::where('numero_cotizacion', $numero)->exists());
+
+        return $numero;
+    }
+
 
     /**
      * Enviar a Pedido.
