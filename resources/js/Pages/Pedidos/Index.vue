@@ -60,12 +60,23 @@ const estadisticas = computed(() => {
   const stats = {
     total: pedidosOriginales.value.length,
     aprobados: 0,
-    pendientes: 0
+    pendientes: 0,
+    cancelado: 0,
   };
 
   pedidosOriginales.value.forEach(p => {
-    if (p.estado === 'aprobado') stats.aprobados++;
-    else if (p.estado === 'pendiente') stats.pendientes++;
+    switch (String(p.estado || '').toLowerCase()) {
+      case 'confirmado':
+      case 'en_preparacion':
+      case 'listo_entrega':
+      case 'entregado':
+        stats.aprobados++; break;
+      case 'borrador':
+      case 'pendiente':
+        stats.pendientes++; break;
+      case 'cancelado':
+        stats.cancelado++; break;
+    }
   });
 
   return stats;
@@ -181,28 +192,35 @@ const confirmarEliminacion = (id) => {
 
 const eliminarPedido = async () => {
   if (!selectedId.value) {
-    notyf.error('No se seleccionó ningún pedido para eliminar');
+    notyf.error('No se seleccionó ningún pedido para cancelar');
     return;
   }
 
   try {
-    router.delete(`/pedidos/${selectedId.value}`, {
+    router.post(`/pedidos/${selectedId.value}/cancel`, {}, {
       onSuccess: (page) => {
-        notyf.success('Pedido eliminado exitosamente');
-        pedidosOriginales.value = pedidosOriginales.value.filter(
-          p => p.id !== selectedId.value
-        );
+        notyf.success('Pedido cancelado exitosamente');
+        // Actualizar el estado local del pedido a cancelado
+        const index = pedidosOriginales.value.findIndex(p => p.id === selectedId.value);
+        if (index !== -1) {
+          pedidosOriginales.value[index] = {
+            ...pedidosOriginales.value[index],
+            estado: 'cancelado',
+            eliminado_por: 'Usuario actual',
+            deleted_at: new Date().toISOString()
+          };
+        }
         showModal.value = false;
         selectedId.value = null;
       },
       onError: (errors) => {
-        console.error('Error al eliminar:', errors);
-        notyf.error('Error al eliminar el pedido');
+        console.error('Error al cancelar:', errors);
+        notyf.error('Error al cancelar el pedido');
       }
     });
   } catch (error) {
     console.error('Error inesperado:', error);
-    notyf.error('Error inesperado al eliminar');
+    notyf.error('Error inesperado al cancelar');
   }
 };
 
@@ -239,6 +257,7 @@ const crearNuevoPedido = () => {
         :total="estadisticas.total"
         :aprobados="estadisticas.aprobados"
         :pendientes="estadisticas.pendientes"
+        :cancelado="estadisticas.cancelado"
         v-model:search-term="searchTerm"
         v-model:sort-by="sortBy"
         v-model:filtro-estado="filtroEstado"

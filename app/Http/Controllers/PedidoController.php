@@ -16,6 +16,7 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class PedidoController extends Controller
@@ -27,7 +28,7 @@ class PedidoController extends Controller
      */
     public function index()
     {
-        $pedidos = Pedido::with(['cliente', 'items.pedible'])
+        $pedidos = Pedido::with(['cliente', 'items.pedible', 'createdBy', 'updatedBy', 'deletedBy'])
             ->get()
             ->filter(function ($pedido) {
                 // Filtrar pedidos con cliente y al menos un item válido
@@ -46,10 +47,15 @@ class PedidoController extends Controller
                     ];
                 });
 
+                $createdAtIso = optional($pedido->created_at)->toIso8601String();
+                $updatedAtIso = optional($pedido->updated_at)->toIso8601String();
+
                 return [
                     'id' => $pedido->id,
+                    'numero_pedido' => $pedido->numero_pedido,
                     'fecha' => $pedido->fecha ? $pedido->fecha->format('Y-m-d') : $pedido->created_at->format('Y-m-d'),
-                    'created_at' => $pedido->created_at->format('Y-m-d\TH:i:sP'),
+                    'created_at' => $createdAtIso,
+                    'updated_at' => $updatedAtIso,
                     'cliente' => [
                         'id' => $pedido->cliente->id,
                         'nombre' => $pedido->cliente->nombre_razon_social ?? 'Sin nombre',
@@ -75,6 +81,21 @@ class PedidoController extends Controller
                     'estado' => $pedido->estado->value,
                     'numero_pedido' => $pedido->numero_pedido,
                     'cotizacion_id' => $pedido->cotizacion_id,
+
+                    // Auditoría
+                    'creado_por_nombre' => $pedido->createdBy?->name,
+                    'actualizado_por_nombre' => $pedido->updatedBy?->name,
+                    'eliminado_por_nombre' => $pedido->deletedBy?->name,
+
+                    // Redundancia segura para el modal
+                    'metadata' => [
+                        'creado_por' => $pedido->createdBy?->name,
+                        'actualizado_por' => $pedido->updatedBy?->name,
+                        'eliminado_por' => $pedido->deletedBy?->name,
+                        'creado_en' => $createdAtIso,
+                        'actualizado_en' => $updatedAtIso,
+                        'eliminado_en' => optional($pedido->deleted_at)->toIso8601String(),
+                    ],
                 ];
             });
 
@@ -83,7 +104,7 @@ class PedidoController extends Controller
             'estados' => collect(EstadoPedido::cases())->map(fn($estado) => [
                 'value' => $estado->value,
                 'label' => $estado->label(),
-                'color' => $estado->color() // Asumiendo que EstadoPedido tiene un método color()
+                'color' => $estado->color()
             ]),
             'filters' => request()->only(['search', 'estado', 'fecha_inicio', 'fecha_fin'])
         ]);
@@ -362,6 +383,29 @@ class PedidoController extends Controller
 
         return Redirect::route('pedidos.index')
             ->with('success', $mensajeExito);
+    }
+
+    /**
+     * Cancel the specified resource (soft cancel).
+     */
+    public function cancel($id)
+    {
+        $pedido = Pedido::findOrFail($id);
+
+        // Permitir cancelar en cualquier estado excepto ya cancelado
+        if ($pedido->estado === EstadoPedido::Cancelado) {
+            return Redirect::back()->with('error', 'El pedido ya está cancelado');
+        }
+
+        // Actualizar estado a cancelado y registrar quién lo canceló
+        $pedido->update([
+            'estado' => EstadoPedido::Cancelado,
+            'deleted_by' => Auth::id(),
+            'deleted_at' => now()
+        ]);
+
+        return Redirect::route('pedidos.index')
+            ->with('success', 'Pedido cancelado exitosamente');
     }
 
     /**

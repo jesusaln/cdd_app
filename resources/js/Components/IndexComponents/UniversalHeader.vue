@@ -90,7 +90,8 @@ const defaultConfigs = {
     estadisticas: {
       total: { label: 'Total', icon: 'document', description: 'Total de pedidos' },
       aprobadas: { label: 'Completados', icon: 'check-circle', color: 'green', description: 'Pedidos completados' },
-      pendientes: { label: 'En Proceso', icon: 'clock', color: 'blue', description: 'Pedidos en proceso' }
+      pendientes: { label: 'En Proceso', icon: 'clock', color: 'blue', description: 'Pedidos en proceso' },
+      cancelado: { label: 'Cancelado', icon: 'x-circle', color: 'red', description: 'Pedidos cancelados' }
     },
     estados: [
       { value: '', label: 'Todos los Estados', color: 'slate' },
@@ -226,6 +227,13 @@ const estadisticasConPorcentaje = computed(() => {
       pendientes:{ ...finalConfig.value.estadisticas.pendientes, porcentaje: Math.round((props.pendientes / total) * 100) },
       borrador:  { ...finalConfig.value.estadisticas.borrador,  porcentaje: Math.round((props.borrador / total) * 100) },
       enviado_pedido: { ...finalConfig.value.estadisticas.enviado_pedido, porcentaje: Math.round((props.enviado_pedido / total) * 100) },
+      cancelado: { ...finalConfig.value.estadisticas.cancelado, porcentaje: Math.round((props.cancelado / total) * 100) },
+    };
+  }
+  if (finalConfig.value.module === 'pedidos') {
+    return {
+      aprobadas: { ...finalConfig.value.estadisticas.aprobadas, porcentaje: Math.round((props.aprobadas / total) * 100) },
+      pendientes:{ ...finalConfig.value.estadisticas.pendientes, porcentaje: Math.round((props.pendientes / total) * 100) },
       cancelado: { ...finalConfig.value.estadisticas.cancelado, porcentaje: Math.round((props.cancelado / total) * 100) },
     };
   }
@@ -435,9 +443,9 @@ const getIconPath = (iconName) => icons[iconName] || icons.document;
             </span>
           </div>
 
-          <!-- Cancelado (solo cotizaciones) -->
+          <!-- Cancelado (cotizaciones y pedidos) -->
           <div
-            v-if="finalConfig.module === 'cotizaciones'"
+            v-if="finalConfig.module === 'cotizaciones' || finalConfig.module === 'pedidos'"
             :class="getColorClasses(finalConfig.estadisticas.cancelado.color).bg + ' ' + getColorClasses(finalConfig.estadisticas.cancelado.color).border"
             class="group flex items-center gap-2 px-4 py-3 rounded-xl border flex-shrink-0 hover:shadow-sm transition-all duration-200 cursor-default"
             :title="finalConfig.estadisticas.cancelado.description"
@@ -594,6 +602,21 @@ const getIconPath = (iconName) => icons[iconName] || icons.document;
     <span>{{ estadisticasConPorcentaje.cancelado.porcentaje }}% {{ finalConfig.estadisticas.cancelado.label }}</span>
   </div>
 </template>
+<!-- Para pedidos mostrar estados principales -->
+<template v-else-if="finalConfig.module === 'pedidos'">
+  <div class="flex items-center gap-1">
+    <div class="w-3 h-3 rounded-full bg-emerald-500"></div>
+    <span>{{ estadisticasConPorcentaje.aprobadas.porcentaje }}% {{ finalConfig.estadisticas.aprobadas.label }}</span>
+  </div>
+  <div class="flex items-center gap-1">
+    <div class="w-3 h-3 rounded-full" :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text.replace('text-', 'bg-')"></div>
+    <span>{{ estadisticasConPorcentaje.pendientes.porcentaje }}% {{ finalConfig.estadisticas.pendientes.label }}</span>
+  </div>
+  <div class="flex items-center gap-1">
+    <div class="w-3 h-3 rounded-full bg-red-500"></div>
+    <span>{{ estadisticasConPorcentaje.cancelado.porcentaje }}% {{ finalConfig.estadisticas.cancelado.label }}</span>
+  </div>
+</template>
 <!-- Para otros módulos mantener solo aprobadas y pendientes -->
 <template v-else>
   <div class="flex items-center gap-1">
@@ -613,6 +636,11 @@ const getIconPath = (iconName) => icons[iconName] || icons.document;
     <div class="h-full bg-amber-500 transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.pendientes.porcentaje}%` }"></div>
     <div class="h-full bg-gray-500 transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.borrador.porcentaje}%` }"></div>
     <div class="h-full bg-blue-500 transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.enviado_pedido.porcentaje}%` }"></div>
+    <div class="h-full bg-red-500 transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.cancelado.porcentaje}%` }"></div>
+  </template>
+  <template v-else-if="finalConfig.module === 'pedidos'">
+    <div class="h-full bg-emerald-500 transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.aprobadas.porcentaje}%` }"></div>
+    <div :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.pendientes.porcentaje}%` }"></div>
     <div class="h-full bg-red-500 transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.cancelado.porcentaje}%` }"></div>
   </template>
   <template v-else>

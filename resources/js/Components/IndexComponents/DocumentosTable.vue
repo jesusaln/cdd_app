@@ -783,6 +783,13 @@ const items = computed(() => {
           (doc.numero || doc.id || '').toString().toLowerCase().includes(term)
         );
       }
+      if (props.tipo === 'pedidos') {
+        return (
+          (doc.cliente?.nombre_razon_social || '').toLowerCase().includes(term) ||
+          doc.productos?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
+          (doc.numero_pedido || doc.id || '').toString().toLowerCase().includes(term)
+        );
+      }
       return (
         (doc.cliente?.nombre_razon_social || '').toLowerCase().includes(term) ||
         doc.productos?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||

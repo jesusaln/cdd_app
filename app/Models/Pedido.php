@@ -4,9 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Enums\EstadoPedido;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\Concerns\Blameable;
 
 class Pedido extends Model
 {
+    use SoftDeletes, Blameable;
+
     protected $table = 'pedidos';
 
     protected $fillable = [
@@ -59,8 +63,25 @@ class Pedido extends Model
     {
         return $this->belongsTo(Cotizacion::class);
     }
-     public function items()
+
+    public function items()
     {
         return $this->hasMany(PedidoItem::class, 'pedido_id');
+    }
+
+    // Relaciones de auditoría
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function updatedBy()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function deletedBy()
+    {
+        return $this->belongsTo(User::class, 'deleted_by');
     }
 }
