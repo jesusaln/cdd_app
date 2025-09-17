@@ -6,7 +6,7 @@
         <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
         </svg>
-        Productos y Servicios Seleccionados
+        Productos Seleccionados
         <span class="ml-2 bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
           {{ selectedProducts.length }}
         </span>
@@ -24,20 +24,11 @@
               <div class="flex items-start justify-between">
                 <div class="flex-1">
                   <div class="flex items-center mb-2">
-                    <span
-                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mr-3"
-                      :class="entry.tipo === 'producto'
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-purple-100 text-purple-800'"
-                    >
-                      <svg v-if="entry.tipo === 'producto'" class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mr-3 bg-blue-100 text-blue-800">
+                      <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
                       </svg>
-                      <svg v-else class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                      </svg>
-                      {{ entry.tipo === 'producto' ? 'Producto' : 'Servicio' }}
+                      Producto
                     </span>
                   </div>
 
@@ -58,8 +49,8 @@
     Precio unitario: ${{ getItemInfo(entry).precio.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
   </div>
 
-  <!-- Precio de compra (solo para productos) -->
-  <div v-if="entry.tipo === 'producto' && getItemInfo(entry).precio_compra > 0" class="flex items-center text-sm text-gray-400">
+  <!-- Precio de compra -->
+  <div v-if="getItemInfo(entry).precio_compra > 0" class="flex items-center text-sm text-gray-400">
     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 2.5M7 13l2.5 2.5"/>
     </svg>
@@ -171,7 +162,7 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
       </svg>
       <p class="text-gray-500 text-lg font-medium">No hay productos seleccionados</p>
-      <p class="text-gray-400 text-sm mt-1">Busca y agrega productos o servicios para comenzar</p>
+      <p class="text-gray-400 text-sm mt-1">Busca y agrega productos para comenzar</p>
     </div>
   </div>
 </template>
@@ -185,10 +176,6 @@ const props = defineProps({
     required: true,
   },
   productos: {
-    type: Array,
-    default: () => [],
-  },
-  servicios: {
     type: Array,
     default: () => [],
   },
@@ -217,24 +204,55 @@ const emit = defineEmits([
 // 1. Actualizar la función getItemInfo para incluir precio_compra:
 
 const getItemInfo = (entry) => {
-  const items = entry.tipo === 'producto' ? props.productos : props.servicios;
-  const item = items.find(i => i.id === entry.id);
+  console.log('getItemInfo llamado con:', entry);
+  console.log('Productos disponibles:', props.productos?.length || 0);
 
-  if (!item) {
+  // Validar entrada
+  if (!entry || !entry.id || !entry.tipo) {
+    console.error('Entrada inválida para getItemInfo:', entry);
     return {
-      nombre: 'Item no encontrado',
+      nombre: 'Entrada inválida',
       descripcion: '',
       precio: 0,
       precio_compra: 0
     };
   }
 
-  return {
-    nombre: item.nombre,
+  // Solo manejar productos
+  if (entry.tipo !== 'producto') {
+    console.warn('Tipo no soportado:', entry.tipo);
+    return {
+      nombre: 'Tipo no soportado',
+      descripcion: '',
+      precio: 0,
+      precio_compra: 0
+    };
+  }
+
+  // Buscar el producto
+  const item = props.productos.find(i => i.id === entry.id);
+  console.log('Producto encontrado:', item);
+
+  if (!item) {
+    console.warn('Producto no encontrado para ID:', entry.id);
+    console.log('Productos disponibles:', props.productos);
+    return {
+      nombre: 'Producto no encontrado',
+      descripcion: '',
+      precio: 0,
+      precio_compra: 0
+    };
+  }
+
+  const result = {
+    nombre: item.nombre || 'Sin nombre',
     descripcion: item.descripcion || '',
-    precio: entry.tipo === 'producto' ? (item.precio_venta || 0) : (item.precio || 0),
+    precio: item.precio_venta || item.precio || 0,
     precio_compra: item.precio_compra || 0
   };
+
+  console.log('Información del producto retornada:', result);
+  return result;
 };
 
 // Función para calcular el subtotal sin descuento de un item

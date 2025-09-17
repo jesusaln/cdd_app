@@ -6,55 +6,34 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     *
-     * @return void
-     */
-    public function up()
+    public function up(): void
     {
-        // Crea la tabla pivote para Ordenes de Compra y Productos
-        Schema::create('orden_compra_producto', function (Blueprint $table) {
-            $table->foreignId('orden_compra_id') // Clave foránea para la orden de compra
-                ->constrained('orden_compras') // <-- HACE REFERENCIA A LA TABLA CORREGIDA
-                ->onDelete('cascade'); // Si se elimina una orden de compra, se eliminan sus asociaciones
+        Schema::create('orden_compra_producto', function (Blueprint $t) {
+            $t->id();
 
-            $table->foreignId('producto_id') // Clave foránea para el producto
-                ->constrained('productos') // Hace referencia a la tabla 'productos'
-                ->onDelete('cascade'); // Si se elimina un producto, se eliminan sus asociaciones
+            // FKs
+            $t->foreignId('orden_compra_id')
+                ->constrained('orden_compras')
+                ->cascadeOnDelete();
 
-            $table->integer('cantidad'); // Cantidad del producto en esta orden
-            $table->decimal('precio', 10, 2); // Precio de compra del producto en esta orden
+            $t->foreignId('producto_id')
+                ->constrained('productos')
+                ->cascadeOnDelete();
 
-            $table->primary(['orden_compra_id', 'producto_id']); // Define una clave primaria compuesta para evitar duplicados
-        });
+            // Campos pivote
+            $t->unsignedInteger('cantidad');
+            $t->decimal('precio', 12, 2);
+            $t->decimal('descuento', 12, 2)->default(0); // <- la columna que faltaba
 
-        // Crea la tabla pivote para Ordenes de Compra y Servicios (si aplica)
-        Schema::create('orden_compra_servicio', function (Blueprint $table) {
-            $table->foreignId('orden_compra_id') // Clave foránea para la orden de compra
-                ->constrained('orden_compras') // <-- HACE REFERENCIA A LA TABLA CORREGIDA
-                ->onDelete('cascade'); // Si se elimina una orden de compra, se eliminan sus asociaciones
+            $t->timestamps();
 
-            $table->foreignId('servicio_id') // Clave foránea para el servicio
-                ->constrained('servicios') // Hace referencia a la tabla 'servicios'
-                ->onDelete('cascade'); // Si se elimina un servicio, se eliminan sus asociaciones
-
-            $table->integer('cantidad'); // Cantidad del servicio en esta orden
-            $table->decimal('precio', 10, 2); // Precio de compra del servicio en esta orden
-
-            $table->primary(['orden_compra_id', 'servicio_id']); // Define una clave primaria compuesta
+            // Evita duplicados del mismo producto en la misma OC
+            $t->unique(['orden_compra_id', 'producto_id']);
         });
     }
 
-    /**
-     * Reverse the migrations.
-     *
-     * @return void
-     */
-    public function down()
+    public function down(): void
     {
-        // Elimina las tablas pivote si se revierte la migración
         Schema::dropIfExists('orden_compra_producto');
-        Schema::dropIfExists('orden_compra_servicio');
     }
 };

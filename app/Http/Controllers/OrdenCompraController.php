@@ -68,9 +68,10 @@ class OrdenCompraController extends Controller
                     'id' => $producto->id,
                     'nombre' => $producto->nombre,
                     'tipo' => 'producto',
-                    'pivot' => [ // Datos de la tabla pivote (cantidad, precio)
+                    'pivot' => [
                         'cantidad' => $producto->pivot->cantidad,
                         'precio' => $producto->pivot->precio,
+                        'descuento' => $producto->pivot->descuento ?? 0,
                     ],
                 ];
             });
@@ -81,9 +82,10 @@ class OrdenCompraController extends Controller
                     'id' => $servicio->id,
                     'nombre' => $servicio->nombre,
                     'tipo' => 'servicio',
-                    'pivot' => [ // Datos de la tabla pivote (cantidad, precio)
+                    'pivot' => [
                         'cantidad' => $servicio->pivot->cantidad,
                         'precio' => $servicio->pivot->precio,
+                        'descuento' => $servicio->pivot->descuento ?? 0,
                     ],
                 ];
             });
@@ -93,12 +95,14 @@ class OrdenCompraController extends Controller
 
             return [
                 'id' => $orden->id,
-                'numero_orden' => $orden->id, // Usar el ID como número de orden por ahora
-                'proveedor' => $orden->proveedor, // Información del proveedor
-                'items' => $items, // Productos y servicios de la orden (mantener como 'items' para coincidir con frontend)
+                'numero_orden' => $orden->numero_orden ?? $orden->id, // Usar numero_orden si existe, sino ID
+                'fecha_orden' => $orden->fecha_orden?->format('Y-m-d'),
+                'prioridad' => $orden->prioridad,
+                'proveedor' => $orden->proveedor,
+                'items' => $items,
                 'total' => $orden->total,
-                'estado' => $orden->estado, // Por ejemplo, 'pendiente', 'recibida', 'cancelada'
-                'created_at' => $orden->created_at->format('Y-m-d H:i:s'), // Formato ISO para que el frontend lo maneje
+                'estado' => $orden->estado,
+                'created_at' => $orden->created_at->format('Y-m-d H:i:s'),
             ];
         });
 
@@ -162,26 +166,45 @@ class OrdenCompraController extends Controller
         try {
             // Valida los datos de entrada del formulario
             $validatedData = $request->validate([
+                'numero_orden' => 'required|string|unique:orden_compras,numero_orden',
+                'fecha_orden' => 'required|date',
+                'fecha_entrega_esperada' => 'nullable|date',
+                'prioridad' => 'required|in:baja,media,alta,urgente',
                 'proveedor_id' => 'required|exists:proveedores,id',
-                'items' => 'required|array', // Se espera un array de ítems (productos/servicios)
+                'direccion_entrega' => 'nullable|string',
+                'terminos_pago' => 'required|in:contado,15_dias,30_dias,45_dias,60_dias,90_dias',
+                'metodo_pago' => 'required|in:transferencia,cheque,efectivo,tarjeta',
+                'subtotal' => 'required|numeric|min:0',
+                'descuento_items' => 'required|numeric|min:0',
+                'descuento_general' => 'required|numeric|min:0',
+                'iva' => 'required|numeric|min:0',
+                'total' => 'required|numeric|min:0',
+                'observaciones' => 'nullable|string',
+                'items' => 'required|array',
                 'items.*.id' => 'required|integer',
                 'items.*.tipo' => 'required|in:producto,servicio',
                 'items.*.cantidad' => 'required|integer|min:1',
                 'items.*.precio' => 'required|numeric|min:0',
-                // Puedes agregar más validaciones, como 'fecha_esperada_entrega', 'estado_inicial', etc.
+                'items.*.descuento' => 'required|numeric|min:0',
             ]);
-
-            // Calcula el total de la orden de compra
-            $total = array_sum(array_map(function ($item) {
-                return $item['cantidad'] * $item['precio'];
-            }, $validatedData['items']));
 
             // Crea la nueva orden de compra en la tabla 'orden_compras'
             $ordenCompra = OrdenCompra::create([
+                'numero_orden' => $validatedData['numero_orden'],
+                'fecha_orden' => $validatedData['fecha_orden'],
+                'fecha_entrega_esperada' => $validatedData['fecha_entrega_esperada'],
+                'prioridad' => $validatedData['prioridad'],
                 'proveedor_id' => $validatedData['proveedor_id'],
-                'total' => $total,
-                'estado' => 'pendiente', // Estado inicial de una orden de compra
-                // Agrega aquí cualquier otro campo relevante para la orden de compra
+                'direccion_entrega' => $validatedData['direccion_entrega'],
+                'terminos_pago' => $validatedData['terminos_pago'],
+                'metodo_pago' => $validatedData['metodo_pago'],
+                'subtotal' => $validatedData['subtotal'],
+                'descuento_items' => $validatedData['descuento_items'],
+                'descuento_general' => $validatedData['descuento_general'],
+                'iva' => $validatedData['iva'],
+                'total' => $validatedData['total'],
+                'observaciones' => $validatedData['observaciones'],
+                'estado' => 'pendiente',
             ]);
 
             // Asocia los productos y servicios a la orden de compra a través de las tablas pivote
@@ -190,11 +213,13 @@ class OrdenCompraController extends Controller
                     $ordenCompra->productos()->attach($itemData['id'], [
                         'cantidad' => $itemData['cantidad'],
                         'precio' => $itemData['precio'],
+                        'descuento' => $itemData['descuento'] ?? 0,
                     ]);
                 } elseif ($itemData['tipo'] === 'servicio') {
                     $ordenCompra->servicios()->attach($itemData['id'], [
                         'cantidad' => $itemData['cantidad'],
                         'precio' => $itemData['precio'],
+                        'descuento' => $itemData['descuento'] ?? 0,
                     ]);
                 }
             }
@@ -237,6 +262,7 @@ class OrdenCompraController extends Controller
                 'pivot' => [
                     'cantidad' => $producto->pivot->cantidad,
                     'precio' => $producto->pivot->precio,
+                    'descuento' => $producto->pivot->descuento ?? 0,
                 ],
             ];
         })->merge($ordenCompra->servicios->map(function ($servicio) {
@@ -247,6 +273,7 @@ class OrdenCompraController extends Controller
                 'pivot' => [
                     'cantidad' => $servicio->pivot->cantidad,
                     'precio' => $servicio->pivot->precio,
+                    'descuento' => $servicio->pivot->descuento ?? 0,
                 ],
             ];
         }));
@@ -255,11 +282,23 @@ class OrdenCompraController extends Controller
         return Inertia::render('OrdenesCompra/Show', [
             'ordenCompra' => [
                 'id' => $ordenCompra->id,
+                'numero_orden' => $ordenCompra->numero_orden,
+                'fecha_orden' => $ordenCompra->fecha_orden?->format('d/m/Y'),
+                'fecha_entrega_esperada' => $ordenCompra->fecha_entrega_esperada?->format('d/m/Y'),
+                'prioridad' => $ordenCompra->prioridad,
                 'proveedor' => $ordenCompra->proveedor,
-                'items' => $items,
+                'direccion_entrega' => $ordenCompra->direccion_entrega,
+                'terminos_pago' => $ordenCompra->terminos_pago,
+                'metodo_pago' => $ordenCompra->metodo_pago,
+                'subtotal' => $ordenCompra->subtotal,
+                'descuento_items' => $ordenCompra->descuento_items,
+                'descuento_general' => $ordenCompra->descuento_general,
+                'iva' => $ordenCompra->iva,
                 'total' => $ordenCompra->total,
+                'observaciones' => $ordenCompra->observaciones,
                 'estado' => $ordenCompra->estado,
-                'fecha_orden' => $ordenCompra->created_at->format('d/m/Y H:i'),
+                'items' => $items,
+                'created_at' => $ordenCompra->created_at->format('d/m/Y H:i'),
             ],
         ]);
     }
@@ -289,6 +328,7 @@ class OrdenCompraController extends Controller
                     'pivot' => [
                         'cantidad' => $producto->pivot->cantidad,
                         'precio' => $producto->pivot->precio,
+                        'descuento' => $producto->pivot->descuento ?? 0,
                     ],
                 ];
             })->merge($ordenCompra->servicios->map(function ($servicio) {
@@ -303,6 +343,7 @@ class OrdenCompraController extends Controller
                     'pivot' => [
                         'cantidad' => $servicio->pivot->cantidad,
                         'precio' => $servicio->pivot->precio,
+                        'descuento' => $servicio->pivot->descuento ?? 0,
                     ],
                 ];
             }))->filter(fn($item) => $item !== null); // Elimina cualquier ítem nulo si hubo errores
@@ -316,11 +357,23 @@ class OrdenCompraController extends Controller
             return Inertia::render('OrdenesCompra/Edit', [
                 'ordenCompra' => [
                     'id' => $ordenCompra->id,
+                    'numero_orden' => $ordenCompra->numero_orden,
+                    'fecha_orden' => $ordenCompra->fecha_orden?->format('Y-m-d'),
+                    'fecha_entrega_esperada' => $ordenCompra->fecha_entrega_esperada?->format('Y-m-d'),
+                    'prioridad' => $ordenCompra->prioridad,
                     'proveedor_id' => $ordenCompra->proveedor_id,
                     'proveedor' => $ordenCompra->proveedor,
-                    'items' => $items,
+                    'direccion_entrega' => $ordenCompra->direccion_entrega,
+                    'terminos_pago' => $ordenCompra->terminos_pago,
+                    'metodo_pago' => $ordenCompra->metodo_pago,
+                    'subtotal' => $ordenCompra->subtotal,
+                    'descuento_items' => $ordenCompra->descuento_items,
+                    'descuento_general' => $ordenCompra->descuento_general,
+                    'iva' => $ordenCompra->iva,
                     'total' => $ordenCompra->total,
+                    'observaciones' => $ordenCompra->observaciones,
                     'estado' => $ordenCompra->estado,
+                    'items' => $items,
                 ],
                 'proveedores' => $proveedores,
                 'productos' => $productos,
@@ -350,26 +403,44 @@ class OrdenCompraController extends Controller
 
             // Valida los datos de entrada
             $validatedData = $request->validate([
+                'numero_orden' => 'required|string|unique:orden_compras,numero_orden,' . $id,
+                'fecha_orden' => 'required|date',
+                'fecha_entrega_esperada' => 'nullable|date',
+                'prioridad' => 'required|in:baja,media,alta,urgente',
                 'proveedor_id' => 'required|exists:proveedores,id',
+                'direccion_entrega' => 'nullable|string',
+                'terminos_pago' => 'required|in:contado,15_dias,30_dias,45_dias,60_dias,90_dias',
+                'metodo_pago' => 'required|in:transferencia,cheque,efectivo,tarjeta',
+                'subtotal' => 'required|numeric|min:0',
+                'descuento_items' => 'required|numeric|min:0',
+                'descuento_general' => 'required|numeric|min:0',
+                'iva' => 'required|numeric|min:0',
+                'total' => 'required|numeric|min:0',
+                'observaciones' => 'nullable|string',
                 'items' => 'required|array',
                 'items.*.id' => 'required|integer',
                 'items.*.tipo' => 'required|in:producto,servicio',
                 'items.*.cantidad' => 'required|integer|min:1',
                 'items.*.precio' => 'required|numeric|min:0',
-                // Asegúrate de validar el estado si permites cambiarlo desde el frontend
-                // 'estado' => 'required|string|in:pendiente,recibida,cancelada',
+                'items.*.descuento' => 'required|numeric|min:0',
             ]);
 
-            // Calcula el nuevo total
-            $total = array_sum(array_map(function ($item) {
-                return $item['cantidad'] * $item['precio'];
-            }, $validatedData['items']));
-
-            // Actualiza los campos principales de la orden de compra
+            // Actualiza todos los campos de la orden de compra
             $ordenCompra->update([
+                'numero_orden' => $validatedData['numero_orden'],
+                'fecha_orden' => $validatedData['fecha_orden'],
+                'fecha_entrega_esperada' => $validatedData['fecha_entrega_esperada'],
+                'prioridad' => $validatedData['prioridad'],
                 'proveedor_id' => $validatedData['proveedor_id'],
-                'total' => $total,
-                // 'estado' => $validatedData['estado'] ?? $ordenCompra->estado, // Actualizar estado si se recibe
+                'direccion_entrega' => $validatedData['direccion_entrega'],
+                'terminos_pago' => $validatedData['terminos_pago'],
+                'metodo_pago' => $validatedData['metodo_pago'],
+                'subtotal' => $validatedData['subtotal'],
+                'descuento_items' => $validatedData['descuento_items'],
+                'descuento_general' => $validatedData['descuento_general'],
+                'iva' => $validatedData['iva'],
+                'total' => $validatedData['total'],
+                'observaciones' => $validatedData['observaciones'],
             ]);
 
             // Sincroniza los productos y servicios adjuntos.
@@ -382,11 +453,13 @@ class OrdenCompraController extends Controller
                     $ordenCompra->productos()->attach($itemData['id'], [
                         'cantidad' => $itemData['cantidad'],
                         'precio' => $itemData['precio'],
+                        'descuento' => $itemData['descuento'] ?? 0,
                     ]);
                 } elseif ($itemData['tipo'] === 'servicio') {
                     $ordenCompra->servicios()->attach($itemData['id'], [
                         'cantidad' => $itemData['cantidad'],
                         'precio' => $itemData['precio'],
+                        'descuento' => $itemData['descuento'] ?? 0,
                     ]);
                 }
             }

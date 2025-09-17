@@ -14,45 +14,36 @@ return new class extends Migration
         Schema::create('compras', function (Blueprint $table) {
             $table->id();
 
-            // Relación con el proveedor
+            // FK proveedor
             $table->foreignId('proveedor_id')
                 ->constrained('proveedores')
-                ->onDelete('cascade');
+                ->cascadeOnDelete();
 
-            // Quién creó / quién actualizó por última vez (nullable y nullOnDelete)
-            $table->foreignId('created_by')
-                ->nullable()
-                ->constrained('users')
-                ->nullOnDelete();
+            // Auditoría (nullable + nullOnDelete)
+            $table->foreignId('created_by')->nullable()
+                ->constrained('users')->nullOnDelete();
+            $table->foreignId('updated_by')->nullable()
+                ->constrained('users')->nullOnDelete();
+            $table->foreignId('deleted_by')->nullable()
+                ->constrained('users')->nullOnDelete();
 
-            $table->foreignId('updated_by')
-                ->nullable()
-                ->constrained('users')
-                ->nullOnDelete();
-
-            // Quién eliminó (para auditoría con SoftDeletes)
-            $table->foreignId('deleted_by')
-                ->nullable()
-                ->constrained('users')
-                ->nullOnDelete();
-
-            // Identificador legible/externo (único)
+            // Identificador legible/externo
             $table->string('numero_compra', 30)->unique();
 
-            // Campos de cálculo
+            // Cálculos
             $table->decimal('subtotal', 10, 2)->nullable();
             $table->decimal('descuento_general', 10, 2)->default(0);
             $table->decimal('descuento_items', 10, 2)->default(0);
             $table->decimal('iva', 10, 2)->nullable();
             $table->decimal('total', 10, 2)->default(0);
 
-            // Estado (compatible con enum EstadoCompra)
+            // Estado (si luego quieres ENUM real en MySQL, aquí string funciona en ambos motores)
             $table->string('estado')->default('pendiente');
 
-            // Notas adicionales
+            // Notas
             $table->text('notas')->nullable();
 
-            // Soft delete + timestamps
+            // Soft deletes + timestamps
             $table->softDeletes();
             $table->timestamps();
         });

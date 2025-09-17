@@ -1,20 +1,214 @@
+<!-- Resources/js/Pages/OrdenesCompra/Edit.vue -->
 <template>
   <Head title="Editar Orden de Compra" />
-
-  <div class="compras-edit min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+  <div class="ordenes-compra-edit min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
     <div class="max-w-6xl mx-auto">
       <!-- Header -->
       <Header
         title="Editar Orden de Compra"
-        description="Modifica los detalles de la orden de compra"
-        :can-preview="proveedorSeleccionado && form.items.length > 0"
+        description="Modifica los detalles de la orden de compra existente"
+        :can-preview="proveedorSeleccionado && selectedProducts.length > 0"
         :back-url="route('ordenescompra.index')"
         :show-shortcuts="mostrarAtajos"
         @preview="handlePreview"
-        @close-shortcuts="closeShortcuts"
+        @close-shortcuts="mostrarAtajos = false"
       />
 
       <form @submit.prevent="updatePurchaseOrder" class="space-y-8">
+        <!-- Información General -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div class="bg-gradient-to-r from-indigo-500 to-indigo-600 px-6 py-4">
+            <h2 class="text-lg font-semibold text-white flex items-center">
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              Información General
+              <span v-if="cargandoDatos" class="ml-2 inline-flex items-center gap-1 px-2 py-1 bg-indigo-100 text-indigo-700 text-xs font-medium rounded-full">
+                <svg class="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                Cargando...
+              </span>
+            </h2>
+          </div>
+          <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Número de Orden -->
+            <div>
+              <label for="numero_orden" class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                Número de Orden *
+                <span class="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  Generado automáticamente
+                </span>
+              </label>
+              <div class="relative">
+                <input
+                  id="numero_orden"
+                  v-model="form.numero_orden"
+                  type="text"
+                  class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="Ej: OC20250101001"
+                  required
+                />
+                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                  <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </div>
+              </div>
+              <div class="mt-2 flex items-center gap-2">
+                <p class="text-xs text-gray-500">
+                  Este número ha sido generado automáticamente para evitar duplicados
+                </p>
+                <button
+                  @click="copiarNumeroOrden"
+                  type="button"
+                  class="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded hover:bg-gray-200 transition-colors"
+                  title="Copiar número de orden"
+                >
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  Copiar
+                </button>
+              </div>
+            </div>
+
+            <!-- Fecha de Orden -->
+            <div>
+              <label for="fecha_orden" class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                Fecha de Orden *
+                <span class="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  Automática
+                </span>
+              </label>
+              <div class="relative">
+                <input
+                  id="fecha_orden"
+                  v-model="form.fecha_orden"
+                  type="date"
+                  class="w-full bg-gray-50 text-gray-500 cursor-not-allowed border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  readonly
+                  required
+                />
+                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                  <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+              <p class="mt-1 text-xs text-gray-500">
+                Esta fecha se establece automáticamente con la fecha de creación
+              </p>
+            </div>
+
+            <!-- Fecha de Entrega Esperada -->
+            <div>
+              <label for="fecha_entrega_esperada" class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                Fecha de Entrega Esperada
+                <button
+                  @click="mostrarInfoFechas"
+                  type="button"
+                  class="text-gray-400 hover:text-gray-600 transition-colors"
+                  title="Opciones de fechas rápidas disponibles"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </button>
+              </label>
+              <input
+                id="fecha_entrega_esperada"
+                v-model="form.fecha_entrega_esperada"
+                type="date"
+                :disabled="cargandoDatos"
+                class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+              />
+
+              <!-- Botones de fechas rápidas -->
+              <div class="mt-3 flex flex-wrap gap-2">
+                <button
+                  @click="setFechaRapida('hoy')"
+                  type="button"
+                  class="inline-flex items-center gap-1 px-3 py-2 bg-blue-50 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Hoy
+                </button>
+
+                <button
+                  @click="setFechaRapida('manana')"
+                  type="button"
+                  class="inline-flex items-center gap-1 px-3 py-2 bg-green-50 text-green-700 text-sm font-medium rounded-lg hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors duration-200"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                  Mañana
+                </button>
+
+                <button
+                  @click="setFechaRapida('3dias')"
+                  type="button"
+                  class="inline-flex items-center gap-1 px-3 py-2 bg-yellow-50 text-yellow-700 text-sm font-medium rounded-lg hover:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition-colors duration-200"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  +3 días
+                </button>
+
+                <button
+                  @click="setFechaRapida('semana')"
+                  type="button"
+                  class="inline-flex items-center gap-1 px-3 py-2 bg-purple-50 text-purple-700 text-sm font-medium rounded-lg hover:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors duration-200"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  Una semana
+                </button>
+
+                <button
+                  @click="setFechaRapida('mes')"
+                  type="button"
+                  class="inline-flex items-center gap-1 px-3 py-2 bg-red-50 text-red-700 text-sm font-medium rounded-lg hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors duration-200"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  Un mes
+                </button>
+              </div>
+            </div>
+
+            <!-- Prioridad -->
+            <div>
+              <label for="prioridad" class="block text-sm font-medium text-gray-700 mb-2">
+                Prioridad
+              </label>
+              <select
+                id="prioridad"
+                v-model="form.prioridad"
+                :disabled="cargandoDatos"
+                class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+              >
+                <option value="baja">Baja</option>
+                <option value="media">Media</option>
+                <option value="alta">Alta</option>
+                <option value="urgente">Urgente</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
         <!-- Proveedor -->
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4">
@@ -27,12 +221,23 @@
           </div>
           <div class="p-6">
             <BuscarProveedor
-              ref="buscarProveedorRef"
-              :proveedores="proveedoresActivos"
+              :proveedores="proveedoresList"
               :proveedor-seleccionado="proveedorSeleccionado"
+              label-busqueda="Proveedor"
+              placeholder-busqueda="Buscar proveedor por nombre, RFC, email..."
+              requerido
               @proveedor-seleccionado="onProveedorSeleccionado"
-              @crear-nuevo-proveedor="crearNuevoProveedor"
             />
+
+            <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div class="flex items-center gap-2 text-blue-700 text-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span class="font-medium">Nota:</span>
+                <span>Las órdenes de compra solo incluyen productos físicos para inventario.</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -41,22 +246,22 @@
           <div class="bg-gradient-to-r from-green-500 to-green-600 px-6 py-4">
             <h2 class="text-lg font-semibold text-white flex items-center">
               <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012 2v2M7 7h10"/>
               </svg>
-              Productos y Servicios
+              Productos
             </h2>
           </div>
           <div class="p-6">
             <BuscarProducto
               ref="buscarProductoRef"
-              :productos="productos"
-              :servicios="servicios"
+              :productos="props.productos"
+              :servicios="[]"
               @agregar-producto="agregarProducto"
             />
             <ProductosSeleccionados
-              :selectedProducts="selectedProducts"
-              :productos="productos"
-              :servicios="servicios"
+              :selected-products="selectedProducts"
+              :productos="props.productos"
+              :servicios="[]"
               :quantities="quantities"
               :prices="prices"
               :discounts="discounts"
@@ -67,22 +272,89 @@
           </div>
         </div>
 
-        <!-- Notas -->
+        <!-- Condiciones de Entrega -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div class="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-4">
+            <h2 class="text-lg font-semibold text-white flex items-center">
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+              </svg>
+              Condiciones de Entrega
+            </h2>
+          </div>
+          <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Dirección de Entrega -->
+            <div class="md:col-span-2">
+              <label for="direccion_entrega" class="block text-sm font-medium text-gray-700 mb-2">
+                Dirección de Entrega
+              </label>
+              <textarea
+                id="direccion_entrega"
+                v-model="form.direccion_entrega"
+                :disabled="cargandoDatos"
+                class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-vertical disabled:bg-gray-100 disabled:cursor-not-allowed"
+                rows="3"
+                placeholder="Especifica la dirección donde se debe entregar el pedido..."
+              ></textarea>
+            </div>
+
+            <!-- Términos de Pago -->
+            <div>
+              <label for="terminos_pago" class="block text-sm font-medium text-gray-700 mb-2">
+                Términos de Pago
+              </label>
+              <select
+                id="terminos_pago"
+                v-model="form.terminos_pago"
+                :disabled="cargandoDatos"
+                class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+              >
+                <option value="contado">Contado</option>
+                <option value="15_dias">15 días</option>
+                <option value="30_dias">30 días</option>
+                <option value="45_dias">45 días</option>
+                <option value="60_dias">60 días</option>
+                <option value="90_dias">90 días</option>
+              </select>
+            </div>
+
+            <!-- Método de Pago -->
+            <div>
+              <label for="metodo_pago" class="block text-sm font-medium text-gray-700 mb-2">
+                Método de Pago
+              </label>
+              <select
+                id="metodo_pago"
+                v-model="form.metodo_pago"
+                :disabled="cargandoDatos"
+                class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+              >
+                <option value="transferencia">Transferencia Bancaria</option>
+                <option value="cheque">Cheque</option>
+                <option value="efectivo">Efectivo</option>
+                <option value="tarjeta">Tarjeta de Crédito</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Notas y Observaciones -->
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <div class="bg-gradient-to-r from-purple-500 to-purple-600 px-6 py-4">
             <h2 class="text-lg font-semibold text-white flex items-center">
               <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
               </svg>
-              Notas Adicionales
+              Notas y Observaciones
             </h2>
           </div>
           <div class="p-6">
             <textarea
-              v-model="form.notas"
-              class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical"
+              v-model="form.observaciones"
+              :disabled="cargandoDatos"
+              class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-vertical disabled:bg-gray-100 disabled:cursor-not-allowed"
               rows="4"
-              placeholder="Agrega notas adicionales, términos y condiciones, o información relevante para la orden de compra..."
+              placeholder="Agrega observaciones, especificaciones técnicas, términos y condiciones especiales..."
             ></textarea>
           </div>
         </div>
@@ -101,30 +373,40 @@
         <BotonesAccion
           :back-url="route('ordenescompra.index')"
           :is-processing="form.processing"
-          :can-submit="canSubmit"
+          :can-submit="form.numero_orden && form.proveedor_id && selectedProducts.length > 0"
           :button-text="form.processing ? 'Actualizando...' : 'Actualizar Orden de Compra'"
+          @limpiar="limpiarFormulario"
         />
-
-        <!-- Atajos de teclado -->
-        <button
-          @click="mostrarAtajos = !mostrarAtajos"
-          class="fixed bottom-4 left-4 bg-gray-600 text-white p-3 rounded-full shadow-lg hover:bg-gray-700 transition-colors duration-200"
-          title="Mostrar atajos de teclado"
-        >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          </svg>
-        </button>
       </form>
+
+      <!-- Atajos de teclado -->
+      <button
+        @click="mostrarAtajos = !mostrarAtajos"
+        class="fixed bottom-4 left-4 bg-gray-600 text-white p-3 rounded-full shadow-lg hover:bg-gray-700 transition-colors duration-200"
+        title="Mostrar atajos de teclado"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+      </button>
 
       <!-- Modal Vista Previa -->
       <VistaPreviaModal
         :show="mostrarVistaPrevia"
         type="ordenescompra"
-        :cliente="proveedorSeleccionado"
-        :items="selectedProducts"
+        :proveedor="proveedorSeleccionado"
+        :productos="selectedProducts"
         :totals="totales"
-        :notas="form.notas"
+        :notas="form.observaciones"
+        :orden-data="{
+          numero_orden: form.numero_orden,
+          fecha_orden: form.fecha_orden,
+          fecha_entrega_esperada: form.fecha_entrega_esperada,
+          prioridad: form.prioridad,
+          direccion_entrega: form.direccion_entrega,
+          terminos_pago: form.terminos_pago,
+          metodo_pago: form.metodo_pago
+        }"
         @close="mostrarVistaPrevia = false"
         @print="() => window.print()"
       />
@@ -134,10 +416,8 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
-import { Head, useForm, Link, router } from '@inertiajs/vue3';
-import axios from 'axios';
+import { Head, useForm, router } from '@inertiajs/vue3';
 import { Notyf } from 'notyf';
-import 'notyf/notyf.min.css';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Header from '@/Components/CreateComponents/Header.vue';
 import BuscarProveedor from '@/Components/CreateComponents/BuscarProveedor.vue';
@@ -147,39 +427,7 @@ import Totales from '@/Components/CreateComponents/Totales.vue';
 import BotonesAccion from '@/Components/CreateComponents/BotonesAccion.vue';
 import VistaPreviaModal from '@/Components/Modals/VistaPreviaModal.vue';
 
-// Propiedades del componente
-const props = defineProps({
-  ordenCompra: {
-    type: Object,
-    required: true,
-  },
-  proveedores: {
-    type: Array,
-    default: () => [],
-  },
-  productos: {
-    type: Array,
-    default: () => [],
-  },
-  servicios: {
-    type: Array,
-    default: () => [],
-  },
-  errors: {
-    type: Object,
-    default: () => ({}),
-  },
-});
-
-// Función auxiliar para parsear flotantes de forma segura
-const safeParseFloat = (value) => {
-  const parsed = parseFloat(value);
-  return isNaN(parsed) ? 0 : parsed;
-};
-
-// Configuración del layout
-defineOptions({ layout: AppLayout });
-
+// Inicializar notificaciones
 const notyf = new Notyf({
   duration: 5000,
   position: { x: 'right', y: 'top' },
@@ -194,82 +442,311 @@ const showNotification = (message, type = 'success') => {
   notyf.open({ type, message });
 };
 
-// Inicialización del formulario con datos de la orden de compra existente
-const form = useForm({
-  proveedor_id: props.ordenCompra?.proveedor_id || null,
-  total: safeParseFloat(props.ordenCompra?.total || 0).toFixed(2),
-  items: props.ordenCompra?.items?.map(item => ({
-    id: item.id,
-    tipo: item.pivot?.item_type === 'App\\Models\\Producto' ? 'producto' : 'servicio',
-    cantidad: item.pivot?.cantidad || 1,
-    precio: safeParseFloat(item.pivot?.precio || 0),
-  })) || [],
+// Usar layout
+defineOptions({ layout: AppLayout });
+
+// Props
+const props = defineProps({
+  ordenCompra: {
+    type: Object,
+    required: true,
+  },
+  proveedores: {
+    type: Array,
+    default: () => [],
+  },
+  productos: {
+    type: Array,
+    default: () => [],
+  },
+  errors: {
+    type: Object,
+    default: () => ({}),
+  },
 });
 
-// Estado reactivo
+// Copia reactiva de proveedores para evitar mutación de props
+const proveedoresList = ref([...props.proveedores]);
+
+// Formulario con datos de la orden existente
+const form = useForm({
+  numero_orden: '',
+  fecha_orden: '',
+  fecha_entrega_esperada: '',
+  prioridad: 'media',
+  proveedor_id: '',
+  direccion_entrega: '',
+  terminos_pago: '30_dias',
+  metodo_pago: 'transferencia',
+  subtotal: 0,
+  descuento_items: 0,
+  descuento_general: 0,
+  iva: 0,
+  total: 0,
+  items: [],
+  observaciones: '',
+});
+
+// Función para formatear fechas correctamente
+const formatearFecha = (fecha) => {
+  if (!fecha) return '';
+
+  try {
+    // Si ya está en formato YYYY-MM-DD, devolver tal cual
+    if (typeof fecha === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+      return fecha;
+    }
+
+    // Si es un objeto Date o string de fecha, convertir
+    const dateObj = new Date(fecha);
+    if (isNaN(dateObj.getTime())) {
+      console.warn('Fecha inválida:', fecha);
+      return '';
+    }
+
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(dateObj.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+  } catch (error) {
+    console.error('Error al formatear fecha:', error, fecha);
+    return '';
+  }
+};
+
+// Función para generar número de orden automáticamente
+const generarNumeroOrden = () => {
+  const fecha = new Date();
+  const year = fecha.getFullYear();
+  const month = String(fecha.getMonth() + 1).padStart(2, '0');
+  const day = String(fecha.getDate()).padStart(2, '0');
+  const timestamp = Date.now().toString().slice(-4); // Últimos 4 dígitos del timestamp
+
+  return `OC${year}${month}${day}${timestamp}`;
+};
+
+// Función para inicializar el formulario con datos de la orden
+const inicializarFormulario = () => {
+  console.log('=== INICIALIZANDO FORMULARIO ===');
+  console.log('Datos de ordenCompra:', props.ordenCompra);
+
+  if (props.ordenCompra) {
+    form.numero_orden = props.ordenCompra.numero_orden || generarNumeroOrden();
+    form.fecha_orden = formatearFecha(props.ordenCompra.fecha_orden) || formatearFecha(new Date());
+    form.fecha_entrega_esperada = formatearFecha(props.ordenCompra.fecha_entrega_esperada);
+    form.prioridad = props.ordenCompra.prioridad || 'media';
+    form.proveedor_id = props.ordenCompra.proveedor_id || '';
+    form.direccion_entrega = props.ordenCompra.direccion_entrega || '';
+    form.terminos_pago = props.ordenCompra.terminos_pago || '30_dias';
+    form.metodo_pago = props.ordenCompra.metodo_pago || 'transferencia';
+    form.subtotal = parseFloat(props.ordenCompra.subtotal) || 0;
+    form.descuento_items = parseFloat(props.ordenCompra.descuento_items) || 0;
+    form.descuento_general = parseFloat(props.ordenCompra.descuento_general) || 0;
+    form.iva = parseFloat(props.ordenCompra.iva) || 0;
+    form.total = parseFloat(props.ordenCompra.total) || 0;
+    form.observaciones = props.ordenCompra.observaciones || '';
+
+    console.log('Formulario inicializado con:', {
+      numero_orden: form.numero_orden,
+      fecha_orden: form.fecha_orden,
+      fecha_entrega_esperada: form.fecha_entrega_esperada,
+      prioridad: form.prioridad,
+      proveedor_id: form.proveedor_id,
+      subtotal: form.subtotal,
+      total: form.total
+    });
+  } else {
+    console.warn('No se encontraron datos de ordenCompra - generando valores por defecto');
+    // Si no hay datos de ordenCompra, generar valores por defecto
+    form.numero_orden = generarNumeroOrden();
+    form.fecha_orden = formatearFecha(new Date());
+    form.fecha_entrega_esperada = '';
+    form.prioridad = 'media';
+    form.proveedor_id = '';
+    form.direccion_entrega = '';
+    form.terminos_pago = '30_dias';
+    form.metodo_pago = 'transferencia';
+    form.subtotal = 0;
+    form.descuento_items = 0;
+    form.descuento_general = 0;
+    form.iva = 0;
+    form.total = 0;
+    form.observaciones = '';
+  }
+};
+
+// Referencias
+const buscarProductoRef = ref(null);
+const proveedorSeleccionado = ref(null);
 const selectedProducts = ref([]);
 const quantities = ref({});
 const prices = ref({});
 const discounts = ref({});
-const proveedorSeleccionado = ref(null);
 const mostrarVistaPrevia = ref(false);
-const mostrarAtajos = ref(false);
-
-const supplierSearchQuery = ref(props.ordenCompra?.proveedor?.nombre_razon_social || '');
-const itemSearchQuery = ref('');
-const showSuppliers = ref(false);
-const showItems = ref(false);
-const selectedSupplierName = ref(props.ordenCompra?.proveedor?.nombre_razon_social || null);
-const selectedSupplier = computed(() => props.proveedores.find(s => s.id === form.proveedor_id) || null);
-const loadingSuppliers = ref(false);
-const loadingItems = ref(false);
-const quantityErrors = ref({});
-const priceErrors = ref({});
-
-// Temporizadores para búsqueda con debounce
-let supplierSearchTimer = null;
-let itemSearchTimer = null;
-
-// Propiedades computadas
-const filteredSuppliers = computed(() => {
-  if (!supplierSearchQuery.value || supplierSearchQuery.value.length < 2) return [];
-  const searchTerm = supplierSearchQuery.value.toLowerCase();
-  return props.proveedores.filter((proveedor) =>
-    proveedor.nombre_razon_social.toLowerCase().includes(searchTerm) ||
-    (proveedor.codigo && proveedor.codigo.toLowerCase().includes(searchTerm))
-  ).slice(0, 10);
-});
-
-const filteredItems = computed(() => {
-  if (!itemSearchQuery.value || itemSearchQuery.value.length < 2) return [];
-  const searchTerm = itemSearchQuery.value.toLowerCase();
-
-  const productosYServicios = [
-    ...(props.productos || []).map(producto => ({
-      ...producto,
-      tipo: 'producto',
-    })),
-    ...(props.servicios || []).map(servicio => ({
-      ...servicio,
-      tipo: 'servicio',
-    })),
-  ];
-
-  return productosYServicios.filter(item =>
-    item.nombre.toLowerCase().includes(searchTerm) ||
-    (item.codigo && item.codigo.toLowerCase().includes(searchTerm)) ||
-    (item.numero_de_serie && item.numero_de_serie.toLowerCase().includes(searchTerm)) ||
-    (item.codigo_barras && item.codigo_barras.toLowerCase().includes(searchTerm))
-  ).slice(0, 15);
-});
+const mostrarAtajos = ref(true);
+const cargandoDatos = ref(true);
 
 
-const hasValidationErrors = computed(() => {
-  return Object.keys(quantityErrors.value).length > 0 ||
-         Object.keys(priceErrors.value).length > 0;
-});
+// Función para mostrar información sobre fechas rápidas
+const mostrarInfoFechas = () => {
+  showNotification('Usa los botones para establecer fechas de entrega comunes', 'info');
+};
 
-// Cálculos
+// Función para copiar el número de orden al portapapeles
+const copiarNumeroOrden = async () => {
+  const numeroACopiar = form.numero_orden.trim() || generarNumeroOrden();
+
+  try {
+    await navigator.clipboard.writeText(numeroACopiar);
+    showNotification(`Número copiado: ${numeroACopiar}`, 'success');
+  } catch (error) {
+    // Fallback para navegadores antiguos
+    const textArea = document.createElement('textarea');
+    textArea.value = numeroACopiar;
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textArea);
+    showNotification(`Número copiado: ${numeroACopiar}`, 'success');
+  }
+};
+
+// Función para asegurar que la fecha sea siempre la actual
+const asegurarFechaActual = () => {
+  const fechaActual = formatearFecha(new Date());
+  if (form.fecha_orden !== fechaActual) {
+    form.fecha_orden = fechaActual;
+  }
+};
+
+// Función para establecer fechas rápidas
+const setFechaRapida = (tipo) => {
+  const hoy = new Date();
+  let fechaCalculada = new Date(hoy);
+
+  switch (tipo) {
+    case 'hoy':
+      // Ya es hoy, no cambiar
+      break;
+    case 'manana':
+      fechaCalculada.setDate(hoy.getDate() + 1);
+      break;
+    case '3dias':
+      fechaCalculada.setDate(hoy.getDate() + 3);
+      break;
+    case 'semana':
+      fechaCalculada.setDate(hoy.getDate() + 7);
+      break;
+    case 'mes':
+      fechaCalculada.setMonth(hoy.getMonth() + 1);
+      break;
+  }
+
+  // Formatear la fecha como YYYY-MM-DD
+  const year = fechaCalculada.getFullYear();
+  const month = String(fechaCalculada.getMonth() + 1).padStart(2, '0');
+  const day = String(fechaCalculada.getDate()).padStart(2, '0');
+  const fechaFormateada = `${year}-${month}-${day}`;
+
+  form.fecha_entrega_esperada = fechaFormateada;
+
+  // Mostrar notificación
+  const etiquetas = {
+    hoy: 'Hoy',
+    manana: 'Mañana',
+    '3dias': 'En 3 días',
+    semana: 'En una semana',
+    mes: 'En un mes'
+  };
+
+  showNotification(`Fecha de entrega establecida: ${etiquetas[tipo]} (${fechaFormateada})`, 'success');
+};
+
+// Funciones principales
+const handlePreview = () => {
+  if (proveedorSeleccionado.value && selectedProducts.value.length > 0 && form.numero_orden) {
+    mostrarVistaPrevia.value = true;
+  } else {
+    showNotification('Completa el número de orden, selecciona un proveedor y al menos un producto', 'error');
+  }
+};
+
+const onProveedorSeleccionado = (proveedor) => {
+  if (!proveedor) {
+    proveedorSeleccionado.value = null;
+    form.proveedor_id = '';
+    showNotification('Selección de proveedor limpiada', 'info');
+    return;
+  }
+  if (proveedorSeleccionado.value?.id === proveedor.id) return;
+  proveedorSeleccionado.value = proveedor;
+  form.proveedor_id = proveedor.id;
+  showNotification(`Proveedor seleccionado: ${proveedor.nombre_razon_social}`);
+};
+
+const agregarProducto = (item) => {
+  if (!item || typeof item.id === 'undefined') {
+    showNotification('Producto inválido', 'error');
+    return;
+  }
+
+  // Solo permitir productos, no servicios
+  const itemEntry = { id: item.id, tipo: 'producto' };
+  const exists = selectedProducts.value.some(
+    (entry) => entry.id === item.id && entry.tipo === 'producto'
+  );
+
+  if (!exists) {
+    selectedProducts.value.push(itemEntry);
+    const key = `producto-${item.id}`;
+    quantities.value[key] = 1;
+
+    // Solo productos, usar precio_compra
+    const precio = typeof item.precio_compra === 'number' ? item.precio_compra : 0;
+    prices.value[key] = precio;
+    discounts.value[key] = 0;
+    calcularTotal();
+    showNotification(`Producto añadido: ${item.nombre || item.descripcion || 'Producto'}`);
+  } else {
+    showNotification('Este producto ya está en la lista', 'info');
+  }
+};
+
+const eliminarProducto = (entry) => {
+  if (!entry || typeof entry.id === 'undefined' || !entry.tipo) {
+    return;
+  }
+
+  const key = `${entry.tipo}-${entry.id}`;
+  selectedProducts.value = selectedProducts.value.filter(
+    (item) => !(item.id === entry.id && item.tipo === entry.tipo)
+  );
+  delete quantities.value[key];
+  delete prices.value[key];
+  delete discounts.value[key];
+  calcularTotal();
+  showNotification(`Producto eliminado: ${entry.nombre || entry.descripcion || 'Producto'}`, 'info');
+};
+
+const updateQuantity = (key, quantity) => {
+  const numQuantity = parseFloat(quantity);
+  if (isNaN(numQuantity) || numQuantity < 0) {
+    return;
+  }
+  quantities.value[key] = numQuantity;
+  calcularTotal();
+};
+
+const updateDiscount = (key, discount) => {
+  const numDiscount = parseFloat(discount);
+  if (isNaN(numDiscount) || numDiscount < 0 || numDiscount > 100) {
+    return;
+  }
+  discounts.value[key] = numDiscount;
+  calcularTotal();
+};
+
 const totales = computed(() => {
   let subtotal = 0;
   let descuentoItems = 0;
@@ -280,372 +757,99 @@ const totales = computed(() => {
     const precio = parseFloat(prices.value[key]) || 0;
     const descuento = parseFloat(discounts.value[key]) || 0;
 
-    const subtotalItem = cantidad * precio;
-    const descuentoItem = subtotalItem * (descuento / 100);
-
-    subtotal += subtotalItem;
-    descuentoItems += descuentoItem;
+    if (cantidad > 0 && precio >= 0) {
+      const subtotalItem = cantidad * precio;
+      descuentoItems += subtotalItem * (descuento / 100);
+      subtotal += subtotalItem;
+    }
   });
 
-  const subtotalConDescuentos = subtotal - descuentoItems;
-  const iva = subtotalConDescuentos * 0.16;
-  const total = subtotalConDescuentos + iva;
+  const descuentoGeneral = parseFloat(form.descuento_general) || 0;
+  const subtotalConDescuentos = Math.max(0, subtotal - descuentoItems);
+  const subtotalConDescuentoGeneral = Math.max(0, subtotalConDescuentos - (subtotalConDescuentos * descuentoGeneral / 100));
+  const iva = subtotalConDescuentoGeneral * 0.16;
+  const total = subtotalConDescuentoGeneral + iva;
 
   return {
-    subtotal: Number(subtotal.toFixed(2)),
-    descuentoItems: Number(descuentoItems.toFixed(2)),
-    subtotalConDescuentos: Number(subtotalConDescuentos.toFixed(2)),
-    iva: Number(iva.toFixed(2)),
-    total: Number(total.toFixed(2)),
+    subtotal: parseFloat(subtotal.toFixed(2)),
+    descuentoItems: parseFloat(descuentoItems.toFixed(2)),
+    descuentoGeneral: parseFloat((subtotalConDescuentos * descuentoGeneral / 100).toFixed(2)),
+    subtotalConDescuentos: parseFloat(subtotalConDescuentoGeneral.toFixed(2)),
+    iva: parseFloat(iva.toFixed(2)),
+    total: parseFloat(total.toFixed(2)),
   };
 });
 
-const canSubmit = computed(() => {
-  return proveedorSeleccionado.value && selectedProducts.value.length > 0;
-});
-
-// Filtrar solo proveedores activos
-const proveedoresActivos = computed(() => {
-  return props.proveedores.filter(proveedor => {
-    const estado = proveedor.estado || proveedor.status || proveedor.activo;
-    if (typeof estado === 'string') {
-      return estado.toLowerCase() === 'activo' || estado.toLowerCase() === 'active';
-    } else if (typeof estado === 'boolean') {
-      return estado === true;
-    } else if (typeof estado === 'number') {
-      return estado === 1;
-    }
-    return true;
-  });
-});
-
-// Funciones necesarias
-const handlePreview = () => {
-  if (proveedorSeleccionado.value && selectedProducts.value.length > 0) {
-    mostrarVistaPrevia.value = true;
-  } else {
-    showNotification('Selecciona un proveedor y al menos un producto', 'error');
-  }
+const calcularTotal = () => {
+  form.subtotal = totales.value.subtotal;
+  form.descuento_items = totales.value.descuentoItems;
+  form.iva = totales.value.iva;
+  form.total = totales.value.total;
 };
 
-const closeShortcuts = () => {
-  mostrarAtajos.value = false;
-};
-
-const onProveedorSeleccionado = (proveedor) => {
-  if (!proveedor) {
-    proveedorSeleccionado.value = null;
-    return;
-  }
-  proveedorSeleccionado.value = proveedor;
-  showNotification(`Proveedor: ${proveedor.nombre_razon_social || proveedor.nombre || 'Sin nombre'}`);
-};
-
-const crearNuevoProveedor = async (nombreBuscado) => {
-  if (!nombreBuscado?.trim()) {
-    showNotification('El nombre del proveedor es requerido', 'error');
-    return;
+const validarDatos = () => {
+  if (!form.numero_orden.trim()) {
+    showNotification('Ingresa el número de orden', 'error');
+    return false;
   }
 
-  try {
-    const response = await axios.post(route('proveedores.store'), {
-      nombre_razon_social: nombreBuscado.trim()
-    });
-
-    if (response.data) {
-      const nuevoProveedor = response.data;
-      showNotification(`Proveedor creado: ${nuevoProveedor.nombre_razon_social || nuevoProveedor.nombre || 'Sin nombre'}`);
-    }
-  } catch (error) {
-    if (error.response?.status === 409) {
-      showNotification('Ya existe un proveedor con ese nombre', 'error');
-    } else {
-      showNotification('No se pudo crear el proveedor', 'error');
-    }
-  }
-};
-
-const agregarProducto = (item) => {
-  if (!item?.id || !item?.tipo) {
-    showNotification('Producto inválido', 'error');
-    return;
+  if (!form.fecha_orden) {
+    showNotification('Fecha de orden no disponible', 'error');
+    return false;
   }
 
-  const itemEntry = { id: item.id, tipo: item.tipo };
-
-  const exists = selectedProducts.value.some(
-    (entry) => entry.id === item.id && entry.tipo === item.tipo
-  );
-
-  if (!exists) {
-    selectedProducts.value.push(itemEntry);
-    const key = `${item.tipo}-${item.id}`;
-    quantities.value[key] = 1;
-    prices.value[key] = item.tipo === 'producto' ? (item.precio_compra || item.precio || 0) : (item.precio || 0);
-    discounts.value[key] = 0;
-    showNotification(`Añadido: ${item.nombre || 'Producto'}`);
-  } else {
-    showNotification(`${item.nombre || 'Producto'} ya está agregado`, 'info');
-  }
-};
-
-const eliminarProducto = (entry) => {
-  selectedProducts.value = selectedProducts.value.filter(
-    (item) => !(item.id === entry.id && item.tipo === entry.tipo)
-  );
-  const key = `${entry.tipo}-${entry.id}`;
-  delete quantities.value[key];
-  delete prices.value[key];
-  delete discounts.value[key];
-};
-
-const updateQuantity = (key, quantity) => {
-  if (quantity <= 0) {
-    showNotification('La cantidad debe ser mayor a 0', 'error');
-    return;
-  }
-  quantities.value[key] = parseFloat(quantity);
-};
-
-const updateDiscount = (key, discount) => {
-  if (discount < 0 || discount > 100) {
-    showNotification('El descuento debe estar entre 0% y 100%', 'error');
-    return;
-  }
-  discounts.value[key] = parseFloat(discount);
-};
-
-// Métodos
-const formatCurrency = (value) => {
-  return new Intl.NumberFormat('es-MX', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value || 0);
-};
-
-const getItemDetails = (entry) => {
-  if (!entry || typeof entry.id === 'undefined' || !entry.tipo) {
-    console.error('Entrada inválida para getItemDetails:', entry);
-    return null;
-  }
-
-  const items = entry.tipo === 'producto' ? props.productos : props.servicios;
-  return items.find(item => item.id === entry.id) || null;
-};
-
-const getSubtotal = (entry) => {
-  const cantidad = Number.parseFloat(entry.cantidad) || 0;
-  const precio = Number.parseFloat(entry.precio) || 0;
-  return cantidad * precio;
-};
-
-const calculateTotal = () => {
-  let total = 0;
-  for (const entry of form.items) {
-    total += getSubtotal(entry);
-  }
-  form.total = Number.parseFloat(total.toFixed(2));
-};
-
-
-const validateQuantity = (entry) => {
-  const key = `${entry.tipo}-${entry.id}`;
-  const quantity = entry.cantidad;
-
-  if (!quantity || quantity <= 0) {
-    quantityErrors.value[key] = 'La cantidad debe ser mayor a 0';
-  } else {
-    delete quantityErrors.value[key];
-  }
-};
-
-const validatePrice = (entry) => {
-  const key = `${entry.tipo}-${entry.id}`;
-  const price = entry.precio;
-
-  if (price < 0) {
-    priceErrors.value[key] = 'El precio no puede ser negativo';
-  } else {
-    delete priceErrors.value[key];
-  }
-};
-
-const isItemSelected = (item) => {
-  return form.items.some(entry =>
-    entry.id === item.id && entry.tipo === item.tipo
-  );
-};
-
-const onSupplierSearch = () => {
-  if (supplierSearchTimer) {
-    clearTimeout(supplierSearchTimer);
-  }
-
-  loadingSuppliers.value = true;
-  supplierSearchTimer = setTimeout(() => {
-    loadingSuppliers.value = false;
-  }, 300);
-};
-
-const onItemSearch = () => {
-  if (itemSearchTimer) {
-    clearTimeout(itemSearchTimer);
-  }
-
-  loadingItems.value = true;
-  itemSearchTimer = setTimeout(() => {
-    loadingItems.value = false;
-  }, 300);
-};
-
-const selectSupplier = (supplier) => {
-  form.proveedor_id = supplier.id;
-  supplierSearchQuery.value = supplier.nombre_razon_social;
-  selectedSupplierName.value = supplier.nombre_razon_social;
-  showSuppliers.value = false;
-};
-
-const addItem = (item) => {
-  if (isItemSelected(item)) return;
-
-  form.items.push({
-    id: item.id,
-    tipo: item.tipo,
-    cantidad: 1,
-    precio: item.tipo === 'producto' ? (safeParseFloat(item.precio_compra) || 0) : (safeParseFloat(item.precio) || 0),
-  });
-
-  itemSearchQuery.value = '';
-  showItems.value = false;
-  calculateTotal();
-};
-
-const removeItem = (entry) => {
-  form.items = form.items.filter(
-    (item) => !(item.id === entry.id && item.tipo === entry.tipo)
-  );
-  const key = `${entry.tipo}-${entry.id}`;
-  delete quantityErrors.value[key];
-  delete priceErrors.value[key];
-  calculateTotal();
-};
-
-const limpiarItems = () => {
-  form.items = [];
-  quantityErrors.value = {};
-  priceErrors.value = {};
-  calculateTotal();
-};
-
-const limpiarFormulario = () => {
-  form.reset();
-  supplierSearchQuery.value = '';
-  itemSearchQuery.value = '';
-  selectedSupplierName.value = null;
-  limpiarItems();
-  localStorage.removeItem(`ordenCompraEnProgreso_edit_${props.ordenCompra.id}`);
-};
-
-const hideSuppliersAfterDelay = (event) => {
-  setTimeout(() => {
-    if (!event.relatedTarget || !event.relatedTarget.classList.contains('proveedor-item')) {
-      showSuppliers.value = false;
-    }
-  }, 200);
-};
-
-const hideItemsAfterDelay = (event) => {
-  setTimeout(() => {
-    if (!event.relatedTarget || !event.relatedTarget.classList.contains('producto-item')) {
-      showItems.value = false;
-    }
-  }, 200);
-};
-
-const saveToLocalStorage = () => {
-  const dataToSave = {
-    proveedor_id: form.proveedor_id,
-    proveedor_nombre: selectedSupplierName.value,
-    items: form.items,
-    timestamp: Date.now(),
-  };
-  localStorage.setItem(`ordenCompraEnProgreso_edit_${props.ordenCompra.id}`, JSON.stringify(dataToSave));
-};
-
-const loadFromLocalStorage = () => {
-  try {
-    const savedData = localStorage.getItem(`ordenCompraEnProgreso_edit_${props.ordenCompra.id}`);
-    if (!savedData) return;
-
-    const parsedData = JSON.parse(savedData);
-
-    // Verificar si los datos no están vencidos (24 horas)
-    const isDataExpired = Date.now() - (parsedData.timestamp || 0) > 24 * 60 * 60 * 1000;
-    if (isDataExpired) {
-      localStorage.removeItem(`ordenCompraEnProgreso_edit_${props.ordenCompra.id}`);
-      return;
-    }
-
-    form.proveedor_id = parsedData.proveedor_id || '';
-    selectedSupplierName.value = parsedData.proveedor_nombre || '';
-    supplierSearchQuery.value = parsedData.proveedor_nombre || '';
-
-    form.items = Array.isArray(parsedData.items)
-      ? parsedData.items.filter(entry => {
-          if (!entry || typeof entry !== 'object' || !entry.id || !entry.tipo) {
-            console.warn('Entrada de ítem inválida en localStorage:', entry);
-            return false;
-          }
-          const itemExists = getItemDetails(entry) !== null;
-          if (!itemExists) {
-            console.warn(`Ítem no encontrado en props: ID ${entry.id}, Tipo ${entry.tipo}`);
-          }
-          return itemExists;
-        })
-      : [];
-
-    // Validar cantidades y precios al cargar
-    form.items.forEach(entry => {
-      validateQuantity(entry);
-      validatePrice(entry);
-    });
-
-    calculateTotal();
-    console.log('Datos cargados desde localStorage:', parsedData);
-  } catch (error) {
-    console.error('Error al cargar datos desde localStorage:', error);
-    localStorage.removeItem(`ordenCompraEnProgreso_edit_${props.ordenCompra.id}`);
-  }
-};
-
-const handleBeforeUnload = (event) => {
-  if (form.isDirty) {
-    event.preventDefault();
-    event.returnValue = '¿Estás seguro de que quieres salir? Los cambios no guardados se perderán.';
-  }
-};
-
-const updatePurchaseOrder = () => {
   if (!form.proveedor_id) {
     showNotification('Selecciona un proveedor', 'error');
-    return;
+    return false;
   }
 
   if (selectedProducts.value.length === 0) {
-    showNotification('Agrega al menos un producto o servicio', 'error');
+    showNotification('Agrega al menos un producto', 'error');
+    return false;
+  }
+
+  for (const entry of selectedProducts.value) {
+    const key = `${entry.tipo}-${entry.id}`;
+    const discount = parseFloat(discounts.value[key]) || 0;
+    const quantity = parseFloat(quantities.value[key]) || 0;
+    const price = parseFloat(prices.value[key]) || 0;
+
+    if (discount < 0 || discount > 100) {
+      showNotification('Los descuentos deben estar entre 0% y 100%.', 'error');
+      return false;
+    }
+
+    if (quantity <= 0) {
+      showNotification('Las cantidades deben ser mayores a 0', 'error');
+      return false;
+    }
+
+    if (price < 0) {
+      showNotification('Los precios no pueden ser negativos', 'error');
+      return false;
+    }
+  }
+
+  return true;
+};
+
+const updatePurchaseOrder = () => {
+  if (!validarDatos()) {
     return;
   }
 
-  form.items = selectedProducts.value.map(entry => {
-    const key = `${entry.tipo}-${entry.id}`;
+  form.items = selectedProducts.value.map((entry) => {
+    const key = `producto-${entry.id}`;
     return {
       id: entry.id,
-      tipo: entry.tipo,
-      cantidad: quantities.value[key] || 1,
-      precio: prices.value[key] || 0,
-      descuento: discounts.value[key] || 0,
+      tipo: 'producto',
+      cantidad: parseFloat(quantities.value[key]) || 1,
+      precio: parseFloat(prices.value[key]) || 0,
+      descuento: parseFloat(discounts.value[key]) || 0,
     };
   });
+
+  calcularTotal();
 
   form.put(route('ordenescompra.update', props.ordenCompra.id), {
     onSuccess: () => {
@@ -654,267 +858,238 @@ const updatePurchaseOrder = () => {
     },
     onError: (errors) => {
       console.error('Errores de validación:', errors);
-      if (typeof errors === 'object' && errors !== null) {
-        const errorMessages = Object.values(errors).flat().join(', ');
-        showNotification(`Errores: ${errorMessages}`, 'error');
+
+      // Verificar si es un error de CSRF token
+      if (errors && typeof errors === 'object' && errors.message && errors.message.includes('CSRF token mismatch')) {
+        showNotification('La sesión ha expirado. Refrescando la página...', 'error');
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+        return;
+      }
+
+      const firstError = Object.values(errors)[0];
+      if (Array.isArray(firstError)) {
+        showNotification(firstError[0], 'error');
       } else {
-        showNotification('Hubo errores al actualizar la orden de compra', 'error');
+        showNotification('Hubo errores de validación', 'error');
       }
     },
   });
 };
 
+const limpiarFormulario = () => {
+  // No limpiar datos críticos de la orden existente
+  form.fecha_entrega_esperada = '';
+  form.prioridad = 'media';
+  form.direccion_entrega = '';
+  form.terminos_pago = '30_dias';
+  form.metodo_pago = 'transferencia';
+  form.observaciones = '';
+  form.descuento_general = 0;
+  selectedProducts.value = [];
+  quantities.value = {};
+  prices.value = {};
+  discounts.value = {};
+  showNotification('Formulario limpiado correctamente');
+};
 
-// Observadores
-watch(
-  [() => form.proveedor_id, () => form.items, selectedSupplierName],
-  () => {
-    if (form.proveedor_id || form.items.length > 0) {
-      saveToLocalStorage();
-    }
-  },
-  { deep: true }
-);
+// Función para inicializar productos existentes
+const inicializarProductosExistentes = () => {
+  console.log('=== INICIALIZANDO PRODUCTOS EXISTENTES ===');
+  console.log('Items de la orden:', props.ordenCompra?.items);
 
-watch(() => form.items, calculateTotal, { deep: true });
+  if (props.ordenCompra?.items && Array.isArray(props.ordenCompra.items)) {
+    props.ordenCompra.items.forEach((item, index) => {
+      console.log(`Procesando item ${index}:`, item);
 
-// Inicializar datos existentes
-onMounted(() => {
-  // Inicializar proveedor seleccionado
+      // Verificar si es un producto (por nombre de clase o por tipo)
+      const isProduct = item.pivot?.item_type === 'App\\Models\\Producto' ||
+                       item.pivot?.item_type === 'App\\\\Models\\\\Producto';
+
+      if (isProduct) {
+        console.log(`Agregando producto: ${item.nombre || item.id}`);
+
+        const itemEntry = { id: item.id, tipo: 'producto' };
+        selectedProducts.value.push(itemEntry);
+
+        const key = `producto-${item.id}`;
+        quantities.value[key] = item.pivot?.cantidad || 1;
+        prices.value[key] = item.pivot?.precio || 0;
+        discounts.value[key] = item.pivot?.descuento || 0;
+      } else {
+        console.log(`Omitiendo item (no es producto):`, item.pivot?.item_type);
+      }
+    });
+
+    // Calcular totales después de inicializar productos
+    calcularTotal();
+    console.log('Productos inicializados correctamente');
+  } else {
+    console.log('No hay items para inicializar');
+  }
+
+  console.log('=== FIN INICIALIZACIÓN ===');
+};
+
+// Función para inicializar proveedor
+const inicializarProveedor = () => {
+  console.log('=== INICIALIZANDO PROVEEDOR ===');
+
   if (props.ordenCompra?.proveedor) {
     proveedorSeleccionado.value = props.ordenCompra.proveedor;
-  }
-
-  if (props.ordenCompra?.items) {
-    props.ordenCompra.items.forEach(item => {
-      const key = `${item.pivot?.item_type === 'App\\\\Models\\\\Producto' ? 'producto' : 'servicio'}-${item.id}`;
-      selectedProducts.value.push({ id: item.id, tipo: item.pivot?.item_type === 'App\\\\Models\\\\Producto' ? 'producto' : 'servicio' });
-      quantities.value[key] = item.pivot?.cantidad || 1;
-      prices.value[key] = item.pivot?.precio || 0;
-      discounts.value[key] = item.pivot?.descuento || 0;
+    console.log('Proveedor inicializado:', {
+      id: proveedorSeleccionado.value.id,
+      nombre: proveedorSeleccionado.value.nombre_razon_social
     });
+  } else {
+    console.log('No se encontró proveedor en ordenCompra');
   }
 
-  console.log('Componente montado');
+  // También buscar el proveedor en la lista de proveedores si no está en ordenCompra.proveedor
+  if (!proveedorSeleccionado.value && form.proveedor_id) {
+    const proveedorEncontrado = proveedoresList.value.find(p => p.id === form.proveedor_id);
+    if (proveedorEncontrado) {
+      proveedorSeleccionado.value = proveedorEncontrado;
+      console.log('Proveedor encontrado en lista:', {
+        id: proveedorSeleccionado.value.id,
+        nombre: proveedorSeleccionado.value.nombre_razon_social
+      });
+    } else {
+      console.warn('Proveedor con ID', form.proveedor_id, 'no encontrado en lista de proveedores');
+    }
+  }
+};
+
+// Lifecycle hooks
+onMounted(() => {
+  console.log('=== COMPONENTE EDIT MONTADO ===');
   console.log('Orden de Compra:', props.ordenCompra);
   console.log('Proveedores:', props.proveedores?.length || 0);
   console.log('Productos:', props.productos?.length || 0);
-  console.log('Servicios:', props.servicios?.length || 0);
 
-  loadFromLocalStorage();
-  window.addEventListener('beforeunload', handleBeforeUnload);
+  // Inicializar datos en orden correcto
+  inicializarFormulario();
+  inicializarProveedor();
+  inicializarProductosExistentes();
+
+  console.log('=== INICIALIZACIÓN COMPLETA ===');
+  console.log('Estado final del formulario:', {
+    numero_orden: form.numero_orden,
+    fecha_orden: form.fecha_orden,
+    fecha_entrega_esperada: form.fecha_entrega_esperada,
+    prioridad: form.prioridad,
+    productos_seleccionados: selectedProducts.value.length
+  });
+
+  // Marcar que la carga ha terminado
+  cargandoDatos.value = false;
+
+  // Verificar la fecha cada 5 minutos para mantenerla actual
+  const fechaInterval = setInterval(() => {
+    asegurarFechaActual();
+  }, 5 * 60 * 1000); // 5 minutos
+
+  window.addEventListener('beforeunload', (event) => {
+    if (form.isDirty) {
+      event.preventDefault();
+      event.returnValue = '¿Estás seguro de que quieres salir? Los cambios no guardados se perderán.';
+    }
+  });
+
+  // Limpiar el intervalo cuando el componente se desmonte
+  onBeforeUnmount(() => {
+    clearInterval(fechaInterval);
+  });
 });
 
-// Observadores
-watch(
-  [() => form.proveedor_id, () => form.items, selectedSupplierName],
-  () => {
-    if (form.proveedor_id || form.items.length > 0) {
-      saveToLocalStorage();
-    }
-  },
-  { deep: true }
-);
-
-watch(() => form.items, calculateTotal, { deep: true });
+// Watcher para props.ordenCompra en caso de que llegue tarde
+watch(() => props.ordenCompra, (nuevaOrden) => {
+  if (nuevaOrden && !form.numero_orden) {
+    console.log('=== PROPS ORDENCOMPRA ACTUALIZADOS ===');
+    console.log('Nueva orden recibida:', nuevaOrden);
+    inicializarFormulario();
+    inicializarProveedor();
+    inicializarProductosExistentes();
+    cargandoDatos.value = false;
+  }
+}, { immediate: false });
 
 onBeforeUnmount(() => {
-  window.removeEventListener('beforeunload', handleBeforeUnload);
-  if (supplierSearchTimer) clearTimeout(supplierSearchTimer);
-  if (itemSearchTimer) clearTimeout(itemSearchTimer);
+  window.removeEventListener('beforeunload', () => {});
 });
 </script>
 
 <style scoped>
-/* Estilos base */
-.card {
-  background-color: #fff;
-  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  border-radius: 0.5rem;
-  border: 1px solid #e5e7eb;
+/* Estilos específicos para el modo edición */
+.ordenes-compra-edit {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  min-height: 100vh;
 }
 
-.card-header {
-  @apply px-6 py-4 border-b border-gray-200 bg-gray-50;
+/* Estilos para campos de solo lectura */
+input[readonly] {
+  background-color: #f9fafb !important;
+  color: #6b7280 !important;
+  cursor: not-allowed !important;
+  border-color: #d1d5db !important;
 }
 
-.card-title {
-  @apply text-lg font-semibold text-gray-900 flex items-center;
+/* Estilos para indicadores de estado */
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 0.375rem;
 }
 
-.card-body {
-  @apply px-6 py-4;
+.status-readonly {
+  background-color: #f3f4f6;
+  color: #374151;
 }
 
-/* Estilos de formulario */
-.form-group {
-  @apply space-y-2;
+/* Mejoras visuales para el modo edición */
+.edit-mode-indicator {
+  position: relative;
 }
 
-.form-label {
-  @apply block text-sm font-medium text-gray-700;
+.edit-mode-indicator::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+  border-radius: 0.375rem 0.375rem 0 0;
 }
 
-.form-label.required::after {
-  content: " *";
-  @apply text-red-500;
+/* Animaciones de carga */
+@keyframes pulse-edit {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }
 
-.form-input {
-  @apply mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm
-         focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-         transition-colors duration-200;
+.loading-edit {
+  animation: pulse-edit 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-.form-input-sm {
-  @apply w-full px-3 py-2 text-sm border border-gray-300 rounded-md
-         focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-         transition-colors duration-200;
-}
-
-.form-error {
-  @apply text-sm text-red-600 mt-1;
-}
-
-/* Estilos de dropdown */
-.dropdown-menu {
-  @apply absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg
-         max-h-64 overflow-y-auto;
-}
-
-.dropdown-item {
-  @apply w-full px-4 py-3 text-left hover:bg-gray-50 focus:bg-gray-50
-         focus:outline-none border-b border-gray-100 last:border-b-0
-         transition-colors duration-150;
-}
-
-.dropdown-item:disabled {
-  @apply opacity-50 cursor-not-allowed;
-}
-
-/* Estilos de botones */
-.btn-primary {
-  @apply inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium
-         rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700
-         focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
-         disabled:opacity-50 disabled:cursor-not-allowed
-         transition-colors duration-200;
-}
-
-.btn-secondary {
-  @apply inline-flex items-center px-6 py-3 border border-gray-300 text-sm font-medium
-         rounded-lg shadow-sm text-gray-700 bg-white hover:bg-gray-50
-         focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
-         disabled:opacity-50 disabled:cursor-not-allowed
-         transition-colors duration-200;
-}
-
-/* Estilos de badges */
-.badge {
-  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
-}
-
-.badge-blue {
-  @apply bg-blue-100 text-blue-800;
-}
-
-.badge-green {
-  @apply bg-green-100 text-green-800;
-}
-
-/* Estilos de tabla */
-.table-header {
-  @apply px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider;
-}
-
-.table-cell {
-  @apply px-6 py-4 whitespace-nowrap text-sm text-gray-900;
-}
-
-/* Estilos de animación */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-
-/* Mejoras responsivas */
+/* Estilos responsivos mejorados */
 @media (max-width: 768px) {
-  .card-body {
-    @apply px-4 py-3;
+  .ordenes-compra-edit {
+    padding: 1rem;
   }
 
-  .card-header {
-    @apply px-4 py-3;
-  }
-
-  .form-input {
-    @apply px-3 py-2;
-  }
-
-  .table-cell {
-    @apply px-3 py-2;
-  }
-
-  .table-header {
-    @apply px-3 py-2;
-  }
-}
-
-/* Animación de carga */
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.animate-spin {
-  animation: spin 1s linear infinite;
-}
-
-/* Barra de desplazamiento personalizada para dropdowns */
-.dropdown-menu::-webkit-scrollbar {
-  width: 6px;
-}
-
-.dropdown-menu::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
-}
-
-.dropdown-menu::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
-}
-
-.dropdown-menu::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
-}
-
-/* Estilos de foco para accesibilidad */
-.dropdown-item:focus {
-  @apply ring-2 ring-blue-500 ring-inset;
-}
-
-/* Efectos de hover */
-.hover-lift:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-/* Estilos para impresión */
-@media print {
-  .card {
-    @apply shadow-none border;
-  }
-
-  .btn-primary,
-  .btn-secondary {
-    @apply hidden;
+  .status-indicator {
+    font-size: 0.6875rem;
+    padding: 0.1875rem 0.5rem;
   }
 }
 </style>

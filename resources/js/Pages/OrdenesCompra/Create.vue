@@ -828,6 +828,16 @@ const crearOrdenCompra = () => {
     },
     onError: (errors) => {
       console.error('Errores de validación:', errors);
+
+      // Verificar si es un error de CSRF token
+      if (errors && typeof errors === 'object' && errors.message && errors.message.includes('CSRF token mismatch')) {
+        showNotification('La sesión ha expirado. Refrescando la página...', 'error');
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+        return;
+      }
+
       const firstError = Object.values(errors)[0];
       if (Array.isArray(firstError)) {
         showNotification(firstError[0], 'error');

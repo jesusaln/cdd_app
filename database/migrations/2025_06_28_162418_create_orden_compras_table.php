@@ -8,33 +8,53 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
-     *
-     * @return void
      */
-    public function up()
+    public function up(): void
     {
-        // Crea la tabla 'orden_compras' (NOMBRE DE TABLA CORREGIDO)
         Schema::create('orden_compras', function (Blueprint $table) {
-            $table->id(); // Columna de ID primario autoincremental
-            $table->foreignId('proveedor_id') // Clave foránea para el proveedor
-                ->constrained('proveedores') // Hace referencia a la tabla 'proveedores'
-                ->onDelete('cascade'); // Si se elimina un proveedor, se eliminan sus órdenes de compra
+            $table->id();
 
-            $table->decimal('total', 10, 2); // Columna para el total de la orden, con 10 dígitos en total y 2 decimales
-            $table->string('estado')->default('pendiente'); // Columna para el estado de la orden (ej. 'pendiente', 'recibida', 'cancelada')
-            $table->timestamp('fecha_recepcion')->nullable(); // Campo opcional para registrar la fecha de recepción de la orden
-            $table->timestamps(); // Columnas `created_at` y `updated_at`
+            // Relación
+            $table->foreignId('proveedor_id')
+                ->constrained('proveedores')
+                ->cascadeOnDelete();
+
+            // Campos básicos de información
+            $table->string('numero_orden')->nullable()->unique();        // único aunque sea nullable
+            $table->date('fecha_orden')->nullable();
+            $table->date('fecha_entrega_esperada')->nullable();
+
+            // En SQLite enum se maneja como TEXT; en MySQL sí es ENUM; ok para ambos.
+            $table->enum('prioridad', ['baja', 'media', 'alta', 'urgente'])->default('media');
+
+            // Entrega y pago
+            $table->text('direccion_entrega')->nullable();
+            $table->enum('terminos_pago', ['contado', '15_dias', '30_dias', '45_dias', '60_dias', '90_dias'])->default('30_dias');
+            $table->enum('metodo_pago', ['transferencia', 'cheque', 'efectivo', 'tarjeta'])->default('transferencia');
+
+            // Financieros
+            $table->decimal('subtotal', 10, 2)->default(0);
+            $table->decimal('descuento_items', 10, 2)->default(0);
+            $table->decimal('descuento_general', 10, 2)->default(0);
+            $table->decimal('iva', 10, 2)->default(0);
+
+            // Totales/estado/fechas
+            $table->decimal('total', 10, 2)->default(0); // si lo calculas, igual déjalo para almacenar cierre
+            $table->string('estado')->default('pendiente');
+            $table->timestamp('fecha_recepcion')->nullable();
+
+            // Observaciones
+            $table->text('observaciones')->nullable();
+
+            $table->timestamps();
         });
     }
 
     /**
      * Reverse the migrations.
-     *
-     * @return void
      */
-    public function down()
+    public function down(): void
     {
-        // Elimina la tabla 'orden_compras' si se revierte la migración
         Schema::dropIfExists('orden_compras');
     }
 };
