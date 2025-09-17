@@ -14,6 +14,7 @@ enum EstadoCotizacion: string
     case ConvertidaPedido = 'convertida_pedido';
         // case EnviadoPedido = 'enviado_pedido'; // Añade este nuevo estado
     case Borrador = 'borrador';
+    case Cancelado = 'cancelado';
     case SinEstado = 'sin_estado'; // Añade este nuevo estado
 
     public function label(): string
@@ -27,6 +28,7 @@ enum EstadoCotizacion: string
             self::ConvertidaPedido => 'Convertida a Pedido',
             //self::EnviadoPedido => 'Enviado a Pedido',
             self::Borrador => 'Borrador',
+            self::Cancelado => 'Cancelado',
             self::SinEstado => 'Sin Estado',
         };
     }
@@ -42,6 +44,7 @@ enum EstadoCotizacion: string
             self::ConvertidaPedido => 'green',
             //self::EnviadoPedido => 'indigo',
             self::Borrador => 'yellow',
+            self::Cancelado => 'red',
             default => 'gray',
         };
     }

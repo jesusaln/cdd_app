@@ -264,6 +264,7 @@ const estadisticas = computed(() => {
     pendientes: 0,
     borrador: 0,
     enviado_pedido: 0,
+    cancelado: 0,
   };
 
   cotizacionesOriginales.value.forEach(c => {
@@ -277,6 +278,8 @@ const estadisticas = computed(() => {
         stats.borrador++; break;
       case 'enviado_pedido':
         stats.enviado_pedido++; break;
+      case 'cancelado':
+        stats.cancelado++; break;
     }
   });
 
@@ -444,26 +447,29 @@ const eliminarCotizacion = async () => {
 
     loading.value = true
 
-    router.delete(`/cotizaciones/${selectedId.value}`, {
+    router.post(`/cotizaciones/${selectedId.value}/cancel`, {}, {
       onStart: () => {
-        notyf.success('Eliminando cotización...')
+        notyf.success('Cancelando cotización...')
       },
-      onSuccess: () => {
-        notyf.success('Cotización eliminada exitosamente')
-        // Actualizar datos locales
-        cotizacionesOriginales.value = cotizacionesOriginales.value.filter(
-          c => c.id !== selectedId.value
-        )
-        cerrarModal()
+      onSuccess: (response) => {
+        notyf.success('Cotización cancelada exitosamente')
 
-        // Ajustar página si es necesario
-        if (paginatedCotizaciones.value.length === 0 && currentPage.value > 1) {
-          currentPage.value--
+        // Actualizar datos locales - marcar como cancelada en lugar de eliminar
+        const index = cotizacionesOriginales.value.findIndex(c => c.id === selectedId.value)
+        if (index !== -1) {
+          cotizacionesOriginales.value[index] = {
+            ...cotizacionesOriginales.value[index],
+            estado: 'cancelado',
+            eliminado_por: response?.data?.eliminado_por || 'Usuario actual',
+            deleted_at: new Date().toISOString()
+          }
         }
+
+        cerrarModal()
       },
       onError: (errors) => {
-        console.error('Error al eliminar:', errors)
-        notyf.error('Error al eliminar la cotización')
+        console.error('Error al cancelar:', errors)
+        notyf.error('Error al cancelar la cotización')
       },
       onFinish: () => {
         loading.value = false
@@ -541,9 +547,11 @@ const crearNuevaCotizacion = () => {
       <!-- Header de filtros y estadísticas -->
       <UniversalHeader
         :total="estadisticas.total"
+        :aprobadas="estadisticas.aprobadas"
         :pendientes="estadisticas.pendientes"
         :borrador="estadisticas.borrador"
         :enviado_pedido="estadisticas.enviado_pedido"
+        :cancelado="estadisticas.cancelado"
         v-model:search-term="searchTerm"
         v-model:sort-by="sortBy"
         v-model:filtro-estado="filtroEstado"

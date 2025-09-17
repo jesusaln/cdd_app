@@ -213,7 +213,10 @@
             <tr
               v-for="doc in items"
               :key="doc.id"
-              class="group hover:bg-gray-50/60 transition-all duration-150 hover:shadow-sm"
+              :class="[
+                'group hover:bg-gray-50/60 transition-all duration-150 hover:shadow-sm',
+                doc.estado === 'cancelado' ? 'opacity-50' : ''
+              ]"
             >
               <!-- Fecha -->
               <td class="px-6 py-4">
@@ -364,7 +367,7 @@
                   </button>
 
                   <button
-                    v-if="config.acciones.editar"
+                    v-if="config.acciones.editar && doc.estado !== 'cancelado'"
                     @click="onEditar(doc.id)"
                     class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 hover:text-amber-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-1"
                     title="Editar"
@@ -373,7 +376,7 @@
                   </button>
 
                   <button
-                    v-if="config.acciones.duplicar && tipo === 'cotizaciones'"
+                    v-if="config.acciones.duplicar && tipo === 'cotizaciones' && doc.estado !== 'cancelado'"
                     @click="onDuplicar(doc)"
                     class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-1"
                     title="Duplicar"
@@ -382,7 +385,7 @@
                   </button>
 
                   <button
-                    v-if="config.acciones.imprimir"
+                    v-if="config.acciones.imprimir && doc.estado !== 'cancelado'"
                     @click="onImprimir(doc)"
                     class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 hover:text-purple-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:ring-offset-1"
                     title="Imprimir"
@@ -419,7 +422,7 @@
                   </button>
 
                   <button
-                    v-if="config.acciones.eliminar"
+                    v-if="config.acciones.eliminar && doc.estado !== 'cancelado'"
                     @click="onEliminar(doc.id)"
                     class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:ring-offset-1"
                     title="Eliminar"
@@ -559,6 +562,7 @@ const config = computed(() => {
         'enviado_pedido': { label: 'Enviado a Pedido', classes: 'bg-orange-100 text-orange-700', color: 'bg-orange-400' },
         'convertida_pedido': { label: 'Convertida a Pedido', classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
         'enviado_pedido': { label: 'Enviado a Pedido', classes: 'bg-indigo-100 text-indigo-700', color: 'bg-indigo-400' },
+        'cancelado': { label: 'Cancelado', classes: 'bg-red-100 text-red-700', color: 'bg-red-400' },
         'sin_estado': { label: 'Sin Estado', classes: 'bg-gray-100 text-gray-500', color: 'bg-gray-400' }
       }
     },

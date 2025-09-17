@@ -18,6 +18,7 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class CotizacionController extends Controller
@@ -401,6 +402,29 @@ class CotizacionController extends Controller
         return Redirect::route('cotizaciones.index')->with('success', $mensajeExito);
     }
 
+
+    /**
+     * Cancel the specified resource (soft cancel).
+     */
+    public function cancel($id)
+    {
+        $cotizacion = Cotizacion::findOrFail($id);
+
+        // Permitir cancelar en cualquier estado excepto ya cancelado
+        if ($cotizacion->estado === EstadoCotizacion::Cancelado) {
+            return Redirect::back()->with('error', 'La cotización ya está cancelada');
+        }
+
+        // Actualizar estado a cancelado y registrar quién lo canceló
+        $cotizacion->update([
+            'estado' => EstadoCotizacion::Cancelado,
+            'deleted_by' => Auth::id(),
+            'deleted_at' => now()
+        ]);
+
+        return Redirect::route('cotizaciones.index')
+            ->with('success', 'Cotización cancelada exitosamente');
+    }
 
     /**
      * Remove the specified resource from storage.
