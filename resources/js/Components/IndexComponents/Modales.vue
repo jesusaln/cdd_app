@@ -314,7 +314,7 @@
             <!-- Cotizaciones -->
             <template v-if="isCotizaciones">
               <button
-                v-if="config.acciones.enviarPedido"
+                v-if="config.acciones.enviarPedido && selected?.estado !== 'cancelado'"
                 @click="confirmarEnvioPedido"
                 class="px-4 py-2 text-white rounded-lg transition-colors"
                 :class="{
@@ -411,14 +411,14 @@
 
             <!-- Comunes -->
             <button
-              v-if="!isClientes && config.acciones.imprimir"
+              v-if="!isClientes && config.acciones.imprimir && selected?.estado !== 'cancelado'"
               @click="onImprimir"
               class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
             >
               Imprimir
             </button>
             <button
-              v-if="!isClientes && config.acciones.editar"
+              v-if="!isClientes && config.acciones.editar && selected?.estado !== 'cancelado'"
               @click="onEditar"
               class="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
             >
