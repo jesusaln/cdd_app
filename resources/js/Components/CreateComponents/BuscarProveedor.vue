@@ -12,8 +12,8 @@
             ref="inputBusqueda"
             type="text"
             v-model="busquedaProveedor"
-            @input="filtrarProveedores"
-            @focus="mostrarListaProveedores = true"
+            @input="handleInput"
+            @focus="handleFocus"
             @blur="ocultarListaConRetraso"
             @keydown="manejarTeclas"
             :placeholder="placeholderBusqueda"
@@ -51,7 +51,7 @@
           </div>
         </div>
         <!-- Mensajes de error y ayuda -->
-        <div v-if="errorBusqueda || (requerido && validacionError)" class="mt-2 text-sm text-red-600">
+        <div v-if="errorBusqueda || (requerido && touched && validacionError)" class="mt-2 text-sm text-red-600">
           {{ errorBusqueda || validacionError }}
         </div>
         <div v-else-if="mensajeAyuda && !busquedaProveedor" class="mt-2 text-sm text-gray-500">
@@ -445,6 +445,7 @@ const proveedorSeleccionadoIndex = ref(-1);
 const cargandoBusqueda = ref(false);
 const errorBusqueda = ref('');
 const validacionError = ref('');
+const touched = ref(false);
 const timeoutId = ref(null);
 const debounceTimeout = ref(null);
 const inputWidth = ref(0);
@@ -554,6 +555,18 @@ const calcularPosicionInput = () => {
   };
 };
 
+// Función para manejar input
+const handleInput = () => {
+  touched.value = true;
+  filtrarProveedores();
+};
+
+// Función para manejar focus
+const handleFocus = () => {
+  touched.value = true;
+  mostrarListaProveedores.value = true;
+};
+
 // Función para filtrar proveedores con debounce
 const filtrarProveedores = () => {
   clearTimeout(debounceTimeout.value);
@@ -616,6 +629,7 @@ const seleccionarProveedor = (proveedor) => {
   mostrarListaProveedores.value = false;
   busquedaProveedor.value = proveedor.nombre_razon_social;
   validacionError.value = '';
+  touched.value = true;
   emit('proveedor-seleccionado', proveedor);
 };
 
@@ -627,6 +641,7 @@ const limpiarBusqueda = () => {
   errorBusqueda.value = '';
   validacionError.value = '';
   filtroActivo.value = null;
+  touched.value = false;
 };
 
 // Función para limpiar proveedor seleccionado
@@ -746,8 +761,7 @@ onMounted(() => {
   document.addEventListener('click', manejarClickFuera);
   window.addEventListener('resize', manejarRedimension);
   window.addEventListener('scroll', manejarRedimension);
-  // Validar estado inicial
-  validarCamposRequeridos();
+  // No validar estado inicial para evitar mostrar errores prematuramente
 });
 
 onUnmounted(() => {

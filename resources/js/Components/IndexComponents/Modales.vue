@@ -341,6 +341,21 @@
               </button>
             </template>
 
+            <!-- Compras -->
+            <template v-if="isCompras">
+              <button
+                v-if="config.acciones.recibirCompra && selected?.estado !== 'cancelado'"
+                @click="confirmarRecibirCompra"
+                class="px-4 py-2 text-white rounded-lg transition-colors"
+                :class="{
+                  'bg-green-600 hover:bg-green-700': !yaRecibida,
+                  'bg-blue-600 hover:bg-blue-700': yaRecibida
+                }"
+              >
+                {{ yaRecibida ? 'Reconfirmar Recepción' : 'Recibir Compra' }}
+              </button>
+            </template>
+
             <!-- Rentas -->
             <template v-if="isRentas">
               <button
@@ -536,6 +551,7 @@ const emit = defineEmits([
   'close',
   'confirm-delete',
   'confirm-receive',
+  'recibir-compra',
   'imprimir',
   'editar',
   'enviar-pedido',
@@ -550,6 +566,7 @@ const emit = defineEmits([
 
 const isCotizaciones = computed(() => props.tipo === 'cotizaciones')
 const isPedidos      = computed(() => props.tipo === 'pedidos')
+const isCompras      = computed(() => props.tipo === 'compras')
 const isRentas       = computed(() => props.tipo === 'rentas')
 const isEquipos      = computed(() => props.tipo === 'equipos')
 const isClientes     = computed(() => props.tipo === 'clientes')
@@ -664,6 +681,20 @@ const config = computed(() => {
       campoExtra: null,
       acciones: { editar: true, imprimir: false, enviarPedido: false, enviarAVenta: false },
       estados: baseEstados()
+    },
+    compras: {
+      titulo: 'Compra',
+      mostrarCampoExtra: true,
+      campoExtra: { key: 'numero_compra', label: 'N° Compra' },
+      acciones: { editar: true, imprimir: true, enviarPedido: false, enviarAVenta: false, recibirCompra: true },
+      estados: baseEstados({
+        borrador: { label: 'Borrador', classes: 'bg-gray-100 text-gray-800', color: 'bg-gray-400' },
+        pendiente: { label: 'Pendiente', classes: 'bg-yellow-100 text-yellow-800', color: 'bg-yellow-400' },
+        aprobado: { label: 'Aprobada', classes: 'bg-blue-100 text-blue-800', color: 'bg-blue-400' },
+        recibido: { label: 'Recibida', classes: 'bg-green-100 text-green-800', color: 'bg-green-400' },
+        rechazado: { label: 'Rechazada', classes: 'bg-red-100 text-red-800', color: 'bg-red-400' },
+        cancelado: { label: 'Cancelada', classes: 'bg-gray-100 text-gray-800', color: 'bg-gray-400' }
+      })
     }
   }
   return configs[props.tipo] || configs.cotizaciones
@@ -692,6 +723,7 @@ const auditoriaBoxVisible = computed(() => !!auditoriaSafe.value)
 // Verificaciones de estado para flujos
 const yaEnviado = computed(() => ['enviado_pedido','convertido_pedido'].includes(props.selected?.estado))
 const yaConvertidoAVenta = computed(() => ['enviado_venta','facturado','pagado','convertido_venta'].includes(props.selected?.estado))
+const yaRecibida = computed(() => ['recibido','recibida'].includes(props.selected?.estado))
 
 // Helpers de formato
 const isNumber = (n) => Number.isFinite(parseFloat(n))
@@ -724,6 +756,9 @@ const confirmarEnvioPedido = () => { yaEnviado.value ? (showConfirmReenvioPedido
 const confirmarEnvioAVenta  = () => { yaConvertidoAVenta.value ? (showConfirmReenvioVenta.value = true) : emit('enviar-a-venta', props.selected) }
 const reenviarAPedido       = () => { showConfirmReenvioPedido.value = false; emit('enviar-pedido', { ...props.selected, forzarReenvio: true }) }
 const reenviarAVenta        = () => { showConfirmReenvioVenta.value = false; emit('enviar-a-venta', { ...props.selected, forzarReenvio: true }) }
+
+// Flujo compras
+const confirmarRecibirCompra = () => { emit('recibir-compra', props.selected) }
 
 // Emits comunes
 const onCancel  = () => emit('close')

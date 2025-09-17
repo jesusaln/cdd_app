@@ -2,48 +2,100 @@
 
 namespace App\Models;
 
+use App\Enums\EstadoCompra;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\Concerns\Blameable;
 
 class Compra extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes, Blameable;
 
-    // Nombre de la tabla en la base de datos
     protected $table = 'compras';
 
-    // Atributos que pueden ser asignados masivamente
     protected $fillable = [
         'proveedor_id',
+        'numero_compra',
+        'subtotal',
+        'descuento_general',
+        'descuento_items',
+        'iva',
         'total',
-        'estado', // Opcional: para gestionar el estado de la compra (pendiente, completada, cancelada, etc.)
+        'notas',
+        'estado',
     ];
 
-    // Si quieres un valor predeterminado
-    protected $attributes = [
-        'estado' => 'pendiente', // o cualquier valor que desees como predeterminado
+    protected $casts = [
+        'estado' => EstadoCompra::class,
+        'subtotal' => 'decimal:2',
+        'descuento_general' => 'decimal:2',
+        'descuento_items' => 'decimal:2',
+        'iva' => 'decimal:2',
+        'total' => 'decimal:2',
     ];
 
-    /**
-     * Relación con el proveedor.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     */
-    public function proveedor()
+    /** Relación con proveedor */
+    public function proveedor(): BelongsTo
     {
-        return $this->belongsTo(Proveedor::class); // Aquí asumo que tienes el modelo de Proveedor
+        return $this->belongsTo(Proveedor::class);
     }
 
-    /**
-     * Relación con los productos.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
-     */
-    public function productos()
+    /** Ítems de la compra */
+    public function items(): HasMany
     {
-        return $this->belongsToMany(Producto::class, 'compra_producto')
-            ->withPivot('cantidad', 'precio'); // Asegura que los campos estén en la tabla pivote
+        return $this->hasMany(CompraItem::class);
+    }
+
+    // Relaciones de "culpables"
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+    public function updatedBy()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
+    public function deletedBy()
+    {
+        return $this->belongsTo(User::class, 'deleted_by');
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (Compra $compra) {
+            if (empty($compra->numero_compra)) {
+                $compra->numero_compra = static::generarNumero();
+            }
+            if (empty($compra->estado)) {
+                $compra->estado = EstadoCompra::Borrador;
+            }
+        });
+    }
+
+    public static function generarNumero(): string
+    {
+        $prefix = 'COMP-' . now()->format('Y');
+
+        $ultimo = static::withTrashed()->where('numero_compra', 'like', "$prefix-%")
+            ->orderByDesc('id')
+            ->value('numero_compra');
+
+        $n = 0;
+        if ($ultimo && preg_match('/-(\d{5})$/', $ultimo, $m)) {
+            $n = (int) $m[1];
+        }
+
+        for ($i = 0; $i < 5; $i++) {
+            $n++;
+            $num = sprintf('%s-%05d', $prefix, $n);
+            if (! static::withTrashed()->where('numero_compra', $num)->exists()) {
+                return $num;
+            }
+        }
+
+        return $prefix . '-' . now()->format('His');
     }
 }

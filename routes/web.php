@@ -106,6 +106,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::resource('servicios', ServicioController::class)->names('servicios');
     Route::resource('usuarios', UserController::class)->names('usuarios');
     Route::resource('compras', CompraController::class)->names('compras');
+    Route::post('/compras/{compra}/duplicate', [CompraController::class, 'duplicate'])->name('compras.duplicate');
+    Route::post('/compras/{id}/cancel', [CompraController::class, 'cancel'])->name('compras.cancel');
     Route::resource('reportes', ReporteController::class);
     Route::resource('herramientas', HerramientaController::class)->names('herramientas');
     Route::resource('tecnicos', TecnicoController::class)->names('tecnicos');

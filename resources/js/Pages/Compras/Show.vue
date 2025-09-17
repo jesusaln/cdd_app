@@ -1,86 +1,179 @@
 <template>
-    <Head title="Mostrar Compra" />
-    <div class="compras-show">
-      <!-- Título de la página -->
-      <h1 class="text-2xl font-semibold mb-6">Detalles de la Compra</h1>
+    <Head title="Ver Compra" />
+    <AppLayout>
+        <div class="compras-show min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+            <div class="max-w-4xl mx-auto">
+                <!-- Encabezado -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-6">
+                    <div class="px-6 py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+                        <h1 class="text-xl font-bold">Compra #{{ compra.id }}</h1>
+                    </div>
+                    <div class="p-6">
+                        <p><strong>Proveedor:</strong> {{ compra.proveedor.nombre_razon_social }}</p>
+                        <p>
+                            <strong>Estado:</strong>
+                            <span class="ml-2 px-3 py-1 rounded-full text-sm font-medium"
+                                  :class="{
+                                      'bg-green-100 text-green-800': compra.estado === 'recibida',
+                                      'bg-blue-100 text-blue-800': compra.estado === 'aprobada',
+                                      'bg-yellow-100 text-yellow-800': compra.estado === 'pendiente',
+                                      'bg-red-100 text-red-800': compra.estado === 'rechazada' || compra.estado === 'cancelada',
+                                      'bg-gray-100 text-gray-800': compra.estado === 'borrador'
+                                  }">
+                                {{ compra.estado }}
+                            </span>
+                        </p>
+                        <p v-if="compra.notas" class="mt-2">
+                            <strong>Notas:</strong> {{ compra.notas }}
+                        </p>
+                    </div>
+                </div>
 
-      <!-- Verificar si compra no es null -->
-      <div v-if="compra" class="bg-white rounded-lg shadow-md p-6">
-        <div class="mb-4">
-          <h2 class="text-lg font-medium text-gray-700">Proveedor</h2>
-          <p>{{ compra.proveedor.nombre }}</p>
+                <!-- Tabla de ítems -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-6">
+                    <div class="p-6">
+                        <h2 class="text-lg font-semibold mb-4">Productos y Servicios</h2>
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead>
+                                <tr>
+                                    <th class="px-4 py-2 text-left text-sm font-medium text-gray-500">Nombre</th>
+                                    <th class="px-4 py-2 text-right text-sm font-medium text-gray-500">Cantidad</th>
+                                    <th class="px-4 py-2 text-right text-sm font-medium text-gray-500">Precio</th>
+                                    <th class="px-4 py-2 text-right text-sm font-medium text-gray-500">Descuento</th>
+                                    <th class="px-4 py-2 text-right text-sm font-medium text-gray-500">Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                <tr v-for="item in items" :key="item.id">
+                                    <td class="px-4 py-3 text-sm">{{ item.nombre }}</td>
+                                    <td class="px-4 py-3 text-sm text-right">{{ item.cantidad }}</td>
+                                    <td class="px-4 py-3 text-sm text-right">${{ item.precio.toFixed(2) }}</td>
+                                    <td class="px-4 py-3 text-sm text-right">{{ item.descuento }}%</td>
+                                    <td class="px-4 py-3 text-sm text-right">
+                                        ${{ (item.cantidad * item.precio * (1 - item.descuento / 100)).toFixed(2) }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Totales -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-6">
+                    <div class="p-6">
+                        <div class="space-y-2 text-right">
+                            <p><strong>Subtotal:</strong> ${{ subtotal.toFixed(2) }}</p>
+                            <p v-if="descuentoGeneral > 0"><strong>Descuento General:</strong> ${{ descuentoGeneral.toFixed(2) }}</p>
+                            <p><strong>IVA:</strong> ${{ iva.toFixed(2) }}</p>
+                            <p class="text-xl"><strong>Total:</strong> ${{ total.toFixed(2) }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Acciones -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                    <div class="p-6 flex flex-wrap gap-3">
+                        <button
+                            v-if="canReceive"
+                            @click="mostrarVistaPrevia = true"
+                            class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                        >
+                            Recibir Compra
+                        </button>
+
+                        <Link
+                            v-if="canEdit"
+                            :href="route('compras.edit', compra.id)"
+                            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                        >
+                            Editar
+                        </Link>
+
+                        <Link
+                            v-if="canDelete"
+                            :href="route('compras.destroy', compra.id)"
+                            method="delete"
+                            as="button"
+                            class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                        >
+                            Eliminar
+                        </Link>
+
+                        <button
+                            @click="mostrarVistaPrevia = true"
+                            class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                        >
+                            Vista Previa
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="mb-4">
-          <h2 class="text-lg font-medium text-gray-700">Productos</h2>
-          <ul>
-            <li v-for="producto in compra.productos" :key="producto.id" class="mb-2">
-              <strong>{{ producto.nombre }}</strong> - ${{ producto.pivot.precio }} (Cantidad: {{ producto.pivot.cantidad }})
-            </li>
-          </ul>
-        </div>
-        <div class="mb-4">
-          <h2 class="text-lg font-medium text-gray-700">Total</h2>
-          <p>${{ compra.total }}</p>
-        </div>
-        <div class="mb-4">
-          <h2 class="text-lg font-medium text-gray-700">Estado</h2>
-          <p>{{ compra.estado }}</p>
-        </div>
-      </div>
-      <div v-else>
-        <p>Cargando detalles de la compra...</p>
-      </div>
 
-      <!-- Botones de acción -->
-      <div v-if="compra" class="mt-6 flex space-x-4">
-        <Link :href="route('compras.edit', compra.id)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-          Editar
-        </Link>
-        <button @click="eliminarCompra(compra.id)" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
-          Eliminar
-        </button>
-      </div>
+        <!-- Modal de Vista Previa -->
+        <VistaPreviaModal
+            :show="mostrarVistaPrevia"
+            type="compra"
+            :proveedor="compra.proveedor"
+            :items="items"
+            :totals="{
+                subtotal,
+                descuentoGeneral,
+                iva,
+                total
+            }"
+            :descuento-general="descuentoGeneral"
+            :notas="compra.notas"
+            @close="mostrarVistaPrevia = false"
+            @print="() => window.print()"
+        />
+    </AppLayout>
+</template>
 
-      <!-- Spinner de carga -->
-      <div v-if="loading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    </div>
-  </template>
+<script setup>
+import { computed, ref } from 'vue';
+import { Head, Link } from '@inertiajs/vue3';
+import AppLayout from '@/Layouts/AppLayout.vue';
+import VistaPreviaModal from '@/Components/Modals/VistaPreviaModal.vue';
 
-  <script setup>
-  import { Head, Link, router } from '@inertiajs/vue3';
-  import { ref, defineProps } from 'vue';
-  import { Notyf } from 'notyf';
-  import 'notyf/notyf.min.css';
-
-  // Propiedades
-  const props = defineProps({ compra: Object });
-  const loading = ref(false);
-
-  // Configuración de Notyf para notificaciones
-  const notyf = new Notyf({ duration: 3000, position: { x: 'right', y: 'top' } });
-
-  // Función para eliminar una compra
-  const eliminarCompra = async (id) => {
-    loading.value = true;
-    if (confirm('¿Estás seguro de que deseas eliminar esta compra?')) {
-      try {
-        await router.delete(`/compras/${id}`, {
-          onSuccess: () => {
-            notyf.success('Compra eliminada exitosamente.');
-            router.visit(route('compras.index'));  // Regresar a la lista de compras
-          },
-          onError: () => notyf.error('Error al eliminar la compra.')
-        });
-      } catch (error) {
-        notyf.error('Ocurrió un error inesperado.');
-      } finally {
-        loading.value = false;
-      }
+// Props
+const props = defineProps({
+    compra: Object,
+    canReceive: {
+        type: Boolean,
+        default: true
+    },
+    canEdit: {
+        type: Boolean,
+        default: true
+    },
+    canDelete: {
+        type: Boolean,
+        default: true
     }
-  };
-  </script>
+});
+
+// Totales
+const subtotal = computed(() => props.compra.subtotal || 0);
+const descuentoGeneral = computed(() => props.compra.descuento_general || 0);
+const iva = computed(() => props.compra.iva || 0);
+const total = computed(() => props.compra.total || 0);
+
+// Items
+const items = computed(() => {
+    return props.compra.items.map(item => ({
+        id: item.comprable_id,
+        nombre: item.comprable.nombre,
+        tipo: item.comprable_type === 'App\\Models\\Producto' ? 'producto' : 'servicio',
+        cantidad: item.cantidad,
+        precio: item.precio,
+        descuento: item.descuento || 0
+    }));
+});
+
+// Estado
+const mostrarVistaPrevia = ref(false);
+</script>
 
   <style scoped>
   /* Aquí van tus estilos personalizados */

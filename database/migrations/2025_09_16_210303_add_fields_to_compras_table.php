@@ -11,14 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('compras', function (Blueprint $table) {
-            $table->id();
-
-            // Relación con el proveedor
-            $table->foreignId('proveedor_id')
-                ->constrained('proveedores')
-                ->onDelete('cascade');
-
+        Schema::table('compras', function (Blueprint $table) {
             // Quién creó / quién actualizó por última vez (nullable y nullOnDelete)
             $table->foreignId('created_by')
                 ->nullable()
@@ -44,17 +37,15 @@ return new class extends Migration
             $table->decimal('descuento_general', 10, 2)->default(0);
             $table->decimal('descuento_items', 10, 2)->default(0);
             $table->decimal('iva', 10, 2)->nullable();
-            $table->decimal('total', 10, 2)->default(0);
 
             // Estado (compatible con enum EstadoCompra)
-            $table->string('estado')->default('pendiente');
+            $table->string('estado')->default('pendiente')->change();
 
             // Notas adicionales
             $table->text('notas')->nullable();
 
-            // Soft delete + timestamps
+            // Soft delete
             $table->softDeletes();
-            $table->timestamps();
         });
     }
 
@@ -63,6 +54,22 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('compras');
+        Schema::table('compras', function (Blueprint $table) {
+            $table->dropForeign(['created_by']);
+            $table->dropForeign(['updated_by']);
+            $table->dropForeign(['deleted_by']);
+            $table->dropColumn([
+                'created_by',
+                'updated_by',
+                'deleted_by',
+                'numero_compra',
+                'subtotal',
+                'descuento_general',
+                'descuento_items',
+                'iva',
+                'notas',
+            ]);
+            $table->dropSoftDeletes();
+        });
     }
 };
