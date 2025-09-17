@@ -42,12 +42,20 @@
           v-for="notification in notifications"
           :key="notification.id"
           class="notification-item"
-          :class="{ 'unread': !notification.read && notification.read !== undefined }"
-          @click="markAsRead(notification.id)"
+          :class="{ 'unread': !notification.read }"
         >
-          <div class="notification-title">{{ notification.title }}</div>
-          <div class="notification-message">{{ notification.message }}</div>
-          <div class="notification-time">{{ formatTime(notification.created_at) }}</div>
+          <div class="notification-content" @click="markAsRead(notification.id)">
+            <div class="notification-title">{{ notification.title }}</div>
+            <div class="notification-message">{{ notification.message }}</div>
+            <div class="notification-time">{{ formatTime(notification.created_at) }}</div>
+          </div>
+          <button
+            @click.stop="removeNotification(notification.id)"
+            class="remove-notification-btn"
+            title="Eliminar notificación"
+          >
+            ×
+          </button>
         </div>
       </div>
 
@@ -55,6 +63,9 @@
       <div v-if="notifications.length > 0" class="dropdown-footer">
         <button @click="markAllAsRead" class="mark-all-read-btn">
           Marcar todas como leídas
+        </button>
+        <button @click="removeAllNotifications" class="remove-all-btn">
+          Eliminar todas
         </button>
       </div>
     </div>
@@ -84,7 +95,6 @@ export default {
   },
 
   mounted() {
-    console.log('NotificationBell component mounted');
     this.loadUnreadCount();
 
     // Opcional: Actualizar contador cada 30 segundos
@@ -101,12 +111,9 @@ export default {
 
   methods: {
     async toggleDropdown() {
-      console.log('Button clicked! Current state:', this.showDropdown);
-
       if (!this.showDropdown) {
         // Abrir dropdown
         this.showDropdown = true;
-        console.log('Opening dropdown');
 
         // Cargar notificaciones si no están cargadas
         if (this.notifications.length === 0) {
@@ -116,12 +123,9 @@ export default {
         // Cerrar dropdown
         this.closeDropdown();
       }
-
-      console.log('New showDropdown state:', this.showDropdown);
     },
 
     closeDropdown() {
-      console.log('Closing dropdown');
       this.showDropdown = false;
     },
 
@@ -129,27 +133,11 @@ export default {
       this.loading = true;
 
       try {
-        console.log('=== LOADING NOTIFICATIONS ===');
-        console.log('showDropdown before API call:', this.showDropdown);
-
         const response = await axios.get('/notifications');
 
-        console.log('API Response status:', response.status);
-        console.log('API Response data:', response.data);
-
-        // Asignar datos SIN modificar showDropdown
+        // Asignar datos
         this.notifications = response.data.notifications || [];
         this.unreadCount = response.data.unread_count || 0;
-
-        console.log('=== AFTER ASSIGNMENT ===');
-        console.log('Notifications loaded:', this.notifications.length);
-        console.log('Unread count:', this.unreadCount);
-        console.log('showDropdown after assignment:', this.showDropdown); // NO debe cambiar
-
-        // Debug de cada notificación
-        this.notifications.forEach((notification, index) => {
-          console.log(`Notification ${index}:`, notification);
-        });
 
       } catch (error) {
         console.error('Error loading notifications:', error);
@@ -160,12 +148,8 @@ export default {
 
     async loadUnreadCount() {
       try {
-        console.log('Loading unread count...');
         const response = await axios.get('/notifications/unread-count');
-
-        console.log('Unread count response:', response.data);
         this.unreadCount = response.data.unread_count || 0;
-        console.log('Unread count set to:', this.unreadCount);
 
       } catch (error) {
         console.error('Error loading unread count:', error);
@@ -174,17 +158,16 @@ export default {
 
     async markAsRead(notificationId) {
       try {
-        await axios.post(`/notifications/${notificationId}/read`);
+        await axios.post('/notifications/mark-as-read', { ids: [notificationId] });
 
         // Actualizar la notificación localmente
         const notification = this.notifications.find(n => n.id === notificationId);
-        if (notification) {
+        if (notification && !notification.read) {
           notification.read = true;
           notification.read_at = new Date().toISOString();
+          // Decrementar el contador local
+          this.unreadCount = Math.max(0, this.unreadCount - 1);
         }
-
-        // Actualizar contador
-        await this.loadUnreadCount();
 
       } catch (error) {
         console.error('Error marking notification as read:', error);
@@ -193,38 +176,80 @@ export default {
 
     async markAllAsRead() {
       try {
-        // Intentar diferentes endpoints comunes
-        let response;
+        const unreadNotifications = this.notifications.filter(n => !n.read);
 
-        try {
-          response = await axios.post('/notifications/mark-all-read');
-        } catch (error) {
-          if (error.response?.status === 405 || error.response?.status === 404) {
-            // Intentar endpoints alternativos
-            try {
-              response = await axios.post('/notifications/read-all');
-            } catch (error2) {
-              response = await axios.put('/notifications/mark-read');
-            }
-          } else {
-            throw error;
-          }
+        if (unreadNotifications.length === 0) {
+          return;
         }
+
+        await axios.post('/notifications/mark-all-as-read');
 
         // Actualizar todas las notificaciones localmente
         this.notifications.forEach(notification => {
-          notification.read = true;
-          notification.read_at = new Date().toISOString();
+          if (!notification.read) {
+            notification.read = true;
+            notification.read_at = new Date().toISOString();
+          }
         });
 
         // Actualizar contador
         this.unreadCount = 0;
 
-        console.log('All notifications marked as read');
-
       } catch (error) {
         console.error('Error marking all notifications as read:', error);
         alert('Error al marcar las notificaciones como leídas');
+      }
+    },
+
+    async removeNotification(notificationId) {
+      try {
+        // Verificar si el endpoint existe
+        await axios.delete(`/notifications/${notificationId}`);
+
+        // Remover la notificación localmente
+        const notificationIndex = this.notifications.findIndex(n => n.id === notificationId);
+        if (notificationIndex > -1) {
+          const notification = this.notifications[notificationIndex];
+
+          // Si era no leída, decrementar contador
+          if (!notification.read) {
+            this.unreadCount = Math.max(0, this.unreadCount - 1);
+          }
+
+          // Remover de la lista
+          this.notifications.splice(notificationIndex, 1);
+        }
+
+      } catch (error) {
+        if (error.response?.status === 404) {
+          alert('La funcionalidad de eliminar notificaciones no está disponible en el servidor');
+        } else {
+          console.error('Error removing notification:', error);
+          alert('Error al eliminar la notificación');
+        }
+      }
+    },
+
+    async removeAllNotifications() {
+      if (!confirm('¿Estás seguro de que quieres eliminar todas las notificaciones?')) {
+        return;
+      }
+
+      try {
+        // Si no tienes endpoint para eliminar todas, eliminar una por una
+        const deletePromises = this.notifications.map(notification =>
+          axios.delete(`/notifications/${notification.id}`)
+        );
+
+        await Promise.all(deletePromises);
+
+        // Limpiar todo localmente
+        this.notifications = [];
+        this.unreadCount = 0;
+
+      } catch (error) {
+        console.error('Error removing all notifications:', error);
+        alert('Error al eliminar todas las notificaciones');
       }
     },
 
@@ -382,11 +407,11 @@ export default {
 }
 
 .notification-item {
-  padding: 15px 20px;
-  border-bottom: 1px solid #f0f0f0;
-  cursor: pointer;
-  transition: background-color 0.2s;
   position: relative;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: stretch;
 }
 
 .notification-item:last-child {
@@ -394,24 +419,49 @@ export default {
 }
 
 .notification-item:hover {
+  background-color: #e9ecef; /* Hover más suave */
+}
+
+/* Hover específico para leídas (blancas) */
+.notification-item:not(.unread):hover {
   background-color: #f8f9fa;
 }
 
+.notification-item {
+  position: relative;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: stretch;
+  background-color: #f5f5f5; /* Fondo gris para no leídas por defecto */
+}
+
 .notification-item.unread {
-  background-color: #e3f2fd;
-  border-left: 4px solid #2196f3;
+  background-color: #f5f5f5; /* Gris para no leídas */
+  border-left: 4px solid #6c757d; /* Borde gris */
+}
+
+/* Notificaciones leídas en blanco */
+.notification-item:not(.unread) {
+  background-color: white;
 }
 
 .notification-item.unread::before {
   content: '';
   position: absolute;
   top: 50%;
-  right: 15px;
+  right: 45px;
   transform: translateY(-50%);
   width: 8px;
   height: 8px;
-  background: #2196f3;
+  background: #6c757d; /* Punto gris para no leídas */
   border-radius: 50%;
+}
+
+.notification-content {
+  flex: 1;
+  padding: 15px 20px;
+  cursor: pointer;
 }
 
 .notification-title {
@@ -434,10 +484,32 @@ export default {
   color: #999;
 }
 
+.remove-notification-btn {
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  padding: 15px 12px;
+  font-size: 18px;
+  line-height: 1;
+  transition: color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+}
+
+.remove-notification-btn:hover {
+  color: #ff4444;
+  background-color: rgba(255, 68, 68, 0.1);
+}
+
 .dropdown-footer {
   padding: 12px 20px;
   border-top: 1px solid #eee;
   background: #f8f9fa;
+  display: flex;
+  gap: 8px;
 }
 
 .mark-all-read-btn {
@@ -448,12 +520,28 @@ export default {
   border-radius: 4px;
   font-size: 12px;
   cursor: pointer;
-  width: 100%;
+  flex: 1;
   transition: background-color 0.2s;
 }
 
 .mark-all-read-btn:hover {
   background: #0056b3;
+}
+
+.remove-all-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  flex: 1;
+  transition: background-color 0.2s;
+}
+
+.remove-all-btn:hover {
+  background: #c82333;
 }
 
 /* Scrollbar personalizada */
