@@ -404,6 +404,12 @@ class PedidoController extends Controller
             'deleted_at' => now()
         ]);
 
+        return response()->json([
+            'success' => true,
+            'message' => 'Pedido cancelado exitosamente',
+            'eliminado_por' => Auth::user()->name ?? 'Usuario actual'
+        ]);
+
         return Redirect::route('pedidos.index')
             ->with('success', 'Pedido cancelado exitosamente');
     }
@@ -585,6 +591,9 @@ class PedidoController extends Controller
                     'subtotal' => $item->subtotal,
                 ]);
             }
+
+            // Actualizar estado del pedido a enviado a venta
+            $pedido->update(['estado' => EstadoPedido::EnviadoVenta]);
 
             DB::commit();
 

@@ -540,6 +540,8 @@ const emit = defineEmits([
   'editar',
   'enviar-pedido',
   'enviar-a-venta',
+  'enviarVenta',
+  'enviarCotizacion',
   // Acciones para equipos
   'renovar', 'suspender', 'reactivar',
   'cambiar-estado', 'programar-mantenimiento',
@@ -597,6 +599,7 @@ const config = computed(() => {
         en_preparacion: { label: 'En Preparación', classes: 'bg-orange-100 text-orange-800', color: 'bg-orange-400' },
         listo_entrega: { label: 'Listo para Entrega', classes: 'bg-purple-100 text-purple-800', color: 'bg-purple-400' },
         entregado: { label: 'Entregado', classes: 'bg-green-100 text-green-800', color: 'bg-green-400' },
+        enviado_venta: { label: 'Enviado a Venta', classes: 'bg-indigo-100 text-indigo-800', color: 'bg-indigo-400' },
         cancelado: { label: 'Cancelado', classes: 'bg-red-100 text-red-800', color: 'bg-red-400' }
       })
     },

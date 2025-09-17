@@ -11,6 +11,7 @@ import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 // Mantén este bloque ordenado alfabéticamente por sección para evitar duplicados.
 import {
   // Navegación / flechas
+  faPaperPlane,
   faChevronLeft,
   faChevronRight,
   // Dashboard / secciones
@@ -72,6 +73,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons'
 // Agrega todos los íconos necesarios a la librería
 library.add(
+    faPaperPlane,
   faChevronLeft, faChevronRight,
   faTachometerAlt, faChartBar,
   faUsers, faCalendarAlt,

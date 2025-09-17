@@ -376,12 +376,22 @@
                   </button>
 
                   <button
-                    v-if="config.acciones.duplicar && tipo === 'cotizaciones' && doc.estado !== 'cancelado'"
+                    v-if="config.acciones.duplicar && (tipo === 'cotizaciones' || tipo === 'pedidos') && doc.estado !== 'cancelado'"
                     @click="onDuplicar(doc)"
                     class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-1"
                     title="Duplicar"
                   >
                     <font-awesome-icon icon="copy" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
+                  </button>
+
+                  <!-- Enviar a Venta (solo pedidos) -->
+                  <button
+                    v-if="tipo === 'pedidos' && doc.estado !== 'cancelado'"
+                    @click="onEnviarVenta(doc)"
+                    class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:ring-offset-1"
+                    title="Enviar a Venta"
+                  >
+                    <font-awesome-icon icon="paper-plane" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
                   </button>
 
                   <button
@@ -481,7 +491,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits([
-  'ver-detalles','editar','eliminar','duplicar','imprimir','sort','renovar','suspender','reactivar'
+  'ver-detalles','editar','eliminar','duplicar','imprimir','sort','renovar','suspender','reactivar','enviar-venta'
 ]);
 
 // Flags
@@ -570,7 +580,7 @@ const config = computed(() => {
       titulo: 'Pedidos',
       mostrarCampoExtra: true,
       campoExtra: { key: 'numero_pedido', label: 'N° Pedido' },
-      acciones: { editar: true, duplicar: false, imprimir: true, eliminar: true },
+      acciones: { editar: true, duplicar: true, imprimir: true, eliminar: true },
       estados: {
         'borrador': { label: 'Borrador', classes: 'bg-gray-100 text-gray-700', color: 'bg-gray-400' },
         'pendiente': { label: 'Pendiente', classes: 'bg-yellow-100 text-yellow-700', color: 'bg-yellow-400' },
@@ -578,6 +588,7 @@ const config = computed(() => {
         'en_preparacion': { label: 'En Preparación', classes: 'bg-orange-100 text-orange-700', color: 'bg-orange-400' },
         'listo_entrega': { label: 'Listo para Entrega', classes: 'bg-purple-100 text-purple-700', color: 'bg-purple-400' },
         'entregado': { label: 'Entregado', classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
+        'enviado_venta': { label: 'Enviado a Venta', classes: 'bg-indigo-100 text-indigo-700', color: 'bg-indigo-400' },
         'cancelado': { label: 'Cancelado', classes: 'bg-red-100 text-red-700', color: 'bg-red-400' }
       }
     },
@@ -787,7 +798,8 @@ const items = computed(() => {
         return (
           (doc.cliente?.nombre_razon_social || '').toLowerCase().includes(term) ||
           doc.productos?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
-          (doc.numero_pedido || doc.id || '').toString().toLowerCase().includes(term)
+          (doc.numero_pedido || doc.id || '').toString().toLowerCase().includes(term) ||
+          (doc.estado === 'enviado_venta' ? 'enviado a venta' : '').toLowerCase().includes(term)
         );
       }
       return (
@@ -886,6 +898,7 @@ const onImprimir = (doc) => emit('imprimir', doc);
 const onRenovar = (doc) => emit('renovar', doc);
 const onSuspender = (doc) => emit('suspender', doc);
 const onReactivar = (doc) => emit('reactivar', doc);
+const onEnviarVenta = (doc) => emit('enviar-venta', doc);
 
 const onSort = (field) => {
   const current = props.sortBy.startsWith(field) ? props.sortBy : `${field}-desc`;

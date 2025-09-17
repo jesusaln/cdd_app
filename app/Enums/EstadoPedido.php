@@ -16,6 +16,7 @@ enum EstadoPedido: string
     case Entregado = 'entregado';
     case EnPreparacion = 'en_preparacion';
     case ListoEntrega = 'listo_entrega';
+    case EnviadoVenta = 'enviado_venta';
     case Cancelado = 'cancelado';
 
 
@@ -30,6 +31,7 @@ enum EstadoPedido: string
             self::Entregado => 'Entregado',
             self::EnPreparacion => 'En Preparación',
             self::ListoEntrega => 'Listo para Entrega',
+            self::EnviadoVenta => 'Enviado a Venta',
             self::Cancelado => 'Cancelado',
         };
     }
@@ -44,6 +46,7 @@ enum EstadoPedido: string
             self::Entregado => 'green',
             self::EnPreparacion => 'red',
             self::ListoEntrega => 'red',
+            self::EnviadoVenta => 'indigo',
             self::Cancelado => 'red',
         };
     }
