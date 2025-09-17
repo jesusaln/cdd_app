@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB; // Para transacciones de base de datos
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class OrdenCompraController extends Controller
 {
@@ -21,117 +22,75 @@ class OrdenCompraController extends Controller
      */
     public function index(Request $request)
     {
-        // Número de elementos por página
-        $perPage = $request->get('per_page', 10);
+        $perPage = (int) ($request->integer('per_page') ?: 10);
+        $page    = max(1, (int) $request->get('page', 1));
 
-        // Construir la consulta base
-        $query = OrdenCompra::with(['proveedor', 'productos', 'servicios']);
+        $baseQuery = OrdenCompra::with([
+            'proveedor',
+            'productos' => function ($q) {
+                $q->withPivot(['cantidad', 'precio', 'descuento']);
+            },
+        ])->orderByDesc('created_at');
 
-        // Aplicar filtros si existen
-        if ($search = $request->get('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('id', 'like', "%{$search}%")
-                    ->orWhereHas('proveedor', function ($subQ) use ($search) {
-                        $subQ->where('nombre_razon_social', 'like', "%{$search}%")
-                             ->orWhere('email', 'like', "%{$search}%");
-                    })
-                    ->orWhere('estado', 'like', "%{$search}%");
-            });
-        }
+        $total = (clone $baseQuery)->count();
+        $ordenes = $baseQuery->forPage($page, $perPage)->get();
 
-        if ($estado = $request->get('estado')) {
-            $query->where('estado', $estado);
-        }
-
-        // Aplicar ordenamiento
-        $sortBy = $request->get('sort_by', 'created_at');
-        $sortDirection = $request->get('sort_direction', 'desc');
-
-        $validSortFields = ['id', 'created_at', 'total', 'estado'];
-        if (!in_array($sortBy, $validSortFields)) {
-            $sortBy = 'created_at';
-        }
-
-        $query->orderBy($sortBy, $sortDirection);
-
-        // Obtener el total de registros para paginación
-        $total = $query->count();
-
-        // Obtener los registros para la página actual
-        $ordenes = $query->skip(($request->get('page', 1) - 1) * $perPage)->take($perPage)->get();
-
-        // Transformar los datos
-        $transformedData = $ordenes->map(function ($orden) {
-            // Mapea los productos adjuntos a la orden
-            $productos = $orden->productos->map(function ($producto) {
+        $transformed = $ordenes->map(function ($orden) {
+            $items = $orden->productos->map(function ($p) {
                 return [
-                    'id' => $producto->id,
-                    'nombre' => $producto->nombre,
-                    'tipo' => 'producto',
-                    'pivot' => [
-                        'cantidad' => $producto->pivot->cantidad,
-                        'precio' => $producto->pivot->precio,
-                        'descuento' => $producto->pivot->descuento ?? 0,
-                    ],
+                    'id'        => $p->id,
+                    'nombre'    => $p->nombre ?? $p->descripcion ?? '',
+                    'cantidad'  => (int) ($p->pivot->cantidad ?? 0),
+                    'precio'    => (float) ($p->pivot->precio ?? 0),
+                    'descuento' => (float) ($p->pivot->descuento ?? 0),
                 ];
             });
-
-            // Mapea los servicios adjuntos a la orden (si aplica)
-            $servicios = $orden->servicios->map(function ($servicio) {
-                return [
-                    'id' => $servicio->id,
-                    'nombre' => $servicio->nombre,
-                    'tipo' => 'servicio',
-                    'pivot' => [
-                        'cantidad' => $servicio->pivot->cantidad,
-                        'precio' => $servicio->pivot->precio,
-                        'descuento' => $servicio->pivot->descuento ?? 0,
-                    ],
-                ];
-            });
-
-            // Combina productos y servicios en una única colección de ítems para la vista
-            $items = collect($productos->all())->merge($servicios->all());
 
             return [
-                'id' => $orden->id,
-                'numero_orden' => $orden->numero_orden ?? $orden->id, // Usar numero_orden si existe, sino ID
-                'fecha_orden' => $orden->fecha_orden?->format('Y-m-d'),
-                'prioridad' => $orden->prioridad,
-                'proveedor' => $orden->proveedor,
-                'items' => $items,
-                'total' => $orden->total,
-                'estado' => $orden->estado,
-                'created_at' => $orden->created_at->format('Y-m-d H:i:s'),
+                'id'                 => $orden->id,
+                'numero_orden'       => $orden->numero_orden ?? $orden->id,
+                'proveedor'          => $orden->proveedor ? [
+                    'id'                  => $orden->proveedor->id,
+                    'nombre_razon_social' => $orden->proveedor->nombre_razon_social,
+                    'rfc'                 => $orden->proveedor->rfc ?? null,
+                ] : null,
+                'items'              => $items,
+                'subtotal'           => (float) ($orden->subtotal ?? 0),
+                'descuento_items'    => (float) ($orden->descuento_items ?? 0),
+                'descuento_general'  => (float) ($orden->descuento_general ?? 0),
+                'iva'                => (float) ($orden->iva ?? 0),
+                'total'              => (float) ($orden->total ?? 0),
+                'estado'             => $orden->estado ?? 'pendiente',
+                'created_at'         => optional($orden->created_at)->format('Y-m-d H:i:s'),
+                'fecha'              => optional($orden->created_at)->format('Y-m-d'),
             ];
         });
 
-        // Crear paginador manualmente
-        $ordenesCompra = new \Illuminate\Pagination\LengthAwarePaginator(
-            $transformedData,
+        $paginator = new LengthAwarePaginator(
+            $transformed,
             $total,
             $perPage,
-            $request->get('page', 1),
+            $page,
             ['path' => $request->url(), 'pageName' => 'page']
         );
 
-        // Estadísticas
+        // Estadísticas para el dashboard
         $stats = [
             'total' => OrdenCompra::count(),
+            'aprobadas' => OrdenCompra::where('estado', 'recibida')->count(),
             'pendientes' => OrdenCompra::where('estado', 'pendiente')->count(),
-            'recibidas' => OrdenCompra::where('estado', 'recibida')->count(),
-            'canceladas' => OrdenCompra::where('estado', 'cancelada')->count(),
             'borrador' => OrdenCompra::where('estado', 'borrador')->count(),
+            'cancelada' => OrdenCompra::where('estado', 'cancelada')->count(),
         ];
 
-        // Renderiza la vista de índice de órdenes de compra con Inertia
         return Inertia::render('OrdenesCompra/Index', [
-            'ordenesCompra' => $ordenesCompra,
+            'ordenesCompra' => $paginator,
             'stats' => $stats,
             'filters' => $request->only(['search', 'estado']),
-            'sorting' => ['sort_by' => $sortBy, 'sort_direction' => $sortDirection],
+            'sorting' => ['sort_by' => 'created_at', 'sort_direction' => 'desc'],
         ]);
     }
+
 
     /**
      * Muestra el formulario para crear una nueva orden de compra.
@@ -140,16 +99,14 @@ class OrdenCompraController extends Controller
      */
     public function create()
     {
-        // Obtiene todos los proveedores, productos y servicios para los selectores/búsquedas en el frontend
+        // Obtiene todos los proveedores y productos para los selectores/búsquedas en el frontend
         $proveedores = Proveedor::all();
         $productos = Producto::all();
-        $servicios = Servicio::all();
 
         // Renderiza la vista de creación de órdenes de compra con Inertia
         return Inertia::render('OrdenesCompra/Create', [
             'proveedores' => $proveedores,
             'productos' => $productos,
-            'servicios' => $servicios,
         ]);
     }
 
@@ -182,7 +139,7 @@ class OrdenCompraController extends Controller
                 'observaciones' => 'nullable|string',
                 'items' => 'required|array',
                 'items.*.id' => 'required|integer',
-                'items.*.tipo' => 'required|in:producto,servicio',
+                'items.*.tipo' => 'required|in:producto',
                 'items.*.cantidad' => 'required|integer|min:1',
                 'items.*.precio' => 'required|numeric|min:0',
                 'items.*.descuento' => 'required|numeric|min:0',
@@ -207,7 +164,7 @@ class OrdenCompraController extends Controller
                 'estado' => 'pendiente',
             ]);
 
-            // Asocia los productos y servicios a la orden de compra a través de las tablas pivote
+            // Asocia los productos a la orden de compra a través de la tabla pivote
             foreach ($validatedData['items'] as $itemData) {
                 if ($itemData['tipo'] === 'producto') {
                     $ordenCompra->productos()->attach($itemData['id'], [
@@ -215,13 +172,8 @@ class OrdenCompraController extends Controller
                         'precio' => $itemData['precio'],
                         'descuento' => $itemData['descuento'] ?? 0,
                     ]);
-                } elseif ($itemData['tipo'] === 'servicio') {
-                    $ordenCompra->servicios()->attach($itemData['id'], [
-                        'cantidad' => $itemData['cantidad'],
-                        'precio' => $itemData['precio'],
-                        'descuento' => $itemData['descuento'] ?? 0,
-                    ]);
                 }
+                // Nota: Solo se permiten productos, no servicios
             }
 
             // Confirma la transacción si todo fue exitoso
@@ -251,9 +203,9 @@ class OrdenCompraController extends Controller
     public function show($id)
     {
         // Busca la orden de compra y carga sus relaciones
-        $ordenCompra = OrdenCompra::with(['proveedor', 'productos', 'servicios'])->findOrFail($id);
+        $ordenCompra = OrdenCompra::with(['proveedor', 'productos'])->findOrFail($id);
 
-        // Mapea y combina productos y servicios de la misma manera que en el index
+        // Mapea productos (solo productos, sin servicios)
         $items = $ordenCompra->productos->map(function ($producto) {
             return [
                 'id' => $producto->id,
@@ -265,18 +217,7 @@ class OrdenCompraController extends Controller
                     'descuento' => $producto->pivot->descuento ?? 0,
                 ],
             ];
-        })->merge($ordenCompra->servicios->map(function ($servicio) {
-            return [
-                'id' => $servicio->id,
-                'nombre' => $servicio->nombre,
-                'tipo' => 'servicio',
-                'pivot' => [
-                    'cantidad' => $servicio->pivot->cantidad,
-                    'precio' => $servicio->pivot->precio,
-                    'descuento' => $servicio->pivot->descuento ?? 0,
-                ],
-            ];
-        }));
+        });
 
         // Renderiza la vista de detalles de la orden de compra
         return Inertia::render('OrdenesCompra/Show', [
@@ -313,9 +254,9 @@ class OrdenCompraController extends Controller
     {
         try {
             // Busca la orden de compra con sus relaciones
-            $ordenCompra = OrdenCompra::with(['proveedor', 'productos', 'servicios'])->findOrFail($id);
+            $ordenCompra = OrdenCompra::with(['proveedor', 'productos'])->findOrFail($id);
 
-            // Mapea y combina productos y servicios, añadiendo manejo de errores para pivots
+            // Mapea productos, añadiendo manejo de errores para pivots
             $items = $ordenCompra->productos->map(function ($producto) {
                 if (!$producto instanceof \App\Models\Producto || !$producto->pivot) {
                     Log::error('Producto inválido o pivot faltante para el producto ID: ' . ($producto->id ?? 'null'));
@@ -324,6 +265,9 @@ class OrdenCompraController extends Controller
                 return [
                     'id' => $producto->id,
                     'nombre' => $producto->nombre,
+                    'descripcion' => $producto->descripcion,
+                    'precio' => $producto->precio_venta ?? $producto->precio ?? 0,
+                    'precio_compra' => $producto->precio_compra ?? 0,
                     'tipo' => 'producto',
                     'pivot' => [
                         'cantidad' => $producto->pivot->cantidad,
@@ -331,27 +275,11 @@ class OrdenCompraController extends Controller
                         'descuento' => $producto->pivot->descuento ?? 0,
                     ],
                 ];
-            })->merge($ordenCompra->servicios->map(function ($servicio) {
-                if (!$servicio instanceof \App\Models\Servicio || !$servicio->pivot) {
-                    Log::error('Servicio inválido o pivot faltante para el servicio ID: ' . ($servicio->id ?? 'null'));
-                    return null;
-                }
-                return [
-                    'id' => $servicio->id,
-                    'nombre' => $servicio->nombre,
-                    'tipo' => 'servicio',
-                    'pivot' => [
-                        'cantidad' => $servicio->pivot->cantidad,
-                        'precio' => $servicio->pivot->precio,
-                        'descuento' => $servicio->pivot->descuento ?? 0,
-                    ],
-                ];
-            }))->filter(fn($item) => $item !== null); // Elimina cualquier ítem nulo si hubo errores
+            })->filter(fn($item) => $item !== null); // Elimina cualquier ítem nulo si hubo errores
 
-            // Obtiene todos los proveedores, productos y servicios para los selectores/búsquedas en el frontend
+            // Obtiene todos los proveedores y productos para los selectores/búsquedas en el frontend
             $proveedores = Proveedor::all();
             $productos = Producto::all();
-            $servicios = Servicio::all();
 
             // Renderiza la vista de edición de órdenes de compra
             return Inertia::render('OrdenesCompra/Edit', [
@@ -377,7 +305,6 @@ class OrdenCompraController extends Controller
                 ],
                 'proveedores' => $proveedores,
                 'productos' => $productos,
-                'servicios' => $servicios,
             ]);
         } catch (\Exception $e) {
             Log::error('Error en OrdenCompraController@edit: ' . $e->getMessage());
@@ -419,7 +346,7 @@ class OrdenCompraController extends Controller
                 'observaciones' => 'nullable|string',
                 'items' => 'required|array',
                 'items.*.id' => 'required|integer',
-                'items.*.tipo' => 'required|in:producto,servicio',
+                'items.*.tipo' => 'required|in:producto',
                 'items.*.cantidad' => 'required|integer|min:1',
                 'items.*.precio' => 'required|numeric|min:0',
                 'items.*.descuento' => 'required|numeric|min:0',
@@ -443,10 +370,9 @@ class OrdenCompraController extends Controller
                 'observaciones' => $validatedData['observaciones'],
             ]);
 
-            // Sincroniza los productos y servicios adjuntos.
-            // Primero, desasocia todos los ítems actuales para luego adjuntar los nuevos.
+            // Sincroniza los productos adjuntos.
+            // Primero, desasocia todos los productos actuales para luego adjuntar los nuevos.
             $ordenCompra->productos()->detach();
-            $ordenCompra->servicios()->detach();
 
             foreach ($validatedData['items'] as $itemData) {
                 if ($itemData['tipo'] === 'producto') {
@@ -455,13 +381,8 @@ class OrdenCompraController extends Controller
                         'precio' => $itemData['precio'],
                         'descuento' => $itemData['descuento'] ?? 0,
                     ]);
-                } elseif ($itemData['tipo'] === 'servicio') {
-                    $ordenCompra->servicios()->attach($itemData['id'], [
-                        'cantidad' => $itemData['cantidad'],
-                        'precio' => $itemData['precio'],
-                        'descuento' => $itemData['descuento'] ?? 0,
-                    ]);
                 }
+                // Nota: Solo se permiten productos, no servicios
             }
 
             // Confirma la transacción
@@ -492,9 +413,8 @@ class OrdenCompraController extends Controller
         DB::beginTransaction();
         try {
             $ordenCompra = OrdenCompra::findOrFail($id);
-            // Desasocia los productos y servicios antes de eliminar la orden
+            // Desasocia los productos antes de eliminar la orden
             $ordenCompra->productos()->detach();
-            $ordenCompra->servicios()->detach();
             $ordenCompra->delete();
 
             // Confirma la transacción
@@ -519,8 +439,8 @@ class OrdenCompraController extends Controller
         // Inicia una transacción para asegurar que el stock y la creación de la compra se actualicen correctamente
         DB::beginTransaction();
         try {
-            // Carga la orden de compra con sus productos y servicios para acceder a la información necesaria
-            $ordenCompra = OrdenCompra::with('proveedor', 'productos', 'servicios')->findOrFail($id);
+            // Carga la orden de compra con sus productos para acceder a la información necesaria
+            $ordenCompra = OrdenCompra::with('proveedor', 'productos')->findOrFail($id);
 
             // Solo procesar si la orden está pendiente para evitar duplicados o errores lógicos
             if ($ordenCompra->estado !== 'pendiente') {
@@ -636,6 +556,158 @@ class OrdenCompraController extends Controller
                 'success' => false,
                 'message' => 'Error al obtener el estado de la orden'
             ], 404);
+        }
+    }
+
+    /**
+     * Duplica una orden de compra
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function duplicate($id)
+    {
+        try {
+            $ordenOriginal = OrdenCompra::with('productos')->findOrFail($id);
+
+            DB::beginTransaction();
+
+            // Crear la nueva orden duplicada
+            $ordenDuplicada = OrdenCompra::create([
+                'numero_orden' => 'DUP-' . $ordenOriginal->numero_orden . '-' . now()->format('His'),
+                'fecha_orden' => now(),
+                'fecha_entrega_esperada' => $ordenOriginal->fecha_entrega_esperada,
+                'prioridad' => $ordenOriginal->prioridad,
+                'proveedor_id' => $ordenOriginal->proveedor_id,
+                'direccion_entrega' => $ordenOriginal->direccion_entrega,
+                'terminos_pago' => $ordenOriginal->terminos_pago,
+                'metodo_pago' => $ordenOriginal->metodo_pago,
+                'subtotal' => $ordenOriginal->subtotal,
+                'descuento_items' => $ordenOriginal->descuento_items,
+                'descuento_general' => $ordenOriginal->descuento_general,
+                'iva' => $ordenOriginal->iva,
+                'total' => $ordenOriginal->total,
+                'observaciones' => $ordenOriginal->observaciones,
+                'estado' => 'borrador',
+            ]);
+
+            // Duplicar los productos
+            foreach ($ordenOriginal->productos as $producto) {
+                $ordenDuplicada->productos()->attach($producto->id, [
+                    'cantidad' => $producto->pivot->cantidad,
+                    'precio' => $producto->pivot->precio,
+                    'descuento' => $producto->pivot->descuento ?? 0,
+                ]);
+            }
+
+            DB::commit();
+
+            return redirect()->route('ordenescompra.edit', $ordenDuplicada->id)
+                ->with('success', 'Orden de compra duplicada exitosamente. Revisa y ajusta los datos antes de guardar.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al duplicar orden de compra: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al duplicar la orden de compra.');
+        }
+    }
+
+    /**
+     * Marca una orden como urgente
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function marcarUrgente($id)
+    {
+        try {
+            $ordenCompra = OrdenCompra::findOrFail($id);
+
+            $ordenCompra->update([
+                'prioridad' => 'urgente',
+                'observaciones' => ($ordenCompra->observaciones ? $ordenCompra->observaciones . "\n\n" : '') .
+                                  '*** ORDEN MARCADA COMO URGENTE *** ' . now()->format('d/m/Y H:i')
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Orden marcada como urgente',
+                'prioridad' => $ordenCompra->prioridad
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error al marcar orden como urgente: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al marcar la orden como urgente'
+            ], 500);
+        }
+    }
+
+    /**
+     * Convierte una orden de compra en una compra (simula el proceso)
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function convertirACompra($id)
+    {
+        try {
+            $ordenCompra = OrdenCompra::with('productos')->findOrFail($id);
+
+            // Solo procesar si la orden está pendiente
+            if ($ordenCompra->estado !== 'pendiente') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Solo se pueden convertir órdenes en estado pendiente'
+                ], 400);
+            }
+
+            DB::beginTransaction();
+
+            // Crear una compra simulada
+            $compra = Compra::create([
+                'proveedor_id' => $ordenCompra->proveedor_id,
+                'total' => $ordenCompra->total,
+                'fecha_compra' => now(),
+            ]);
+
+            // Adjuntar productos a la compra
+            $productosParaCompra = [];
+            foreach ($ordenCompra->productos as $producto) {
+                $productosParaCompra[$producto->id] = [
+                    'cantidad' => $producto->pivot->cantidad,
+                    'precio' => $producto->pivot->precio,
+                ];
+            }
+
+            if (!empty($productosParaCompra)) {
+                $compra->productos()->attach($productosParaCompra);
+            }
+
+            // Marcar la orden como convertida
+            $ordenCompra->update([
+                'estado' => 'convertida',
+                'observaciones' => ($ordenCompra->observaciones ? $ordenCompra->observaciones . "\n\n" : '') .
+                                  '*** CONVERTIDA A COMPRA #' . $compra->id . ' *** ' . now()->format('d/m/Y H:i')
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Orden convertida a compra exitosamente',
+                'compra_id' => $compra->id,
+                'estado' => $ordenCompra->estado
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al convertir orden a compra: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al convertir la orden a compra'
+            ], 500);
         }
     }
 }

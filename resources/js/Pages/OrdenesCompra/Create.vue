@@ -926,7 +926,6 @@ onMounted(() => {
       discounts.value = savedData.discounts || {};
       calcularTotal();
     } catch (error) {
-      console.warn('Error al cargar datos guardados:', error);
       removeFromLocalStorage('ordenCompraEnProgreso');
     }
   }

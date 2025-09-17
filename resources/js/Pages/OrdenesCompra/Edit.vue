@@ -500,7 +500,6 @@ const formatearFecha = (fecha) => {
     // Si es un objeto Date o string de fecha, convertir
     const dateObj = new Date(fecha);
     if (isNaN(dateObj.getTime())) {
-      console.warn('Fecha inválida:', fecha);
       return '';
     }
 
@@ -510,7 +509,6 @@ const formatearFecha = (fecha) => {
 
     return `${year}-${month}-${day}`;
   } catch (error) {
-    console.error('Error al formatear fecha:', error, fecha);
     return '';
   }
 };
@@ -528,9 +526,6 @@ const generarNumeroOrden = () => {
 
 // Función para inicializar el formulario con datos de la orden
 const inicializarFormulario = () => {
-  console.log('=== INICIALIZANDO FORMULARIO ===');
-  console.log('Datos de ordenCompra:', props.ordenCompra);
-
   if (props.ordenCompra) {
     form.numero_orden = props.ordenCompra.numero_orden || generarNumeroOrden();
     form.fecha_orden = formatearFecha(props.ordenCompra.fecha_orden) || formatearFecha(new Date());
@@ -547,17 +542,7 @@ const inicializarFormulario = () => {
     form.total = parseFloat(props.ordenCompra.total) || 0;
     form.observaciones = props.ordenCompra.observaciones || '';
 
-    console.log('Formulario inicializado con:', {
-      numero_orden: form.numero_orden,
-      fecha_orden: form.fecha_orden,
-      fecha_entrega_esperada: form.fecha_entrega_esperada,
-      prioridad: form.prioridad,
-      proveedor_id: form.proveedor_id,
-      subtotal: form.subtotal,
-      total: form.total
-    });
   } else {
-    console.warn('No se encontraron datos de ordenCompra - generando valores por defecto');
     // Si no hay datos de ordenCompra, generar valores por defecto
     form.numero_orden = generarNumeroOrden();
     form.fecha_orden = formatearFecha(new Date());
@@ -857,8 +842,6 @@ const updatePurchaseOrder = () => {
       router.visit(route('ordenescompra.index'));
     },
     onError: (errors) => {
-      console.error('Errores de validación:', errors);
-
       // Verificar si es un error de CSRF token
       if (errors && typeof errors === 'object' && errors.message && errors.message.includes('CSRF token mismatch')) {
         showNotification('La sesión ha expirado. Refrescando la página...', 'error');
@@ -896,54 +879,41 @@ const limpiarFormulario = () => {
 
 // Función para inicializar productos existentes
 const inicializarProductosExistentes = () => {
-  console.log('=== INICIALIZANDO PRODUCTOS EXISTENTES ===');
-  console.log('Items de la orden:', props.ordenCompra?.items);
-
   if (props.ordenCompra?.items && Array.isArray(props.ordenCompra.items)) {
     props.ordenCompra.items.forEach((item, index) => {
-      console.log(`Procesando item ${index}:`, item);
-
-      // Verificar si es un producto (por nombre de clase o por tipo)
-      const isProduct = item.pivot?.item_type === 'App\\Models\\Producto' ||
+      // Verificar si es un producto (por tipo o por pivot)
+      const isProduct = item.tipo === 'producto' ||
+                       item.pivot?.item_type === 'App\\Models\\Producto' ||
                        item.pivot?.item_type === 'App\\\\Models\\\\Producto';
 
       if (isProduct) {
-        console.log(`Agregando producto: ${item.nombre || item.id}`);
 
-        const itemEntry = { id: item.id, tipo: 'producto' };
+        const itemEntry = {
+          id: item.id,
+          tipo: 'producto',
+          nombre: item.nombre,
+          descripcion: item.descripcion || '',
+          precio: item.pivot?.precio || 0,
+          precio_compra: item.pivot?.precio || 0
+        };
         selectedProducts.value.push(itemEntry);
 
         const key = `producto-${item.id}`;
         quantities.value[key] = item.pivot?.cantidad || 1;
         prices.value[key] = item.pivot?.precio || 0;
         discounts.value[key] = item.pivot?.descuento || 0;
-      } else {
-        console.log(`Omitiendo item (no es producto):`, item.pivot?.item_type);
       }
     });
 
     // Calcular totales después de inicializar productos
     calcularTotal();
-    console.log('Productos inicializados correctamente');
-  } else {
-    console.log('No hay items para inicializar');
   }
-
-  console.log('=== FIN INICIALIZACIÓN ===');
 };
 
 // Función para inicializar proveedor
 const inicializarProveedor = () => {
-  console.log('=== INICIALIZANDO PROVEEDOR ===');
-
   if (props.ordenCompra?.proveedor) {
     proveedorSeleccionado.value = props.ordenCompra.proveedor;
-    console.log('Proveedor inicializado:', {
-      id: proveedorSeleccionado.value.id,
-      nombre: proveedorSeleccionado.value.nombre_razon_social
-    });
-  } else {
-    console.log('No se encontró proveedor en ordenCompra');
   }
 
   // También buscar el proveedor en la lista de proveedores si no está en ordenCompra.proveedor
@@ -951,36 +921,16 @@ const inicializarProveedor = () => {
     const proveedorEncontrado = proveedoresList.value.find(p => p.id === form.proveedor_id);
     if (proveedorEncontrado) {
       proveedorSeleccionado.value = proveedorEncontrado;
-      console.log('Proveedor encontrado en lista:', {
-        id: proveedorSeleccionado.value.id,
-        nombre: proveedorSeleccionado.value.nombre_razon_social
-      });
-    } else {
-      console.warn('Proveedor con ID', form.proveedor_id, 'no encontrado en lista de proveedores');
     }
   }
 };
 
 // Lifecycle hooks
 onMounted(() => {
-  console.log('=== COMPONENTE EDIT MONTADO ===');
-  console.log('Orden de Compra:', props.ordenCompra);
-  console.log('Proveedores:', props.proveedores?.length || 0);
-  console.log('Productos:', props.productos?.length || 0);
-
   // Inicializar datos en orden correcto
   inicializarFormulario();
   inicializarProveedor();
   inicializarProductosExistentes();
-
-  console.log('=== INICIALIZACIÓN COMPLETA ===');
-  console.log('Estado final del formulario:', {
-    numero_orden: form.numero_orden,
-    fecha_orden: form.fecha_orden,
-    fecha_entrega_esperada: form.fecha_entrega_esperada,
-    prioridad: form.prioridad,
-    productos_seleccionados: selectedProducts.value.length
-  });
 
   // Marcar que la carga ha terminado
   cargandoDatos.value = false;
@@ -1006,8 +956,6 @@ onMounted(() => {
 // Watcher para props.ordenCompra en caso de que llegue tarde
 watch(() => props.ordenCompra, (nuevaOrden) => {
   if (nuevaOrden && !form.numero_orden) {
-    console.log('=== PROPS ORDENCOMPRA ACTUALIZADOS ===');
-    console.log('Nueva orden recibida:', nuevaOrden);
     inicializarFormulario();
     inicializarProveedor();
     inicializarProductosExistentes();

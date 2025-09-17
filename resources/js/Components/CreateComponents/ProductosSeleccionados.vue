@@ -229,9 +229,22 @@ const getItemInfo = (entry) => {
     };
   }
 
-  // Buscar el producto
-  const item = props.productos.find(i => i.id === entry.id);
-  console.log('Producto encontrado:', item);
+  // Buscar el producto en la lista de productos disponibles
+  let item = props.productos.find(i => i.id === entry.id);
+
+  // Si no se encuentra en props.productos, intentar usar información del entry mismo
+  // (útil cuando el producto viene de props.ordenCompra.items)
+  if (!item && entry.nombre) {
+    console.log('Producto no encontrado en lista, usando datos del entry:', entry);
+    item = {
+      id: entry.id,
+      nombre: entry.nombre,
+      descripcion: entry.descripcion || '',
+      precio: entry.precio || 0,
+      precio_compra: entry.precio_compra || 0,
+      precio_venta: entry.precio_venta || entry.precio || 0
+    };
+  }
 
   if (!item) {
     console.warn('Producto no encontrado para ID:', entry.id);

@@ -72,10 +72,8 @@ Route::get('/', function () {
 Route::get('/empresas', [EmpresasController::class, 'index'])->name('empresas.index');
 
 // =====================================================
-// RECURSOS PRINCIPALES (Fuera del middleware auth)
+// RECURSOS PRINCIPALES
 // =====================================================
-Route::resource('ordenescompra', OrdenCompraController::class);
-Route::post('ordenescompra/{id}/recibir', [OrdenCompraController::class, 'recibirOrden'])->name('ordenescompra.recibir');
 
 Route::get('/productos/{id}/inventario', [ProductoController::class, 'showInventario'])->name('productos.inventario');
 Route::resource('inventario', InventarioController::class);
@@ -94,6 +92,12 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // =====================================================
     // RECURSOS PRINCIPALES
     // =====================================================
+    Route::resource('ordenescompra', OrdenCompraController::class);
+    Route::post('ordenescompra/{id}/recibir', [OrdenCompraController::class, 'recibirOrden'])->name('ordenescompra.recibir');
+    Route::post('ordenescompra/{id}/duplicate', [OrdenCompraController::class, 'duplicate'])->name('ordenescompra.duplicate');
+    Route::post('ordenescompra/{id}/urgente', [OrdenCompraController::class, 'marcarUrgente'])->name('ordenescompra.urgente');
+    Route::post('ordenescompra/{id}/convertir-compra', [OrdenCompraController::class, 'convertirACompra'])->name('ordenescompra.convertir-compra');
+
     Route::resource('clientes', ClienteController::class)->names('clientes');
     Route::resource('productos', ProductoController::class)->names('productos');
     Route::resource('proveedores', ProveedorController::class)->names('proveedores');
