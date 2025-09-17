@@ -25,7 +25,7 @@ export const estadosConfig = {
     bgColor: 'bg-purple-100',
     textColor: 'text-purple-700'
   },
-  'enviado_a_pedido': {
+  'enviado_pedido': {
     label: 'Enviado a Pedido',
     color: 'orange',
     bgColor: 'bg-orange-100',

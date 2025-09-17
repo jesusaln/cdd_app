@@ -565,6 +565,7 @@ class CotizacionController extends Controller
                 ], 400);
             }
 
+
             // Validar items
             if ($cotizacion->items->isEmpty()) {
                 return response()->json([

@@ -1,71 +1,42 @@
+<!-- resources/js/Components/IndexComponents/UniversalHeader.vue -->
 <script setup>
 import { Link } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
-import ProductosSeleccionados from '../CreateComponents/ProductosSeleccionados.vue';
 
 // Props configurables para cualquier módulo
 const props = defineProps({
   // Datos estadísticos
-  total: {
-    type: Number,
-    default: 0
-  },
-  aprobadas: {
-    type: Number,
-    default: 0
-  },
-  pendientes: {
-    type: Number,
-    default: 0
-  },
+  total: { type: Number, default: 0 },
+  aprobadas: { type: Number, default: 0 },
+  pendientes: { type: Number, default: 0 },
+
+  // Nuevas estadísticas para cotizaciones
+  borrador: { type: Number, default: 0 },
+  enviado_pedido: { type: Number, default: 0 },
 
   // Filtros actuales
-  searchTerm: {
-    type: String,
-    default: ''
-  },
-  sortBy: {
-    type: String,
-    default: 'fecha-desc'
-  },
-  filtroEstado: {
-    type: String,
-    default: ''
-  },
+  searchTerm: { type: String, default: '' },
+  sortBy: { type: String, default: 'fecha-desc' },
+  filtroEstado: { type: String, default: '' },
 
   // Configuración del módulo
   config: {
     type: Object,
     required: true,
-    validator(value) {
-      return value.module;
-    }
+    validator(value) { return value.module; }
   },
 
-  // Nuevas props para mayor flexibilidad
-  loading: {
-    type: Boolean,
-    default: false
-  },
-  disabled: {
-    type: Boolean,
-    default: false
-  },
-  showExport: {
-    type: Boolean,
-    default: false
-  },
-  showImport: {
-    type: Boolean,
-    default: false
-  }
+  // Opcionales
+  loading: { type: Boolean, default: false },
+  disabled: { type: Boolean, default: false },
+  showExport: { type: Boolean, default: false },
+  showImport: { type: Boolean, default: false },
 });
 
-// Estados reactivos
 const searchInput = ref(null);
 const isSearchFocused = ref(false);
 
-// Configuraciones por defecto según el módulo - Mejoradas y más completas
+// Configs por defecto
 const defaultConfigs = {
   cotizaciones: {
     module: 'cotizaciones',
@@ -77,10 +48,13 @@ const defaultConfigs = {
     estadisticas: {
       total: { label: 'Total', icon: 'document', description: 'Total de cotizaciones' },
       aprobadas: { label: 'Aprobadas', icon: 'check-circle', color: 'green', description: 'Cotizaciones aprobadas' },
-      pendientes: { label: 'Pendientes', icon: 'clock', color: 'yellow', description: 'Cotizaciones pendientes' }
+      pendientes: { label: 'Pendientes', icon: 'clock', color: 'yellow', description: 'Cotizaciones pendientes' },
+      borrador: { label: 'Borrador', icon: 'document-text', color: 'gray', description: 'Cotizaciones en borrador' },
+      enviado_pedido: { label: 'Enviado a Pedido', icon: 'paper-airplane', color: 'blue', description: 'Cotizaciones enviadas a pedido' }
     },
     estados: [
       { value: '', label: 'Todos los Estados', color: 'slate' },
+      { value: 'borrador', label: 'Borrador', color: 'gray' },
       { value: 'pendiente', label: 'Pendientes', color: 'yellow' },
       { value: 'enviado_pedido', label: 'Enviado a Pedido', color: 'blue' },
       { value: 'enviado_venta', label: 'Enviado a Venta', color: 'indigo' },
@@ -156,7 +130,6 @@ const defaultConfigs = {
     ]
   },
 
-  // Agregar más configuraciones según sea necesario...
   ventas: {
     module: 'ventas',
     title: 'Ventas',
@@ -187,45 +160,41 @@ const defaultConfigs = {
     ]
   },
 
-   productos: {
-  module: 'productos',
-  title: 'Productos',
-  createRoute: '/productos/create',
-  createButtonText: 'Nuevo Producto',
-  searchPlaceholder: 'Buscar por nombre, SKU, descripción…',
-  searchFields: ['nombre', 'sku', 'descripcion'],
-  estadisticas: {
-    total:      { label: 'Total',      icon: 'document',     description: 'Total de productos' },
-    aprobadas:  { label: 'Disponibles', icon: 'check-circle', color: 'green',  description: 'Productos con stock' },
-    pendientes: { label: 'Agotados',    icon: 'x-circle',     color: 'red',    description: 'Productos sin stock' }
+  productos: {
+    module: 'productos',
+    title: 'Productos',
+    createRoute: '/productos/create',
+    createButtonText: 'Nuevo Producto',
+    searchPlaceholder: 'Buscar por nombre, SKU, descripción…',
+    searchFields: ['nombre', 'sku', 'descripcion'],
+    estadisticas: {
+      total: { label: 'Total', icon: 'document', description: 'Total de productos' },
+      aprobadas: { label: 'Disponibles', icon: 'check-circle', color: 'green', description: 'Productos con stock' },
+      pendientes: { label: 'Agotados', icon: 'x-circle', color: 'red', description: 'Productos sin stock' }
+    },
+    estados: [
+      { value: '', label: 'Todos', color: 'slate' },
+      { value: 'disponible', label: 'Disponibles', color: 'green' },
+      { value: 'agotado', label: 'Agotados', color: 'red' },
+      { value: 'descontinuado', label: 'Descontinuados', color: 'gray' }
+    ],
+    sortOptions: [
+      { value: 'fecha-desc', label: 'Más Recientes', icon: 'arrow-down' },
+      { value: 'fecha-asc', label: 'Más Antiguos', icon: 'arrow-up' },
+      { value: 'nombre-asc', label: 'Nombre A-Z', icon: 'sort-ascending' },
+      { value: 'nombre-desc', label: 'Nombre Z-A', icon: 'sort-descending' },
+      { value: 'precio-desc', label: 'Precio Mayor', icon: 'currency-dollar' },
+      { value: 'precio-asc', label: 'Precio Menor', icon: 'currency-dollar' }
+    ]
   },
-  estados: [
-    { value: '',               label: 'Todos',         color: 'slate'   },
-    { value: 'disponible',     label: 'Disponibles',   color: 'green'   },
-    { value: 'agotado',        label: 'Agotados',      color: 'red'     },
-    { value: 'descontinuado',  label: 'Descontinuados',color: 'gray'    }
-  ],
-  sortOptions: [
-    { value: 'fecha-desc',   label: 'Más Recientes', icon: 'arrow-down' },
-    { value: 'fecha-asc',    label: 'Más Antiguos',  icon: 'arrow-up'   },
-    { value: 'nombre-asc',   label: 'Nombre A-Z',    icon: 'sort-ascending' },
-    { value: 'nombre-desc',  label: 'Nombre Z-A',    icon: 'sort-descending' },
-    { value: 'precio-desc',  label: 'Precio Mayor',  icon: 'currency-dollar' },
-    { value: 'precio-asc',   label: 'Precio Menor',  icon: 'currency-dollar' }
-  ]
-},
-
-
-
 };
 
-// Configuración final combinando defaults con props
+// Config final
 const finalConfig = computed(() => {
-  const defaultConfig = defaultConfigs[props.config.module] || defaultConfigs.cotizaciones;
-  return { ...defaultConfig, ...props.config };
+  const def = defaultConfigs[props.config.module] || defaultConfigs.cotizaciones;
+  return { ...def, ...props.config };
 });
 
-// Emitimos eventos para v-model y nuevas funciones
 const emit = defineEmits([
   'update:searchTerm',
   'update:sortBy',
@@ -237,26 +206,26 @@ const emit = defineEmits([
   'search-blur'
 ]);
 
-// Computed properties mejoradas
-const hayFiltrosActivos = computed(() => {
-  return !!props.searchTerm || !!props.filtroEstado;
-});
+const hayFiltrosActivos = computed(() => !!props.searchTerm || !!props.filtroEstado);
 
+// Porcentajes (incluye borrador y enviado_pedido para cotizaciones)
 const estadisticasConPorcentaje = computed(() => {
-  const total = props.total || 1; // Evitar división por cero
+  const total = props.total || 1; // evita división por cero
+
+  if (finalConfig.value.module === 'cotizaciones') {
+    return {
+      aprobadas: { ...finalConfig.value.estadisticas.aprobadas, porcentaje: Math.round((props.aprobadas / total) * 100) },
+      pendientes:{ ...finalConfig.value.estadisticas.pendientes, porcentaje: Math.round((props.pendientes / total) * 100) },
+      borrador:  { ...finalConfig.value.estadisticas.borrador,  porcentaje: Math.round((props.borrador / total) * 100) },
+      enviado_pedido: { ...finalConfig.value.estadisticas.enviado_pedido, porcentaje: Math.round((props.enviado_pedido / total) * 100) },
+    };
+  }
   return {
-    aprobadas: {
-      ...finalConfig.value.estadisticas.aprobadas,
-      porcentaje: Math.round((props.aprobadas / total) * 100)
-    },
-    pendientes: {
-      ...finalConfig.value.estadisticas.pendientes,
-      porcentaje: Math.round((props.pendientes / total) * 100)
-    }
+    aprobadas: { ...finalConfig.value.estadisticas.aprobadas, porcentaje: Math.round((props.aprobadas / total) * 100) },
+    pendientes:{ ...finalConfig.value.estadisticas.pendientes, porcentaje: Math.round((props.pendientes / total) * 100) },
   };
 });
 
-// Funciones mejoradas
 const limpiarFiltros = () => {
   emit('update:searchTerm', '');
   emit('update:sortBy', 'fecha-desc');
@@ -264,46 +233,22 @@ const limpiarFiltros = () => {
   emit('limpiar-filtros');
 };
 
-const focusSearch = () => {
-  if (searchInput.value) {
-    searchInput.value.focus();
-  }
-};
+const focusSearch = () => { searchInput.value?.focus(); };
+const handleSearchFocus = () => { isSearchFocused.value = true; emit('search-focus'); };
+const handleSearchBlur  = () => { isSearchFocused.value = false; emit('search-blur'); };
 
-const handleSearchFocus = () => {
-  isSearchFocused.value = true;
-  emit('search-focus');
-};
-
-const handleSearchBlur = () => {
-  isSearchFocused.value = false;
-  emit('search-blur');
-};
-
-// Atajos de teclado
 const handleKeydown = (event) => {
-  // Ctrl/Cmd + K para enfocar búsqueda
-  if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
-    event.preventDefault();
-    focusSearch();
-  }
-
-  // Escape para limpiar búsqueda si está enfocada
-  if (event.key === 'Escape' && isSearchFocused.value) {
-    emit('update:searchTerm', '');
-  }
+  if ((event.ctrlKey || event.metaKey) && event.key === 'k') { event.preventDefault(); focusSearch(); }
+  if (event.key === 'Escape' && isSearchFocused.value) emit('update:searchTerm', '');
 };
 
-// Watch para atajos de teclado
-watch(() => props.searchTerm, (newValue) => {
-  if (!newValue && isSearchFocused.value) {
-    searchInput.value?.blur();
-  }
-});
+watch(() => props.searchTerm, (v) => { if (!v && isSearchFocused.value) searchInput.value?.blur(); });
 
-// Iconos SVG mejorados y más completos
+// Iconos
 const icons = {
   document: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+  'document-text': 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+  'paper-airplane': 'M12 19l9 2-9-18-9 18 9-2zm0 0v-8',
   'check-circle': 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
   'x-circle': 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z',
   clock: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
@@ -324,82 +269,24 @@ const icons = {
   'status-online': 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z'
 };
 
-// Clases de color mejoradas con más variaciones
 const colorClasses = {
-  // Colores principales
-  green: {
-    text: 'text-emerald-600',
-    bg: 'bg-emerald-50',
-    border: 'border-emerald-200',
-    ring: 'ring-emerald-500/20'
-  },
-  blue: {
-    text: 'text-blue-600',
-    bg: 'bg-blue-50',
-    border: 'border-blue-200',
-    ring: 'ring-blue-500/20'
-  },
-  yellow: {
-    text: 'text-amber-600',
-    bg: 'bg-amber-50',
-    border: 'border-amber-200',
-    ring: 'ring-amber-500/20'
-  },
-  orange: {
-    text: 'text-orange-600',
-    bg: 'bg-orange-50',
-    border: 'border-orange-200',
-    ring: 'ring-orange-500/20'
-  },
-  red: {
-    text: 'text-red-600',
-    bg: 'bg-red-50',
-    border: 'border-red-200',
-    ring: 'ring-red-500/20'
-  },
-  slate: {
-    text: 'text-slate-600',
-    bg: 'bg-slate-50',
-    border: 'border-slate-200',
-    ring: 'ring-slate-500/20'
-  },
-  indigo: {
-    text: 'text-indigo-600',
-    bg: 'bg-indigo-50',
-    border: 'border-indigo-200',
-    ring: 'ring-indigo-500/20'
-  },
-  emerald: {
-    text: 'text-emerald-600',
-    bg: 'bg-emerald-50',
-    border: 'border-emerald-200',
-    ring: 'ring-emerald-500/20'
-  },
-  gray: {
-    text: 'text-gray-600',
-    bg: 'bg-gray-50',
-    border: 'border-gray-200',
-    ring: 'ring-gray-500/20'
-  }
+  green:  { text: 'text-emerald-600', bg: 'bg-emerald-50',  border: 'border-emerald-200', ring: 'ring-emerald-500/20' },
+  blue:   { text: 'text-blue-600',    bg: 'bg-blue-50',     border: 'border-blue-200',    ring: 'ring-blue-500/20' },
+  yellow: { text: 'text-amber-600',   bg: 'bg-amber-50',    border: 'border-amber-200',   ring: 'ring-amber-500/20' },
+  orange: { text: 'text-orange-600',  bg: 'bg-orange-50',   border: 'border-orange-200',  ring: 'ring-orange-500/20' },
+  red:    { text: 'text-red-600',     bg: 'bg-red-50',      border: 'border-red-200',     ring: 'ring-red-500/20' },
+  slate:  { text: 'text-slate-600',   bg: 'bg-slate-50',    border: 'border-slate-200',   ring: 'ring-slate-500/20' },
+  indigo: { text: 'text-indigo-600',  bg: 'bg-indigo-50',   border: 'border-indigo-200',  ring: 'ring-indigo-500/20' },
+  emerald:{ text: 'text-emerald-600', bg: 'bg-emerald-50',  border: 'border-emerald-200', ring: 'ring-emerald-500/20' },
+  gray:   { text: 'text-gray-600',    bg: 'bg-gray-50',     border: 'border-gray-200',    ring: 'ring-gray-500/20' }
 };
-
 const getColorClasses = (color) => colorClasses[color] || colorClasses.slate;
 
-// Formatear números con separadores de miles y moneda
 const formatNumber = (num, tipo = 'number') => {
-  if (tipo === 'currency') {
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency: 'MXN'
-    }).format(num);
-  }
+  if (tipo === 'currency') return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(num);
   return new Intl.NumberFormat('es-ES').format(num);
 };
-
-// Función para obtener el ícono correcto según el contexto
-const getIconPath = (iconName) => {
-  return icons[iconName] || icons.document;
-};
+const getIconPath = (iconName) => icons[iconName] || icons.document;
 </script>
 
 <template>
@@ -409,33 +296,18 @@ const getIconPath = (iconName) => {
     tabindex="-1"
   >
     <div class="flex flex-col lg:flex-row gap-8 items-start lg:items-center justify-between">
-
-      <!-- Sección izquierda: Título, botón crear y estadísticas -->
+      <!-- Izquierda: Título, crear y estadísticas -->
       <div class="flex flex-col gap-6 w-full lg:w-auto">
-
-        <!-- Título del módulo -->
         <div class="flex items-center gap-3">
-          <h1 class="text-2xl font-bold text-slate-900">
-            {{ finalConfig.title }}
-          </h1>
-          <div
-            v-if="loading"
-            class="animate-spin w-5 h-5 text-blue-500"
-          >
+          <h1 class="text-2xl font-bold text-slate-900">{{ finalConfig.title }}</h1>
+          <div v-if="loading" class="animate-spin w-5 h-5 text-blue-500">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                :d="getIconPath('loading')"
-              />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath('loading')" />
             </svg>
           </div>
         </div>
 
         <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-
-          <!-- Botón crear mejorado con estado de carga -->
           <Link
             :href="finalConfig.createRoute"
             :class="{
@@ -444,27 +316,12 @@ const getIconPath = (iconName) => {
             }"
             class="group inline-flex items-center gap-2.5 px-6 py-3 bg-gradient-to-r from-blue-600 via-blue-600 to-blue-700 text-white font-semibold rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 active:scale-[0.98] transition-all duration-200 shadow-lg flex-shrink-0"
           >
-            <svg
-              :class="{
-                'animate-spin': loading,
-                'group-hover:rotate-90': !loading && !disabled
-              }"
-              class="w-5 h-5 transition-transform duration-200"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2.5"
-            >
+            <svg :class="{ 'animate-spin': loading, 'group-hover:rotate-90': !loading && !disabled }" class="w-5 h-5 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5">
               <path :d="loading ? getIconPath('loading') : getIconPath('plus')" />
             </svg>
-            <span class="tracking-wide">
-              {{ loading ? 'Cargando...' : finalConfig.createButtonText }}
-            </span>
+            <span class="tracking-wide">{{ loading ? 'Cargando...' : finalConfig.createButtonText }}</span>
           </Link>
 
-          <!-- Botones de exportar/importar -->
           <div v-if="showExport || showImport" class="flex gap-2">
             <button
               v-if="showExport"
@@ -492,13 +349,10 @@ const getIconPath = (iconName) => {
           </div>
         </div>
 
-        <!-- Estadísticas mejoradas con tooltips y porcentajes -->
+        <!-- Estadísticas con porcentajes -->
         <div class="flex flex-wrap items-center gap-4 text-sm">
           <!-- Total -->
-          <div
-            class="group flex items-center gap-2 px-4 py-3 bg-slate-50 rounded-xl border border-slate-200 flex-shrink-0 hover:bg-slate-100 transition-all duration-200 cursor-default"
-            :title="finalConfig.estadisticas.total.description"
-          >
+          <div class="group flex items-center gap-2 px-4 py-3 bg-slate-50 rounded-xl border border-slate-200 flex-shrink-0 hover:bg-slate-100 transition-all duration-200 cursor-default" :title="finalConfig.estadisticas.total.description">
             <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath(finalConfig.estadisticas.total.icon)" />
             </svg>
@@ -506,86 +360,80 @@ const getIconPath = (iconName) => {
             <span class="font-bold text-slate-900 text-lg">{{ formatNumber(total) }}</span>
           </div>
 
-          <!-- Aprobadas/Completados con porcentaje -->
+          <!-- Aprobadas -->
           <div
             :class="getColorClasses(finalConfig.estadisticas.aprobadas.color).bg + ' ' + getColorClasses(finalConfig.estadisticas.aprobadas.color).border"
             class="group flex items-center gap-2 px-4 py-3 rounded-xl border flex-shrink-0 hover:shadow-sm transition-all duration-200 cursor-default"
             :title="finalConfig.estadisticas.aprobadas.description"
           >
-            <svg
-              :class="getColorClasses(finalConfig.estadisticas.aprobadas.color).text"
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg :class="getColorClasses(finalConfig.estadisticas.aprobadas.color).text" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath(finalConfig.estadisticas.aprobadas.icon)" />
             </svg>
             <span class="font-medium text-slate-700">{{ finalConfig.estadisticas.aprobadas.label }}:</span>
-            <span
-              :class="getColorClasses(finalConfig.estadisticas.aprobadas.color).text"
-              class="font-bold text-lg"
-            >
-              {{ formatNumber(aprobadas) }}
-            </span>
-            <span
-              v-if="total > 0"
-              :class="getColorClasses(finalConfig.estadisticas.aprobadas.color).text"
-              class="text-xs font-medium opacity-75"
-            >
+            <span :class="getColorClasses(finalConfig.estadisticas.aprobadas.color).text" class="font-bold text-lg">{{ formatNumber(aprobadas) }}</span>
+            <span v-if="total > 0" :class="getColorClasses(finalConfig.estadisticas.aprobadas.color).text" class="text-xs font-medium opacity-75">
               ({{ estadisticasConPorcentaje.aprobadas.porcentaje }}%)
             </span>
           </div>
 
-          <!-- Pendientes con porcentaje -->
+          <!-- Pendientes -->
           <div
             :class="getColorClasses(finalConfig.estadisticas.pendientes.color).bg + ' ' + getColorClasses(finalConfig.estadisticas.pendientes.color).border"
             class="group flex items-center gap-2 px-4 py-3 rounded-xl border flex-shrink-0 hover:shadow-sm transition-all duration-200 cursor-default"
             :title="finalConfig.estadisticas.pendientes.description"
           >
-            <svg
-              :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text"
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath(finalConfig.estadisticas.pendientes.icon)" />
             </svg>
             <span class="font-medium text-slate-700">{{ finalConfig.estadisticas.pendientes.label }}:</span>
-            <span
-              :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text"
-              class="font-bold text-lg"
-            >
-              {{ formatNumber(pendientes) }}
-            </span>
-            <span
-              v-if="total > 0"
-              :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text"
-              class="text-xs font-medium opacity-75"
-            >
+            <span :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text" class="font-bold text-lg">{{ formatNumber(pendientes) }}</span>
+            <span v-if="total > 0" :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text" class="text-xs font-medium opacity-75">
               ({{ estadisticasConPorcentaje.pendientes.porcentaje }}%)
+            </span>
+          </div>
+
+          <!-- Borrador (solo cotizaciones) -->
+          <div
+            v-if="finalConfig.module === 'cotizaciones'"
+            :class="getColorClasses(finalConfig.estadisticas.borrador.color).bg + ' ' + getColorClasses(finalConfig.estadisticas.borrador.color).border"
+            class="group flex items-center gap-2 px-4 py-3 rounded-xl border flex-shrink-0 hover:shadow-sm transition-all duration-200 cursor-default"
+            :title="finalConfig.estadisticas.borrador.description"
+          >
+            <svg :class="getColorClasses(finalConfig.estadisticas.borrador.color).text" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath(finalConfig.estadisticas.borrador.icon)" />
+            </svg>
+            <span class="font-medium text-slate-700">{{ finalConfig.estadisticas.borrador.label }}:</span>
+            <span :class="getColorClasses(finalConfig.estadisticas.borrador.color).text" class="font-bold text-lg">{{ formatNumber(borrador) }}</span>
+            <span v-if="total > 0" :class="getColorClasses(finalConfig.estadisticas.borrador.color).text" class="text-xs font-medium opacity-75">
+              ({{ estadisticasConPorcentaje.borrador.porcentaje }}%)
+            </span>
+          </div>
+
+          <!-- Enviado a Pedido (solo cotizaciones) -->
+          <div
+            v-if="finalConfig.module === 'cotizaciones'"
+            :class="getColorClasses(finalConfig.estadisticas.enviado_pedido.color).bg + ' ' + getColorClasses(finalConfig.estadisticas.enviado_pedido.color).border"
+            class="group flex items-center gap-2 px-4 py-3 rounded-xl border flex-shrink-0 hover:shadow-sm transition-all duration-200 cursor-default"
+            :title="finalConfig.estadisticas.enviado_pedido.description"
+          >
+            <svg :class="getColorClasses(finalConfig.estadisticas.enviado_pedido.color).text" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath(finalConfig.estadisticas.enviado_pedido.icon)" />
+            </svg>
+            <span class="font-medium text-slate-700">{{ finalConfig.estadisticas.enviado_pedido.label }}:</span>
+            <span :class="getColorClasses(finalConfig.estadisticas.enviado_pedido.color).text" class="font-bold text-lg">{{ formatNumber(enviado_pedido) }}</span>
+            <span v-if="total > 0" :class="getColorClasses(finalConfig.estadisticas.enviado_pedido.color).text" class="text-xs font-medium opacity-75">
+              ({{ estadisticasConPorcentaje.enviado_pedido.porcentaje }}%)
             </span>
           </div>
         </div>
       </div>
 
-      <!-- Sección derecha: Búsqueda y filtros -->
+      <!-- Derecha: Búsqueda y filtros -->
       <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto lg:flex-shrink-0 lg:min-w-0">
-
-        <!-- Campo de búsqueda mejorado con atajo de teclado -->
+        <!-- Búsqueda -->
         <div class="relative group">
           <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <svg
-              :class="{
-                'text-blue-500': isSearchFocused,
-                'text-slate-400': !isSearchFocused
-              }"
-              class="w-4 h-4 transition-colors duration-200"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg :class="{ 'text-blue-500': isSearchFocused, 'text-slate-400': !isSearchFocused }" class="w-4 h-4 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath('search')" />
             </svg>
           </div>
@@ -606,25 +454,13 @@ const getIconPath = (iconName) => {
             class="w-full sm:w-64 lg:w-80 pl-11 pr-20 py-3 border rounded-xl bg-white text-slate-900 placeholder-slate-400 focus:outline-none transition-all duration-200"
           />
 
-          <!-- Indicador de atajo de teclado -->
-          <div
-            v-if="!searchTerm && !isSearchFocused && !disabled"
-            class="absolute inset-y-0 right-12 flex items-center pointer-events-none"
-          >
+          <div v-if="!searchTerm && !isSearchFocused && !disabled" class="absolute inset-y-0 right-12 flex items-center pointer-events-none">
             <kbd class="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-xs font-mono text-slate-400 bg-slate-100 rounded border border-slate-200">
               <span class="text-xs">⌘</span>K
             </kbd>
           </div>
 
-          <!-- Botón limpiar búsqueda -->
-          <Transition
-            enter-active-class="transition-all duration-200"
-            enter-from-class="opacity-0 scale-90"
-            enter-to-class="opacity-100 scale-100"
-            leave-active-class="transition-all duration-150"
-            leave-from-class="opacity-100 scale-100"
-            leave-to-class="opacity-0 scale-90"
-          >
+          <Transition enter-active-class="transition-all duration-200" enter-from-class="opacity-0 scale-90" enter-to-class="opacity-100 scale-100" leave-active-class="transition-all duration-150" leave-from-class="opacity-100 scale-100" leave-to-class="opacity-0 scale-90">
             <button
               v-if="searchTerm"
               @click="$emit('update:searchTerm', '')"
@@ -638,23 +474,16 @@ const getIconPath = (iconName) => {
           </Transition>
         </div>
 
-        <!-- Select de ordenamiento mejorado con iconos -->
+        <!-- Orden -->
         <div class="relative flex-shrink-0">
           <select
             :value="sortBy"
             @change="$emit('update:sortBy', $event.target.value)"
             :disabled="disabled"
-            :class="{
-              'opacity-50 cursor-not-allowed': disabled,
-              'hover:bg-slate-50 cursor-pointer': !disabled
-            }"
+            :class="{ 'opacity-50 cursor-not-allowed': disabled, 'hover:bg-slate-50 cursor-pointer': !disabled }"
             class="appearance-none w-full sm:w-auto px-4 py-3 pr-10 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
           >
-            <option
-              v-for="option in finalConfig.sortOptions"
-              :key="option.value"
-              :value="option.value"
-            >
+            <option v-for="option in finalConfig.sortOptions" :key="option.value" :value="option.value">
               {{ option.label }}
             </option>
           </select>
@@ -665,7 +494,7 @@ const getIconPath = (iconName) => {
           </div>
         </div>
 
-        <!-- Select de estado mejorado con indicadores visuales -->
+        <!-- Estado -->
         <div class="relative flex-shrink-0">
           <select
             :value="filtroEstado"
@@ -679,11 +508,7 @@ const getIconPath = (iconName) => {
             }"
             class="appearance-none w-full sm:w-auto px-4 py-3 pr-10 border rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
           >
-            <option
-              v-for="estado in finalConfig.estados"
-              :key="estado.value"
-              :value="estado.value"
-            >
+            <option v-for="estado in finalConfig.estados" :key="estado.value" :value="estado.value">
               {{ estado.label }}
             </option>
           </select>
@@ -692,22 +517,11 @@ const getIconPath = (iconName) => {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath('chevron-down')" />
             </svg>
           </div>
-          <!-- Indicador de filtro activo -->
-          <div
-            v-if="filtroEstado"
-            class="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-white"
-          ></div>
+          <div v-if="filtroEstado" class="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-white"></div>
         </div>
 
-        <!-- Botón limpiar filtros mejorado con contador -->
-        <Transition
-          enter-active-class="transition-all duration-300"
-          enter-from-class="opacity-0 scale-90 translate-x-4"
-          enter-to-class="opacity-100 scale-100 translate-x-0"
-          leave-active-class="transition-all duration-200"
-          leave-from-class="opacity-100 scale-100 translate-x-0"
-          leave-to-class="opacity-0 scale-90 translate-x-4"
-        >
+        <!-- Limpiar filtros -->
+        <Transition enter-active-class="transition-all duration-300" enter-from-class="opacity-0 scale-90 translate-x-4" enter-to-class="opacity-100 scale-100 translate-x-0" leave-active-class="transition-all duration-200" leave-from-class="opacity-100 scale-100 translate-x-0" leave-to-class="opacity-0 scale-90 translate-x-4">
           <button
             v-if="hayFiltrosActivos"
             @click="limpiarFiltros"
@@ -719,7 +533,6 @@ const getIconPath = (iconName) => {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath('filter-x')" />
             </svg>
             <span class="font-medium">Limpiar</span>
-            <!-- Contador de filtros activos -->
             <div class="absolute -top-1 -right-1 min-w-[1.25rem] h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center px-1">
               {{ (searchTerm ? 1 : 0) + (filtroEstado ? 1 : 0) }}
             </div>
@@ -728,7 +541,7 @@ const getIconPath = (iconName) => {
       </div>
     </div>
 
-    <!-- Barra de progreso para mostrar porcentajes de manera visual (opcional) -->
+    <!-- Distribución (se mantiene con Aprobadas + Pendientes) -->
     <div v-if="total > 0" class="mt-6 pt-4 border-t border-slate-100">
       <div class="flex items-center gap-4 text-xs text-slate-500 mb-2">
         <span>Distribución:</span>
@@ -737,39 +550,20 @@ const getIconPath = (iconName) => {
           <span>{{ estadisticasConPorcentaje.aprobadas.porcentaje }}% {{ finalConfig.estadisticas.aprobadas.label }}</span>
         </div>
         <div class="flex items-center gap-1">
-          <div
-            class="w-3 h-3 rounded-full"
-            :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text.replace('text-', 'bg-')"
-          ></div>
+          <div class="w-3 h-3 rounded-full" :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text.replace('text-', 'bg-')"></div>
           <span>{{ estadisticasConPorcentaje.pendientes.porcentaje }}% {{ finalConfig.estadisticas.pendientes.label }}</span>
         </div>
       </div>
 
       <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-        <div
-          class="h-full bg-emerald-500 rounded-full transition-all duration-500 ease-out"
-          :style="{ width: `${estadisticasConPorcentaje.aprobadas.porcentaje}%` }"
-        ></div>
-        <div
-          :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text.replace('text-', 'bg-')"
-          class="h-full rounded-full transition-all duration-500 ease-out -mt-2"
-          :style="{
-            width: `${estadisticasConPorcentaje.pendientes.porcentaje}%`,
-            marginLeft: `${estadisticasConPorcentaje.aprobadas.porcentaje}%`
-          }"
-        ></div>
+        <div class="h-full bg-emerald-500 rounded-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.aprobadas.porcentaje}%` }"></div>
+        <div :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text.replace('text-', 'bg-')" class="h-full rounded-full transition-all duration-500 ease-out -mt-2"
+             :style="{ width: `${estadisticasConPorcentaje.pendientes.porcentaje}%`, marginLeft: `${estadisticasConPorcentaje.aprobadas.porcentaje}%` }"></div>
       </div>
     </div>
 
-    <!-- Indicador de filtros activos más detallado -->
-    <Transition
-      enter-active-class="transition-all duration-300"
-      enter-from-class="opacity-0 -translate-y-2"
-      enter-to-class="opacity-100 translate-y-0"
-      leave-active-class="transition-all duration-200"
-      leave-from-class="opacity-100 translate-y-0"
-      leave-to-class="opacity-0 -translate-y-2"
-    >
+    <!-- Filtros activos -->
+    <Transition enter-active-class="transition-all duration-300" enter-from-class="opacity-0 -translate-y-2" enter-to-class="opacity-100 translate-y-0" leave-active-class="transition-all duration-200" leave-from-class="opacity-100 translate-y-0" leave-to-class="opacity-0 -translate-y-2">
       <div v-if="hayFiltrosActivos" class="mt-4 pt-4 border-t border-slate-100">
         <div class="flex flex-wrap items-center gap-2 text-sm">
           <span class="text-slate-500 font-medium">Filtros activos:</span>
@@ -780,10 +574,7 @@ const getIconPath = (iconName) => {
             </svg>
             <span class="font-medium">Búsqueda:</span>
             <span class="max-w-32 truncate">{{ searchTerm }}</span>
-            <button
-              @click="$emit('update:searchTerm', '')"
-              class="ml-1 hover:bg-blue-200 rounded-full p-0.5 transition-colors duration-150"
-            >
+            <button @click="$emit('update:searchTerm', '')" class="ml-1 hover:bg-blue-200 rounded-full p-0.5 transition-colors duration-150">
               <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath('x')" />
               </svg>
@@ -791,16 +582,10 @@ const getIconPath = (iconName) => {
           </div>
 
           <div v-if="filtroEstado" class="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full">
-            <div
-              class="w-2 h-2 rounded-full"
-              :class="getColorClasses(finalConfig.estados.find(e => e.value === filtroEstado)?.color || 'slate').text.replace('text-', 'bg-')"
-            ></div>
+            <div class="w-2 h-2 rounded-full" :class="getColorClasses(finalConfig.estados.find(e => e.value === filtroEstado)?.color || 'slate').text.replace('text-', 'bg-')"></div>
             <span class="font-medium">Estado:</span>
             <span>{{ finalConfig.estados.find(e => e.value === filtroEstado)?.label }}</span>
-            <button
-              @click="$emit('update:filtroEstado', '')"
-              class="ml-1 hover:bg-green-200 rounded-full p-0.5 transition-colors duration-150"
-            >
+            <button @click="$emit('update:filtroEstado', '')" class="ml-1 hover:bg-green-200 rounded-full p-0.5 transition-colors duration-150">
               <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath('x')" />
               </svg>
@@ -813,37 +598,9 @@ const getIconPath = (iconName) => {
 </template>
 
 <style scoped>
-/* Animación personalizada para el spinner de carga */
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.animate-spin {
-  animation: spin 1s linear infinite;
-}
-
-/* Mejoras en la accesibilidad y focus */
-.focus-visible:focus {
-  outline: 2px solid theme('colors.blue.500');
-  outline-offset: 2px;
-}
-
-/* Transiciones suaves para los elementos interactivos */
-button, select, input {
-  transition-property: all;
-  transition-duration: 200ms;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Estilo mejorado para los kbd elementos */
-kbd {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
-  font-size: 0.75rem;
-  font-weight: 500;
-}
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.animate-spin { animation: spin 1s linear infinite; }
+.focus-visible:focus { outline: 2px solid theme('colors.blue.500'); outline-offset: 2px; }
+button, select, input { transition-property: all; transition-duration: 200ms; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+kbd { font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace; font-size: 0.75rem; font-weight: 500; }
 </style>

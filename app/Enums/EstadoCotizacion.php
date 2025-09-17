@@ -10,9 +10,9 @@ enum EstadoCotizacion: string
     case Aprobada = 'aprobada';
     case Rechazada = 'rechazada';
     case Enviada = 'enviada';
-    case EnviadoAPedido = 'enviado_a_pedido';
+    case EnviadoAPedido = 'enviado_pedido';
     case ConvertidaPedido = 'convertida_pedido';
-    case EnviadoPedido = 'enviado_pedido'; // Añade este nuevo estado
+        // case EnviadoPedido = 'enviado_pedido'; // Añade este nuevo estado
     case Borrador = 'borrador';
     case SinEstado = 'sin_estado'; // Añade este nuevo estado
 
@@ -25,7 +25,7 @@ enum EstadoCotizacion: string
             self::Enviada => 'Enviada',
             self::EnviadoAPedido => 'Enviado a Pedido',
             self::ConvertidaPedido => 'Convertida a Pedido',
-            self::EnviadoPedido => 'Enviado a Pedido',
+            //self::EnviadoPedido => 'Enviado a Pedido',
             self::Borrador => 'Borrador',
             self::SinEstado => 'Sin Estado',
         };
@@ -40,7 +40,7 @@ enum EstadoCotizacion: string
             self::Enviada => 'purple',
             self::EnviadoAPedido => 'orange',
             self::ConvertidaPedido => 'green',
-            self::EnviadoPedido => 'indigo',
+            //self::EnviadoPedido => 'indigo',
             self::Borrador => 'yellow',
             default => 'gray',
         };

@@ -235,34 +235,32 @@ watch(totalPages, (newTotal) => {
   }
 })
 
+// Estadísticas calculadas
 const estadisticas = computed(() => {
-  const originales = cotizacionesOriginales.value || []
   const stats = {
-    total: originales.length,
+    total: cotizacionesOriginales.value.length,
     aprobadas: 0,
     pendientes: 0,
-    rechazadas: 0
-  }
+    borrador: 0,
+    enviado_pedido: 0,
+  };
 
-  originales.forEach(c => {
-    if (!c) return
-    switch (c.estado) {
+  cotizacionesOriginales.value.forEach(c => {
+    switch (String(c.estado || '').toLowerCase()) {
       case 'aprobado':
       case 'aprobada':
-        stats.aprobadas++
-        break
+        stats.aprobadas++; break;
       case 'pendiente':
-        stats.pendientes++
-        break
-      case 'rechazado':
-      case 'rechazada':
-        stats.rechazadas++
-        break
+        stats.pendientes++; break;
+      case 'borrador':
+        stats.borrador++; break;
+      case 'enviado_pedido':
+        stats.enviado_pedido++; break;
     }
-  })
+  });
 
-  return stats
-})
+  return stats;
+});
 
 const handleLimpiarFiltros = () => {
   searchTerm.value = ''
@@ -290,6 +288,22 @@ function puedeEnviarAPedido(cotizacion) {
 function validarCotizacion(cotizacion) {
   if (!cotizacion?.id) {
     throw new Error('ID de cotización no válido')
+  }
+  return true
+}
+
+function validarCotizacionBasica(cotizacion) {
+  if (!cotizacion?.id) {
+    throw new Error('ID de cotización no válido')
+  }
+  if (!cotizacion.cliente?.nombre) {
+    throw new Error('Datos del cliente no encontrados')
+  }
+  if (!Array.isArray(cotizacion.productos) || !cotizacion.productos.length) {
+    throw new Error('Lista de productos no válida')
+  }
+  if (!cotizacion.fecha && !cotizacion.created_at) {
+    throw new Error('Fecha no especificada')
   }
   return true
 }
@@ -440,14 +454,23 @@ const eliminarCotizacion = async () => {
   }
 }
 
-const enviarAPedido = async (cotizacionData) => {
-  try {
-    const doc = cotizacionData?.id ? cotizacionData : fila.value
-    validarCotizacion(doc)
+// Pon este ref junto a tus otros estados
+const isSendingPedido = ref(false)
 
-    if (!puedeEnviarAPedido(doc)) {
-      throw new Error('La cotización debe estar aprobada para enviarla a pedido')
-    }
+/**
+ * Enviar una cotización a Pedido
+ * @param {Object} cotizacionData - La cotización (opcional; si no viene, toma `fila.value`)
+ * @param {Object} options
+ * @param {'index'|'show'|'edit'|null} options.redirectTo - A dónde navegar tras crear el pedido.
+ *    'show' o 'edit' requieren que el backend devuelva `pedido_id`. Si es null, no redirige.
+ *    Default: 'show' si hay `pedido_id`, de lo contrario 'index'.
+ */
+const enviarAPedido = async (cotizacionData, { redirectTo = 'index' } = {}) => {
+  try {
+    const docRaw = cotizacionData?.id ? cotizacionData : fila.value
+    validarCotizacionBasica(docRaw)
+
+    const doc = { ...docRaw, fecha: docRaw.fecha || docRaw.created_at || new Date().toISOString() }
 
     loading.value = true
     notyf.success('Enviando cotización a pedido...')
@@ -456,40 +479,28 @@ const enviarAPedido = async (cotizacionData) => {
       forzarReenvio: !!cotizacionData?.forzarReenvio
     })
 
-    if (data?.success) {
-      notyf.success(data.message || 'Cotización enviada a pedido exitosamente')
+    if (!data?.success) throw new Error(data?.error || 'No se pudo enviar a pedido')
 
-      // Actualizar estado local
-      const index = cotizacionesOriginales.value.findIndex(c => c.id === doc.id)
-      if (index !== -1) {
-        cotizacionesOriginales.value[index] = {
-          ...cotizacionesOriginales.value[index],
-          estado: 'enviado_a_pedido'
-        }
-      }
+    // Actualiza estado local
+    const i = cotizacionesOriginales.value.findIndex(c => c.id === doc.id)
+    if (i !== -1) cotizacionesOriginales.value[i] = { ...cotizacionesOriginales.value[i], estado: 'enviado_pedido' }
 
-      cerrarModal()
-    } else {
-      throw new Error(data?.error || 'No se pudo enviar a pedido')
-    }
+    cerrarModal()
+    notyf.success(data.message || 'Cotización enviada a pedido exitosamente')
 
-  } catch (error) {
-    console.error('Error al enviar a pedido:', error)
+    // 🔁 Ir siempre al index de pedidos (usa el helper de rutas si lo tienes)
+    router.visit(route ? route('pedidos.index') : '/pedidos')
 
-    let mensaje = 'Error desconocido al enviar a pedido'
-    if (error.response?.data?.error) {
-      mensaje = error.response.data.error
-    } else if (error.response?.data?.message) {
-      mensaje = error.response.data.message
-    } else if (error.message) {
-      mensaje = error.message
-    }
-
-    notyf.error(mensaje)
+  } catch (err) {
+    console.error(err)
+    notyf.error(err.response?.data?.error || err.response?.data?.message || err.message || 'Error al enviar a pedido')
   } finally {
     loading.value = false
   }
 }
+
+
+
 
 const enviarAVenta = () => {
   notyf.warning('Esta acción no está disponible desde Cotizaciones.')
@@ -509,8 +520,9 @@ const crearNuevaCotizacion = () => {
       <!-- Header de filtros y estadísticas -->
       <UniversalHeader
         :total="estadisticas.total"
-        :aprobadas="estadisticas.aprobadas"
         :pendientes="estadisticas.pendientes"
+        :borrador="estadisticas.borrador"
+        :enviado_pedido="estadisticas.enviado_pedido"
         v-model:search-term="searchTerm"
         v-model:sort-by="sortBy"
         v-model:filtro-estado="filtroEstado"

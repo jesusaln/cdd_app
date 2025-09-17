@@ -556,7 +556,7 @@ const config = computed(() => {
         'aprobada': { label: 'Aprobada', classes: 'bg-blue-100 text-blue-700', color: 'bg-blue-400' },
         'rechazada': { label: 'Rechazada', classes: 'bg-red-100 text-red-700', color: 'bg-red-400' },
         'enviada': { label: 'Enviada', classes: 'bg-purple-100 text-purple-700', color: 'bg-purple-400' },
-        'enviado_a_pedido': { label: 'Enviado a Pedido', classes: 'bg-orange-100 text-orange-700', color: 'bg-orange-400' },
+        'enviado_pedido': { label: 'Enviado a Pedido', classes: 'bg-orange-100 text-orange-700', color: 'bg-orange-400' },
         'convertida_pedido': { label: 'Convertida a Pedido', classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
         'enviado_pedido': { label: 'Enviado a Pedido', classes: 'bg-indigo-100 text-indigo-700', color: 'bg-indigo-400' },
         'sin_estado': { label: 'Sin Estado', classes: 'bg-gray-100 text-gray-500', color: 'bg-gray-400' }
