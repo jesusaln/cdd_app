@@ -120,8 +120,8 @@
       <!-- Modal Vista Previa -->
       <VistaPreviaModal
         :show="mostrarVistaPrevia"
-        type="ordencompra"
-        :proveedor="proveedorSeleccionado"
+        type="ordenescompra"
+        :cliente="proveedorSeleccionado"
         :items="selectedProducts"
         :totals="totales"
         :notas="form.notas"
@@ -131,344 +131,9 @@
     </div>
   </div>
 </template>
-            <div class="form-group">
-              <label for="buscarProveedor" class="form-label required">
-                Buscar Proveedor
-              </label>
-              <div class="relative">
-                <input
-                  id="buscarProveedor"
-                  v-model="supplierSearchQuery"
-                  type="text"
-                  placeholder="Escriba el nombre del proveedor..."
-                  @focus="showSuppliers = true"
-                  @blur="hideSuppliersAfterDelay"
-                  @input="onSupplierSearch"
-                  autocomplete="off"
-                  class="form-input"
-                  :class="{ 'border-red-300': form.errors.proveedor_id }"
-                />
-                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                  <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </div>
-
-                <!-- Dropdown de proveedores -->
-                <Transition name="fade">
-                  <div v-if="showSuppliers && (filteredSuppliers.length > 0 || loadingSuppliers)"
-                       class="dropdown-menu">
-                    <div v-if="loadingSuppliers" class="px-4 py-3 text-center text-gray-500">
-                      <div class="inline-flex items-center">
-                        <svg class="animate-spin -ml-1 mr-3 h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24">
-                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Buscando...
-                      </div>
-                    </div>
-                    <div v-else-if="filteredSuppliers.length === 0" class="px-4 py-3 text-center text-gray-500">
-                      No se encontraron proveedores
-                    </div>
-                    <div v-else class="max-h-60 overflow-y-auto">
-                      <button
-                        v-for="supplier in filteredSuppliers"
-                        :key="supplier.id"
-                        type="button"
-                        @click="selectSupplier(supplier)"
-                        class="dropdown-item proveedor-item"
-                      >
-                        <div class="flex flex-col">
-                          <span class="font-medium">{{ supplier.nombre_razon_social }}</span>
-                          <span v-if="supplier.codigo" class="text-sm text-gray-500">
-                            Código: {{ supplier.codigo }}
-                          </span>
-                        </div>
-                      </button>
-                    </div>
-                  </div>
-                </Transition>
-              </div>
-              <p v-if="form.errors.proveedor_id" class="form-error">
-                {{ form.errors.proveedor_id }}
-              </p>
-
-              <!-- Proveedor seleccionado -->
-              <div v-if="selectedSupplierName" class="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                <div class="flex items-center">
-                  <svg class="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                  </svg>
-                  <div>
-                    <p class="font-medium text-green-800">{{ selectedSupplierName }}</p>
-                    <p v-if="selectedSupplier?.codigo" class="text-sm text-green-600">
-                      Código: {{ selectedSupplier.codigo }}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Búsqueda de Productos/Servicios -->
-        <div class="card">
-          <div class="card-header">
-            <h2 class="card-title">
-              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-              </svg>
-              Productos y Servicios
-            </h2>
-          </div>
-          <div class="card-body">
-            <div class="form-group">
-              <label for="buscarProducto" class="form-label">
-                Buscar Producto/Servicio
-              </label>
-              <div class="relative">
-                <input
-                  id="buscarProducto"
-                  v-model="itemSearchQuery"
-                  type="text"
-                  placeholder="Buscar por nombre, código o código de barras..."
-                  @focus="showItems = true"
-                  @blur="hideItemsAfterDelay"
-                  @input="onItemSearch"
-                  autocomplete="off"
-                  class="form-input"
-                />
-                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                  <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </div>
-
-                <!-- Dropdown de productos -->
-                <Transition name="fade">
-                  <div v-if="showItems && (filteredItems.length > 0 || loadingItems)"
-                       class="dropdown-menu">
-                    <div v-if="loadingItems" class="px-4 py-3 text-center text-gray-500">
-                      <div class="inline-flex items-center">
-                        <svg class="animate-spin -ml-1 mr-3 h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24">
-                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Buscando...
-                      </div>
-                    </div>
-                    <div v-else-if="filteredItems.length === 0" class="px-4 py-3 text-center text-gray-500">
-                      No se encontraron productos/servicios
-                    </div>
-                    <div v-else class="max-h-60 overflow-y-auto">
-                      <button
-                        v-for="item in filteredItems"
-                        :key="`${item.tipo}-${item.id}`"
-                        type="button"
-                        @click="addItem(item)"
-                        class="dropdown-item producto-item"
-                        :disabled="isItemSelected(item)"
-                      >
-                        <div class="flex items-center justify-between w-full">
-                          <div class="flex flex-col text-left">
-                            <span class="font-medium">{{ item.nombre }}</span>
-                            <div class="flex items-center space-x-4 text-sm text-gray-500">
-                              <span class="badge" :class="item.tipo === 'producto' ? 'badge-blue' : 'badge-green'">
-                                {{ item.tipo === 'producto' ? 'Producto' : 'Servicio' }}
-                              </span>
-                              <span v-if="item.codigo">Código: {{ item.codigo }}</span>
-                              <span v-if="item.tipo === 'producto' && item.stock !== undefined">
-                                Stock: {{ item.stock }}
-                              </span>
-                            </div>
-                          </div>
-                          <div v-if="isItemSelected(item)" class="text-green-500">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                            </svg>
-                          </div>
-                        </div>
-                      </button>
-                    </div>
-                  </div>
-                </Transition>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Lista de Items Seleccionados -->
-        <div v-if="form.items.length > 0" class="card">
-          <div class="card-header">
-            <div class="flex items-center justify-between">
-              <h2 class="card-title">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                Items Seleccionados ({{ form.items.length }})
-              </h2>
-              <button
-                @click="limpiarItems"
-                type="button"
-                class="text-red-600 hover:text-red-800 text-sm font-medium"
-              >
-                Limpiar todo
-              </button>
-            </div>
-          </div>
-          <div class="card-body p-0">
-            <div class="overflow-x-auto">
-              <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th class="table-header">Producto/Servicio</th>
-                    <th class="table-header">Tipo</th>
-                    <th class="table-header">Cantidad</th>
-                    <th class="table-header">Precio Unitario</th>
-                    <th class="table-header">Subtotal</th>
-                    <th class="table-header">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                  <tr v-for="(entry, index) in form.items" :key="`${entry.tipo}-${entry.id}`"
-                      class="hover:bg-gray-50 transition-colors duration-150">
-                    <td class="table-cell">
-                      <div class="flex flex-col">
-                        <span class="font-medium text-gray-900">
-                          {{ getItemDetails(entry)?.nombre || 'Item no encontrado' }}
-                        </span>
-                        <span v-if="getItemDetails(entry)?.codigo" class="text-sm text-gray-500">
-                          Código: {{ getItemDetails(entry).codigo }}
-                        </span>
-                      </div>
-                    </td>
-                    <td class="table-cell">
-                      <span class="badge" :class="entry.tipo === 'producto' ? 'badge-blue' : 'badge-green'">
-                        {{ entry.tipo === 'producto' ? 'Producto' : 'Servicio' }}
-                      </span>
-                    </td>
-                    <td class="table-cell">
-                      <input
-                        v-model.number="entry.cantidad"
-                        type="number"
-                        class="form-input-sm"
-                        min="1"
-                        step="1"
-                        @input="calculateTotal"
-                        @blur="validateQuantity(entry)"
-                      />
-                      <p v-if="quantityErrors[`${entry.tipo}-${entry.id}`]" class="text-red-500 text-xs mt-1">
-                        {{ quantityErrors[`${entry.tipo}-${entry.id}`] }}
-                      </p>
-                    </td>
-                    <td class="table-cell">
-                      <div class="flex items-center">
-                        <span class="text-gray-500 mr-1">$</span>
-                        <input
-                          v-model.number="entry.precio"
-                          type="number"
-                          class="form-input-sm"
-                          min="0"
-                          step="0.01"
-                          @input="calculateTotal"
-                          @blur="validatePrice(entry)"
-                        />
-                      </div>
-                      <p v-if="priceErrors[`${entry.tipo}-${entry.id}`]" class="text-red-500 text-xs mt-1">
-                        {{ priceErrors[`${entry.tipo}-${entry.id}`] }}
-                      </p>
-                    </td>
-                    <td class="table-cell">
-                      <span class="font-medium text-gray-900">
-                        ${{ formatCurrency(getSubtotal(entry)) }}
-                      </span>
-                    </td>
-                    <td class="table-cell">
-                      <button
-                        @click="removeItem(entry)"
-                        type="button"
-                        class="text-red-600 hover:text-red-800 p-1 rounded-md hover:bg-red-50 transition-colors duration-150"
-                        title="Eliminar item"
-                      >
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-                <tfoot class="bg-gray-50">
-                  <tr>
-                    <td colspan="4" class="table-cell font-semibold text-right">Total:</td>
-                    <td class="table-cell">
-                      <span class="text-lg font-bold text-gray-900">
-                        ${{ formatCurrency(form.total) }}
-                      </span>
-                    </td>
-                    <td class="table-cell"></td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-            <p v-if="form.errors.items" class="form-error">
-              {{ form.errors.items }}
-            </p>
-          </div>
-        </div>
-
-        <!-- Resumen y Acciones -->
-        <div class="card">
-          <div class="card-body">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-4">
-                <div class="text-sm text-gray-600">
-                  <span class="font-medium">Items:</span> {{ form.items.length }}
-                </div>
-                <div class="text-sm text-gray-600">
-                  <span class="font-medium">Total:</span>
-                  <span class="text-lg font-bold text-gray-900 ml-1">
-                    ${{ formatCurrency(form.total) }}
-                  </span>
-                </div>
-              </div>
-
-              <div class="flex items-center space-x-4">
-                <Link
-                  :href="route('ordenescompra.index')"
-                  class="btn-secondary"
-                  :disabled="form.processing"
-                >
-                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                  Cancelar
-                </Link>
-
-                <button
-                  type="submit"
-                  class="btn-primary"
-                  :disabled="!canSubmit || form.processing"
-                >
-                  <svg v-if="form.processing" class="animate-spin -ml-1 mr-3 h-4 w-4" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  <svg v-else class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                  </svg>
-                  {{ form.processing ? 'Actualizando...' : 'Actualizar Orden de Compra' }}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </form>
-    </div>
-  </div>
-</template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { Head, useForm, Link, router } from '@inertiajs/vue3';
 import axios from 'axios';
 import { Notyf } from 'notyf';
@@ -481,6 +146,39 @@ import ProductosSeleccionados from '@/Components/CreateComponents/ProductosSelec
 import Totales from '@/Components/CreateComponents/Totales.vue';
 import BotonesAccion from '@/Components/CreateComponents/BotonesAccion.vue';
 import VistaPreviaModal from '@/Components/Modals/VistaPreviaModal.vue';
+
+// Propiedades del componente
+const props = defineProps({
+  ordenCompra: {
+    type: Object,
+    required: true,
+  },
+  proveedores: {
+    type: Array,
+    default: () => [],
+  },
+  productos: {
+    type: Array,
+    default: () => [],
+  },
+  servicios: {
+    type: Array,
+    default: () => [],
+  },
+  errors: {
+    type: Object,
+    default: () => ({}),
+  },
+});
+
+// Función auxiliar para parsear flotantes de forma segura
+const safeParseFloat = (value) => {
+  const parsed = parseFloat(value);
+  return isNaN(parsed) ? 0 : parsed;
+};
+
+// Configuración del layout
+defineOptions({ layout: AppLayout });
 
 const notyf = new Notyf({
   duration: 5000,
@@ -496,6 +194,18 @@ const showNotification = (message, type = 'success') => {
   notyf.open({ type, message });
 };
 
+// Inicialización del formulario con datos de la orden de compra existente
+const form = useForm({
+  proveedor_id: props.ordenCompra?.proveedor_id || null,
+  total: safeParseFloat(props.ordenCompra?.total || 0).toFixed(2),
+  items: props.ordenCompra?.items?.map(item => ({
+    id: item.id,
+    tipo: item.pivot?.item_type === 'App\\Models\\Producto' ? 'producto' : 'servicio',
+    cantidad: item.pivot?.cantidad || 1,
+    precio: safeParseFloat(item.pivot?.precio || 0),
+  })) || [],
+});
+
 // Estado reactivo
 const selectedProducts = ref([]);
 const quantities = ref({});
@@ -504,6 +214,110 @@ const discounts = ref({});
 const proveedorSeleccionado = ref(null);
 const mostrarVistaPrevia = ref(false);
 const mostrarAtajos = ref(false);
+
+const supplierSearchQuery = ref(props.ordenCompra?.proveedor?.nombre_razon_social || '');
+const itemSearchQuery = ref('');
+const showSuppliers = ref(false);
+const showItems = ref(false);
+const selectedSupplierName = ref(props.ordenCompra?.proveedor?.nombre_razon_social || null);
+const selectedSupplier = computed(() => props.proveedores.find(s => s.id === form.proveedor_id) || null);
+const loadingSuppliers = ref(false);
+const loadingItems = ref(false);
+const quantityErrors = ref({});
+const priceErrors = ref({});
+
+// Temporizadores para búsqueda con debounce
+let supplierSearchTimer = null;
+let itemSearchTimer = null;
+
+// Propiedades computadas
+const filteredSuppliers = computed(() => {
+  if (!supplierSearchQuery.value || supplierSearchQuery.value.length < 2) return [];
+  const searchTerm = supplierSearchQuery.value.toLowerCase();
+  return props.proveedores.filter((proveedor) =>
+    proveedor.nombre_razon_social.toLowerCase().includes(searchTerm) ||
+    (proveedor.codigo && proveedor.codigo.toLowerCase().includes(searchTerm))
+  ).slice(0, 10);
+});
+
+const filteredItems = computed(() => {
+  if (!itemSearchQuery.value || itemSearchQuery.value.length < 2) return [];
+  const searchTerm = itemSearchQuery.value.toLowerCase();
+
+  const productosYServicios = [
+    ...(props.productos || []).map(producto => ({
+      ...producto,
+      tipo: 'producto',
+    })),
+    ...(props.servicios || []).map(servicio => ({
+      ...servicio,
+      tipo: 'servicio',
+    })),
+  ];
+
+  return productosYServicios.filter(item =>
+    item.nombre.toLowerCase().includes(searchTerm) ||
+    (item.codigo && item.codigo.toLowerCase().includes(searchTerm)) ||
+    (item.numero_de_serie && item.numero_de_serie.toLowerCase().includes(searchTerm)) ||
+    (item.codigo_barras && item.codigo_barras.toLowerCase().includes(searchTerm))
+  ).slice(0, 15);
+});
+
+
+const hasValidationErrors = computed(() => {
+  return Object.keys(quantityErrors.value).length > 0 ||
+         Object.keys(priceErrors.value).length > 0;
+});
+
+// Cálculos
+const totales = computed(() => {
+  let subtotal = 0;
+  let descuentoItems = 0;
+
+  selectedProducts.value.forEach(entry => {
+    const key = `${entry.tipo}-${entry.id}`;
+    const cantidad = parseFloat(quantities.value[key]) || 0;
+    const precio = parseFloat(prices.value[key]) || 0;
+    const descuento = parseFloat(discounts.value[key]) || 0;
+
+    const subtotalItem = cantidad * precio;
+    const descuentoItem = subtotalItem * (descuento / 100);
+
+    subtotal += subtotalItem;
+    descuentoItems += descuentoItem;
+  });
+
+  const subtotalConDescuentos = subtotal - descuentoItems;
+  const iva = subtotalConDescuentos * 0.16;
+  const total = subtotalConDescuentos + iva;
+
+  return {
+    subtotal: Number(subtotal.toFixed(2)),
+    descuentoItems: Number(descuentoItems.toFixed(2)),
+    subtotalConDescuentos: Number(subtotalConDescuentos.toFixed(2)),
+    iva: Number(iva.toFixed(2)),
+    total: Number(total.toFixed(2)),
+  };
+});
+
+const canSubmit = computed(() => {
+  return proveedorSeleccionado.value && selectedProducts.value.length > 0;
+});
+
+// Filtrar solo proveedores activos
+const proveedoresActivos = computed(() => {
+  return props.proveedores.filter(proveedor => {
+    const estado = proveedor.estado || proveedor.status || proveedor.activo;
+    if (typeof estado === 'string') {
+      return estado.toLowerCase() === 'activo' || estado.toLowerCase() === 'active';
+    } else if (typeof estado === 'boolean') {
+      return estado === true;
+    } else if (typeof estado === 'number') {
+      return estado === 1;
+    }
+    return true;
+  });
+});
 
 // Funciones necesarias
 const handlePreview = () => {
@@ -601,223 +415,6 @@ const updateDiscount = (key, discount) => {
   discounts.value[key] = parseFloat(discount);
 };
 
-// Cálculos
-const totales = computed(() => {
-  let subtotal = 0;
-  let descuentoItems = 0;
-
-  selectedProducts.value.forEach(entry => {
-    const key = `${entry.tipo}-${entry.id}`;
-    const cantidad = parseFloat(quantities.value[key]) || 0;
-    const precio = parseFloat(prices.value[key]) || 0;
-    const descuento = parseFloat(discounts.value[key]) || 0;
-
-    const subtotalItem = cantidad * precio;
-    const descuentoItem = subtotalItem * (descuento / 100);
-
-    subtotal += subtotalItem;
-    descuentoItems += descuentoItem;
-  });
-
-  const subtotalConDescuentos = subtotal - descuentoItems;
-  const iva = subtotalConDescuentos * 0.16;
-  const total = subtotalConDescuentos + iva;
-
-  return {
-    subtotal: Number(subtotal.toFixed(2)),
-    descuentoItems: Number(descuentoItems.toFixed(2)),
-    subtotalConDescuentos: Number(subtotalConDescuentos.toFixed(2)),
-    iva: Number(iva.toFixed(2)),
-    total: Number(total.toFixed(2)),
-  };
-});
-
-const canSubmit = computed(() => {
-  return proveedorSeleccionado.value && selectedProducts.value.length > 0;
-});
-
-// Filtrar solo proveedores activos
-const proveedoresActivos = computed(() => {
-  return props.proveedores.filter(proveedor => {
-    const estado = proveedor.estado || proveedor.status || proveedor.activo;
-    if (typeof estado === 'string') {
-      return estado.toLowerCase() === 'activo' || estado.toLowerCase() === 'active';
-    } else if (typeof estado === 'boolean') {
-      return estado === true;
-    } else if (typeof estado === 'number') {
-      return estado === 1;
-    }
-    return true;
-  });
-});
-
-// Formulario
-const form = useForm({
-  proveedor_id: props.ordenCompra?.proveedor_id || null,
-  total: props.ordenCompra?.total || 0,
-  items: [],
-  notas: props.ordenCompra?.notas || '',
-});
-
-// Inicializar datos existentes
-onMounted(() => {
-  if (props.ordenCompra?.items) {
-    props.ordenCompra.items.forEach(item => {
-      const key = `${item.pivot?.item_type === 'App\\\\Models\\\\Producto' ? 'producto' : 'servicio'}-${item.id}`;
-      selectedProducts.value.push({ id: item.id, tipo: item.pivot?.item_type === 'App\\\\Models\\\\Producto' ? 'producto' : 'servicio' });
-      quantities.value[key] = item.pivot?.cantidad || 1;
-      prices.value[key] = item.pivot?.precio || 0;
-      discounts.value[key] = item.pivot?.descuento || 0;
-    });
-  }
-});
-
-// Función para actualizar la orden de compra
-const updatePurchaseOrder = () => {
-  if (!form.proveedor_id) {
-    showNotification('Selecciona un proveedor', 'error');
-    return;
-  }
-
-  if (selectedProducts.value.length === 0) {
-    showNotification('Agrega al menos un producto o servicio', 'error');
-    return;
-  }
-
-  form.items = selectedProducts.value.map(entry => {
-    const key = `${entry.tipo}-${entry.id}`;
-    return {
-      id: entry.id,
-      tipo: entry.tipo,
-      cantidad: quantities.value[key] || 1,
-      precio: prices.value[key] || 0,
-      descuento: discounts.value[key] || 0,
-    };
-  });
-
-  form.put(route('ordenescompra.update', props.ordenCompra.id), {
-    onSuccess: () => {
-      showNotification('Orden de compra actualizada con éxito');
-      router.visit(route('ordenescompra.index'));
-    },
-    onError: (errors) => {
-      console.error('Errores de validación:', errors);
-      if (typeof errors === 'object' && errors !== null) {
-        const errorMessages = Object.values(errors).flat().join(', ');
-        showNotification(`Errores: ${errorMessages}`, 'error');
-      } else {
-        showNotification('Hubo errores al actualizar la orden de compra', 'error');
-      }
-    },
-  });
-};
-
-// Configuración del layout
-defineOptions({ layout: AppLayout });
-
-// Propiedades del componente
-const props = defineProps({
-  ordenCompra: {
-    type: Object,
-    required: true,
-  },
-  proveedores: {
-    type: Array,
-    default: () => [],
-  },
-  productos: {
-    type: Array,
-    default: () => [],
-  },
-  servicios: {
-    type: Array,
-    default: () => [],
-  },
-  errors: {
-    type: Object,
-    default: () => ({}),
-  },
-});
-
-// Función auxiliar para parsear flotantes de forma segura
-const safeParseFloat = (value) => {
-  const parsed = parseFloat(value);
-  return isNaN(parsed) ? 0 : parsed;
-};
-
-// Inicialización del formulario con datos de la orden de compra existente
-const form = useForm({
-  proveedor_id: props.ordenCompra?.proveedor_id || null,
-  total: safeParseFloat(props.ordenCompra?.total || 0).toFixed(2),
-  items: props.ordenCompra?.items?.map(item => ({
-    id: item.id,
-    tipo: item.pivot?.item_type === 'App\\Models\\Producto' ? 'producto' : 'servicio',
-    cantidad: item.pivot?.cantidad || 1,
-    precio: safeParseFloat(item.pivot?.precio || 0),
-  })) || [],
-});
-
-// Estado reactivo
-const supplierSearchQuery = ref(props.ordenCompra?.proveedor?.nombre_razon_social || '');
-const itemSearchQuery = ref('');
-const showSuppliers = ref(false);
-const showItems = ref(false);
-const selectedSupplierName = ref(props.ordenCompra?.proveedor?.nombre_razon_social || null);
-const selectedSupplier = computed(() => props.proveedores.find(s => s.id === form.proveedor_id) || null);
-const loadingSuppliers = ref(false);
-const loadingItems = ref(false);
-const quantityErrors = ref({});
-const priceErrors = ref({});
-
-// Temporizadores para búsqueda con debounce
-let supplierSearchTimer = null;
-let itemSearchTimer = null;
-
-// Propiedades computadas
-const filteredSuppliers = computed(() => {
-  if (!supplierSearchQuery.value || supplierSearchQuery.value.length < 2) return [];
-  const searchTerm = supplierSearchQuery.value.toLowerCase();
-  return props.proveedores.filter((proveedor) =>
-    proveedor.nombre_razon_social.toLowerCase().includes(searchTerm) ||
-    (proveedor.codigo && proveedor.codigo.toLowerCase().includes(searchTerm))
-  ).slice(0, 10);
-});
-
-const filteredItems = computed(() => {
-  if (!itemSearchQuery.value || itemSearchQuery.value.length < 2) return [];
-  const searchTerm = itemSearchQuery.value.toLowerCase();
-
-  const productosYServicios = [
-    ...(props.productos || []).map(producto => ({
-      ...producto,
-      tipo: 'producto',
-    })),
-    ...(props.servicios || []).map(servicio => ({
-      ...servicio,
-      tipo: 'servicio',
-    })),
-  ];
-
-  return productosYServicios.filter(item =>
-    item.nombre.toLowerCase().includes(searchTerm) ||
-    (item.codigo && item.codigo.toLowerCase().includes(searchTerm)) ||
-    (item.numero_de_serie && item.numero_de_serie.toLowerCase().includes(searchTerm)) ||
-    (item.codigo_barras && item.codigo_barras.toLowerCase().includes(searchTerm))
-  ).slice(0, 15);
-});
-
-const canSubmit = computed(() => {
-  return form.proveedor_id &&
-         form.items.length > 0 &&
-         !hasValidationErrors.value &&
-         !form.processing;
-});
-
-const hasValidationErrors = computed(() => {
-  return Object.keys(quantityErrors.value).length > 0 ||
-         Object.keys(priceErrors.value).length > 0;
-});
-
 // Métodos
 const formatCurrency = (value) => {
   return new Intl.NumberFormat('es-MX', {
@@ -849,6 +446,7 @@ const calculateTotal = () => {
   }
   form.total = Number.parseFloat(total.toFixed(2));
 };
+
 
 const validateQuantity = (entry) => {
   const key = `${entry.tipo}-${entry.id}`;
@@ -1027,39 +625,45 @@ const handleBeforeUnload = (event) => {
   }
 };
 
-const updatePurchaseOrder = async () => {
-  const hasErrors = form.items.some(entry => {
-    validateQuantity(entry);
-    validatePrice(entry);
-    return quantityErrors.value[`${entry.tipo}-${entry.id}`] ||
-           priceErrors.value[`${entry.tipo}-${entry.id}`];
-  });
-
-  if (hasErrors) {
-    console.error('Hay errores de validación en el formulario');
+const updatePurchaseOrder = () => {
+  if (!form.proveedor_id) {
+    showNotification('Selecciona un proveedor', 'error');
     return;
   }
 
-  try {
-    await form.put(route('ordenescompra.update', props.ordenCompra.id), {
-      preserveScroll: true,
-      onSuccess: () => {
-        localStorage.removeItem(`ordenCompraEnProgreso_edit_${props.ordenCompra.id}`);
-        console.log('Orden de compra actualizada exitosamente');
-        router.visit(route('ordenescompra.index'));
-      },
-      onError: (errors) => {
-        console.error('Error al actualizar la orden de compra:', errors);
-      },
-      onFinish: () => {
-        form.processing = false;
-      },
-    });
-  } catch (error) {
-    console.error('Error inesperado:', error);
-    form.processing = false;
+  if (selectedProducts.value.length === 0) {
+    showNotification('Agrega al menos un producto o servicio', 'error');
+    return;
   }
+
+  form.items = selectedProducts.value.map(entry => {
+    const key = `${entry.tipo}-${entry.id}`;
+    return {
+      id: entry.id,
+      tipo: entry.tipo,
+      cantidad: quantities.value[key] || 1,
+      precio: prices.value[key] || 0,
+      descuento: discounts.value[key] || 0,
+    };
+  });
+
+  form.put(route('ordenescompra.update', props.ordenCompra.id), {
+    onSuccess: () => {
+      showNotification('Orden de compra actualizada con éxito');
+      router.visit(route('ordenescompra.index'));
+    },
+    onError: (errors) => {
+      console.error('Errores de validación:', errors);
+      if (typeof errors === 'object' && errors !== null) {
+        const errorMessages = Object.values(errors).flat().join(', ');
+        showNotification(`Errores: ${errorMessages}`, 'error');
+      } else {
+        showNotification('Hubo errores al actualizar la orden de compra', 'error');
+      }
+    },
+  });
 };
+
 
 // Observadores
 watch(
@@ -1074,8 +678,23 @@ watch(
 
 watch(() => form.items, calculateTotal, { deep: true });
 
-// Ciclo de vida
+// Inicializar datos existentes
 onMounted(() => {
+  // Inicializar proveedor seleccionado
+  if (props.ordenCompra?.proveedor) {
+    proveedorSeleccionado.value = props.ordenCompra.proveedor;
+  }
+
+  if (props.ordenCompra?.items) {
+    props.ordenCompra.items.forEach(item => {
+      const key = `${item.pivot?.item_type === 'App\\\\Models\\\\Producto' ? 'producto' : 'servicio'}-${item.id}`;
+      selectedProducts.value.push({ id: item.id, tipo: item.pivot?.item_type === 'App\\\\Models\\\\Producto' ? 'producto' : 'servicio' });
+      quantities.value[key] = item.pivot?.cantidad || 1;
+      prices.value[key] = item.pivot?.precio || 0;
+      discounts.value[key] = item.pivot?.descuento || 0;
+    });
+  }
+
   console.log('Componente montado');
   console.log('Orden de Compra:', props.ordenCompra);
   console.log('Proveedores:', props.proveedores?.length || 0);
@@ -1085,6 +704,19 @@ onMounted(() => {
   loadFromLocalStorage();
   window.addEventListener('beforeunload', handleBeforeUnload);
 });
+
+// Observadores
+watch(
+  [() => form.proveedor_id, () => form.items, selectedSupplierName],
+  () => {
+    if (form.proveedor_id || form.items.length > 0) {
+      saveToLocalStorage();
+    }
+  },
+  { deep: true }
+);
+
+watch(() => form.items, calculateTotal, { deep: true });
 
 onBeforeUnmount(() => {
   window.removeEventListener('beforeunload', handleBeforeUnload);
