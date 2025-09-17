@@ -394,7 +394,10 @@ class PedidoController extends Controller
 
         // Permitir cancelar en cualquier estado excepto ya cancelado
         if ($pedido->estado === EstadoPedido::Cancelado) {
-            return Redirect::back()->with('error', 'El pedido ya está cancelado');
+            return response()->json([
+                'success' => false,
+                'error' => 'El pedido ya está cancelado'
+            ], 400);
         }
 
         // Actualizar estado a cancelado y registrar quién lo canceló
@@ -409,9 +412,6 @@ class PedidoController extends Controller
             'message' => 'Pedido cancelado exitosamente',
             'eliminado_por' => Auth::user()->name ?? 'Usuario actual'
         ]);
-
-        return Redirect::route('pedidos.index')
-            ->with('success', 'Pedido cancelado exitosamente');
     }
 
     /**
@@ -463,22 +463,50 @@ class PedidoController extends Controller
      */
     public function duplicate(Request $request, $id)
     {
-        $pedido = Pedido::with('cliente', 'items.pedible')->findOrFail($id);
-
-        DB::beginTransaction();
         try {
-            // Duplicar el pedido
-            $nuevo = $pedido->replicate();
-            $nuevo->estado = EstadoPedido::Borrador;
-            $nuevo->numero_pedido = $this->generarNumeroPedido();
-            $nuevo->fecha = now();
-            $nuevo->created_at = now();
-            $nuevo->updated_at = now();
-            $nuevo->save();
+            $pedido = Pedido::with('cliente', 'items.pedible')->findOrFail($id);
 
-            // Duplicar los ítems
+            // Validar que el pedido tenga ítems
+            if ($pedido->items->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No se puede duplicar un pedido sin ítems.'
+                ], 400);
+            }
+
+            DB::beginTransaction();
+
+            // Crear nuevo pedido con datos básicos
+            $nuevoPedido = new Pedido([
+                'cliente_id' => $pedido->cliente_id,
+                'cotizacion_id' => $pedido->cotizacion_id,
+                'numero_pedido' => $this->generarNumeroPedido(),
+                'subtotal' => $pedido->subtotal,
+                'descuento_general' => $pedido->descuento_general,
+                'iva' => $pedido->iva,
+                'total' => $pedido->total,
+                'notas' => $pedido->notas,
+                'estado' => EstadoPedido::Borrador,
+                'fecha' => now(),
+            ]);
+
+            $nuevoPedido->save();
+
+            // Duplicar los ítems validando que los productos/servicios existan
+            $itemsDuplicados = 0;
             foreach ($pedido->items as $item) {
-                $nuevo->items()->create([
+                // Verificar que el producto/servicio aún existe
+                $modelo = $item->pedible;
+                if (!$modelo) {
+                    Log::warning("Producto/Servicio no encontrado al duplicar pedido", [
+                        'pedido_id' => $id,
+                        'pedible_id' => $item->pedible_id,
+                        'pedible_type' => $item->pedible_type
+                    ]);
+                    continue; // Saltar este ítem
+                }
+
+                $nuevoPedido->items()->create([
                     'pedible_id' => $item->pedible_id,
                     'pedible_type' => $item->pedible_type,
                     'cantidad' => $item->cantidad,
@@ -487,18 +515,61 @@ class PedidoController extends Controller
                     'subtotal' => $item->subtotal,
                     'descuento_monto' => $item->descuento_monto,
                 ]);
+
+                $itemsDuplicados++;
+            }
+
+            // Verificar que al menos se duplicó un ítem
+            if ($itemsDuplicados === 0) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No se pudieron duplicar los ítems del pedido.'
+                ], 400);
             }
 
             DB::commit();
 
-            return Redirect::route('pedidos.index')
-                ->with('success', 'Pedido duplicado correctamente.');
+            Log::info('Pedido duplicado exitosamente', [
+                'pedido_original_id' => $id,
+                'pedido_nuevo_id' => $nuevoPedido->id,
+                'items_duplicados' => $itemsDuplicados
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Pedido duplicado correctamente.',
+                'pedido_id' => $nuevoPedido->id,
+                'numero_pedido' => $nuevoPedido->numero_pedido,
+                'items_count' => $itemsDuplicados
+            ]);
+
+        } catch (\Illuminate\Database\QueryException $e) {
+            DB::rollBack();
+            Log::error('Error de base de datos al duplicar pedido: ' . $e->getMessage(), [
+                'pedido_id' => $id,
+                'sql' => $e->getSql(),
+                'bindings' => $e->getBindings()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error de base de datos al duplicar el pedido.',
+                'details' => app()->environment('local') ? $e->getMessage() : null
+            ], 500);
+
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error duplicando pedido: ' . $e->getMessage());
+            Log::error('Error general al duplicar pedido: ' . $e->getMessage(), [
+                'pedido_id' => $id,
+                'trace' => $e->getTraceAsString()
+            ]);
 
-            return Redirect::back()
-                ->with('error', 'Error al duplicar el pedido.');
+            return response()->json([
+                'success' => false,
+                'error' => 'Error interno al duplicar el pedido.',
+                'details' => app()->environment('local') ? $e->getMessage() : null
+            ], 500);
         }
     }
 

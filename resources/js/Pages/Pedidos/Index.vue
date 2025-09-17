@@ -234,28 +234,34 @@ watch(totalPages, (newTotal) => {
 const estadisticas = computed(() => {
   const stats = {
     total: pedidosOriginales.value.length,
-    aprobados: 0,
     pendientes: 0,
+    borrador: 0,
     enviado_venta: 0,
     cancelado: 0,
   };
 
   pedidosOriginales.value.forEach(p => {
-    switch (String(p.estado || '').toLowerCase()) {
-      case 'confirmado':
-      case 'en_preparacion':
-      case 'listo_entrega':
-      case 'entregado':
-        stats.aprobados++; break;
-      case 'borrador':
+    const estado = String(p.estado || '').toLowerCase();
+    switch (estado) {
       case 'pendiente':
-        stats.pendientes++; break;
+        stats.pendientes++;
+        break;
+      case 'borrador':
+        stats.borrador++;
+        break;
       case 'enviado_venta':
-        stats.enviado_venta++; break;
+        stats.enviado_venta++;
+        break;
       case 'enviado':
-        stats.aprobados++; break;
+        stats.pendientes++;
+        break;
       case 'cancelado':
-        stats.cancelado++; break;
+        stats.cancelado++;
+        break;
+      default:
+        // Para cualquier otro estado, lo contamos como pendiente
+        stats.pendientes++;
+        break;
     }
   });
 
@@ -339,24 +345,31 @@ const duplicarPedido = async (pedido) => {
     }
 
     loading.value = true
+    notyf.success('Duplicando pedido...')
 
-    router.post(`/pedidos/${pedido.id}/duplicate`, {}, {
-      onStart: () => {
-        notyf.success('Duplicando pedido...')
-      },
-      onSuccess: () => {
-        notyf.success('Pedido duplicado exitosamente')
-      },
-      onError: (errors) => {
-        console.error('Error al duplicar:', errors)
-        notyf.error('Error al duplicar el pedido')
-      },
-      onFinish: () => {
-        loading.value = false
-      }
-    })
+    const { data } = await axios.post(`/pedidos/${pedido.id}/duplicate`)
+
+    if (data?.success) {
+      notyf.success(data.message || 'Pedido duplicado exitosamente')
+
+      // Recargar la página para mostrar el pedido duplicado
+      router.visit('/pedidos', {
+        method: 'get',
+        replace: true
+      })
+    } else {
+      throw new Error(data?.error || 'Error al duplicar el pedido')
+    }
+
   } catch (error) {
-    notyf.error(error.message)
+    console.error('Error al duplicar:', error)
+    let mensaje = 'Error al duplicar el pedido'
+    if (error.response?.data?.error) mensaje = error.response.data.error
+    else if (error.response?.data?.message) mensaje = error.response.data.message
+    else if (error.message) mensaje = error.message
+
+    notyf.error(mensaje)
+  } finally {
     loading.value = false
   }
 }
@@ -407,37 +420,38 @@ const eliminarPedido = async () => {
     if (!selectedId.value) throw new Error('No se seleccionó ningún pedido para cancelar')
 
     loading.value = true
+    notyf.success('Cancelando pedido...')
 
-    router.post(`/pedidos/${selectedId.value}/cancel`, {}, {
-      onStart: () => {
-        notyf.success('Cancelando pedido...')
-      },
-      onSuccess: (response) => {
-        notyf.success('Pedido cancelado exitosamente')
+    const { data } = await axios.post(`/pedidos/${selectedId.value}/cancel`)
 
-        // Actualizar datos locales - marcar como cancelada en lugar de eliminar
-        const index = pedidosOriginales.value.findIndex(p => p.id === selectedId.value)
-        if (index !== -1) {
-          pedidosOriginales.value[index] = {
-            ...pedidosOriginales.value[index],
-            estado: 'cancelado',
-            eliminado_por: response?.data?.eliminado_por || 'Usuario actual',
-            deleted_at: new Date().toISOString()
-          }
+    if (data?.success) {
+      notyf.success(data.message || 'Pedido cancelado exitosamente')
+
+      // Actualizar datos locales - marcar como cancelada en lugar de eliminar
+      const index = pedidosOriginales.value.findIndex(p => p.id === selectedId.value)
+      if (index !== -1) {
+        pedidosOriginales.value[index] = {
+          ...pedidosOriginales.value[index],
+          estado: 'cancelado',
+          eliminado_por: data?.eliminado_por || 'Usuario actual',
+          deleted_at: new Date().toISOString()
         }
-
-        cerrarModal()
-      },
-      onError: (errors) => {
-        console.error('Error al cancelar:', errors)
-        notyf.error('Error al cancelar el pedido')
-      },
-      onFinish: () => {
-        loading.value = false
       }
-    })
+
+      cerrarModal()
+    } else {
+      throw new Error(data?.error || 'Error al cancelar el pedido')
+    }
+
   } catch (error) {
-    notyf.error(error.message)
+    console.error('Error al cancelar:', error)
+    let mensaje = 'Error al cancelar el pedido'
+    if (error.response?.data?.error) mensaje = error.response.data.error
+    else if (error.response?.data?.message) mensaje = error.response.data.message
+    else if (error.message) mensaje = error.message
+
+    notyf.error(mensaje)
+  } finally {
     loading.value = false
   }
 }
@@ -516,8 +530,8 @@ const crearNuevoPedido = () => {
       <!-- Header de filtros y estadísticas -->
       <UniversalHeader
         :total="estadisticas.total"
-        :aprobados="estadisticas.aprobados"
         :pendientes="estadisticas.pendientes"
+        :borrador="estadisticas.borrador"
         :enviado_venta="estadisticas.enviado_venta"
         :cancelado="estadisticas.cancelado"
         v-model:search-term="searchTerm"
