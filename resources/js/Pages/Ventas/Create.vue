@@ -1,4 +1,3 @@
-```vue
 <!-- /resources/js/Pages/Ventas/Create.vue -->
 <template>
   <Head title="Crear Venta" />
@@ -54,7 +53,7 @@
               :servicios="servicios"
               @agregar-producto="agregarProducto"
             />
-            <ProductosSeleccionados
+            <PySSeleccionados
               :selectedProducts="selectedProducts"
               :productos="productos"
               :servicios="servicios"
@@ -85,6 +84,39 @@
               rows="4"
               placeholder="Agrega notas adicionales, términos y condiciones, o información relevante para la venta..."
             ></textarea>
+          </div>
+        </div>
+
+        <!-- Advertencia de Márgenes -->
+        <div v-if="requiereConfirmacionMargen" class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+          <div class="flex items-start">
+            <svg class="w-5 h-5 text-yellow-600 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+            </svg>
+            <div class="flex-1">
+              <h3 class="text-sm font-medium text-yellow-800 mb-2">⚠️ Productos con margen insuficiente</h3>
+              <div class="text-sm text-yellow-700 mb-3 whitespace-pre-line">{{ mensajeAdvertenciaMargen }}</div>
+              <div class="flex gap-3">
+                <button
+                  @click="aceptarAjusteMargen"
+                  class="inline-flex items-center gap-2 px-4 py-2 bg-yellow-600 text-white text-sm font-medium rounded-lg hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition-colors"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                  </svg>
+                  Ajustar automáticamente
+                </button>
+                <button
+                  @click="cancelarAjusteMargen"
+                  class="inline-flex items-center gap-2 px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                  Revisar precios
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -143,7 +175,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import Header from '@/Components/CreateComponents/Header.vue';
 import BuscarCliente from '@/Components/CreateComponents/BuscarCliente.vue';
 import BuscarProducto from '@/Components/CreateComponents/BuscarProducto.vue';
-import ProductosSeleccionados from '@/Components/CreateComponents/ProductosSeleccionados.vue';
+import PySSeleccionados from '@/Components/CreateComponents/PySSeleccionados.vue';
 import Totales from '@/Components/CreateComponents/Totales.vue';
 import BotonesAccion from '@/Components/CreateComponents/BotonesAccion.vue';
 import VistaPreviaModal from '@/Components/Modals/VistaPreviaModal.vue';
@@ -199,6 +231,8 @@ const discounts = ref({});
 const clienteSeleccionado = ref(null);
 const mostrarVistaPrevia = ref(false);
 const mostrarAtajos = ref(true);
+const requiereConfirmacionMargen = ref(false);
+const mensajeAdvertenciaMargen = ref('');
 
 // Función para manejar localStorage de forma segura
 const saveToLocalStorage = (key, data) => {
@@ -344,6 +378,10 @@ const limpiarFormulario = () => {
   // Limpiar notas
   form.notas = '';
 
+  // Limpiar variables de margen
+  requiereConfirmacionMargen.value = false;
+  mensajeAdvertenciaMargen.value = '';
+
   // Limpiar localStorage si es necesario
   localStorage.removeItem(`venta_edit_${props.venta?.id}`);
 
@@ -450,6 +488,21 @@ const validarDatos = () => {
   return true;
 };
 
+// Funciones de margen
+const aceptarAjusteMargen = () => {
+  // Agregar el parámetro para ajustar márgenes automáticamente
+  form.ajustar_margen = true;
+  requiereConfirmacionMargen.value = false;
+  mensajeAdvertenciaMargen.value = '';
+  crearVenta();
+};
+
+const cancelarAjusteMargen = () => {
+  requiereConfirmacionMargen.value = false;
+  mensajeAdvertenciaMargen.value = '';
+  showNotification('Revisa los precios de los productos antes de continuar', 'info');
+};
+
 // Crear venta
 const crearVenta = () => {
   if (!validarDatos()) {
@@ -481,9 +534,19 @@ const crearVenta = () => {
       discounts.value = {};
       clienteSeleccionado.value = null;
       form.reset();
+      requiereConfirmacionMargen.value = false;
+      mensajeAdvertenciaMargen.value = '';
       showNotification('Venta creada con éxito');
     },
     onError: (errors) => {
+      // Verificar si es un error de margen
+      if (errors.warning && errors.requiere_confirmacion_margen) {
+        requiereConfirmacionMargen.value = true;
+        mensajeAdvertenciaMargen.value = errors.warning;
+        showNotification('Se requiere confirmación de márgenes', 'warning');
+        return;
+      }
+
       console.error('Errores de validación:', errors);
       const firstError = Object.values(errors)[0];
       if (Array.isArray(firstError)) {

@@ -13,6 +13,7 @@ use App\Models\Producto;
 use App\Models\Servicio;
 use App\Models\CotizacionItem;
 use App\Enums\EstadoCotizacion;
+use App\Services\MarginService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -151,7 +152,31 @@ class CotizacionController extends Controller
             'productos.*.descuento' => 'required|numeric|min:0|max:100',
             'descuento_general' => 'nullable|numeric|min:0|max:100',
             'notas' => 'nullable|string',
+            'ajustar_margen' => 'nullable|boolean',
         ]);
+
+        // Validar márgenes de ganancia
+        $marginService = new MarginService();
+        $validacionMargen = $marginService->validarMargenesProductos($validated['productos']);
+
+        if (!$validacionMargen['todos_validos']) {
+            // Si hay productos con margen insuficiente, verificar si el usuario aceptó el ajuste
+            if ($request->has('ajustar_margen') && $request->ajustar_margen === 'true') {
+                // Ajustar precios automáticamente
+                foreach ($validated['productos'] as &$item) {
+                    if ($item['tipo'] === 'producto') {
+                        $producto = Producto::find($item['id']);
+                        if ($producto) {
+                            $item['precio'] = $marginService->ajustarPrecioAlMargen($producto, $item['precio']);
+                        }
+                    }
+                }
+            } else {
+                // Mostrar advertencia y permitir al usuario decidir
+                $mensaje = $marginService->generarMensajeAdvertencia($validacionMargen['productos_bajo_margen']);
+                return redirect()->back()->withInput()->with('warning', $mensaje)->with('requiere_confirmacion_margen', true);
+            }
+        }
 
         $subtotal = 0;
         foreach ($validated['productos'] as $item) {
@@ -315,9 +340,33 @@ class CotizacionController extends Controller
             'productos.*.descuento' => 'required|numeric|min:0|max:100',
             'descuento_general'    => 'nullable|numeric|min:0|max:100',
             'notas'                => 'nullable|string',
+            'ajustar_margen'       => 'nullable|boolean',
             // Validación de estado (si llega desde el front, se controla)
             'estado'               => ['sometimes', Rule::in(array_map(fn($c) => $c->value, EstadoCotizacion::cases()))],
         ]);
+
+        // Validar márgenes de ganancia antes de calcular totales
+        $marginService = new MarginService();
+        $validacionMargen = $marginService->validarMargenesProductos($validated['productos']);
+
+        if (!$validacionMargen['todos_validos']) {
+            // Si hay productos con margen insuficiente, verificar si el usuario aceptó el ajuste
+            if ($request->has('ajustar_margen') && $request->ajustar_margen === 'true') {
+                // Ajustar precios automáticamente
+                foreach ($validated['productos'] as &$item) {
+                    if ($item['tipo'] === 'producto') {
+                        $producto = Producto::find($item['id']);
+                        if ($producto) {
+                            $item['precio'] = $marginService->ajustarPrecioAlMargen($producto, $item['precio']);
+                        }
+                    }
+                }
+            } else {
+                // Mostrar advertencia y permitir al usuario decidir
+                $mensaje = $marginService->generarMensajeAdvertencia($validacionMargen['productos_bajo_margen']);
+                return Redirect::back()->withInput()->with('warning', $mensaje)->with('requiere_confirmacion_margen', true);
+            }
+        }
 
         // Cálculos: redondeamos a 2 decimales para evitar ruido por flotantes
         $subtotal = 0.0;

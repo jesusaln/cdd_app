@@ -7,7 +7,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import Header from '@/Components/CreateComponents/Header.vue';
 import BuscarCliente from '@/Components/CreateComponents/BuscarCliente.vue';
 import BuscarProducto from '@/Components/CreateComponents/BuscarProducto.vue';
-import ProductosSeleccionados from '@/Components/CreateComponents/ProductosSeleccionados.vue';
+import PySSeleccionados from '@/Components/CreateComponents/PySSeleccionados.vue';
 import Totales from '@/Components/CreateComponents/Totales.vue';
 import BotonesAccion from '@/Components/CreateComponents/BotonesAccion.vue';
 import VistaPreviaModal from '@/Components/Modals/VistaPreviaModal.vue';
@@ -409,7 +409,7 @@ const actualizarPedido = () => {
               :servicios="servicios"
               @agregar-producto="agregarProducto"
             />
-            <ProductosSeleccionados
+            <PySSeleccionados
               :selectedProducts="selectedProducts"
               :productos="productos"
               :servicios="servicios"
@@ -418,7 +418,6 @@ const actualizarPedido = () => {
               :discounts="discounts"
               @eliminar-producto="eliminarProducto"
               @update-quantity="updateQuantity"
-              @update-price="updatePrice"
               @update-discount="updateDiscount"
             />
           </div>
