@@ -116,7 +116,7 @@
         </nav>
 
         <div class="flex flex-1 relative overflow-hidden">
-            <Sidebar :isSidebarCollapsed="isSidebarCollapsed" @toggleSidebar="toggleSidebar" />
+            <Sidebar :isSidebarCollapsed="isSidebarCollapsed" :usuario="usuario" :isMobile="isMobile" @toggleSidebar="toggleSidebar" />
 
             <main
                 :class="{'ml-64': !isSidebarCollapsed, 'ml-20': isSidebarCollapsed}"
@@ -162,7 +162,8 @@ library.add(
 const { props } = usePage();
 const usuario = ref(props.auth.user);
 const isProfileDropdownOpen = ref(false);
-const isSidebarCollapsed = ref(localStorage.getItem('sidebarCollapsed') === 'true');
+const isSidebarCollapsed = ref(false);
+const isMobile = ref(false);
 const isLoading = ref(false);
 
 // --- DOM References ---
@@ -173,30 +174,44 @@ const profileContainer = ref(null);
  * @returns {string} The appropriate greeting (Buenos días, Buenas tardes, Buenas noches).
  */
 const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Buenos días';
-    if (hour < 18) return 'Buenas tardes';
-    return 'Buenas noches';
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Buenos días';
+  if (hour < 18) return 'Buenas tardes';
+  return 'Buenas noches';
+};
+
+/**
+ * Checks if the device is mobile and adjusts sidebar state accordingly.
+ */
+const checkMobile = () => {
+  isMobile.value = window.innerWidth <= 768;
+  if (isMobile.value) {
+    // En móvil: colapsado por defecto
+    isSidebarCollapsed.value = true;
+  } else {
+    const savedState = localStorage.getItem('sidebarCollapsed');
+    isSidebarCollapsed.value = savedState !== null ? JSON.parse(savedState) : false;
+  }
 };
 
 // --- Methods ---
 
 /**
- * Toggles the profile dropdown visibility. Closes notifications if open.
+ * Toggles the profile dropdown visibility.
  */
 const toggleProfileDropdown = () => {
     isProfileDropdownOpen.value = !isProfileDropdownOpen.value;
-    if (showNotifications.value) {
-        showNotifications.value = false;
-    }
 };
 
 /**
- * Toggles the sidebar collapse state and saves it to local storage.
+ * Toggles the sidebar collapse state and saves it to local storage (only on desktop).
  */
 const toggleSidebar = () => {
-    isSidebarCollapsed.value = !isSidebarCollapsed.value;
-    localStorage.setItem('sidebarCollapsed', isSidebarCollapsed.value);
+  isSidebarCollapsed.value = !isSidebarCollapsed.value;
+  // Solo persistimos en desktop; en móvil siempre parte colapsado
+  if (!isMobile.value) {
+    localStorage.setItem('sidebarCollapsed', JSON.stringify(isSidebarCollapsed.value));
+  }
 };
 
 
@@ -244,13 +259,17 @@ const handleClickOutside = (event) => {
 // --- Lifecycle Hooks ---
 
 onMounted(() => {
-    // Attach global click listener for closing dropdowns
-    document.addEventListener('click', handleClickOutside);
+  // Attach global click listener for closing dropdowns
+  document.addEventListener('click', handleClickOutside);
+  // Check mobile state and set initial sidebar state
+  checkMobile();
+  window.addEventListener('resize', checkMobile);
 });
 
 onBeforeUnmount(() => {
-    // Clean up event listener before component unmounts
-    document.removeEventListener('click', handleClickOutside);
+  // Clean up event listeners before component unmounts
+  document.removeEventListener('click', handleClickOutside);
+  window.removeEventListener('resize', checkMobile);
 });
 </script>
 

@@ -1,8 +1,8 @@
 <template>
   <aside
     :class="{
-      'w-64': !isSidebarCollapsed,
-      'w-20': isSidebarCollapsed
+      'w-64': !props.isSidebarCollapsed,
+      'w-20': props.isSidebarCollapsed
     }"
     class="bg-gradient-to-b from-gray-800 to-gray-900 text-white fixed left-0 top-0 bottom-0 z-20 transition-all duration-300 ease-in-out overflow-y-auto shadow-2xl border-r border-gray-700 flex flex-col"
     role="navigation"
@@ -13,17 +13,17 @@
       <Link
         href="/panel"
         class="flex items-center group overflow-hidden"
-        :class="{'justify-center w-full': isSidebarCollapsed}"
-        :title="isSidebarCollapsed ? 'Ir al Panel' : null"
+        :class="{'justify-center w-full': props.isSidebarCollapsed}"
+        :title="props.isSidebarCollapsed ? 'Ir al Panel' : null"
       >
         <img
           src="/images/logo.png"
           alt="Logo"
           class="h-10 w-auto transition-transform duration-200 group-hover:scale-105"
-          :class="{'mx-auto': isSidebarCollapsed}"
+          :class="{'mx-auto': props.isSidebarCollapsed}"
         />
         <span
-          v-if="!isSidebarCollapsed"
+          v-if="!props.isSidebarCollapsed"
           class="ml-3 text-xl font-semibold whitespace-nowrap overflow-hidden"
         >
           <!-- Climas del Desierto -->
@@ -34,11 +34,11 @@
         v-if="!isMobile"
         @click="toggleSidebar"
         class="p-2 rounded-lg hover:bg-gray-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 ml-auto"
-        :title="isSidebarCollapsed ? 'Expandir sidebar' : 'Contraer sidebar'"
-        :aria-label="isSidebarCollapsed ? 'Expandir sidebar' : 'Contraer sidebar'"
+        :title="props.isSidebarCollapsed ? 'Expandir sidebar' : 'Contraer sidebar'"
+        :aria-label="props.isSidebarCollapsed ? 'Expandir sidebar' : 'Contraer sidebar'"
       >
         <FontAwesomeIcon
-          :icon="isSidebarCollapsed ? 'fa-solid fa-chevron-right' : 'fa-solid fa-chevron-left'"
+          :icon="props.isSidebarCollapsed ? 'fa-solid fa-chevron-right' : 'fa-solid fa-chevron-left'"
           class="text-gray-300 hover:text-white transition-colors duration-200"
         />
       </button>
@@ -50,16 +50,16 @@
         <!-- Dashboard -->
         <div class="mb-6">
           <h3
-            v-show="!isSidebarCollapsed"
+            v-show="!props.isSidebarCollapsed"
             class="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider"
           >
             Dashboard
           </h3>
           <ul class="space-y-1">
-            <NavLink href="/panel" icon="tachometer-alt" :collapsed="isSidebarCollapsed" :title="isSidebarCollapsed ? 'Panel' : null">
+            <NavLink href="/panel" icon="tachometer-alt" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Panel' : null">
               Panel
             </NavLink>
-            <NavLink href="/reportes" icon="chart-bar" :collapsed="isSidebarCollapsed" :title="isSidebarCollapsed ? 'Reportes Largos' : null">
+            <NavLink href="/reportes" icon="chart-bar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Reportes Largos' : null">
               Reportes Largos
             </NavLink>
           </ul>
@@ -68,16 +68,16 @@
         <!-- Clientes -->
         <div class="mb-6">
           <h3
-            v-show="!isSidebarCollapsed"
+            v-show="!props.isSidebarCollapsed"
             class="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider"
           >
             Clientes
           </h3>
           <ul class="space-y-1">
-            <NavLink href="/clientes" icon="users" :collapsed="isSidebarCollapsed" :title="isSidebarCollapsed ? 'Clientes' : null">
+            <NavLink href="/clientes" icon="users" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Clientes' : null">
               Clientes
             </NavLink>
-            <NavLink href="/citas" icon="calendar-alt" :collapsed="isSidebarCollapsed" :title="isSidebarCollapsed ? 'Citas Agendadas' : null">
+            <NavLink href="/citas" icon="calendar-alt" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Citas Agendadas' : null">
               Citas Agendadas
             </NavLink>
           </ul>
@@ -86,30 +86,30 @@
         <!-- Inventario -->
         <div class="mb-6">
           <h3
-            v-show="!isSidebarCollapsed"
+            v-show="!props.isSidebarCollapsed"
             class="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider"
           >
             Inventario
           </h3>
           <ul class="space-y-1">
             <!-- NUEVO: Equipos -->
-            <NavLink href="/equipos" icon="laptop" :collapsed="isSidebarCollapsed" :title="isSidebarCollapsed ? 'Equipos' : null">
+            <NavLink href="/equipos" icon="laptop" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Equipos' : null">
               Equipos
             </NavLink>
 
-            <NavLink href="/productos" icon="box" :collapsed="isSidebarCollapsed" :title="isSidebarCollapsed ? 'Productos' : null">
+            <NavLink href="/productos" icon="box" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Productos' : null">
               Productos
             </NavLink>
-            <NavLink href="/servicios" icon="wrench" :collapsed="isSidebarCollapsed" :title="isSidebarCollapsed ? 'Servicios' : null">
+            <NavLink href="/servicios" icon="wrench" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Servicios' : null">
               Servicios
             </NavLink>
-            <NavLink href="/categorias" icon="tags" :collapsed="isSidebarCollapsed" :title="isSidebarCollapsed ? 'Categorías' : null">
+            <NavLink href="/categorias" icon="tags" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Categorías' : null">
               Categorías
             </NavLink>
-            <NavLink href="/marcas" icon="trademark" :collapsed="isSidebarCollapsed" :title="isSidebarCollapsed ? 'Marcas de Productos' : null">
+            <NavLink href="/marcas" icon="trademark" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Marcas de Productos' : null">
               Marcas de Productos
             </NavLink>
-            <NavLink href="/almacenes" icon="warehouse" :collapsed="isSidebarCollapsed" :title="isSidebarCollapsed ? 'Almacenes' : null">
+            <NavLink href="/almacenes" icon="warehouse" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Almacenes' : null">
               Almacenes
             </NavLink>
           </ul>
@@ -118,33 +118,33 @@
         <!-- Operaciones -->
         <div class="mb-6">
           <h3
-            v-show="!isSidebarCollapsed"
+            v-show="!props.isSidebarCollapsed"
             class="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider"
           >
             Operaciones
           </h3>
           <ul class="space-y-1">
-            <NavLink href="/cotizaciones" icon="file-alt" :collapsed="isSidebarCollapsed" :title="isSidebarCollapsed ? 'Cotizaciones' : null">
+            <NavLink href="/cotizaciones" icon="file-alt" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Cotizaciones' : null">
               Cotizaciones
             </NavLink>
-            <NavLink href="/pedidos" icon="truck" :collapsed="isSidebarCollapsed" :title="isSidebarCollapsed ? 'Pedidos' : null">
+            <NavLink href="/pedidos" icon="truck" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Pedidos' : null">
               Pedidos
             </NavLink>
-            <NavLink href="/ventas" icon="dollar-sign" :collapsed="isSidebarCollapsed" :title="isSidebarCollapsed ? 'Ventas Realizadas' : null">
+            <NavLink href="/ventas" icon="dollar-sign" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Ventas Realizadas' : null">
               Ventas Realizadas
             </NavLink>
-            <NavLink href="/compras" icon="cart-shopping" :collapsed="isSidebarCollapsed" :title="isSidebarCollapsed ? 'Compras a Proveedores' : null">
+            <NavLink href="/compras" icon="cart-shopping" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Compras a Proveedores' : null">
               Compras a Proveedores
             </NavLink>
-            <NavLink href="/ordenescompra" icon="file-invoice-dollar" :collapsed="isSidebarCollapsed" :title="isSidebarCollapsed ? 'Órdenes de Compra' : null">
+            <NavLink href="/ordenescompra" icon="file-invoice-dollar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Órdenes de Compra' : null">
               Órdenes de Compra
             </NavLink>
-            <NavLink href="/proveedores" icon="truck" :collapsed="isSidebarCollapsed" :title="isSidebarCollapsed ? 'Proveedores' : null">
+            <NavLink href="/proveedores" icon="truck" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Proveedores' : null">
               Proveedores
             </NavLink>
 
             <!-- NUEVO: Rentas -->
-            <NavLink href="/rentas" icon="file-contract" :collapsed="isSidebarCollapsed" :title="isSidebarCollapsed ? 'Rentas' : null">
+            <NavLink href="/rentas" icon="file-contract" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Rentas' : null">
               Rentas
             </NavLink>
           </ul>
@@ -153,13 +153,13 @@
         <!-- Bitácora -->
         <div class="mb-6">
           <h3
-            v-show="!isSidebarCollapsed"
+            v-show="!props.isSidebarCollapsed"
             class="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider"
           >
             Bitácora
           </h3>
           <ul class="space-y-1">
-            <NavLink href="/bitacora" icon="clipboard-list" :collapsed="isSidebarCollapsed" :title="isSidebarCollapsed ? 'Bitácora' : null">
+            <NavLink href="/bitacora" icon="clipboard-list" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Bitácora' : null">
               Bitácora
             </NavLink>
           </ul>
@@ -168,22 +168,22 @@
         <!-- Taller -->
         <div class="mb-6">
           <h3
-            v-show="!isSidebarCollapsed"
+            v-show="!props.isSidebarCollapsed"
             class="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider"
           >
             Taller
           </h3>
           <ul class="space-y-1">
-            <NavLink href="/carros" icon="car" :collapsed="isSidebarCollapsed" :title="isSidebarCollapsed ? 'Vehículos' : null">
+            <NavLink href="/carros" icon="car" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Vehículos' : null">
               Vehículos
             </NavLink>
-            <NavLink href="/mantenimientos" icon="tools" :collapsed="isSidebarCollapsed" :title="isSidebarCollapsed ? 'Mantenimientos' : null">
+            <NavLink href="/mantenimientos" icon="tools" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Mantenimientos' : null">
               Mantenimientos
             </NavLink>
-            <NavLink href="/tecnicos" icon="user-cog" :collapsed="isSidebarCollapsed" :title="isSidebarCollapsed ? 'Técnicos' : null">
+            <NavLink href="/tecnicos" icon="user-cog" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Técnicos' : null">
               Técnicos
             </NavLink>
-            <NavLink href="/herramientas" icon="toolbox" :collapsed="isSidebarCollapsed" :title="isSidebarCollapsed ? 'Herramientas' : null">
+            <NavLink href="/herramientas" icon="toolbox" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Herramientas' : null">
               Herramientas
             </NavLink>
           </ul>
@@ -192,18 +192,18 @@
         <!-- Administración -->
         <div class="mb-6">
           <h3
-            v-show="!isSidebarCollapsed"
+            v-show="!props.isSidebarCollapsed"
             class="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider"
           >
             Administración
           </h3>
           <ul class="space-y-1">
-            <NavLink href="/usuarios" icon="user" :collapsed="isSidebarCollapsed" :title="isSidebarCollapsed ? 'Usuarios' : null">
+            <NavLink href="/usuarios" icon="user" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Usuarios' : null">
               Usuarios
             </NavLink>
 
             <!-- Si usas Ziggy, puedes dejar :href="route('backup.index')" -->
-            <NavLink :href="routeOr('/backup')" icon="database" :collapsed="isSidebarCollapsed" :title="isSidebarCollapsed ? 'Copia de Seguridad' : null">
+            <NavLink :href="routeOr('/backup')" icon="database" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Copia de Seguridad' : null">
               Copia de Seguridad
             </NavLink>
           </ul>
@@ -214,18 +214,20 @@
     <!-- Usuario -->
     <div
       class="border-t border-gray-700 p-4 bg-gray-800/50 backdrop-blur-sm flex-shrink-0"
-      :class="{'flex justify-center': isSidebarCollapsed}"
+      :class="{'flex justify-center': props.isSidebarCollapsed}"
     >
-      <div class="flex items-center" :class="{'w-full justify-center': isSidebarCollapsed, 'space-x-3': !isSidebarCollapsed}">
-        <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-          <FontAwesomeIcon icon="fa-solid fa-user" class="text-white text-sm" />
-        </div>
-        <div v-show="!isSidebarCollapsed" class="flex-1 min-w-0">
+      <div class="flex items-center" :class="{'w-full justify-center': props.isSidebarCollapsed, 'space-x-3': !props.isSidebarCollapsed}">
+        <img
+          :src="props.usuario.profile_photo_url"
+          :alt="props.usuario.name"
+          class="w-10 h-10 rounded-full border-2 border-gray-600 object-cover flex-shrink-0"
+        />
+        <div v-show="!props.isSidebarCollapsed" class="flex-1 min-w-0">
           <p class="text-sm font-medium text-gray-100 truncate">
-            Usuario Admin
+            {{ props.usuario.name }}
           </p>
           <p class="text-xs text-gray-400 truncate">
-            admin@sistema.com
+            {{ props.usuario.email }}
           </p>
         </div>
       </div>
@@ -234,13 +236,29 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import NavLink from '@/Components/NavLink.vue';
 
-const isSidebarCollapsed = ref(false);
-const isMobile = ref(false);
+// Props
+const props = defineProps({
+  usuario: {
+    type: Object,
+    required: true
+  },
+  isSidebarCollapsed: {
+    type: Boolean,
+    default: false
+  },
+  isMobile: {
+    type: Boolean,
+    default: false
+  }
+});
+
+// Emits
+const emit = defineEmits(['toggleSidebar']);
 
 // Helper para tolerar ausencia de Ziggy route()
 const routeOr = (fallback) => {
@@ -253,41 +271,14 @@ const routeOr = (fallback) => {
   }
 };
 
-// Móvil/desktop + persistencia del estado
-const STORAGE_KEY = 'sidebarCollapsed';
-
-const checkMobile = () => {
-  isMobile.value = window.innerWidth <= 768;
-  if (isMobile.value) {
-    // En móvil: colapsado por defecto
-    isSidebarCollapsed.value = true;
-  } else {
-    const savedState = localStorage.getItem(STORAGE_KEY);
-    isSidebarCollapsed.value = savedState !== null ? JSON.parse(savedState) : false;
-  }
-};
-
-onMounted(() => {
-  checkMobile();
-  window.addEventListener('resize', checkMobile);
-});
-
-onUnmounted(() => {
-  window.removeEventListener('resize', checkMobile);
-});
-
 const toggleSidebar = () => {
-  isSidebarCollapsed.value = !isSidebarCollapsed.value;
-  // Solo persistimos en desktop; en móvil siempre parte colapsado
-  if (!isMobile.value) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(isSidebarCollapsed.value));
-  }
+  emit('toggleSidebar');
 };
 
 // Exponer si necesitas manipular desde fuera
 defineExpose({
   toggleSidebar,
-  isSidebarCollapsed
+  isSidebarCollapsed: props.isSidebarCollapsed
 });
 </script>
 
