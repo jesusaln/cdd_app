@@ -44,7 +44,13 @@ const defaultConfigs = {
     createRoute: '/cotizaciones/create',
     createButtonText: 'Nueva Cotización',
     searchPlaceholder: 'Buscar por cliente, número, descripción...',
-    searchFields: ['numero', 'cliente', 'descripcion'],
+    searchFields: [
+    'numero_cotizacion',
+    'cliente.nombre',
+    'cliente.email',
+    'cliente.telefono',
+    'cliente.rfc'
+],
     estadisticas: {
       total: { label: 'Total', icon: 'document', description: 'Total de cotizaciones' },
       aprobadas: { label: 'Aprobadas', icon: 'check-circle', color: 'green', description: 'Cotizaciones aprobadas' },
@@ -545,21 +551,50 @@ const getIconPath = (iconName) => icons[iconName] || icons.document;
     <div v-if="total > 0" class="mt-6 pt-4 border-t border-slate-100">
       <div class="flex items-center gap-4 text-xs text-slate-500 mb-2">
         <span>Distribución:</span>
-        <div class="flex items-center gap-1">
-          <div class="w-3 h-3 rounded-full bg-emerald-500"></div>
-          <span>{{ estadisticasConPorcentaje.aprobadas.porcentaje }}% {{ finalConfig.estadisticas.aprobadas.label }}</span>
-        </div>
-        <div class="flex items-center gap-1">
-          <div class="w-3 h-3 rounded-full" :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text.replace('text-', 'bg-')"></div>
-          <span>{{ estadisticasConPorcentaje.pendientes.porcentaje }}% {{ finalConfig.estadisticas.pendientes.label }}</span>
-        </div>
+        <!-- Para cotizaciones mostrar todos los estados -->
+<template v-if="finalConfig.module === 'cotizaciones'">
+  <div class="flex items-center gap-1">
+    <div class="w-3 h-3 rounded-full bg-emerald-500"></div>
+    <span>{{ estadisticasConPorcentaje.aprobadas.porcentaje }}% {{ finalConfig.estadisticas.aprobadas.label }}</span>
+  </div>
+  <div class="flex items-center gap-1">
+    <div class="w-3 h-3 rounded-full bg-amber-500"></div>
+    <span>{{ estadisticasConPorcentaje.pendientes.porcentaje }}% {{ finalConfig.estadisticas.pendientes.label }}</span>
+  </div>
+  <div class="flex items-center gap-1">
+    <div class="w-3 h-3 rounded-full bg-gray-500"></div>
+    <span>{{ estadisticasConPorcentaje.borrador.porcentaje }}% {{ finalConfig.estadisticas.borrador.label }}</span>
+  </div>
+  <div class="flex items-center gap-1">
+    <div class="w-3 h-3 rounded-full bg-blue-500"></div>
+    <span>{{ estadisticasConPorcentaje.enviado_pedido.porcentaje }}% {{ finalConfig.estadisticas.enviado_pedido.label }}</span>
+  </div>
+</template>
+<!-- Para otros módulos mantener solo aprobadas y pendientes -->
+<template v-else>
+  <div class="flex items-center gap-1">
+    <div class="w-3 h-3 rounded-full bg-emerald-500"></div>
+    <span>{{ estadisticasConPorcentaje.aprobadas.porcentaje }}% {{ finalConfig.estadisticas.aprobadas.label }}</span>
+  </div>
+  <div class="flex items-center gap-1">
+    <div class="w-3 h-3 rounded-full" :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text.replace('text-', 'bg-')"></div>
+    <span>{{ estadisticasConPorcentaje.pendientes.porcentaje }}% {{ finalConfig.estadisticas.pendientes.label }}</span>
+  </div>
+</template>
       </div>
 
-      <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-        <div class="h-full bg-emerald-500 rounded-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.aprobadas.porcentaje}%` }"></div>
-        <div :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text.replace('text-', 'bg-')" class="h-full rounded-full transition-all duration-500 ease-out -mt-2"
-             :style="{ width: `${estadisticasConPorcentaje.pendientes.porcentaje}%`, marginLeft: `${estadisticasConPorcentaje.aprobadas.porcentaje}%` }"></div>
-      </div>
+      <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden flex">
+  <template v-if="finalConfig.module === 'cotizaciones'">
+    <div class="h-full bg-emerald-500 transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.aprobadas.porcentaje}%` }"></div>
+    <div class="h-full bg-amber-500 transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.pendientes.porcentaje}%` }"></div>
+    <div class="h-full bg-gray-500 transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.borrador.porcentaje}%` }"></div>
+    <div class="h-full bg-blue-500 transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.enviado_pedido.porcentaje}%` }"></div>
+  </template>
+  <template v-else>
+    <div class="h-full bg-emerald-500 transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.aprobadas.porcentaje}%` }"></div>
+    <div :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.pendientes.porcentaje}%` }"></div>
+  </template>
+</div>
     </div>
 
     <!-- Filtros activos -->

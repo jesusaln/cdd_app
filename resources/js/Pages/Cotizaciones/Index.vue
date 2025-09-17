@@ -87,19 +87,40 @@ const auditoriaForModal = computed(() => {
 const cotizacionesFiltradas = computed(() => {
   let result = [...cotizacionesOriginales.value]
 
-  // Aplicar filtro de búsqueda
-  if (searchTerm.value.trim()) {
-    const search = searchTerm.value.toLowerCase().trim()
-    result = result.filter(cotizacion => {
-      const cliente = cotizacion.cliente?.nombre?.toLowerCase() || ''
-      const numero = String(cotizacion.numero || cotizacion.id || '').toLowerCase()
-      const estado = cotizacion.estado?.toLowerCase() || ''
+  // Aplicar filtro de búsqueda (con debug)
+if (searchTerm.value.trim()) {
+  const search = searchTerm.value.toLowerCase().trim()
 
-      return cliente.includes(search) ||
-             numero.includes(search) ||
-             estado.includes(search)
-    })
-  }
+  // DEBUG: Ver qué estás buscando
+  //console.log('Buscando:', search)
+
+  result = result.filter(cotizacion => {
+    // DEBUG: Ver la estructura de cada cotización
+    //console.log('Cotización completa:', cotizacion)
+
+    const cliente = cotizacion.cliente?.nombre?.toLowerCase() || ''
+    const numero = String(cotizacion.numero_cotizacion || cotizacion.id || '').toLowerCase()
+    const estado = cotizacion.estado?.toLowerCase() || ''
+
+    // DEBUG: Ver qué valores estás comparando
+    //console.log('Cliente:', cliente)
+    //console.log('Número:', numero)
+    //console.log('Estado:', estado)
+
+    const matches = cliente.includes(search) ||
+                   numero.includes(search) ||
+                   estado.includes(search)
+
+    // DEBUG: Ver si hay coincidencias
+    //console.log('¿Coincide?', matches)
+    //console.log('---')
+
+    return matches
+  })
+
+  // DEBUG: Ver cuántos resultados quedan
+  //console.log('Resultados filtrados:', result.length)
+}
 
   // Aplicar filtro de estado
   if (filtroEstado.value) {

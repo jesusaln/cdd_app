@@ -772,6 +772,13 @@ const items = computed(() => {
           (doc.numero_compra || doc.id || '').toString().toLowerCase().includes(term)
         );
       }
+      if (props.tipo === 'cotizaciones') {
+        return (
+          (doc.cliente?.nombre || '').toLowerCase().includes(term) ||
+          doc.productos?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
+          (doc.numero || doc.id || '').toString().toLowerCase().includes(term)
+        );
+      }
       return (
         (doc.cliente?.nombre_razon_social || '').toLowerCase().includes(term) ||
         doc.productos?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
