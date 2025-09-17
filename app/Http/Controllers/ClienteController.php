@@ -373,6 +373,19 @@ class ClienteController extends Controller
 
             $cliente = Cliente::create($data);
 
+            // Crear notificaciones directamente (sistema simplificado)
+            try {
+                \App\Models\UserNotification::createClientNotification($cliente);
+                Log::info('Notificaciones creadas para nuevo cliente', ['cliente_id' => $cliente->id]);
+            } catch (\Exception $e) {
+                Log::error('Error creando notificaciones para cliente', [
+                    'cliente_id' => $cliente->id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+                // No fallar la creación del cliente por error en notificaciones
+            }
+
             // Integrar con Facturapi si no tiene ID
             if (empty($cliente->facturapi_customer_id)) {
                 $this->createOrUpdateFacturapiCustomer($cliente);

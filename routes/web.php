@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Illuminate\Foundation\Application;
 use App\Http\Controllers\ClienteController;
@@ -11,7 +12,7 @@ use App\Http\Controllers\ProveedorController;
 use App\Http\Controllers\AlmacenController;
 use App\Http\Controllers\CotizacionController;
 use App\Http\Controllers\PedidoController;
-use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\UserNotificationController;
 use App\Http\Controllers\VentaController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\CompraController;
@@ -30,7 +31,7 @@ use App\Http\Controllers\DatabaseBackupController;
 use App\Http\Controllers\EquipoController;
 use App\Http\Controllers\RentasController;
 use App\Http\Controllers\BitacoraActividadController;
-
+use App\Http\Controllers\NotificationController;
 
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -47,6 +48,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
 | cargadas por el RouteServiceProvider y automáticamente tienen el
 | middleware 'web' aplicado.
 */
+
+// Opción 1: Usando PATCH
+Route::patch('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
+
+// Opción 2: Usando POST (más común)
+Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
+
+// Opción 3: Usando PUT
+Route::put('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
 
 // =====================================================
 // RUTAS PÚBLICAS
@@ -167,8 +177,15 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // =====================================================
     // RUTAS DE NOTIFICACIONES
     // =====================================================
-    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
-    Route::post('/notifications/mark-as-read', [NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
+    Route::get('/notifications', [UserNotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/notifications/unread-count', [UserNotificationController::class, 'unreadCount'])->name('notifications.unreadCount');
+    Route::post('/notifications/mark-as-read', [UserNotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
+    Route::post('/notifications/mark-all-as-read', [UserNotificationController::class, 'markAllAsRead'])->name('notifications.markAllAsRead');
+    Route::delete('/notifications/{id}', [UserNotificationController::class, 'destroy'])->name('notifications.destroy');
+    Route::post('/notifications/delete-multiple', [UserNotificationController::class, 'destroyMultiple'])->name('notifications.destroyMultiple');
+
+    // Ruta temporal para pruebas
+    Route::post('/test-notification', [UserNotificationController::class, 'createTest'])->name('test.notification');
 
 
 

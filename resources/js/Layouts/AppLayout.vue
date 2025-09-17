@@ -14,108 +14,12 @@
                     </div>
 
                     <div class="flex items-center space-x-3">
-                        <div class="relative" ref="notificationsContainer">
-                            <button
-                                @click="toggleNotifications"
-                                class="relative p-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                :aria-expanded="showNotifications.toString()"
-                                aria-controls="notifications-dropdown"
-                                title="Notificaciones"
-                            >
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    class="h-5 w-5"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-                                    ></path>
-                                </svg>
-
-                                <span
-                                    v-if="unreadCount > 0"
-                                    class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center animate-pulse"
-                                    aria-live="polite"
-                                    aria-atomic="true"
-                                >
-                                    {{ unreadCount > 99 ? '99+' : unreadCount }}
-                                </span>
-                            </button>
-
-                            <Transition
-                                enter-active-class="transition ease-out duration-200"
-                                enter-from-class="transform opacity-0 scale-95"
-                                enter-to-class="transform opacity-100 scale-100"
-                                leave-active-class="transition ease-in duration-150"
-                                leave-from-class="transform opacity-100 scale-100"
-                                leave-to-class="transform opacity-0 scale-95"
-                            >
-                                <div
-                                    v-if="showNotifications"
-                                    id="notifications-dropdown"
-                                    role="menu"
-                                    aria-orientation="vertical"
-                                    aria-labelledby="notifications-button"
-                                    class="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden"
-                                >
-                                    <div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
-                                        <div class="flex justify-between items-center">
-                                            <h3 class="text-sm font-semibold text-gray-900">Notificaciones</h3>
-                                            <button
-                                                v-if="unreadCount > 0"
-                                                @click="markAllAsRead"
-                                                class="text-xs text-blue-600 hover:text-blue-800 font-medium"
-                                                role="menuitem"
-                                            >
-                                                Marcar todas como leídas
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div class="max-h-80 overflow-y-auto custom-scrollbar">
-                                        <div v-if="notifications.length === 0" class="p-6 text-center text-gray-500">
-                                            <svg class="mx-auto h-12 w-12 text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                                            </svg>
-                                            No hay notificaciones
-                                        </div>
-
-                                        <div
-                                            v-for="notification in notifications"
-                                            :key="notification.id"
-                                            class="p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150 cursor-pointer"
-                                            :class="{ 'bg-blue-50': !notification.read_at }"
-                                            @click="handleNotificationClick(notification)"
-                                            role="menuitem"
-                                            tabindex="0"
-                                        >
-                                            <div class="flex items-start space-x-3">
-                                                <div class="flex-shrink-0">
-                                                    <div class="w-2 h-2 bg-blue-500 rounded-full" v-if="!notification.read_at"></div>
-                                                    <div class="w-2 h-2" v-else></div>
-                                                </div>
-                                                <div class="flex-1 min-w-0">
-                                                    <p class="text-sm text-gray-900 font-medium">
-                                                        {{ notification.data.client_name }}
-                                                    </p>
-                                                    <p class="text-sm text-gray-600">
-                                                        Cliente nuevo creado
-                                                    </p>
-                                                    <p class="text-xs text-gray-400 mt-1">
-                                                        {{ formatNotificationTime(notification.created_at) }}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </Transition>
-                        </div>
+                        <!-- Componente de Notificaciones Mejorado -->
+                        <NotificationBell
+                            :auto-refresh="true"
+                            :refresh-interval="30000"
+                            @notification-clicked="handleNotificationClick"
+                        />
 
                         <div class="relative" ref="profileContainer">
                             <button
@@ -235,6 +139,7 @@
 
 <script setup>
 import Sidebar from '@/Components/Sidebar.vue';
+import NotificationBell from '@/Components/Notifications/NotificationBell.vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { library } from '@fortawesome/fontawesome-svg-core';
 import {
@@ -258,16 +163,10 @@ const { props } = usePage();
 const usuario = ref(props.auth.user);
 const isProfileDropdownOpen = ref(false);
 const isSidebarCollapsed = ref(localStorage.getItem('sidebarCollapsed') === 'true');
-const showNotifications = ref(false);
-const notifications = ref([]);
 const isLoading = ref(false);
 
 // --- DOM References ---
-const notificationsContainer = ref(null);
 const profileContainer = ref(null);
-
-// --- Computed Properties ---
-const unreadCount = computed(() => notifications.value.filter(n => !n.read_at).length);
 
 /**
  * Returns a greeting based on the current hour.
@@ -300,19 +199,6 @@ const toggleSidebar = () => {
     localStorage.setItem('sidebarCollapsed', isSidebarCollapsed.value);
 };
 
-/**
- * Toggles the notifications dropdown visibility. Closes profile dropdown if open.
- * Fetches notifications if opening.
- */
-const toggleNotifications = () => {
-    showNotifications.value = !showNotifications.value;
-    if (isProfileDropdownOpen.value) {
-        isProfileDropdownOpen.value = false;
-    }
-    if (showNotifications.value) {
-        fetchNotifications();
-    }
-};
 
 /**
  * Handles user logout, showing a loading indicator.
@@ -329,133 +215,42 @@ const logout = async () => {
     }
 };
 
-// --- Notification Management ---
-
 /**
- * Fetches notifications from the backend.
- */
-const fetchNotifications = async () => {
-    try {
-        const response = await axios.get('/notifications');
-        notifications.value = response.data;
-    } catch (error) {
-        console.error('Error al obtener notificaciones:', error);
-        // TODO: Implement a user-friendly error notification
-    }
-};
-
-/**
- * Marks a specific notification as read by its ID.
- * Updates the local notification array for immediate UI reflection.
- * @param {string} id - The ID of the notification to mark as read.
- */
-const markAsRead = async (id) => {
-    try {
-        await axios.post('/notifications/mark-as-read', { ids: [id] });
-        const index = notifications.value.findIndex(n => n.id === id);
-        if (index !== -1) {
-            notifications.value[index].read_at = new Date().toISOString();
-        }
-    } catch (error) {
-        console.error('Error al marcar notificación como leída:', error);
-        // TODO: Implement a user-friendly error notification
-    }
-};
-
-/**
- * Marks all unread notifications as read.
- * Updates the local notification array for immediate UI reflection.
- */
-const markAllAsRead = async () => {
-    const unreadIds = notifications.value
-        .filter(n => !n.read_at)
-        .map(n => n.id);
-
-    if (unreadIds.length > 0) {
-        try {
-            await axios.post('/notifications/mark-as-read', { ids: unreadIds });
-            notifications.value.forEach(n => {
-                if (!n.read_at) n.read_at = new Date().toISOString();
-            });
-        } catch (error) {
-            console.error('Error al marcar todas las notificaciones como leídas:', error);
-            // TODO: Implement a user-friendly error notification
-        }
-    }
-};
-
-/**
- * Handles click on a notification item. Marks it as read and closes the dropdown.
- * Additional navigation logic can be added based on notification data.
+ * Handles notification click events from the NotificationBell component.
  * @param {object} notification - The notification object that was clicked.
  */
 const handleNotificationClick = (notification) => {
-    if (!notification.read_at) {
-        markAsRead(notification.id);
+    // Aquí puedes agregar lógica adicional cuando se hace click en una notificación
+    console.log('Notificación clickeada:', notification);
+
+    // Si la notificación tiene una URL de acción, navegar a ella
+    if (notification.action_url) {
+        router.visit(notification.action_url);
     }
-    // Example: Navigate to a specific route based on notification data
-    // if (notification.data.url) {
-    //     router.visit(notification.data.url);
-    // }
-    showNotifications.value = false;
-};
-
-/**
- * Formats a timestamp into a human-readable relative time string.
- * @param {string} timestamp - The ISO timestamp string.
- * @returns {string} Formatted time string (e.g., "Hace 5 minutos", "Hace 2 días").
- */
-const formatNotificationTime = (timestamp) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffInSeconds = Math.floor((now - date) / 1000);
-
-    if (diffInSeconds < 60) return 'Hace unos segundos';
-
-    const diffInMinutes = Math.floor(diffInSeconds / 60);
-    if (diffInMinutes < 60) return `Hace ${diffInMinutes} minuto${diffInMinutes > 1 ? 's' : ''}`;
-
-    const diffInHours = Math.floor(diffInMinutes / 60);
-    if (diffInHours < 24) return `Hace ${diffInHours} hora${diffInHours > 1 ? 's' : ''}`;
-
-    const diffInDays = Math.floor(diffInHours / 24);
-    if (diffInDays < 30) return `Hace ${diffInDays} día${diffInDays > 1 ? 's' : ''}`;
-
-    // Fallback for older notifications: "DD Mon. YYYY"
-    return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
 // --- Event Handlers ---
 
 /**
- * Closes dropdowns when a click occurs outside their respective containers.
+ * Closes profile dropdown when a click occurs outside its container.
  * @param {Event} event - The click event object.
  */
 const handleClickOutside = (event) => {
-    if (showNotifications.value && notificationsContainer.value && !notificationsContainer.value.contains(event.target)) {
-        showNotifications.value = false;
-    }
     if (isProfileDropdownOpen.value && profileContainer.value && !profileContainer.value.contains(event.target)) {
         isProfileDropdownOpen.value = false;
     }
 };
 
 // --- Lifecycle Hooks ---
-let notificationFetchInterval;
 
 onMounted(() => {
-    // Initial fetch of notifications
-    fetchNotifications();
     // Attach global click listener for closing dropdowns
     document.addEventListener('click', handleClickOutside);
-    // Set up periodic notification fetching
-    notificationFetchInterval = setInterval(fetchNotifications, 60000); // Fetch every minute
 });
 
 onBeforeUnmount(() => {
-    // Clean up event listener and interval before component unmounts
+    // Clean up event listener before component unmounts
     document.removeEventListener('click', handleClickOutside);
-    clearInterval(notificationFetchInterval);
 });
 </script>
 
