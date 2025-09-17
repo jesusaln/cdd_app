@@ -28,37 +28,92 @@
           <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Número de Orden -->
             <div>
-              <label for="numero_orden" class="block text-sm font-medium text-gray-700 mb-2">
+              <label for="numero_orden" class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
                 Número de Orden *
+                <span class="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  Generado automáticamente
+                </span>
               </label>
-              <input
-                id="numero_orden"
-                v-model="form.numero_orden"
-                type="text"
-                class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="Ej: OC-2024-001"
-                required
-              />
+              <div class="relative">
+                <input
+                  id="numero_orden"
+                  v-model="form.numero_orden"
+                  type="text"
+                  class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="Ej: OC20250101001"
+                  required
+                />
+                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                  <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </div>
+              </div>
+              <div class="mt-2 flex items-center gap-2">
+                <p class="text-xs text-gray-500">
+                  Este número ha sido generado automáticamente para evitar duplicados
+                </p>
+                <button
+                  @click="copiarNumeroOrden"
+                  class="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded hover:bg-gray-200 transition-colors"
+                  title="Copiar número de orden"
+                >
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  Copiar
+                </button>
+              </div>
             </div>
 
             <!-- Fecha de Orden -->
             <div>
-              <label for="fecha_orden" class="block text-sm font-medium text-gray-700 mb-2">
+              <label for="fecha_orden" class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
                 Fecha de Orden *
+                <span class="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  Automática
+                </span>
               </label>
-              <input
-                id="fecha_orden"
-                v-model="form.fecha_orden"
-                type="date"
-                class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                required
-              />
+              <div class="relative">
+                <input
+                  id="fecha_orden"
+                  v-model="form.fecha_orden"
+                  type="date"
+                  class="w-full bg-gray-50 text-gray-500 cursor-not-allowed border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  readonly
+                  required
+                />
+                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                  <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+              <p class="mt-1 text-xs text-gray-500">
+                Esta fecha se establece automáticamente con la fecha de creación
+              </p>
             </div>
 
             <!-- Fecha de Entrega Esperada -->
             <div>
-              <label for="fecha_entrega_esperada" class="block text-sm font-medium text-gray-700 mb-2">
+              <label for="fecha_entrega_esperada" class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
                 Fecha de Entrega Esperada
+                <button
+                  @click="mostrarInfoFechas"
+                  type="button"
+                  class="text-gray-400 hover:text-gray-600 transition-colors"
+                  title="Opciones de fechas rápidas disponibles"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </button>
               </label>
               <input
                 id="fecha_entrega_esperada"
@@ -66,6 +121,64 @@
                 type="date"
                 class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               />
+
+              <!-- Botones de fechas rápidas -->
+              <div class="mt-3 flex flex-wrap gap-2">
+                <button
+                  @click="setFechaRapida('hoy')"
+                  type="button"
+                  class="inline-flex items-center gap-1 px-3 py-2 bg-blue-50 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Hoy
+                </button>
+
+                <button
+                  @click="setFechaRapida('manana')"
+                  type="button"
+                  class="inline-flex items-center gap-1 px-3 py-2 bg-green-50 text-green-700 text-sm font-medium rounded-lg hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors duration-200"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                  Mañana
+                </button>
+
+                <button
+                  @click="setFechaRapida('3dias')"
+                  type="button"
+                  class="inline-flex items-center gap-1 px-3 py-2 bg-yellow-50 text-yellow-700 text-sm font-medium rounded-lg hover:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition-colors duration-200"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  +3 días
+                </button>
+
+                <button
+                  @click="setFechaRapida('semana')"
+                  type="button"
+                  class="inline-flex items-center gap-1 px-3 py-2 bg-purple-50 text-purple-700 text-sm font-medium rounded-lg hover:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors duration-200"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  Una semana
+                </button>
+
+                <button
+                  @click="setFechaRapida('mes')"
+                  type="button"
+                  class="inline-flex items-center gap-1 px-3 py-2 bg-red-50 text-red-700 text-sm font-medium rounded-lg hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors duration-200"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  Un mes
+                </button>
+              </div>
             </div>
 
             <!-- Prioridad -->
@@ -106,6 +219,16 @@
               requerido
               @proveedor-seleccionado="onProveedorSeleccionado"
             />
+
+            <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div class="flex items-center gap-2 text-blue-700 text-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span class="font-medium">Nota:</span>
+                <span>Las órdenes de compra solo incluyen productos físicos para inventario.</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -116,20 +239,20 @@
               <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012 2v2M7 7h10"/>
               </svg>
-              Productos y Servicios
+              Productos
             </h2>
           </div>
           <div class="p-6">
             <BuscarProducto
               ref="buscarProductoRef"
               :productos="props.productos"
-              :servicios="props.servicios"
+              :servicios="[]"
               @agregar-producto="agregarProducto"
             />
             <ProductosSeleccionados
               :selected-products="selectedProducts"
               :productos="props.productos"
-              :servicios="props.servicios"
+              :servicios="[]"
               :quantities="quantities"
               :prices="prices"
               :discounts="discounts"
@@ -259,7 +382,7 @@
         :show="mostrarVistaPrevia"
         type="ordenescompra"
         :proveedor="proveedorSeleccionado"
-        :items="selectedProducts"
+        :productos="selectedProducts"
         :totals="totales"
         :notas="form.observaciones"
         :orden-data="{
@@ -280,7 +403,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, useForm, router } from '@inertiajs/vue3';
 import { Notyf } from 'notyf';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Header from '@/Components/CreateComponents/Header.vue';
@@ -313,8 +436,18 @@ defineOptions({ layout: AppLayout });
 const props = defineProps({
   proveedores: { type: Array, default: () => [] },
   productos: { type: Array, default: () => [] },
-  servicios: { type: Array, default: () => [] },
 });
+
+// Generar número de orden automáticamente
+const generarNumeroOrden = () => {
+  const fecha = new Date();
+  const year = fecha.getFullYear();
+  const month = String(fecha.getMonth() + 1).padStart(2, '0');
+  const day = String(fecha.getDate()).padStart(2, '0');
+  const timestamp = Date.now().toString().slice(-4); // Últimos 4 dígitos del timestamp
+
+  return `OC${year}${month}${day}${timestamp}`;
+};
 
 // Copia reactiva de proveedores para evitar mutación de props
 const proveedoresList = ref([...props.proveedores]);
@@ -327,7 +460,7 @@ const getCurrentDate = () => {
 
 // Formulario
 const form = useForm({
-  numero_orden: '',
+  numero_orden: generarNumeroOrden(),
   fecha_orden: getCurrentDate(),
   fecha_entrega_esperada: '',
   prioridad: 'media',
@@ -340,7 +473,7 @@ const form = useForm({
   descuento_general: 0,
   iva: 0,
   total: 0,
-  productos: [],
+  items: [],
   observaciones: '',
   estado: 'pendiente',
 });
@@ -354,6 +487,90 @@ const prices = ref({});
 const discounts = ref({});
 const mostrarVistaPrevia = ref(false);
 const mostrarAtajos = ref(true);
+
+// Estado para controlar cambios en número de orden
+const numeroOrdenOriginal = ref(generarNumeroOrden());
+
+// Función para mostrar información del número de orden
+const mostrarInfoNumeroOrden = () => {
+  const numeroActual = form.numero_orden || generarNumeroOrden();
+  showNotification(`Número de orden actual: ${numeroActual}`, 'info');
+};
+
+// Función para copiar el número de orden al portapapeles
+const copiarNumeroOrden = async () => {
+  const numeroACopiar = form.numero_orden.trim() || generarNumeroOrden();
+
+  try {
+    await navigator.clipboard.writeText(numeroACopiar);
+    showNotification(`Número copiado: ${numeroACopiar}`, 'success');
+  } catch (error) {
+    // Fallback para navegadores antiguos
+    const textArea = document.createElement('textarea');
+    textArea.value = numeroACopiar;
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textArea);
+    showNotification(`Número copiado: ${numeroACopiar}`, 'success');
+  }
+};
+
+// Función para asegurar que la fecha sea siempre la actual
+const asegurarFechaActual = () => {
+  const fechaActual = getCurrentDate();
+  if (form.fecha_orden !== fechaActual) {
+    form.fecha_orden = fechaActual;
+  }
+};
+
+// Función para establecer fechas rápidas
+const setFechaRapida = (tipo) => {
+  const hoy = new Date();
+  let fechaCalculada = new Date(hoy);
+
+  switch (tipo) {
+    case 'hoy':
+      // Ya es hoy, no cambiar
+      break;
+    case 'manana':
+      fechaCalculada.setDate(hoy.getDate() + 1);
+      break;
+    case '3dias':
+      fechaCalculada.setDate(hoy.getDate() + 3);
+      break;
+    case 'semana':
+      fechaCalculada.setDate(hoy.getDate() + 7);
+      break;
+    case 'mes':
+      fechaCalculada.setMonth(hoy.getMonth() + 1);
+      break;
+  }
+
+  // Formatear la fecha como YYYY-MM-DD
+  const year = fechaCalculada.getFullYear();
+  const month = String(fechaCalculada.getMonth() + 1).padStart(2, '0');
+  const day = String(fechaCalculada.getDate()).padStart(2, '0');
+  const fechaFormateada = `${year}-${month}-${day}`;
+
+  form.fecha_entrega_esperada = fechaFormateada;
+
+  // Mostrar notificación
+  const etiquetas = {
+    hoy: 'Hoy',
+    manana: 'Mañana',
+    '3dias': 'En 3 días',
+    semana: 'En una semana',
+    mes: 'En un mes'
+  };
+
+  showNotification(`Fecha de entrega establecida: ${etiquetas[tipo]} (${fechaFormateada})`, 'success');
+};
+
+// Función para mostrar información sobre fechas rápidas
+const mostrarInfoFechas = () => {
+  showNotification('Usa los botones para establecer fechas de entrega comunes', 'info');
+};
 
 // Funciones de localStorage (comentadas porque no están disponibles en Claude)
 const saveToLocalStorage = (key, data) => {
@@ -408,33 +625,31 @@ const onProveedorSeleccionado = (proveedor) => {
 };
 
 const agregarProducto = (item) => {
-  if (!item || typeof item.id === 'undefined' || !item.tipo) {
+  if (!item || typeof item.id === 'undefined') {
     showNotification('Producto inválido', 'error');
     return;
   }
 
-  const itemEntry = { id: item.id, tipo: item.tipo };
+  // Solo permitir productos, no servicios
+  const itemEntry = { id: item.id, tipo: 'producto' };
   const exists = selectedProducts.value.some(
-    (entry) => entry.id === item.id && entry.tipo === item.tipo
+    (entry) => entry.id === item.id && entry.tipo === 'producto'
   );
 
   if (!exists) {
     selectedProducts.value.push(itemEntry);
-    const key = `${item.tipo}-${item.id}`;
+    const key = `producto-${item.id}`;
     quantities.value[key] = 1;
 
-    let precio = 0;
-    if (item.tipo === 'producto') {
-      precio = typeof item.precio_compra === 'number' ? item.precio_compra : 0;
-    } else {
-      precio = typeof item.precio === 'number' ? item.precio : 0;
-    }
-
+    // Solo productos, usar precio_compra
+    const precio = typeof item.precio_compra === 'number' ? item.precio_compra : 0;
     prices.value[key] = precio;
     discounts.value[key] = 0;
     calcularTotal();
     saveState();
-    showNotification(`Producto añadido: ${item.nombre || item.descripcion || 'Item'}`);
+    showNotification(`Producto añadido: ${item.nombre || item.descripcion || 'Producto'}`);
+  } else {
+    showNotification('Este producto ya está en la lista', 'info');
   }
 };
 
@@ -452,7 +667,7 @@ const eliminarProducto = (entry) => {
   delete discounts.value[key];
   calcularTotal();
   saveState();
-  showNotification(`Producto eliminado: ${entry.nombre || entry.descripcion || 'Item'}`, 'info');
+  showNotification(`Producto eliminado: ${entry.nombre || entry.descripcion || 'Producto'}`, 'info');
 };
 
 const updateQuantity = (key, quantity) => {
@@ -521,8 +736,15 @@ const validarDatos = () => {
     return false;
   }
 
+  // Validar formato del número de orden
+  const numeroRegex = /^OC\d{4}\d{2}\d{2}\d{4}$/;
+  if (!numeroRegex.test(form.numero_orden.trim())) {
+    showNotification('El número de orden debe tener el formato OC20250101001', 'error');
+    return false;
+  }
+
   if (!form.fecha_orden) {
-    showNotification('Selecciona la fecha de orden', 'error');
+    showNotification('Fecha de orden no disponible', 'error');
     return false;
   }
 
@@ -532,7 +754,7 @@ const validarDatos = () => {
   }
 
   if (selectedProducts.value.length === 0) {
-    showNotification('Agrega al menos un producto o servicio', 'error');
+    showNotification('Agrega al menos un producto', 'error');
     return false;
   }
 
@@ -566,11 +788,14 @@ const crearOrdenCompra = () => {
     return;
   }
 
-  form.productos = selectedProducts.value.map((entry) => {
-    const key = `${entry.tipo}-${entry.id}`;
+  // Asegurar que la fecha sea la actual antes de enviar
+  asegurarFechaActual();
+
+  form.items = selectedProducts.value.map((entry) => {
+    const key = `producto-${entry.id}`;
     return {
       id: entry.id,
-      tipo: entry.tipo,
+      tipo: 'producto',
       cantidad: parseFloat(quantities.value[key]) || 1,
       precio: parseFloat(prices.value[key]) || 0,
       descuento: parseFloat(discounts.value[key]) || 0,
@@ -588,12 +813,18 @@ const crearOrdenCompra = () => {
       discounts.value = {};
       proveedorSeleccionado.value = null;
       form.reset();
+      // Generar un nuevo número de orden
+      form.numero_orden = generarNumeroOrden();
+      // Mantener la fecha de orden como automática (siempre la fecha actual)
       form.fecha_orden = getCurrentDate();
       form.prioridad = 'media';
       form.terminos_pago = '30_dias';
       form.metodo_pago = 'transferencia';
       form.estado = 'pendiente';
       showNotification('Orden de compra creada con éxito');
+
+      // Redirigir al index para mostrar la nueva orden
+      router.visit(route('ordenescompra.index'));
     },
     onError: (errors) => {
       console.error('Errores de validación:', errors);
@@ -609,8 +840,10 @@ const crearOrdenCompra = () => {
 
 const limpiarFormulario = () => {
   proveedorSeleccionado.value = null;
-  form.numero_orden = '';
-  form.fecha_orden = getCurrentDate();
+  // Generar un nuevo número de orden
+  form.numero_orden = generarNumeroOrden();
+  // Asegurar que la fecha sea la actual
+  asegurarFechaActual();
   form.fecha_entrega_esperada = '';
   form.prioridad = 'media';
   form.proveedor_id = '';
@@ -657,11 +890,17 @@ const handleBeforeUnload = (event) => {
 
 // Lifecycle hooks
 onMounted(() => {
+  // Mostrar información sobre el número de orden generado
+  const numeroGenerado = generarNumeroOrden();
+  showNotification(`Número de orden generado automáticamente: ${numeroGenerado}`, 'info');
+
   const savedData = loadFromLocalStorage('ordenCompraEnProgreso');
   if (savedData && typeof savedData === 'object') {
     try {
-      form.numero_orden = savedData.numero_orden || '';
-      form.fecha_orden = savedData.fecha_orden || getCurrentDate();
+      // Mantener el número de orden generado o usar el guardado
+      form.numero_orden = savedData.numero_orden || generarNumeroOrden();
+      // Mantener la fecha de orden como automática (siempre usar fecha actual)
+      form.fecha_orden = getCurrentDate();
       form.fecha_entrega_esperada = savedData.fecha_entrega_esperada || '';
       form.prioridad = savedData.prioridad || 'media';
       form.proveedor_id = savedData.proveedor_id || '';
@@ -682,7 +921,17 @@ onMounted(() => {
     }
   }
 
+  // Verificar la fecha cada 5 minutos para mantenerla actual
+  const fechaInterval = setInterval(() => {
+    asegurarFechaActual();
+  }, 5 * 60 * 1000); // 5 minutos
+
   window.addEventListener('beforeunload', handleBeforeUnload);
+
+  // Limpiar el intervalo cuando el componente se desmonte
+  onBeforeUnmount(() => {
+    clearInterval(fechaInterval);
+  });
 });
 
 onBeforeUnmount(() => {

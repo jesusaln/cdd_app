@@ -21,15 +21,15 @@
           <div class="flex items-center justify-between">
             <h3 class="text-sm font-semibold text-gray-900">Productos</h3>
             <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full font-medium">
-              {{ hoveredDoc.productos?.length || 0 }}
+              {{ (props.tipo === 'ordenescompra' ? hoveredDoc.items : hoveredDoc.productos)?.length || 0 }}
             </span>
           </div>
         </div>
 
         <div class="max-h-72 overflow-y-auto px-4 pb-4 custom-scrollbar">
-          <div v-if="hoveredDoc.productos?.length" class="space-y-2 pt-2">
+          <div v-if="(props.tipo === 'ordenescompra' ? hoveredDoc.items : hoveredDoc.productos)?.length" class="space-y-2 pt-2">
             <div
-              v-for="(producto, index) in hoveredDoc.productos"
+              v-for="(producto, index) in (props.tipo === 'ordenescompra' ? hoveredDoc.items : hoveredDoc.productos)"
               :key="index"
               class="group p-3 bg-gray-50/70 rounded-lg hover:bg-gray-100/70 hover:shadow-sm transition-all duration-150"
             >
@@ -294,6 +294,11 @@
                   </div>
                 </div>
 
+                <!-- Órdenes de compra: Número de orden -->
+                <div v-else-if="props.tipo === 'ordenescompra'" class="text-sm font-mono font-medium text-gray-700 bg-gray-100/60 px-2 py-1 rounded-md inline-block">
+                  {{ doc.numero_orden || doc.id || 'N/A' }}
+                </div>
+
                 <!-- Otros tipos -->
                 <div v-else class="text-sm font-mono font-medium text-gray-700 bg-gray-100/60 px-2 py-1 rounded-md inline-block">
                   {{ isClientes ? (doc.extra || 'N/A') : (doc[config.campoExtra.key] || doc.codigo_barras || 'N/A') }}
@@ -321,11 +326,11 @@
               <td
                 v-if="config.mostrarProductos !== false"
                 class="px-6 py-4 relative"
-                @mouseenter="doc.productos?.length ? showProductTooltip(doc, $event) : null"
+                @mouseenter="(props.tipo === 'ordenescompra' ? doc.items : props.tipo === 'ordenescompra' ? doc.items : doc.productos)?.length ? showProductTooltip(doc, $event) : null"
                 @mouseleave="hideProductTooltip"
-                @mousemove="doc.productos?.length ? updateTooltipPosition($event) : null"
+                @mousemove="(props.tipo === 'ordenescompra' ? doc.items : props.tipo === 'ordenescompra' ? doc.items : doc.productos)?.length ? updateTooltipPosition($event) : null"
               >
-                <div class="flex items-center text-sm text-gray-600" :class="doc.productos?.length ? 'cursor-help hover:text-gray-800 transition-colors duration-150' : 'opacity-60'">
+                <div class="flex items-center text-sm text-gray-600" :class="(props.tipo === 'ordenescompra' ? doc.items : props.tipo === 'ordenescompra' ? doc.items : doc.productos)?.length ? 'cursor-help hover:text-gray-800 transition-colors duration-150' : 'opacity-60'">
                   <div class="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center mr-2 group-hover:bg-blue-100 transition-colors duration-150">
                     <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
@@ -336,7 +341,7 @@
                       />
                     </svg>
                   </div>
-                  <span class="font-medium">{{ doc.productos?.length || 0 }}</span>
+                  <span class="font-medium">{{ (props.tipo === 'ordenescompra' ? doc.items : props.tipo === 'ordenescompra' ? doc.items : doc.productos)?.length || 0 }}</span>
                   <span class="text-gray-400 ml-1">items</span>
                 </div>
               </td>
@@ -495,7 +500,7 @@ const emit = defineEmits([
 ]);
 
 // Flags
-const isCompra    = computed(() => props.tipo === 'compras');
+const isCompra    = computed(() => props.tipo === 'compras' || props.tipo === 'ordenescompra');
 const isEquipos   = computed(() => props.tipo === 'equipos');
 const isClientes  = computed(() => props.tipo === 'clientes');
 const isProductos = computed(() => props.tipo === 'productos');
@@ -532,7 +537,8 @@ const tooltipStyle = computed(() => {
 });
 
 const showProductTooltip = (doc, event) => {
-  if (!doc?.productos?.length) return;
+  const items = props.tipo === 'ordenescompra' ? doc?.items : doc?.productos;
+  if (!items?.length) return;
   clearTimeout(tooltipTimeout);
   hoveredDoc.value = doc;
   updateTooltipPosition(event);
@@ -621,6 +627,19 @@ const config = computed(() => {
         'listo_entrega': { label: 'Listo para Entrega', classes: 'bg-purple-100 text-purple-700', color: 'bg-purple-400' },
         'entregado': { label: 'Entregado', classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
         'cancelado': { label: 'Cancelado', classes: 'bg-red-100 text-red-700', color: 'bg-red-400' }
+      }
+    },
+    ordenescompra: {
+      titulo: 'Órdenes de Compra',
+      mostrarCampoExtra: true,
+      campoExtra: { key: 'numero_orden', label: 'N° Orden' },
+      acciones: { editar: true, duplicar: false, imprimir: true, eliminar: true },
+      estados: {
+        'borrador': { label: 'Borrador', classes: 'bg-gray-100 text-gray-700', color: 'bg-gray-400' },
+        'pendiente': { label: 'Pendiente', classes: 'bg-yellow-100 text-yellow-700', color: 'bg-yellow-400' },
+        'aprobado': { label: 'Aprobado', classes: 'bg-blue-100 text-blue-700', color: 'bg-blue-400' },
+        'recibida': { label: 'Recibida', classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
+        'cancelada': { label: 'Cancelada', classes: 'bg-red-100 text-red-700', color: 'bg-red-400' }
       }
     },
     equipos: {
@@ -782,23 +801,31 @@ const items = computed(() => {
         );
       }
       if (isCompra.value) {
+        const items = props.tipo === 'ordenescompra' ? doc.items : props.tipo === 'ordenescompra' ? doc.items : doc.productos;
         return (
           (doc.proveedor?.nombre_razon_social || '').toLowerCase().includes(term) ||
-          doc.productos?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
+          items?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
           (doc.numero_compra || doc.id || '').toString().toLowerCase().includes(term)
+        );
+      }
+      if (props.tipo === 'ordenescompra') {
+        return (
+          (doc.proveedor?.nombre_razon_social || '').toLowerCase().includes(term) ||
+          doc.items?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
+          (doc.numero_orden || doc.id || '').toString().toLowerCase().includes(term)
         );
       }
       if (props.tipo === 'cotizaciones') {
         return (
           (doc.cliente?.nombre || '').toLowerCase().includes(term) ||
-          doc.productos?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
+          (props.tipo === 'ordenescompra' ? doc.items : props.tipo === 'ordenescompra' ? doc.items : doc.productos)?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
           (doc.numero || doc.id || '').toString().toLowerCase().includes(term)
         );
       }
       if (props.tipo === 'pedidos') {
         return (
           (doc.cliente?.nombre || '').toLowerCase().includes(term) ||
-          doc.productos?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
+          (props.tipo === 'ordenescompra' ? doc.items : props.tipo === 'ordenescompra' ? doc.items : doc.productos)?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
           (doc.numero_pedido || doc.id || '').toString().toLowerCase().includes(term) ||
           (doc.estado === 'enviado_venta' ? 'enviado a venta' : '').toLowerCase().includes(term)
         );
@@ -806,13 +833,13 @@ const items = computed(() => {
       if (props.tipo === 'ventas') {
         return (
           (doc.cliente?.nombre || '').toLowerCase().includes(term) ||
-          doc.productos?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
+          (props.tipo === 'ordenescompra' ? doc.items : props.tipo === 'ordenescompra' ? doc.items : doc.productos)?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
           (doc.numero_venta || doc.id || '').toString().toLowerCase().includes(term)
         );
       }
       return (
         (doc.cliente?.nombre_razon_social || '').toLowerCase().includes(term) ||
-        doc.productos?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
+        (props.tipo === 'ordenescompra' ? doc.items : props.tipo === 'ordenescompra' ? doc.items : doc.productos)?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
         (doc.numero_pedido || doc.numero_factura || doc.id || '').toString().toLowerCase().includes(term)
       );
     });
@@ -854,6 +881,14 @@ const items = computed(() => {
       case 'proveedor':
         aVal = (a.proveedor?.nombre_razon_social || '').toLowerCase();
         bVal = (b.proveedor?.nombre_razon_social || '').toLowerCase();
+        break;
+      case 'numero_orden':
+        aVal = (a.numero_orden || a.id || '').toString().toLowerCase();
+        bVal = (b.numero_orden || b.id || '').toString().toLowerCase();
+        break;
+      case 'numero_compra':
+        aVal = (a.numero_compra || a.id || '').toString().toLowerCase();
+        bVal = (b.numero_compra || b.id || '').toString().toLowerCase();
         break;
       case 'nombre': // clientes/equipos/productos
         aVal = (isClientes.value ? (a.titulo || '') : (a.nombre || a.titulo || '')).toLowerCase();

@@ -87,21 +87,6 @@
           {{ tituloProveedorSeleccionado }}
         </h3>
         <div class="flex items-center space-x-2">
-          <!-- Indicador de estado del proveedor -->
-          <div v-if="mostrarEstadoProveedor" class="flex items-center">
-            <div
-              class="w-2 h-2 rounded-full mr-2"
-              :class="{
-                'bg-green-500': proveedorSeleccionado.estado === 'activo',
-                'bg-yellow-500': proveedorSeleccionado.estado === 'suspendido',
-                'bg-red-500': proveedorSeleccionado.estado === 'inactivo',
-                'bg-gray-500': !proveedorSeleccionado.estado
-              }"
-            ></div>
-            <span class="text-xs font-medium text-gray-600 capitalize">
-              {{ proveedorSeleccionado.estado || 'Pendiente' }}
-            </span>
-          </div>
           <!-- Botón de historial -->
           <button
             v-if="mostrarHistorial"
@@ -177,25 +162,59 @@
           </div>
           <div class="text-gray-900 font-mono">{{ proveedorSeleccionado.rfc }}</div>
         </div>
-        <!-- Información comercial -->
-        <div class="space-y-2" v-if="proveedorSeleccionado.credito_limite && mostrarInfoComercial">
+        <!-- Estado del proveedor -->
+        <div class="space-y-2" v-if="mostrarEstadoProveedor">
           <div class="flex items-center text-sm font-medium text-green-700">
             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
-            Límite de Crédito
+            Estado
           </div>
-          <div class="text-gray-900 font-semibold">{{ formatearMoneda(proveedorSeleccionado.credito_limite) }}</div>
-        </div>
-        <div class="space-y-2" v-if="proveedorSeleccionado.tipo_proveedor">
-          <div class="flex items-center text-sm font-medium text-green-700">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
-            </svg>
-            Tipo de Proveedor
+          <div class="flex items-center">
+            <div
+              class="w-3 h-3 rounded-full mr-2"
+              :class="{
+                'bg-green-500': proveedorSeleccionado.estado === 'activo',
+                'bg-yellow-500': proveedorSeleccionado.estado === 'suspendido',
+                'bg-red-500': proveedorSeleccionado.estado === 'inactivo',
+                'bg-gray-500': !proveedorSeleccionado.estado
+              }"
+            ></div>
+            <span class="text-gray-900 font-medium capitalize">
+              {{ proveedorSeleccionado.estado || 'Pendiente' }}
+            </span>
           </div>
-          <div class="text-gray-900 capitalize">{{ proveedorSeleccionado.tipo_proveedor }}</div>
         </div>
+          <!-- Dirección completa -->
+          <div class="space-y-2" v-if="direccionCompleta">
+            <div class="flex items-center text-sm font-medium text-green-700">
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+              </svg>
+              Dirección
+            </div>
+            <div class="text-gray-900 text-sm">{{ direccionCompleta }}</div>
+          </div>
+          <!-- Información comercial -->
+          <div class="space-y-2" v-if="proveedorSeleccionado.credito_limite && mostrarInfoComercial">
+            <div class="flex items-center text-sm font-medium text-green-700">
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
+              </svg>
+              Límite de Crédito
+            </div>
+            <div class="text-gray-900 font-semibold">{{ formatearMoneda(proveedorSeleccionado.credito_limite) }}</div>
+          </div>
+          <div class="space-y-2" v-if="proveedorSeleccionado.tipo_proveedor">
+            <div class="flex items-center text-sm font-medium text-green-700">
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+              </svg>
+              Tipo de Proveedor
+            </div>
+            <div class="text-gray-900 capitalize">{{ proveedorSeleccionado.tipo_proveedor }}</div>
+          </div>
       </div>
       <!-- Alertas del proveedor -->
       <div v-if="alertasProveedor.length > 0" class="mt-4 space-y-2">
@@ -241,12 +260,13 @@
       <div
         ref="listaProveedoresRef"
         v-if="mostrarListaProveedores && proveedoresFiltrados.length > 0"
-        class="z-50 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-[60vh] overflow-y-auto"
+        class="z-[9999] mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-[60vh] overflow-y-auto pointer-events-auto"
         :style="{
           position: 'absolute',
           width: inputWidth + 'px',
           top: inputPosition.top + inputPosition.height + 'px',
-          left: inputPosition.left + 'px'
+          left: inputPosition.left + 'px',
+          pointerEvents: 'auto'
         }"
       >
         <div class="p-2">
@@ -258,10 +278,11 @@
         <div
           v-for="(proveedor, index) in proveedoresFiltrados"
           :key="proveedor.id"
-          @click="seleccionarProveedor(proveedor)"
+          @click="seleccionarProveedor(proveedor, $event)"
           @mouseenter="proveedorSeleccionadoIndex = index"
-          class="px-4 py-3 hover:bg-green-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors duration-150"
+          class="px-4 py-3 hover:bg-green-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors duration-150 pointer-events-auto"
           :class="{ 'bg-green-50': proveedorSeleccionadoIndex === index }"
+          :style="{ pointerEvents: 'auto' }"
         >
           <div class="flex items-center justify-between">
             <div class="flex-1">
@@ -312,7 +333,7 @@
       <div
         ref="listaVaciaRef"
         v-if="mostrarListaProveedores && proveedoresFiltrados.length === 0 && busquedaTermino"
-        class="z-50 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-4"
+        class="z-[9999] mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-4"
         :style="{
           position: 'absolute',
           width: inputWidth + 'px',
@@ -426,6 +447,28 @@ const props = defineProps({
   }
 });
 
+// Función auxiliar para dirección completa
+const getDireccionCompleta = () => {
+  if (!props.proveedorSeleccionado) return null;
+
+  const proveedor = props.proveedorSeleccionado;
+  const partesDireccion = [
+    proveedor.calle,
+    proveedor.numero_exterior,
+    proveedor.numero_interior,
+    proveedor.colonia,
+    proveedor.codigo_postal,
+    proveedor.municipio,
+    proveedor.estado,
+    proveedor.pais
+  ].filter(Boolean);
+
+  return partesDireccion.length > 0 ? partesDireccion.join(', ') : null;
+};
+
+// Computada para dirección completa del proveedor
+const direccionCompleta = computed(getDireccionCompleta);
+
 // Eventos que emite el componente
 const emit = defineEmits([
   'proveedor-seleccionado',
@@ -512,6 +555,7 @@ const proveedoresFiltrados = computed(() => {
   tiempoRespuesta.value = Math.round(finTiempo - inicioTiempo);
   return proveedoresFilt.slice(0, 50); // Limitar resultados
 });
+
 
 // Computada para alertas del proveedor
 const alertasProveedor = computed(() => {
@@ -611,7 +655,7 @@ const manejarTeclas = (event) => {
     case 'Enter':
       event.preventDefault();
       if (proveedorSeleccionadoIndex.value >= 0) {
-        seleccionarProveedor(proveedoresFiltrados.value[proveedorSeleccionadoIndex.value]);
+        seleccionarProveedor(proveedoresFiltrados.value[proveedorSeleccionadoIndex.value], event);
       }
       break;
     case 'Escape':
@@ -622,7 +666,13 @@ const manejarTeclas = (event) => {
 };
 
 // Función para seleccionar proveedor
-const seleccionarProveedor = (proveedor) => {
+const seleccionarProveedor = (proveedor, event) => {
+  // Prevenir comportamiento por defecto
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
   if (timeoutId.value) {
     clearTimeout(timeoutId.value);
   }

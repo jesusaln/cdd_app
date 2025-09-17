@@ -13,14 +13,26 @@ defineOptions({ layout: AppLayout })
 
 const props = defineProps({
   ordenesCompra: {
-    type: Array,
-    default: () => []
+    type: Object,
+    default: () => ({ data: [] })
+  },
+  stats: {
+    type: Object,
+    default: () => ({ total: 0, recibidas: 0, pendientes: 0, canceladas: 0, borrador: 0 })
+  },
+  filters: {
+    type: Object,
+    default: () => ({})
+  },
+  sorting: {
+    type: Object,
+    default: () => ({ sort_by: 'created_at', sort_direction: 'desc' })
   }
 })
 
 // Estado reactivo
-const searchTerm = ref('')
-const sortBy = ref('id-desc')
+const searchTerm = ref(props.filters?.search ?? '')
+const sortBy = ref('fecha-desc')
 const filtroEstado = ref('')
 const showModal = ref(false)
 const modalMode = ref('details') // 'details', 'confirm', 'receive'
@@ -29,9 +41,7 @@ const selectedOrden = ref(null)
 
 // Configuración del módulo
 const headerConfig = {
-  module: 'ordenescompra',
-  createButtonText: 'Nueva Orden',
-  searchPlaceholder: 'Buscar por proveedor, producto o ID...'
+  module: 'ordenescompra'
 }
 
 // Notificaciones
@@ -45,25 +55,83 @@ const notyf = new Notyf({
 })
 
 // Datos originales
-const ordenesOriginales = ref([...props.ordenesCompra])
+const ordenesOriginales = ref(Array.isArray(props.ordenesCompra?.data) ? [...props.ordenesCompra.data] : [])
 
 watch(
   () => props.ordenesCompra,
   (newVal) => {
-    ordenesOriginales.value = [...newVal]
+    ordenesOriginales.value = Array.isArray(newVal?.data) ? [...newVal.data] : []
   },
   { deep: true, immediate: true }
 )
 
-// Estadísticas
-const estadisticas = computed(() => {
-  const stats = { total: ordenesOriginales.value.length, pendientes: 0, recibidas: 0 }
-  ordenesOriginales.value.forEach(o => {
-    if (o.estado === 'pendiente') stats.pendientes++
-    else if (o.estado === 'recibida') stats.recibidas++
+// Datos filtrados y ordenados para la tabla
+const ordenesFiltradas = computed(() => {
+  let filtered = [...ordenesOriginales.value]
+
+  // Aplicar búsqueda
+  if (searchTerm.value) {
+    const term = searchTerm.value.toLowerCase()
+    filtered = filtered.filter(orden =>
+      (orden.numero_orden || '').toLowerCase().includes(term) ||
+      (orden.proveedor?.nombre_razon_social || '').toLowerCase().includes(term) ||
+      (orden.estado || '').toLowerCase().includes(term) ||
+      orden.items?.some(item => (item.nombre || '').toLowerCase().includes(term))
+    )
+  }
+
+  // Aplicar filtro de estado
+  if (filtroEstado.value) {
+    filtered = filtered.filter(orden => orden.estado === filtroEstado.value)
+  }
+
+  // Aplicar ordenamiento
+  const [field, direction] = sortBy.value.split('-')
+  filtered.sort((a, b) => {
+    let aVal, bVal
+
+    switch (field) {
+      case 'fecha':
+        aVal = new Date(a.created_at || a.fecha).getTime()
+        bVal = new Date(b.created_at || b.fecha).getTime()
+        break
+      case 'proveedor':
+        aVal = (a.proveedor?.nombre_razon_social || '').toLowerCase()
+        bVal = (b.proveedor?.nombre_razon_social || '').toLowerCase()
+        break
+      case 'numero_orden':
+        aVal = (a.numero_orden || a.id || '').toString().toLowerCase()
+        bVal = (b.numero_orden || b.id || '').toString().toLowerCase()
+        break
+      case 'total':
+        aVal = parseFloat(a.total || 0)
+        bVal = parseFloat(b.total || 0)
+        break
+      case 'estado':
+        aVal = a.estado || ''
+        bVal = b.estado || ''
+        break
+      default:
+        aVal = a[field] || ''
+        bVal = b[field] || ''
+    }
+
+    if (aVal < bVal) return direction === 'asc' ? -1 : 1
+    if (aVal > bVal) return direction === 'asc' ? 1 : -1
+    return 0
   })
-  return stats
+
+  return filtered
 })
+
+// Estadísticas
+const estadisticas = computed(() => ({
+  total: props.stats?.total ?? ordenesOriginales.value.length,
+  aprobadas: props.stats?.recibidas ?? ordenesOriginales.value.filter(o => o.estado === 'recibida').length,
+  pendientes: props.stats?.pendientes ?? ordenesOriginales.value.filter(o => o.estado === 'pendiente').length,
+  borrador: props.stats?.borrador ?? ordenesOriginales.value.filter(o => o.estado === 'borrador').length,
+  cancelada: props.stats?.canceladas ?? ordenesOriginales.value.filter(o => o.estado === 'cancelada').length
+}))
 
 // Métodos
 const handleLimpiarFiltros = () => {
@@ -73,6 +141,11 @@ const handleLimpiarFiltros = () => {
   notyf.success('Filtros limpiados')
 }
 
+// Variables faltantes
+const loading = ref(false)
+const ordenCompraIdToDelete = ref(null)
+const showConfirmationDialog = ref(false)
+
 const eliminarOrden = async () => {
   if (!ordenCompraIdToDelete.value) return;
   loading.value = true;
@@ -80,7 +153,7 @@ const eliminarOrden = async () => {
     await router.delete(route('ordenescompra.destroy', ordenCompraIdToDelete.value), {
       onSuccess: () => {
         notyf.success('Orden de compra eliminada exitosamente');
-        ordenesCompra.value = ordenesCompra.value.filter(orden => orden.id !== ordenCompraIdToDelete.value);
+        ordenesOriginales.value = ordenesOriginales.value.filter(orden => orden.id !== ordenCompraIdToDelete.value);
         showConfirmationDialog.value = false;
         ordenCompraIdToDelete.value = null;
       },
@@ -116,8 +189,24 @@ const editarOrden = (id) => {
 const duplicarOrden = (orden) => {
   if (confirm(`¿Duplicar orden #${orden.id}?`)) {
     router.post(`/ordenescompra/${orden.id}/duplicate`, {}, {
-      onSuccess: () => notyf.success('Orden duplicada'),
-      onError: () => notyf.error('Error al duplicar')
+      onSuccess: () => notyf.success('Orden duplicada exitosamente'),
+      onError: () => notyf.error('Error al duplicar la orden')
+    })
+  }
+}
+
+const convertirACompra = (orden) => {
+  if (confirm(`¿Convertir orden #${orden.id} en compra a proveedores? Esto creará una entrada en el módulo de compras.`)) {
+    router.post(`/ordenescompra/${orden.id}/convertir-compra`, {}, {
+      onSuccess: () => {
+        notyf.success('Orden convertida a compra exitosamente')
+        // Actualizar el estado local
+        const index = ordenesOriginales.value.findIndex(o => o.id === orden.id)
+        if (index !== -1) {
+          ordenesOriginales.value[index] = { ...orden, estado: 'convertida' }
+        }
+      },
+      onError: () => notyf.error('Error al convertir la orden')
     })
   }
 }
@@ -158,14 +247,15 @@ const recibirOrden = async () => {
   try {
     router.post(`/ordenescompra/${selectedId.value}/recibir`, {}, {
       onSuccess: () => {
-        notyf.success('Orden recibida y stock actualizado')
+        notyf.success('Orden recibida exitosamente')
+        // Nota: No actualizamos stock aquí porque las órdenes de compra no manejan inventario
         ordenesOriginales.value = ordenesOriginales.value.map(o =>
           o.id === selectedId.value ? { ...o, estado: 'recibida' } : o
         )
         showModal.value = false
         selectedId.value = null
       },
-      onError: () => notyf.error('Error al recibir')
+      onError: () => notyf.error('Error al recibir la orden')
     })
   } catch (error) {
     console.error(error)
@@ -173,48 +263,101 @@ const recibirOrden = async () => {
   }
 }
 
+const marcarUrgente = (orden) => {
+  if (confirm(`¿Marcar orden #${orden.id} como urgente?`)) {
+    router.post(`/ordenescompra/${orden.id}/urgente`, {}, {
+      onSuccess: () => {
+        notyf.success('Orden marcada como urgente')
+        const index = ordenesOriginales.value.findIndex(o => o.id === orden.id)
+        if (index !== -1) {
+          ordenesOriginales.value[index] = { ...orden, urgente: true }
+        }
+      },
+      onError: () => notyf.error('Error al marcar como urgente')
+    })
+  }
+}
+
 const crearNuevaOrden = () => {
   router.visit('/ordenescompra/create')
 }
+
+
+const exportarOrdenes = () => {
+  if (ordenesOriginales.value.length === 0) {
+    notyf.error('No hay órdenes para exportar')
+    return
+  }
+
+  try {
+    // Crear datos para exportación
+    const datosExportar = ordenesOriginales.value.map(orden => ({
+      'Número': orden.numero_orden || orden.id,
+      'Proveedor': orden.proveedor?.nombre_razon_social || 'N/A',
+      'Estado': orden.estado,
+      'Fecha': orden.created_at,
+      'Total': orden.total || 0,
+      'Items': orden.items?.length || 0
+    }))
+
+    // Aquí puedes integrar una librería de exportación como xlsx o csv
+    notyf.success('Exportación preparada - funcionalidad de exportación pendiente de implementar')
+  } catch (error) {
+    console.error('Error en exportación:', error)
+    notyf.error('Error al exportar órdenes')
+  }
+}
+
+const importarOrdenes = () => {
+  notyf.success('Funcionalidad de importación - pendiente de implementar')
+}
+
 </script>
 
 <template>
   <Head title="Órdenes de Compra" />
 
   <div class="ordenes-compra-index min-h-screen bg-gray-50">
-    <!-- Header principal -->
-    <div class="bg-white shadow-sm border-b border-gray-200 px-6 py-8">
-      <div class="max-w-7xl mx-auto">
-        <h1 class="text-3xl font-bold text-gray-900 mb-2">Órdenes de Compra</h1>
-        <p class="text-gray-600">Gestiona y supervisa todas las órdenes de compra</p>
-      </div>
-    </div>
-
     <!-- Contenido principal -->
     <div class="max-w-8xl mx-auto px-6 py-8">
-      <!-- Filtros y estadísticas -->
+      <!-- Header universal con estadísticas -->
       <UniversalHeader
         :total="estadisticas.total"
-        :aprobados="estadisticas.recibidas"
+        :aprobadas="estadisticas.aprobadas"
         :pendientes="estadisticas.pendientes"
+        :borrador="estadisticas.borrador"
+        :cancelada="estadisticas.cancelada"
         v-model:search-term="searchTerm"
         v-model:sort-by="sortBy"
         v-model:filtro-estado="filtroEstado"
         :config="headerConfig"
+        :show-export="true"
+        :show-import="true"
         @limpiar-filtros="handleLimpiarFiltros"
+        @exportar="exportarOrdenes"
+        @importar="importarOrdenes"
       />
+
 
       <!-- Tabla de órdenes -->
       <div class="mt-6">
         <DocumentosTable
-          :documentos="ordenesOriginales"
+          :documentos="ordenesFiltradas"
           tipo="ordenescompra"
           :search-term="searchTerm"
           :sort-by="sortBy"
           :filtro-estado="filtroEstado"
+          :mapeo="{
+            nombre: 'proveedor.nombre_razon_social',
+            rfc: 'proveedor.rfc',
+            activo: 'estado',
+            fecha: 'created_at'
+          }"
           @ver-detalles="verDetalles"
           @editar="editarOrden"
           @duplicar="duplicarOrden"
+          @convertir-compra="convertirACompra"
+          @marcar-urgente="marcarUrgente"
           @imprimir="imprimirOrden"
           @eliminar="confirmarEliminacion"
           @confirmar-recepcion="confirmarRecepcion"
@@ -244,10 +387,29 @@ const crearNuevaOrden = () => {
   background-color: #f9fafb;
 }
 
+.ordenes-compra-index > * {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (max-width: 640px) {
-  .ordenes-compra-index .max-w-7xl {
+  .ordenes-compra-index .max-w-8xl {
     padding-left: 1rem;
     padding-right: 1rem;
+  }
+
+  .ordenes-compra-index h1 {
+    font-size: 1.875rem;
   }
 }
 </style>

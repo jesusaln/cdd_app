@@ -158,6 +158,33 @@
                 </p>
               </div>
 
+              <!-- ÓRDENES DE COMPRA -->
+              <div v-else-if="isOrdenesCompra">
+                <p class="text-sm text-gray-600">
+                  <strong>Proveedor:</strong> {{ selected.proveedor?.nombre_razon_social || 'Sin proveedor' }}
+                </p>
+                <p class="text-sm text-gray-600" v-if="selected.proveedor?.email">
+                  <strong>Email:</strong> {{ selected.proveedor.email }}
+                </p>
+                <p class="text-sm text-gray-600" v-if="selected.proveedor?.telefono">
+                  <strong>Teléfono:</strong> {{ selected.proveedor.telefono }}
+                </p>
+                <p class="text-sm text-gray-600">
+                  <strong>Fecha de creación:</strong>
+                  {{ formatearFecha(selected.created_at) }}
+                </p>
+                <p class="text-sm text-gray-600">
+                  <strong>Estado:</strong>
+                  <span
+                    :class="obtenerClasesEstado(selected.estado)"
+                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                  >
+                    <span class="w-1.5 h-1.5 rounded-full mr-1.5" :class="obtenerColorPuntoEstado(selected.estado)"></span>
+                    {{ obtenerLabelEstado(selected.estado) }}
+                  </span>
+                </p>
+              </div>
+
               <!-- CLIENTES -->
               <div v-else-if="isClientes">
                 <p class="text-sm text-gray-600">
@@ -220,7 +247,7 @@
                   <strong>Total:</strong> ${{ formatearMoneda(selected.total) }}
                 </p>
 
-                <template v-if="!isEquipos">
+                <template v-if="!isEquipos && !isOrdenesCompra">
                   <p class="text-sm text-gray-600">
                     <strong>Productos:</strong>
                     {{ selected.productos?.length || 0 }} items
@@ -253,7 +280,7 @@
             </div>
 
             <!-- Tabla de productos (no aplica a equipos ni clientes) -->
-            <div v-if="!isEquipos && !isClientes && selected.productos?.length" class="mt-4">
+            <div v-if="!isEquipos && !isClientes && !isOrdenesCompra && selected.productos?.length" class="mt-4">
               <h4 class="text-sm font-medium text-gray-900 mb-2">Productos</h4>
               <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
@@ -305,7 +332,7 @@
                 </table>
               </div>
             </div>
-            <p v-else-if="!isEquipos && !isClientes" class="text-sm text-gray-600">No hay productos asociados.</p>
+            <p v-else-if="!isEquipos && !isClientes && !isOrdenesCompra" class="text-sm text-gray-600">No hay productos asociados.</p>
           </div>
           <div v-else class="text-sm text-gray-600">No hay datos disponibles.</div>
 
@@ -353,6 +380,24 @@
                 }"
               >
                 {{ yaRecibida ? 'Reconfirmar Recepción' : 'Recibir Compra' }}
+              </button>
+            </template>
+
+            <!-- Órdenes de Compra -->
+            <template v-if="isOrdenesCompra">
+              <button
+                v-if="selected?.estado !== 'cancelado' && selected?.estado !== 'recibida'"
+                @click="emit('confirmar-recepcion', selected)"
+                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Marcar como Recibida
+              </button>
+              <button
+                v-if="selected?.estado !== 'cancelado' && !selected?.urgente"
+                @click="emit('marcar-urgente', selected)"
+                class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+              >
+                Marcar como Urgente
               </button>
             </template>
 
@@ -551,6 +596,8 @@ const emit = defineEmits([
   'close',
   'confirm-delete',
   'confirm-receive',
+  'confirmar-recepcion',
+  'marcar-urgente',
   'recibir-compra',
   'imprimir',
   'editar',
@@ -567,6 +614,7 @@ const emit = defineEmits([
 const isCotizaciones = computed(() => props.tipo === 'cotizaciones')
 const isPedidos      = computed(() => props.tipo === 'pedidos')
 const isCompras      = computed(() => props.tipo === 'compras')
+const isOrdenesCompra= computed(() => props.tipo === 'ordenescompra')
 const isRentas       = computed(() => props.tipo === 'rentas')
 const isEquipos      = computed(() => props.tipo === 'equipos')
 const isClientes     = computed(() => props.tipo === 'clientes')
@@ -695,6 +743,19 @@ const config = computed(() => {
         rechazado: { label: 'Rechazada', classes: 'bg-red-100 text-red-800', color: 'bg-red-400' },
         cancelado: { label: 'Cancelada', classes: 'bg-gray-100 text-gray-800', color: 'bg-gray-400' }
       })
+    },
+    ordenescompra: {
+      titulo: 'Orden de Compra',
+      mostrarCampoExtra: true,
+      campoExtra: { key: 'numero_orden', label: 'N° Orden' },
+      acciones: { editar: true, imprimir: true, enviarPedido: false, enviarAVenta: false, recibirCompra: false },
+      estados: baseEstados({
+        borrador: { label: 'Borrador', classes: 'bg-gray-100 text-gray-800', color: 'bg-gray-400' },
+        pendiente: { label: 'Pendiente', classes: 'bg-yellow-100 text-yellow-800', color: 'bg-yellow-400' },
+        aprobado: { label: 'Aprobado', classes: 'bg-blue-100 text-blue-800', color: 'bg-blue-400' },
+        recibida: { label: 'Recibida', classes: 'bg-green-100 text-green-800', color: 'bg-green-400' },
+        cancelada: { label: 'Cancelada', classes: 'bg-red-100 text-red-800', color: 'bg-red-400' }
+      })
     }
   }
   return configs[props.tipo] || configs.cotizaciones
@@ -704,6 +765,7 @@ const config = computed(() => {
 const folioLabel = computed(() => {
   if (isCotizaciones.value) return 'N° Cotización'
   if (isPedidos.value)      return 'N° Pedido'
+  if (isOrdenesCompra.value) return 'N° Orden'
   if (props.tipo === 'ventas') return 'N° Venta/Factura'
   if (isRentas.value)       return 'N° Contrato'
   return 'Folio'
@@ -711,7 +773,7 @@ const folioLabel = computed(() => {
 const folioValue = computed(() => {
   const s = props.selected || {}
   // soporta llaves alternativas
-  return s.numero_cotizacion || s.numero_pedido || s.numero_venta || s.numero_factura || s.numero_contrato || null
+  return s.numero_cotizacion || s.numero_pedido || s.numero_orden || s.numero_venta || s.numero_factura || s.numero_contrato || null
 })
 
 // NUEVO: Auditoría (usa prop o selected.metadata)

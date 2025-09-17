@@ -19,10 +19,49 @@ class OrdenCompraController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function index()
+    public function index(Request $request)
     {
-        // Carga las órdenes de compra con sus relaciones de proveedor, productos y servicios
-        $ordenesCompra = OrdenCompra::with(['proveedor', 'productos', 'servicios'])->get()->map(function ($orden) {
+        // Número de elementos por página
+        $perPage = $request->get('per_page', 10);
+
+        // Construir la consulta base
+        $query = OrdenCompra::with(['proveedor', 'productos', 'servicios']);
+
+        // Aplicar filtros si existen
+        if ($search = $request->get('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('id', 'like', "%{$search}%")
+                    ->orWhereHas('proveedor', function ($subQ) use ($search) {
+                        $subQ->where('nombre_razon_social', 'like', "%{$search}%")
+                             ->orWhere('email', 'like', "%{$search}%");
+                    })
+                    ->orWhere('estado', 'like', "%{$search}%");
+            });
+        }
+
+        if ($estado = $request->get('estado')) {
+            $query->where('estado', $estado);
+        }
+
+        // Aplicar ordenamiento
+        $sortBy = $request->get('sort_by', 'created_at');
+        $sortDirection = $request->get('sort_direction', 'desc');
+
+        $validSortFields = ['id', 'created_at', 'total', 'estado'];
+        if (!in_array($sortBy, $validSortFields)) {
+            $sortBy = 'created_at';
+        }
+
+        $query->orderBy($sortBy, $sortDirection);
+
+        // Obtener el total de registros para paginación
+        $total = $query->count();
+
+        // Obtener los registros para la página actual
+        $ordenes = $query->skip(($request->get('page', 1) - 1) * $perPage)->take($perPage)->get();
+
+        // Transformar los datos
+        $transformedData = $ordenes->map(function ($orden) {
             // Mapea los productos adjuntos a la orden
             $productos = $orden->productos->map(function ($producto) {
                 return [
@@ -54,17 +93,39 @@ class OrdenCompraController extends Controller
 
             return [
                 'id' => $orden->id,
+                'numero_orden' => $orden->id, // Usar el ID como número de orden por ahora
                 'proveedor' => $orden->proveedor, // Información del proveedor
-                'items' => $items, // Productos y servicios de la orden
+                'items' => $items, // Productos y servicios de la orden (mantener como 'items' para coincidir con frontend)
                 'total' => $orden->total,
                 'estado' => $orden->estado, // Por ejemplo, 'pendiente', 'recibida', 'cancelada'
-                'fecha_orden' => $orden->created_at->format('d/m/Y H:i'), // Formato legible
+                'created_at' => $orden->created_at->format('Y-m-d H:i:s'), // Formato ISO para que el frontend lo maneje
             ];
         });
+
+        // Crear paginador manualmente
+        $ordenesCompra = new \Illuminate\Pagination\LengthAwarePaginator(
+            $transformedData,
+            $total,
+            $perPage,
+            $request->get('page', 1),
+            ['path' => $request->url(), 'pageName' => 'page']
+        );
+
+        // Estadísticas
+        $stats = [
+            'total' => OrdenCompra::count(),
+            'pendientes' => OrdenCompra::where('estado', 'pendiente')->count(),
+            'recibidas' => OrdenCompra::where('estado', 'recibida')->count(),
+            'canceladas' => OrdenCompra::where('estado', 'cancelada')->count(),
+            'borrador' => OrdenCompra::where('estado', 'borrador')->count(),
+        ];
 
         // Renderiza la vista de índice de órdenes de compra con Inertia
         return Inertia::render('OrdenesCompra/Index', [
             'ordenesCompra' => $ordenesCompra,
+            'stats' => $stats,
+            'filters' => $request->only(['search', 'estado']),
+            'sorting' => ['sort_by' => $sortBy, 'sort_direction' => $sortDirection],
         ]);
     }
 

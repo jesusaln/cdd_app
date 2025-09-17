@@ -240,6 +240,40 @@ const defaultConfigs = {
       { value: 'proveedor-desc', label: 'Proveedor Z-A', icon: 'sort-descending' }
     ]
   },
+
+  ordenescompra: {
+    module: 'ordenescompra',
+    title: 'Órdenes de Compra',
+    createRoute: '/ordenescompra/create',
+    createButtonText: 'Nueva Orden de Compra',
+    searchPlaceholder: 'Buscar por proveedor, número, producto...',
+    searchFields: ['numero_orden', 'proveedor.nombre_razon_social', 'productos.nombre'],
+    estadisticas: {
+      total: { label: 'Total', icon: 'document', description: 'Total de órdenes de compra' },
+      aprobadas: { label: 'Recibidas', icon: 'check-circle', color: 'green', description: 'Órdenes recibidas' },
+      pendientes: { label: 'Pendientes', icon: 'clock', color: 'yellow', description: 'Órdenes pendientes' },
+      borrador: { label: 'Borrador', icon: 'document-text', color: 'gray', description: 'Órdenes en borrador' },
+      cancelada: { label: 'Canceladas', icon: 'x-circle', color: 'red', description: 'Órdenes canceladas' }
+    },
+    estados: [
+      { value: '', label: 'Todos los Estados', color: 'slate' },
+      { value: 'borrador', label: 'Borrador', color: 'gray' },
+      { value: 'pendiente', label: 'Pendientes', color: 'yellow' },
+      { value: 'aprobado', label: 'Aprobadas', color: 'blue' },
+      { value: 'recibida', label: 'Recibidas', color: 'green' },
+      { value: 'cancelada', label: 'Canceladas', color: 'red' },
+      { value: 'urgente', label: 'Urgentes', color: 'red' }
+    ],
+    sortOptions: [
+      { value: 'fecha-desc', label: 'Más Recientes', icon: 'arrow-down' },
+      { value: 'fecha-asc', label: 'Más Antiguos', icon: 'arrow-up' },
+      { value: 'total-desc', label: 'Mayor Monto', icon: 'currency-dollar' },
+      { value: 'total-asc', label: 'Menor Monto', icon: 'currency-dollar' },
+      { value: 'proveedor-asc', label: 'Proveedor A-Z', icon: 'sort-ascending' },
+      { value: 'proveedor-desc', label: 'Proveedor Z-A', icon: 'sort-descending' },
+      { value: 'urgente-desc', label: 'Urgentes Primero', icon: 'exclamation' }
+    ]
+  },
 };
 
 // Config final
@@ -291,6 +325,14 @@ const estadisticasConPorcentaje = computed(() => {
     };
   }
   if (finalConfig.value.module === 'compras') {
+    return {
+      aprobadas: { ...finalConfig.value.estadisticas.aprobadas, porcentaje: Math.round(((props.aprobadas || 0) / total) * 100) },
+      pendientes:{ ...finalConfig.value.estadisticas.pendientes, porcentaje: Math.round(((props.pendientes || 0) / total) * 100) },
+      borrador: { ...finalConfig.value.estadisticas.borrador, porcentaje: Math.round(((props.borrador || 0) / total) * 100) },
+      cancelada: { ...finalConfig.value.estadisticas.cancelada, porcentaje: Math.round(((props.cancelada || 0) / total) * 100) },
+    };
+  }
+  if (finalConfig.value.module === 'ordenescompra') {
     return {
       aprobadas: { ...finalConfig.value.estadisticas.aprobadas, porcentaje: Math.round(((props.aprobadas || 0) / total) * 100) },
       pendientes:{ ...finalConfig.value.estadisticas.pendientes, porcentaje: Math.round(((props.pendientes || 0) / total) * 100) },
@@ -494,9 +536,9 @@ const getIconPath = (iconName) => icons[iconName] || icons.document;
             </span>
           </div>
 
-          <!-- Cancelada (solo ventas) -->
+          <!-- Cancelada (ventas y órdenes de compra) -->
           <div
-            v-if="finalConfig.module === 'ventas'"
+            v-if="finalConfig.module === 'ventas' || finalConfig.module === 'ordenescompra'"
             :class="getColorClasses(finalConfig.estadisticas.cancelada.color).bg + ' ' + getColorClasses(finalConfig.estadisticas.cancelada.color).border"
             class="group flex items-center gap-2 px-4 py-3 rounded-xl border flex-shrink-0 hover:shadow-sm transition-all duration-200 cursor-default"
             :title="finalConfig.estadisticas.cancelada.description"
@@ -558,7 +600,7 @@ const getIconPath = (iconName) => icons[iconName] || icons.document;
             <span class="font-medium text-slate-700">{{ finalConfig.estadisticas.borrador.label }}:</span>
             <span :class="getColorClasses(finalConfig.estadisticas.borrador.color).text" class="font-bold text-lg">{{ formatNumber(props.borrador || 0) }}</span>
             <span v-if="total > 0" :class="getColorClasses(finalConfig.estadisticas.borrador.color).text" class="text-xs font-medium opacity-75">
-              ({{ estadisticasConPorcentaje.borrador.porcentaje }}%)
+              ({{ estadisticasConPorcentaje.borrador?.porcentaje || 0 }}%)
             </span>
           </div>
 
@@ -575,7 +617,7 @@ const getIconPath = (iconName) => icons[iconName] || icons.document;
             <span class="font-medium text-slate-700">{{ finalConfig.estadisticas.enviado_pedido.label }}:</span>
             <span :class="getColorClasses(finalConfig.estadisticas.enviado_pedido.color).text" class="font-bold text-lg">{{ formatNumber(props.enviado_pedido || 0) }}</span>
             <span v-if="total > 0" :class="getColorClasses(finalConfig.estadisticas.enviado_pedido.color).text" class="text-xs font-medium opacity-75">
-              ({{ estadisticasConPorcentaje.enviado_pedido.porcentaje }}%)
+              ({{ estadisticasConPorcentaje.enviado_pedido?.porcentaje || 0 }}%)
             </span>
           </div>
 
@@ -754,7 +796,7 @@ const getIconPath = (iconName) => icons[iconName] || icons.document;
   </div>
   <div class="flex items-center gap-1">
     <div class="w-3 h-3 rounded-full bg-red-500"></div>
-    <span>{{ estadisticasConPorcentaje.cancelado.porcentaje }}% {{ finalConfig.estadisticas.cancelado.label }}</span>
+    <span>{{ estadisticasConPorcentaje.cancelado?.porcentaje || 0 }}% {{ finalConfig.estadisticas.cancelado.label }}</span>
   </div>
 </template>
 <!-- Para ventas mostrar estados principales -->
@@ -789,6 +831,25 @@ const getIconPath = (iconName) => icons[iconName] || icons.document;
   <div class="flex items-center gap-1">
     <div class="w-3 h-3 rounded-full" :class="getColorClasses(finalConfig.estadisticas.aprobadas.color).text.replace('text-', 'bg-')"></div>
     <span>{{ estadisticasConPorcentaje.aprobadas.porcentaje }}% {{ finalConfig.estadisticas.aprobadas.label }}</span>
+  </div>
+  <div class="flex items-center gap-1">
+    <div class="w-3 h-3 rounded-full bg-red-500"></div>
+    <span>{{ estadisticasConPorcentaje.cancelada?.porcentaje || 0 }}% {{ finalConfig.estadisticas.cancelada.label }}</span>
+  </div>
+</template>
+<!-- Para órdenes de compra mostrar estados principales -->
+<template v-else-if="finalConfig.module === 'ordenescompra'">
+  <div class="flex items-center gap-1">
+    <div class="w-3 h-3 rounded-full" :class="getColorClasses(finalConfig.estadisticas.borrador.color).text.replace('text-', 'bg-')"></div>
+    <span>{{ estadisticasConPorcentaje.borrador?.porcentaje || 0 }}% {{ finalConfig.estadisticas.borrador.label }}</span>
+  </div>
+  <div class="flex items-center gap-1">
+    <div class="w-3 h-3 rounded-full" :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text.replace('text-', 'bg-')"></div>
+    <span>{{ estadisticasConPorcentaje.pendientes?.porcentaje || 0 }}% {{ finalConfig.estadisticas.pendientes.label }}</span>
+  </div>
+  <div class="flex items-center gap-1">
+    <div class="w-3 h-3 rounded-full" :class="getColorClasses(finalConfig.estadisticas.aprobadas.color).text.replace('text-', 'bg-')"></div>
+    <span>{{ estadisticasConPorcentaje.aprobadas?.porcentaje || 0 }}% {{ finalConfig.estadisticas.aprobadas.label }}</span>
   </div>
   <div class="flex items-center gap-1">
     <div class="w-3 h-3 rounded-full bg-red-500"></div>
@@ -836,6 +897,12 @@ const getIconPath = (iconName) => icons[iconName] || icons.document;
     <div class="h-full bg-red-500 transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.cancelada?.porcentaje || 0}%` }"></div>
   </template>
   <template v-else-if="finalConfig.module === 'compras'">
+    <div :class="getColorClasses(finalConfig.estadisticas.borrador.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.borrador?.porcentaje || 0}%` }"></div>
+    <div :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.pendientes?.porcentaje || 0}%` }"></div>
+    <div :class="getColorClasses(finalConfig.estadisticas.aprobadas.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.aprobadas?.porcentaje || 0}%` }"></div>
+    <div class="h-full bg-red-500 transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.cancelada?.porcentaje || 0}%` }"></div>
+  </template>
+  <template v-else-if="finalConfig.module === 'ordenescompra'">
     <div :class="getColorClasses(finalConfig.estadisticas.borrador.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.borrador?.porcentaje || 0}%` }"></div>
     <div :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.pendientes?.porcentaje || 0}%` }"></div>
     <div :class="getColorClasses(finalConfig.estadisticas.aprobadas.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.aprobadas?.porcentaje || 0}%` }"></div>
