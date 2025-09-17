@@ -52,6 +52,7 @@ class VentaController extends Controller
                     'cliente' => [
                         'id' => $venta->cliente->id,
                         'nombre' => $venta->cliente->nombre_razon_social ?? 'Sin nombre',
+                        'nombre_razon_social' => $venta->cliente->nombre_razon_social ?? 'Sin nombre', // Para compatibilidad
                         'email' => $venta->cliente->email,
                         'telefono' => $venta->cliente->telefono,
                         'rfc' => $venta->cliente->rfc,
@@ -77,6 +78,16 @@ class VentaController extends Controller
                 ];
             });
 
+        // Calcular estadísticas
+        $totalVentas = $ventas->count();
+        $estadisticas = [
+            'total' => $totalVentas,
+            'borrador' => $ventas->where('estado', EstadoVenta::Borrador->value)->count(),
+            'pendientes' => $ventas->where('estado', EstadoVenta::Pendiente->value)->count(),
+            'aprobadas' => $ventas->where('estado', EstadoVenta::Aprobada->value)->count(),
+            'cancelada' => $ventas->where('estado', EstadoVenta::Cancelada->value)->count(),
+        ];
+
         return Inertia::render('Ventas/Index', [
             'ventas' => $ventas->values(),
             'estados' => collect(EstadoVenta::cases())->map(fn($estado) => [
@@ -84,6 +95,7 @@ class VentaController extends Controller
                 'label' => $estado->label(),
                 'color' => $estado->color()
             ]),
+            'estadisticas' => $estadisticas,
             'filters' => request()->only(['search', 'estado', 'fecha_inicio', 'fecha_fin'])
         ]);
     }
@@ -121,59 +133,96 @@ class VentaController extends Controller
             'notas' => 'nullable|string',
         ]);
 
-        $subtotal = 0;
-        $descuentoItems = 0;
-        foreach ($validated['productos'] as $item) {
-            $subtotalItem = $item['cantidad'] * $item['precio'];
-            $descuentoItems += $subtotalItem * ($item['descuento'] / 100);
-            $subtotal += $subtotalItem;
-        }
+        DB::beginTransaction();
+        try {
+            // Validar stock disponible para productos
+            foreach ($validated['productos'] as $item) {
+                if ($item['tipo'] === 'producto') {
+                    $producto = Producto::find($item['id']);
+                    if (!$producto) {
+                        return redirect()->back()->with('error', "Producto con ID {$item['id']} no encontrado");
+                    }
 
-        $descuentoGeneralMonto = ($subtotal - $descuentoItems) * ($request->descuento_general / 100);
-        $subtotalFinal = ($subtotal - $descuentoItems) - $descuentoGeneralMonto;
-        $iva = $subtotalFinal * 0.16;
-        $total = $subtotalFinal + $iva;
-
-        $numero_venta = $this->generarNumeroVenta();
-
-        $venta = Venta::create([
-            'cliente_id' => $validated['cliente_id'],
-            'factura_id' => null, // Puede llenarse si se asocia con una factura
-            'numero_venta' => $numero_venta,
-            'subtotal' => $subtotal,
-            'descuento_general' => $descuentoGeneralMonto,
-            'iva' => $iva,
-            'total' => $total,
-            'fecha' => now(),
-            'estado' => EstadoVenta::Borrador,
-            'notas' => $request->notas,
-        ]);
-
-        foreach ($validated['productos'] as $item) {
-            $class = $item['tipo'] === 'producto' ? Producto::class : Servicio::class;
-            $modelo = $class::find($item['id']);
-
-            if (!$modelo) {
-                Log::warning("Ítem no encontrado: {$class} con ID {$item['id']}");
-                continue;
+                    if ($producto->stock < $item['cantidad']) {
+                        return redirect()->back()->with('error',
+                            "Stock insuficiente para '{$producto->nombre}'. Disponible: {$producto->stock}, Solicitado: {$item['cantidad']}"
+                        );
+                    }
+                }
             }
 
-            $subtotalItem = $item['cantidad'] * $item['precio'];
-            $descuentoMontoItem = $subtotalItem * ($item['descuento'] / 100);
+            $subtotal = 0;
+            $descuentoItems = 0;
+            foreach ($validated['productos'] as $item) {
+                $subtotalItem = $item['cantidad'] * $item['precio'];
+                $descuentoItems += $subtotalItem * ($item['descuento'] / 100);
+                $subtotal += $subtotalItem;
+            }
 
-            VentaItem::create([
-                'venta_id' => $venta->id,
-                'ventable_id' => $item['id'],
-                'ventable_type' => $class,
-                'cantidad' => $item['cantidad'],
-                'precio' => $item['precio'],
-                'descuento' => $item['descuento'],
-                'subtotal' => $subtotalItem,
-                'descuento_monto' => $descuentoMontoItem,
+            $descuentoGeneralMonto = ($subtotal - $descuentoItems) * ($request->descuento_general / 100);
+            $subtotalFinal = ($subtotal - $descuentoItems) - $descuentoGeneralMonto;
+            $iva = $subtotalFinal * 0.16;
+            $total = $subtotalFinal + $iva;
+
+            $numero_venta = $this->generarNumeroVenta();
+
+            $venta = Venta::create([
+                'cliente_id' => $validated['cliente_id'],
+                'factura_id' => null, // Puede llenarse si se asocia con una factura
+                'numero_venta' => $numero_venta,
+                'subtotal' => $subtotal,
+                'descuento_general' => $descuentoGeneralMonto,
+                'iva' => $iva,
+                'total' => $total,
+                'fecha' => now(),
+                'estado' => EstadoVenta::Borrador,
+                'notas' => $request->notas,
             ]);
-        }
 
-        return redirect()->route('ventas.index')->with('success', 'Venta creada con éxito');
+            // Crear items y reducir inventario
+            foreach ($validated['productos'] as $item) {
+                $class = $item['tipo'] === 'producto' ? Producto::class : Servicio::class;
+                $modelo = $class::find($item['id']);
+
+                if (!$modelo) {
+                    Log::warning("Ítem no encontrado: {$class} con ID {$item['id']}");
+                    continue;
+                }
+
+                $subtotalItem = $item['cantidad'] * $item['precio'];
+                $descuentoMontoItem = $subtotalItem * ($item['descuento'] / 100);
+
+                VentaItem::create([
+                    'venta_id' => $venta->id,
+                    'ventable_id' => $item['id'],
+                    'ventable_type' => $class,
+                    'cantidad' => $item['cantidad'],
+                    'precio' => $item['precio'],
+                    'descuento' => $item['descuento'],
+                    'subtotal' => $subtotalItem,
+                    'descuento_monto' => $descuentoMontoItem,
+                ]);
+
+                // Reducir inventario solo para productos
+                if ($item['tipo'] === 'producto') {
+                    $modelo->decrement('stock', $item['cantidad']);
+                    Log::info("Stock reducido para producto {$modelo->id}", [
+                        'producto_id' => $modelo->id,
+                        'cantidad_reducida' => $item['cantidad'],
+                        'stock_anterior' => $modelo->stock + $item['cantidad'],
+                        'stock_actual' => $modelo->stock
+                    ]);
+                }
+            }
+
+            DB::commit();
+            return redirect()->route('ventas.index')->with('success', 'Venta creada con éxito');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al crear venta: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al crear la venta: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -381,22 +430,58 @@ class VentaController extends Controller
      */
     public function duplicate(Request $request, $id)
     {
-        $venta = Venta::with('cliente', 'items.ventable')->findOrFail($id);
-
-        DB::beginTransaction();
         try {
-            // Duplicar la venta
-            $nueva = $venta->replicate();
-            $nueva->estado = EstadoVenta::Borrador;
-            $nueva->numero_venta = $this->generarNumeroVenta();
-            $nueva->fecha = now();
-            $nueva->created_at = now();
-            $nueva->updated_at = now();
-            $nueva->save();
+            $venta = Venta::with('cliente', 'items.ventable')->findOrFail($id);
 
-            // Duplicar los ítems
+            // Solo permitir duplicar ventas que no estén canceladas
+            if ($venta->estado === EstadoVenta::Cancelada) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No se pueden duplicar ventas canceladas.'
+                ], 400);
+            }
+
+            // Validar que la venta tenga ítems
+            if ($venta->items->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No se puede duplicar una venta sin ítems.'
+                ], 400);
+            }
+
+            DB::beginTransaction();
+
+            // Crear nueva venta con datos básicos
+            $nuevaVenta = new Venta([
+                'cliente_id' => $venta->cliente_id,
+                'pedido_id' => $venta->pedido_id,
+                'numero_venta' => $this->generarNumeroVenta(),
+                'subtotal' => $venta->subtotal,
+                'descuento_general' => $venta->descuento_general,
+                'iva' => $venta->iva,
+                'total' => $venta->total,
+                'notas' => $venta->notas,
+                'estado' => EstadoVenta::Borrador,
+                'fecha' => now(),
+            ]);
+
+            $nuevaVenta->save();
+
+            // Duplicar los ítems validando que los productos/servicios existan
+            $itemsDuplicados = 0;
             foreach ($venta->items as $item) {
-                $nueva->items()->create([
+                // Verificar que el producto/servicio aún existe
+                $modelo = $item->ventable;
+                if (!$modelo) {
+                    Log::warning("Producto/Servicio no encontrado al duplicar venta", [
+                        'venta_id' => $id,
+                        'ventable_id' => $item->ventable_id,
+                        'ventable_type' => $item->ventable_type
+                    ]);
+                    continue; // Saltar este ítem
+                }
+
+                $nuevaVenta->items()->create([
                     'ventable_id' => $item->ventable_id,
                     'ventable_type' => $item->ventable_type,
                     'cantidad' => $item->cantidad,
@@ -405,18 +490,124 @@ class VentaController extends Controller
                     'subtotal' => $item->subtotal,
                     'descuento_monto' => $item->descuento_monto,
                 ]);
+
+                $itemsDuplicados++;
+            }
+
+            // Verificar que se duplicaron ítems
+            if ($itemsDuplicados === 0) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No se pudieron duplicar los ítems de la venta.'
+                ], 400);
             }
 
             DB::commit();
 
-            return Redirect::route('ventas.index')
-                ->with('success', 'Venta duplicada correctamente.');
+            Log::info('Venta duplicada exitosamente', [
+                'venta_original_id' => $id,
+                'venta_nueva_id' => $nuevaVenta->id,
+                'items_duplicados' => $itemsDuplicados
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Venta duplicada correctamente.',
+                'venta_id' => $nuevaVenta->id,
+                'numero_venta' => $nuevaVenta->numero_venta,
+                'items_count' => $itemsDuplicados
+            ]);
+
+        } catch (\Illuminate\Database\QueryException $e) {
+            DB::rollBack();
+            Log::error('Error de base de datos al duplicar venta: ' . $e->getMessage(), [
+                'venta_id' => $id,
+                'sql' => $e->getSql(),
+                'bindings' => $e->getBindings()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error de base de datos al duplicar la venta.',
+                'details' => app()->environment('local') ? $e->getMessage() : null
+            ], 500);
+
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error duplicando venta: ' . $e->getMessage());
+            Log::error('Error general al duplicar venta: ' . $e->getMessage(), [
+                'venta_id' => $id,
+                'trace' => $e->getTraceAsString()
+            ]);
 
-            return Redirect::back()
-                ->with('error', 'Error al duplicar la venta.');
+            return response()->json([
+                'success' => false,
+                'error' => 'Error interno al duplicar la venta.',
+                'details' => app()->environment('local') ? $e->getMessage() : null
+            ], 500);
+        }
+    }
+
+    /**
+     * Cancel the specified resource (soft cancel).
+     */
+    public function cancel($id)
+    {
+        $venta = Venta::with('items.ventable')->findOrFail($id);
+
+        // Permitir cancelar en cualquier estado excepto ya cancelada
+        if ($venta->estado === EstadoVenta::Cancelada) {
+            return response()->json([
+                'success' => false,
+                'error' => 'La venta ya está cancelada'
+            ], 400);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Devolver inventario de productos
+            foreach ($venta->items as $item) {
+                if ($item->ventable_type === Producto::class) {
+                    $producto = $item->ventable;
+                    if ($producto) {
+                        $producto->increment('stock', $item->cantidad);
+                        Log::info("Stock devuelto para producto {$producto->id}", [
+                            'producto_id' => $producto->id,
+                            'cantidad_devuelta' => $item->cantidad,
+                            'stock_anterior' => $producto->stock - $item->cantidad,
+                            'stock_actual' => $producto->stock
+                        ]);
+                    }
+                }
+            }
+
+            // Actualizar estado a cancelada y registrar quién lo canceló
+            $venta->update([
+                'estado' => EstadoVenta::Cancelada,
+                'deleted_by' => \Illuminate\Support\Facades\Auth::id(),
+                'deleted_at' => now()
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Venta cancelada exitosamente',
+                'eliminado_por' => \Illuminate\Support\Facades\Auth::user()->name ?? 'Usuario actual'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al cancelar venta: ' . $e->getMessage(), [
+                'venta_id' => $id,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al cancelar la venta',
+                'details' => app()->environment('local') ? $e->getMessage() : null
+            ], 500);
         }
     }
 

@@ -141,7 +141,12 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
         ->name('pedidos.enviar-a-venta');
     Route::post('/pedidos/{id}/cancel', [PedidoController::class, 'cancel'])->name('pedidos.cancel');
     Route::post('/pedidos/{pedido}/duplicate', [PedidoController::class, 'duplicate'])->name('pedidos.duplicate');
-    Route::get('/pedidos', [PedidoController::class, 'index'])->name('pedidos.index');
+
+    // =====================================================
+    // RUTAS ESPECÍFICAS DE VENTAS
+    // =====================================================
+    Route::post('/ventas/{venta}/duplicate', [VentaController::class, 'duplicate'])->name('ventas.duplicate');
+    Route::post('/ventas/{id}/cancel', [VentaController::class, 'cancel'])->name('ventas.cancel');
     // =====================================================
     // RUTAS ESPECÍFICAS DE USUARIOS
     // =====================================================

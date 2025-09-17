@@ -91,7 +91,7 @@ const pedidosFiltrados = computed(() => {
   if (searchTerm.value.trim()) {
     const search = searchTerm.value.toLowerCase().trim()
     result = result.filter(pedido => {
-      const cliente = pedido.cliente?.nombre_razon_social?.toLowerCase() || ''
+      const cliente = pedido.cliente?.nombre?.toLowerCase() || ''
       const numero = String(pedido.numero_pedido || pedido.id || '').toLowerCase()
       const estado = pedido.estado?.toLowerCase() || ''
 
@@ -120,8 +120,8 @@ const pedidosFiltrados = computed(() => {
           valueB = new Date(b.fecha || b.created_at || 0)
           break
         case 'cliente':
-          valueA = a.cliente?.nombre_razon_social || ''
-          valueB = b.cliente?.nombre_razon_social || ''
+          valueA = a.cliente?.nombre || ''
+          valueB = b.cliente?.nombre || ''
           break
         case 'total':
           valueA = parseFloat(a.total || 0)
@@ -301,7 +301,7 @@ function validarPedido(pedido) {
 
 function validarPedidoParaPDF(doc) {
   if (!doc.id) throw new Error('ID del documento no encontrado')
-  if (!doc.cliente?.nombre_razon_social) throw new Error('Datos del cliente no encontrados')
+  if (!doc.cliente?.nombre) throw new Error('Datos del cliente no encontrados')
   if (!Array.isArray(doc.productos) || !doc.productos.length) {
     throw new Error('Lista de productos no válida')
   }

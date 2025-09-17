@@ -376,7 +376,7 @@
                   </button>
 
                   <button
-                    v-if="config.acciones.duplicar && (tipo === 'cotizaciones' || tipo === 'pedidos') && doc.estado !== 'cancelado'"
+                    v-if="config.acciones.duplicar && (tipo === 'cotizaciones' || tipo === 'pedidos' || tipo === 'ventas') && doc.estado !== 'cancelado'"
                     @click="onDuplicar(doc)"
                     class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-1"
                     title="Duplicar"
@@ -604,7 +604,8 @@ const config = computed(() => {
         'facturado': { label: 'Facturado', classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
         'pagado': { label: 'Pagado', classes: 'bg-emerald-100 text-emerald-700', color: 'bg-emerald-400' },
         'vencido': { label: 'Vencido', classes: 'bg-red-100 text-red-700', color: 'bg-red-400' },
-        'anulado': { label: 'Anulado', classes: 'bg-gray-100 text-gray-500', color: 'bg-gray-400' }
+        'anulado': { label: 'Anulado', classes: 'bg-gray-100 text-gray-500', color: 'bg-gray-400' },
+        'cancelada': { label: 'Cancelada', classes: 'bg-red-100 text-red-700', color: 'bg-red-400' }
       }
     },
     compras: {
@@ -796,10 +797,17 @@ const items = computed(() => {
       }
       if (props.tipo === 'pedidos') {
         return (
-          (doc.cliente?.nombre_razon_social || '').toLowerCase().includes(term) ||
+          (doc.cliente?.nombre || '').toLowerCase().includes(term) ||
           doc.productos?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
           (doc.numero_pedido || doc.id || '').toString().toLowerCase().includes(term) ||
           (doc.estado === 'enviado_venta' ? 'enviado a venta' : '').toLowerCase().includes(term)
+        );
+      }
+      if (props.tipo === 'ventas') {
+        return (
+          (doc.cliente?.nombre || '').toLowerCase().includes(term) ||
+          doc.productos?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
+          (doc.numero_venta || doc.id || '').toString().toLowerCase().includes(term)
         );
       }
       return (
@@ -835,8 +843,13 @@ const items = computed(() => {
         bVal = getDate(b.created_at || b.fecha);
         break;
       case 'cliente':
-        aVal = (a.cliente?.nombre_razon_social || '').toLowerCase();
-        bVal = (b.cliente?.nombre_razon_social || '').toLowerCase();
+        if (props.tipo === 'pedidos' || props.tipo === 'ventas') {
+          aVal = (a.cliente?.nombre || '').toLowerCase();
+          bVal = (b.cliente?.nombre || '').toLowerCase();
+        } else {
+          aVal = (a.cliente?.nombre_razon_social || '').toLowerCase();
+          bVal = (b.cliente?.nombre_razon_social || '').toLowerCase();
+        }
         break;
       case 'proveedor':
         aVal = (a.proveedor?.nombre_razon_social || '').toLowerCase();

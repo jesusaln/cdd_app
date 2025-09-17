@@ -9,11 +9,17 @@ const props = defineProps({
   total: { type: Number, default: 0 },
   pendientes: { type: Number, default: 0 },
 
-  // Nuevas estadísticas para cotizaciones y pedidos
+  // Estadísticas para cotizaciones
   borrador: { type: Number, default: 0 },
   enviado_pedido: { type: Number, default: 0 },
-  enviado_venta: { type: Number, default: 0 },
   cancelado: { type: Number, default: 0 },
+
+  // Estadísticas para pedidos
+  enviado_venta: { type: Number, default: 0 },
+
+  // Estadísticas para ventas
+  aprobadas: { type: Number, default: 0 },
+  cancelada: { type: Number, default: 0 },
 
   // Filtros actuales
   searchTerm: { type: String, default: '' },
@@ -152,12 +158,15 @@ const defaultConfigs = {
     estadisticas: {
       total: { label: 'Total', icon: 'document', description: 'Total de ventas' },
       aprobadas: { label: 'Facturadas', icon: 'check-circle', color: 'green', description: 'Ventas facturadas' },
-      pendientes: { label: 'Pendientes', icon: 'clock', color: 'orange', description: 'Ventas pendientes' }
+      pendientes: { label: 'Pendientes', icon: 'clock', color: 'orange', description: 'Ventas pendientes' },
+      borrador: { label: 'Borrador', icon: 'document-text', color: 'gray', description: 'Ventas en borrador' },
+      cancelada: { label: 'Cancelada', icon: 'x-circle', color: 'red', description: 'Ventas canceladas' }
     },
     estados: [
       { value: '', label: 'Todos los Estados', color: 'slate' },
       { value: 'borrador', label: 'Borrador', color: 'gray' },
       { value: 'pendiente', label: 'Pendientes', color: 'yellow' },
+      { value: 'aprobado', label: 'Aprobadas', color: 'blue' },
       { value: 'facturado', label: 'Facturadas', color: 'green' },
       { value: 'pagado', label: 'Pagadas', color: 'emerald' },
       { value: 'cancelado', label: 'Canceladas', color: 'red' }
@@ -239,6 +248,14 @@ const estadisticasConPorcentaje = computed(() => {
       borrador: { ...finalConfig.value.estadisticas.borrador, porcentaje: Math.round(((props.borrador || 0) / total) * 100) },
       enviado_venta: { ...finalConfig.value.estadisticas.enviado_venta, porcentaje: Math.round(((props.enviado_venta || 0) / total) * 100) },
       cancelado: { ...finalConfig.value.estadisticas.cancelado, porcentaje: Math.round(((props.cancelado || 0) / total) * 100) },
+    };
+  }
+  if (finalConfig.value.module === 'ventas') {
+    return {
+      aprobadas: { ...finalConfig.value.estadisticas.aprobadas, porcentaje: Math.round(((props.aprobadas || 0) / total) * 100) },
+      pendientes:{ ...finalConfig.value.estadisticas.pendientes, porcentaje: Math.round(((props.pendientes || 0) / total) * 100) },
+      borrador: { ...finalConfig.value.estadisticas.borrador, porcentaje: Math.round(((props.borrador || 0) / total) * 100) },
+      cancelada: { ...finalConfig.value.estadisticas.cancelada, porcentaje: Math.round(((props.cancelada || 0) / total) * 100) },
     };
   }
   return {
@@ -381,6 +398,40 @@ const getIconPath = (iconName) => icons[iconName] || icons.document;
           </div>
 
 
+          <!-- Borrador (solo ventas) -->
+          <div
+            v-if="finalConfig.module === 'ventas'"
+            :class="getColorClasses(finalConfig.estadisticas.borrador.color).bg + ' ' + getColorClasses(finalConfig.estadisticas.borrador.color).border"
+            class="group flex items-center gap-2 px-4 py-3 rounded-xl border flex-shrink-0 hover:shadow-sm transition-all duration-200 cursor-default"
+            :title="finalConfig.estadisticas.borrador.description"
+          >
+            <svg :class="getColorClasses(finalConfig.estadisticas.borrador.color).text" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath(finalConfig.estadisticas.borrador.icon)" />
+            </svg>
+            <span class="font-medium text-slate-700">{{ finalConfig.estadisticas.borrador.label }}:</span>
+            <span :class="getColorClasses(finalConfig.estadisticas.borrador.color).text" class="font-bold text-lg">{{ formatNumber(props.borrador || 0) }}</span>
+            <span v-if="total > 0" :class="getColorClasses(finalConfig.estadisticas.borrador.color).text" class="text-xs font-medium opacity-75">
+              ({{ estadisticasConPorcentaje.borrador?.porcentaje || 0 }}%)
+            </span>
+          </div>
+
+          <!-- Aprobadas (solo ventas) -->
+          <div
+            v-if="finalConfig.module === 'ventas'"
+            :class="getColorClasses(finalConfig.estadisticas.aprobadas.color).bg + ' ' + getColorClasses(finalConfig.estadisticas.aprobadas.color).border"
+            class="group flex items-center gap-2 px-4 py-3 rounded-xl border flex-shrink-0 hover:shadow-sm transition-all duration-200 cursor-default"
+            :title="finalConfig.estadisticas.aprobadas.description"
+          >
+            <svg :class="getColorClasses(finalConfig.estadisticas.aprobadas.color).text" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath(finalConfig.estadisticas.aprobadas.icon)" />
+            </svg>
+            <span class="font-medium text-slate-700">{{ finalConfig.estadisticas.aprobadas.label }}:</span>
+            <span :class="getColorClasses(finalConfig.estadisticas.aprobadas.color).text" class="font-bold text-lg">{{ formatNumber(props.aprobadas || 0) }}</span>
+            <span v-if="total > 0" :class="getColorClasses(finalConfig.estadisticas.aprobadas.color).text" class="text-xs font-medium opacity-75">
+              ({{ estadisticasConPorcentaje.aprobadas?.porcentaje || 0 }}%)
+            </span>
+          </div>
+
           <!-- Pendientes -->
           <div
             :class="getColorClasses(finalConfig.estadisticas.pendientes.color).bg + ' ' + getColorClasses(finalConfig.estadisticas.pendientes.color).border"
@@ -391,9 +442,26 @@ const getIconPath = (iconName) => icons[iconName] || icons.document;
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath(finalConfig.estadisticas.pendientes.icon)" />
             </svg>
             <span class="font-medium text-slate-700">{{ finalConfig.estadisticas.pendientes.label }}:</span>
-            <span :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text" class="font-bold text-lg">{{ formatNumber(pendientes || 0) }}</span>
+            <span :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text" class="font-bold text-lg">{{ formatNumber(props.pendientes || 0) }}</span>
             <span v-if="total > 0" :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text" class="text-xs font-medium opacity-75">
               ({{ estadisticasConPorcentaje.pendientes?.porcentaje || 0 }}%)
+            </span>
+          </div>
+
+          <!-- Cancelada (solo ventas) -->
+          <div
+            v-if="finalConfig.module === 'ventas'"
+            :class="getColorClasses(finalConfig.estadisticas.cancelada.color).bg + ' ' + getColorClasses(finalConfig.estadisticas.cancelada.color).border"
+            class="group flex items-center gap-2 px-4 py-3 rounded-xl border flex-shrink-0 hover:shadow-sm transition-all duration-200 cursor-default"
+            :title="finalConfig.estadisticas.cancelada.description"
+          >
+            <svg :class="getColorClasses(finalConfig.estadisticas.cancelada.color).text" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath(finalConfig.estadisticas.cancelada.icon)" />
+            </svg>
+            <span class="font-medium text-slate-700">{{ finalConfig.estadisticas.cancelada.label }}:</span>
+            <span :class="getColorClasses(finalConfig.estadisticas.cancelada.color).text" class="font-bold text-lg">{{ formatNumber(props.cancelada || 0) }}</span>
+            <span v-if="total > 0" :class="getColorClasses(finalConfig.estadisticas.cancelada.color).text" class="text-xs font-medium opacity-75">
+              ({{ estadisticasConPorcentaje.cancelada?.porcentaje || 0 }}%)
             </span>
           </div>
 
@@ -408,7 +476,7 @@ const getIconPath = (iconName) => icons[iconName] || icons.document;
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath(finalConfig.estadisticas.borrador.icon)" />
             </svg>
             <span class="font-medium text-slate-700">{{ finalConfig.estadisticas.borrador.label }}:</span>
-            <span :class="getColorClasses(finalConfig.estadisticas.borrador.color).text" class="font-bold text-lg">{{ formatNumber(borrador || 0) }}</span>
+            <span :class="getColorClasses(finalConfig.estadisticas.borrador.color).text" class="font-bold text-lg">{{ formatNumber(props.borrador || 0) }}</span>
             <span v-if="total > 0" :class="getColorClasses(finalConfig.estadisticas.borrador.color).text" class="text-xs font-medium opacity-75">
               ({{ estadisticasConPorcentaje.borrador?.porcentaje || 0 }}%)
             </span>
@@ -425,7 +493,7 @@ const getIconPath = (iconName) => icons[iconName] || icons.document;
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath(finalConfig.estadisticas.enviado_venta.icon)" />
             </svg>
             <span class="font-medium text-slate-700">{{ finalConfig.estadisticas.enviado_venta.label }}:</span>
-            <span :class="getColorClasses(finalConfig.estadisticas.enviado_venta.color).text" class="font-bold text-lg">{{ formatNumber(enviado_venta || 0) }}</span>
+            <span :class="getColorClasses(finalConfig.estadisticas.enviado_venta.color).text" class="font-bold text-lg">{{ formatNumber(props.enviado_venta || 0) }}</span>
             <span v-if="total > 0" :class="getColorClasses(finalConfig.estadisticas.enviado_venta.color).text" class="text-xs font-medium opacity-75">
               ({{ estadisticasConPorcentaje.enviado_venta?.porcentaje || 0 }}%)
             </span>
@@ -442,7 +510,7 @@ const getIconPath = (iconName) => icons[iconName] || icons.document;
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath(finalConfig.estadisticas.borrador.icon)" />
             </svg>
             <span class="font-medium text-slate-700">{{ finalConfig.estadisticas.borrador.label }}:</span>
-            <span :class="getColorClasses(finalConfig.estadisticas.borrador.color).text" class="font-bold text-lg">{{ formatNumber(borrador) }}</span>
+            <span :class="getColorClasses(finalConfig.estadisticas.borrador.color).text" class="font-bold text-lg">{{ formatNumber(props.borrador || 0) }}</span>
             <span v-if="total > 0" :class="getColorClasses(finalConfig.estadisticas.borrador.color).text" class="text-xs font-medium opacity-75">
               ({{ estadisticasConPorcentaje.borrador.porcentaje }}%)
             </span>
@@ -459,7 +527,7 @@ const getIconPath = (iconName) => icons[iconName] || icons.document;
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath(finalConfig.estadisticas.enviado_pedido.icon)" />
             </svg>
             <span class="font-medium text-slate-700">{{ finalConfig.estadisticas.enviado_pedido.label }}:</span>
-            <span :class="getColorClasses(finalConfig.estadisticas.enviado_pedido.color).text" class="font-bold text-lg">{{ formatNumber(enviado_pedido) }}</span>
+            <span :class="getColorClasses(finalConfig.estadisticas.enviado_pedido.color).text" class="font-bold text-lg">{{ formatNumber(props.enviado_pedido || 0) }}</span>
             <span v-if="total > 0" :class="getColorClasses(finalConfig.estadisticas.enviado_pedido.color).text" class="text-xs font-medium opacity-75">
               ({{ estadisticasConPorcentaje.enviado_pedido.porcentaje }}%)
             </span>
@@ -476,7 +544,7 @@ const getIconPath = (iconName) => icons[iconName] || icons.document;
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath(finalConfig.estadisticas.cancelado.icon)" />
             </svg>
             <span class="font-medium text-slate-700">{{ finalConfig.estadisticas.cancelado.label }}:</span>
-            <span :class="getColorClasses(finalConfig.estadisticas.cancelado.color).text" class="font-bold text-lg">{{ formatNumber(cancelado || 0) }}</span>
+            <span :class="getColorClasses(finalConfig.estadisticas.cancelado.color).text" class="font-bold text-lg">{{ formatNumber(props.cancelado || 0) }}</span>
             <span v-if="total > 0" :class="getColorClasses(finalConfig.estadisticas.cancelado.color).text" class="text-xs font-medium opacity-75">
               ({{ estadisticasConPorcentaje.cancelado?.porcentaje || 0 }}%)
             </span>
@@ -613,15 +681,15 @@ const getIconPath = (iconName) => icons[iconName] || icons.document;
   </div>
   <div class="flex items-center gap-1">
     <div class="w-3 h-3 rounded-full bg-gray-500"></div>
-    <span>{{ estadisticasConPorcentaje.borrador.porcentaje }}% {{ finalConfig.estadisticas.borrador.label }}</span>
+    <span>{{ estadisticasConPorcentaje.borrador?.porcentaje || 0 }}% {{ finalConfig.estadisticas.borrador.label }}</span>
   </div>
   <div class="flex items-center gap-1">
     <div class="w-3 h-3 rounded-full bg-blue-500"></div>
-    <span>{{ estadisticasConPorcentaje.enviado_pedido.porcentaje }}% {{ finalConfig.estadisticas.enviado_pedido.label }}</span>
+    <span>{{ estadisticasConPorcentaje.enviado_pedido?.porcentaje || 0 }}% {{ finalConfig.estadisticas.enviado_pedido.label }}</span>
   </div>
   <div class="flex items-center gap-1">
     <div class="w-3 h-3 rounded-full bg-red-500"></div>
-    <span>{{ estadisticasConPorcentaje.cancelado.porcentaje }}% {{ finalConfig.estadisticas.cancelado.label }}</span>
+    <span>{{ estadisticasConPorcentaje.cancelado?.porcentaje || 0 }}% {{ finalConfig.estadisticas.cancelado.label }}</span>
   </div>
 </template>
 <!-- Para pedidos mostrar estados principales -->
@@ -636,11 +704,30 @@ const getIconPath = (iconName) => icons[iconName] || icons.document;
   </div>
   <div class="flex items-center gap-1">
     <div class="w-3 h-3 rounded-full" :class="getColorClasses(finalConfig.estadisticas.enviado_venta.color).text.replace('text-', 'bg-')"></div>
-    <span>{{ estadisticasConPorcentaje.enviado_venta.porcentaje }}% {{ finalConfig.estadisticas.enviado_venta.label }}</span>
+    <span>{{ estadisticasConPorcentaje.enviado_venta?.porcentaje || 0 }}% {{ finalConfig.estadisticas.enviado_venta.label }}</span>
   </div>
   <div class="flex items-center gap-1">
     <div class="w-3 h-3 rounded-full bg-red-500"></div>
     <span>{{ estadisticasConPorcentaje.cancelado.porcentaje }}% {{ finalConfig.estadisticas.cancelado.label }}</span>
+  </div>
+</template>
+<!-- Para ventas mostrar estados principales -->
+<template v-else-if="finalConfig.module === 'ventas'">
+  <div class="flex items-center gap-1">
+    <div class="w-3 h-3 rounded-full" :class="getColorClasses(finalConfig.estadisticas.borrador.color).text.replace('text-', 'bg-')"></div>
+    <span>{{ estadisticasConPorcentaje.borrador.porcentaje }}% {{ finalConfig.estadisticas.borrador.label }}</span>
+  </div>
+  <div class="flex items-center gap-1">
+    <div class="w-3 h-3 rounded-full" :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text.replace('text-', 'bg-')"></div>
+    <span>{{ estadisticasConPorcentaje.pendientes.porcentaje }}% {{ finalConfig.estadisticas.pendientes.label }}</span>
+  </div>
+  <div class="flex items-center gap-1">
+    <div class="w-3 h-3 rounded-full" :class="getColorClasses(finalConfig.estadisticas.aprobadas.color).text.replace('text-', 'bg-')"></div>
+    <span>{{ estadisticasConPorcentaje.aprobadas.porcentaje }}% {{ finalConfig.estadisticas.aprobadas.label }}</span>
+  </div>
+  <div class="flex items-center gap-1">
+    <div class="w-3 h-3 rounded-full bg-red-500"></div>
+    <span>{{ estadisticasConPorcentaje.cancelada?.porcentaje || 0 }}% {{ finalConfig.estadisticas.cancelada.label }}</span>
   </div>
 </template>
 <!-- Para otros módulos mantener solo pendientes -->
@@ -654,20 +741,26 @@ const getIconPath = (iconName) => icons[iconName] || icons.document;
 
       <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden flex">
   <template v-if="finalConfig.module === 'cotizaciones'">
-    <div class="h-full bg-emerald-500 transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.aprobadas.porcentaje}%` }"></div>
-    <div class="h-full bg-amber-500 transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.pendientes.porcentaje}%` }"></div>
-    <div class="h-full bg-gray-500 transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.borrador.porcentaje}%` }"></div>
-    <div class="h-full bg-blue-500 transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.enviado_pedido.porcentaje}%` }"></div>
-    <div class="h-full bg-red-500 transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.cancelado.porcentaje}%` }"></div>
+    <div class="h-full bg-emerald-500 transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.aprobadas?.porcentaje || 0}%` }"></div>
+    <div class="h-full bg-amber-500 transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.pendientes?.porcentaje || 0}%` }"></div>
+    <div class="h-full bg-gray-500 transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.borrador?.porcentaje || 0}%` }"></div>
+    <div class="h-full bg-blue-500 transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.enviado_pedido?.porcentaje || 0}%` }"></div>
+    <div class="h-full bg-red-500 transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.cancelado?.porcentaje || 0}%` }"></div>
   </template>
   <template v-else-if="finalConfig.module === 'pedidos'">
-    <div :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.pendientes.porcentaje}%` }"></div>
-    <div :class="getColorClasses(finalConfig.estadisticas.borrador.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.borrador.porcentaje}%` }"></div>
-    <div :class="getColorClasses(finalConfig.estadisticas.enviado_venta.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.enviado_venta.porcentaje}%` }"></div>
-    <div class="h-full bg-red-500 transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.cancelado.porcentaje}%` }"></div>
+    <div :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.pendientes?.porcentaje || 0}%` }"></div>
+    <div :class="getColorClasses(finalConfig.estadisticas.borrador.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.borrador?.porcentaje || 0}%` }"></div>
+    <div :class="getColorClasses(finalConfig.estadisticas.enviado_venta.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.enviado_venta?.porcentaje || 0}%` }"></div>
+    <div class="h-full bg-red-500 transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.cancelado?.porcentaje || 0}%` }"></div>
+  </template>
+  <template v-else-if="finalConfig.module === 'ventas'">
+    <div :class="getColorClasses(finalConfig.estadisticas.borrador.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.borrador?.porcentaje || 0}%` }"></div>
+    <div :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.pendientes?.porcentaje || 0}%` }"></div>
+    <div :class="getColorClasses(finalConfig.estadisticas.aprobadas.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.aprobadas?.porcentaje || 0}%` }"></div>
+    <div class="h-full bg-red-500 transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.cancelada?.porcentaje || 0}%` }"></div>
   </template>
   <template v-else>
-    <div :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.pendientes.porcentaje}%` }"></div>
+    <div :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.pendientes?.porcentaje || 0}%` }"></div>
   </template>
 </div>
     </div>
