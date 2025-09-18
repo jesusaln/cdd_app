@@ -16,20 +16,71 @@ class HerramientaController extends Controller
      *
      * @return \Inertia\Response
      */
-    public function index()
+    public function index(Request $request)
     {
-        $herramientas = Herramienta::with('tecnico')->get()->map(function ($herramienta) {
-            if ($herramienta->foto) {
-                $herramienta->foto = asset('storage/' . $herramienta->foto);
+        // Construir query con filtros
+        $query = Herramienta::with('tecnico');
+
+        // Filtro por búsqueda
+        if ($search = trim($request->input('search', ''))) {
+            $query->where(function ($q) use ($search) {
+                $q->where('nombre', 'like', "%{$search}%")
+                  ->orWhere('numero_serie', 'like', "%{$search}%")
+                  ->orWhereHas('tecnico', function ($tq) use ($search) {
+                      $tq->where('nombre', 'like', "%{$search}%")
+                         ->orWhere('apellido', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        // Filtro por estado (asignada/sin_asignar)
+        if ($request->has('filtro_estado')) {
+            $estado = $request->input('filtro_estado');
+            if ($estado === 'asignada') {
+                $query->whereNotNull('tecnico_id');
+            } elseif ($estado === 'sin_asignar') {
+                $query->whereNull('tecnico_id');
             }
-            return $herramienta;
-        });
+        }
+
+        // Ordenamiento
+        $sortBy = $request->get('sort_by', 'created_at');
+        $sortDirection = $request->get('sort_direction', 'desc');
+        $validSort = ['nombre', 'numero_serie', 'created_at'];
+
+        if (!in_array($sortBy, $validSort)) $sortBy = 'created_at';
+        if (!in_array($sortDirection, ['asc', 'desc'])) $sortDirection = 'desc';
+
+        $query->orderBy($sortBy, $sortDirection);
+
+        // Paginación
+        $herramientas = $query->paginate(10)->appends($request->query());
+
+        // Estadísticas
+        $totalHerramientas = Herramienta::count();
+        $herramientasAsignadas = Herramienta::whereNotNull('tecnico_id')->count();
+        $herramientasSinAsignar = $totalHerramientas - $herramientasAsignadas;
 
         $tecnicos = Tecnico::select('id', 'nombre', 'apellido')->get();
 
         return Inertia::render('Herramientas/Index', [
+            'titulo' => 'Herramientas',
             'herramientas' => $herramientas,
-            'tecnicos' => $tecnicos,
+            'stats' => [
+                'total' => $totalHerramientas,
+                'asignadas' => $herramientasAsignadas,
+                'sin_asignar' => $herramientasSinAsignar,
+            ],
+            'catalogs' => [
+                'tecnicos' => $tecnicos->map(function ($tecnico) {
+                    return [
+                        'value' => $tecnico->id,
+                        'label' => $tecnico->nombre . ' ' . $tecnico->apellido,
+                    ];
+                }),
+            ],
+            'filters' => $request->only(['search', 'filtro_estado']),
+            'sorting' => ['sort_by' => $sortBy, 'sort_direction' => $sortDirection],
         ]);
     }
 

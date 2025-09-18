@@ -274,6 +274,57 @@ const defaultConfigs = {
       { value: 'urgente-desc', label: 'Urgentes Primero', icon: 'exclamation' }
     ]
   },
+
+  herramientas: {
+    module: 'herramientas',
+    title: 'Herramientas',
+    createRoute: '/herramientas/create',
+    createButtonText: 'Nueva Herramienta',
+    searchPlaceholder: 'Buscar por nombre, número de serie, técnico...',
+    searchFields: ['nombre', 'numero_serie', 'tecnico.nombre'],
+    estadisticas: {
+      total: { label: 'Total', icon: 'document', description: 'Total de herramientas' },
+      aprobadas: { label: 'Asignadas', icon: 'check-circle', color: 'green', description: 'Herramientas asignadas' },
+      pendientes: { label: 'Sin asignar', icon: 'x-circle', color: 'orange', description: 'Herramientas sin asignar' }
+    },
+    estados: [
+      { value: '', label: 'Todos', color: 'slate' },
+      { value: 'asignada', label: 'Asignadas', color: 'green' },
+      { value: 'sin_asignar', label: 'Sin asignar', color: 'orange' }
+    ],
+    sortOptions: [
+      { value: 'fecha-desc', label: 'Más Recientes', icon: 'arrow-down' },
+      { value: 'fecha-asc', label: 'Más Antiguos', icon: 'arrow-up' },
+      { value: 'nombre-asc', label: 'Nombre A-Z', icon: 'sort-ascending' },
+      { value: 'nombre-desc', label: 'Nombre Z-A', icon: 'sort-descending' }
+    ]
+  },
+
+  herramientas: {
+    module: 'herramientas',
+    title: 'Herramientas',
+    createRoute: '/herramientas/create',
+    createButtonText: 'Nueva Herramienta',
+    searchPlaceholder: 'Buscar por nombre, número de serie, técnico...',
+    searchFields: ['nombre', 'numero_serie', 'tecnico.nombre'],
+    estadisticas: {
+      total: { label: 'Total', icon: 'document', description: 'Total de herramientas' },
+      aprobadas: { label: 'Asignadas', icon: 'check-circle', color: 'green', description: 'Herramientas asignadas' },
+      pendientes: { label: 'Sin asignar', icon: 'x-circle', color: 'orange', description: 'Herramientas sin asignar' }
+    },
+    estados: [
+      { value: '', label: 'Todos', color: 'slate' },
+      { value: 'asignada', label: 'Asignadas', color: 'green' },
+      { value: 'sin_asignar', label: 'Sin asignar', color: 'orange' }
+    ],
+    sortOptions: [
+      { value: 'fecha-desc', label: 'Más Recientes', icon: 'arrow-down' },
+      { value: 'fecha-asc', label: 'Más Antiguos', icon: 'arrow-up' },
+      { value: 'nombre-asc', label: 'Nombre A-Z', icon: 'sort-ascending' },
+      { value: 'nombre-desc', label: 'Nombre Z-A', icon: 'sort-descending' },
+      { value: 'estado-asc', label: 'Estado', icon: 'status-online' }
+    ]
+  },
 };
 
 // Config final
@@ -341,6 +392,12 @@ const estadisticasConPorcentaje = computed(() => {
     };
   }
   if (finalConfig.value.module === 'clientes') {
+    return {
+      aprobadas: { ...finalConfig.value.estadisticas.aprobadas, porcentaje: Math.round(((props.aprobadas || 0) / total) * 100) },
+      pendientes:{ ...finalConfig.value.estadisticas.pendientes, porcentaje: Math.round(((props.pendientes || 0) / total) * 100) },
+    };
+  }
+  if (finalConfig.value.module === 'herramientas') {
     return {
       aprobadas: { ...finalConfig.value.estadisticas.aprobadas, porcentaje: Math.round(((props.aprobadas || 0) / total) * 100) },
       pendientes:{ ...finalConfig.value.estadisticas.pendientes, porcentaje: Math.round(((props.pendientes || 0) / total) * 100) },
@@ -533,6 +590,23 @@ const getIconPath = (iconName) => icons[iconName] || icons.document;
             <span :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text" class="font-bold text-lg">{{ formatNumber(props.pendientes || 0) }}</span>
             <span v-if="total > 0" :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text" class="text-xs font-medium opacity-75">
               ({{ estadisticasConPorcentaje.pendientes?.porcentaje || 0 }}%)
+            </span>
+          </div>
+
+          <!-- Para herramientas mostrar también Asignadas -->
+          <div
+            v-if="finalConfig.module === 'herramientas'"
+            :class="getColorClasses(finalConfig.estadisticas.aprobadas.color).bg + ' ' + getColorClasses(finalConfig.estadisticas.aprobadas.color).border"
+            class="group flex items-center gap-2 px-4 py-3 rounded-xl border flex-shrink-0 hover:shadow-sm transition-all duration-200 cursor-default"
+            :title="finalConfig.estadisticas.aprobadas.description"
+          >
+            <svg :class="getColorClasses(finalConfig.estadisticas.aprobadas.color).text" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath(finalConfig.estadisticas.aprobadas.icon)" />
+            </svg>
+            <span class="font-medium text-slate-700">{{ finalConfig.estadisticas.aprobadas.label }}:</span>
+            <span :class="getColorClasses(finalConfig.estadisticas.aprobadas.color).text" class="font-bold text-lg">{{ formatNumber(props.aprobadas || 0) }}</span>
+            <span v-if="total > 0" :class="getColorClasses(finalConfig.estadisticas.aprobadas.color).text" class="text-xs font-medium opacity-75">
+              ({{ estadisticasConPorcentaje.aprobadas?.porcentaje || 0 }}%)
             </span>
           </div>
 
@@ -867,6 +941,17 @@ const getIconPath = (iconName) => icons[iconName] || icons.document;
     <span>{{ estadisticasConPorcentaje.pendientes?.porcentaje || 0 }}% {{ finalConfig.estadisticas.pendientes.label }}</span>
   </div>
 </template>
+<!-- Para herramientas mostrar Asignadas y Sin asignar -->
+<template v-else-if="finalConfig.module === 'herramientas'">
+  <div class="flex items-center gap-1">
+    <div class="w-3 h-3 rounded-full" :class="getColorClasses(finalConfig.estadisticas.aprobadas.color).text.replace('text-', 'bg-')"></div>
+    <span>{{ estadisticasConPorcentaje.aprobadas?.porcentaje || 0 }}% {{ finalConfig.estadisticas.aprobadas.label }}</span>
+  </div>
+  <div class="flex items-center gap-1">
+    <div class="w-3 h-3 rounded-full" :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text.replace('text-', 'bg-')"></div>
+    <span>{{ estadisticasConPorcentaje.pendientes?.porcentaje || 0 }}% {{ finalConfig.estadisticas.pendientes.label }}</span>
+  </div>
+</template>
 <!-- Para otros módulos mantener solo pendientes -->
 <template v-else>
   <div class="flex items-center gap-1">
@@ -909,6 +994,10 @@ const getIconPath = (iconName) => icons[iconName] || icons.document;
     <div class="h-full bg-red-500 transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.cancelada?.porcentaje || 0}%` }"></div>
   </template>
   <template v-else-if="finalConfig.module === 'clientes'">
+    <div :class="getColorClasses(finalConfig.estadisticas.aprobadas.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.aprobadas?.porcentaje || 0}%` }"></div>
+    <div :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.pendientes?.porcentaje || 0}%` }"></div>
+  </template>
+  <template v-else-if="finalConfig.module === 'herramientas'">
     <div :class="getColorClasses(finalConfig.estadisticas.aprobadas.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.aprobadas?.porcentaje || 0}%` }"></div>
     <div :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.pendientes?.porcentaje || 0}%` }"></div>
   </template>

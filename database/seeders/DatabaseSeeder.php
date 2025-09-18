@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
             ClienteSeeder::class,
             ProductoSeeder::class,
             TecnicoSeeder::class,
+            HerramientaSeeder::class,
             CarroSeeder::class,
             CitaSeeder::class,
             CotizacionSeeder::class,

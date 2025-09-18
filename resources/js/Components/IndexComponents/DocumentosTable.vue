@@ -95,16 +95,16 @@
               </div>
             </th>
 
-            <!-- Cliente/Proveedor | Equipo | Clientes | Productos -->
+            <!-- Cliente/Proveedor | Equipo | Clientes | Productos | Herramientas -->
             <th
               class="group px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100/60 transition-colors duration-150"
-              @click="onSort(isEquipos ? 'nombre' : (isCompra ? 'proveedor' : (isClientes || isProductos ? 'nombre' : 'cliente')))"
+              @click="onSort(props.tipo === 'herramientas' ? 'nombre' : (isEquipos ? 'nombre' : (isCompra ? 'proveedor' : (isClientes || isProductos ? 'nombre' : 'cliente'))))"
             >
               <div class="flex items-center space-x-1">
-                <span>{{ isEquipos ? 'Equipo' : (isCompra ? 'Proveedor' : (isClientes ? 'Cliente' : (isProductos ? 'Producto' : 'Cliente'))) }}</span>
+                <span>{{ props.tipo === 'herramientas' ? 'Herramienta' : (isEquipos ? 'Equipo' : (isCompra ? 'Proveedor' : (isClientes ? 'Cliente' : (isProductos ? 'Producto' : 'Cliente')))) }}</span>
                 <svg
-                  v-if="sortBy.startsWith(isEquipos ? 'nombre' : (isCompra ? 'proveedor' : ((isClientes || isProductos) ? 'nombre' : 'cliente')))"
-                  :class="['w-4 h-4 transition-transform duration-200', sortBy === `${isEquipos ? 'nombre' : (isCompra ? 'proveedor' : ((isClientes || isProductos) ? 'nombre' : 'cliente'))}-desc` ? 'rotate-180' : '']"
+                  v-if="sortBy.startsWith(props.tipo === 'herramientas' ? 'nombre' : (isEquipos ? 'nombre' : (isCompra ? 'proveedor' : ((isClientes || isProductos) ? 'nombre' : 'cliente'))))"
+                  :class="['w-4 h-4 transition-transform duration-200', sortBy === `${props.tipo === 'herramientas' ? 'nombre' : (isEquipos ? 'nombre' : (isCompra ? 'proveedor' : ((isClientes || isProductos) ? 'nombre' : 'cliente')))}-desc` ? 'rotate-180' : '']"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -112,6 +112,14 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                 </svg>
               </div>
+            </th>
+
+            <!-- Foto (solo herramientas) -->
+            <th
+              v-if="config.mostrarFoto"
+              class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider"
+            >
+              Foto
             </th>
 
             <!-- Campo extra -->
@@ -132,6 +140,14 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                 </svg>
               </div>
+            </th>
+
+            <!-- Técnico (solo herramientas) -->
+            <th
+              v-if="config.mostrarTecnico"
+              class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider"
+            >
+              Técnico Asignado
             </th>
 
             <!-- Precio (solo productos) -->
@@ -230,7 +246,7 @@
                 </div>
               </td>
 
-              <!-- Cliente/Proveedor | Clientes | Equipos | Productos -->
+              <!-- Cliente/Proveedor | Clientes | Equipos | Productos | Herramientas -->
               <td class="px-6 py-4">
                 <div class="flex flex-col space-y-0.5">
                   <!-- Para productos -->
@@ -243,6 +259,13 @@
                     </div>
                     <div v-if="doc.categoria" class="text-xs text-gray-500">
                       Categoría: {{ doc.categoria }}
+                    </div>
+                  </div>
+
+                  <!-- Para herramientas -->
+                  <div v-else-if="props.tipo === 'herramientas'" class="space-y-1">
+                    <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800">
+                      {{ doc.titulo || 'Sin nombre' }}
                     </div>
                   </div>
 
@@ -280,6 +303,27 @@
                 </div>
               </td>
 
+              <!-- Foto (solo herramientas) -->
+              <td v-if="config.mostrarFoto" class="px-6 py-4">
+                <div class="flex items-center">
+                  <img
+                    v-if="doc.meta?.foto"
+                    :src="doc.meta.foto"
+                    alt="Foto de la herramienta"
+                    class="h-12 w-12 rounded-lg object-cover border-2 border-gray-200 cursor-pointer hover:border-blue-500 transition-colors"
+                    @click="openImageModal(doc.meta.foto)"
+                  />
+                  <div
+                    v-else
+                    class="h-12 w-12 rounded-lg bg-gray-100 flex items-center justify-center"
+                  >
+                    <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                </div>
+              </td>
+
               <!-- Campo extra -->
               <td v-if="config.mostrarCampoExtra" class="px-6 py-4">
                 <!-- Productos: Stock + SKU/Código -->
@@ -303,6 +347,25 @@
                 <div v-else class="text-sm font-mono font-medium text-gray-700 bg-gray-100/60 px-2 py-1 rounded-md inline-block">
                   {{ isClientes ? (doc.extra || 'N/A') : (doc[config.campoExtra.key] || doc.codigo_barras || 'N/A') }}
                 </div>
+              </td>
+
+              <!-- Técnico (solo herramientas) -->
+              <td v-if="config.mostrarTecnico" class="px-6 py-4">
+                <div v-if="doc.meta?.tecnico" class="flex items-center">
+                  <div class="flex-shrink-0 h-8 w-8">
+                    <div class="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                      <span class="text-green-600 font-medium text-sm">
+                        {{ doc.meta.tecnico.nombre.charAt(0) }}{{ doc.meta.tecnico.apellido.charAt(0) }}
+                      </span>
+                    </div>
+                  </div>
+                  <div class="ml-3">
+                    <div class="text-sm font-medium text-gray-900">
+                      {{ doc.meta.tecnico.nombre }} {{ doc.meta.tecnico.apellido }}
+                    </div>
+                  </div>
+                </div>
+                <div v-else class="text-sm text-gray-500 italic">Sin asignar</div>
               </td>
 
               <!-- Precio (solo productos) -->
@@ -451,7 +514,7 @@
 
           <!-- Empty State -->
           <tr v-else>
-            <td :colspan="config.mostrarCampoExtra ? (config.mostrarTotal !== false ? (config.mostrarProductos !== false ? (config.mostrarPrecio ? 8 : 7) : (config.mostrarPrecio ? 7 : 6)) : (config.mostrarProductos !== false ? (config.mostrarPrecio ? 7 : 6) : (config.mostrarPrecio ? 6 : 5))) : (config.mostrarTotal !== false ? (config.mostrarProductos !== false ? (config.mostrarPrecio ? 7 : 6) : (config.mostrarPrecio ? 6 : 5)) : (config.mostrarProductos !== false ? (config.mostrarPrecio ? 6 : 5) : (config.mostrarPrecio ? 5 : 4)))" class="px-6 py-16 text-center">
+            <td :colspan="getColspan()" class="px-6 py-16 text-center">
               <div class="flex flex-col items-center space-y-4">
                 <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                   <svg class="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -469,6 +532,33 @@
       </table>
     </div>
   </div>
+
+  <!-- Modal para imagen ampliada -->
+  <Teleport to="body">
+    <Transition name="modal">
+      <div
+        v-if="showImageModal"
+        class="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4"
+        @click.self="closeImageModal"
+      >
+        <div class="bg-white rounded-lg shadow-xl max-w-2xl max-h-[90vh] overflow-auto p-4">
+          <img
+            :src="selectedImage"
+            alt="Imagen ampliada"
+            class="max-w-full h-auto rounded-lg"
+          />
+          <button
+            @click="closeImageModal"
+            class="absolute top-2 right-2 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors"
+          >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <script setup>
@@ -479,7 +569,7 @@ const props = defineProps({
   tipo: {
     type: String,
     required: true,
-    validator: (value) => ['cotizaciones', 'pedidos', 'ventas', 'compras', 'ordenescompra', 'rentas', 'equipos', 'clientes', 'productos'].includes(value)
+    validator: (value) => ['cotizaciones', 'pedidos', 'ventas', 'compras', 'ordenescompra', 'rentas', 'equipos', 'clientes', 'productos', 'herramientas'].includes(value)
   },
   searchTerm: { type: String, default: '' },
   sortBy: { type: String, default: 'fecha-desc' },
@@ -496,7 +586,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits([
-  'ver-detalles','editar','eliminar','duplicar','imprimir','sort','renovar','suspender','reactivar','enviar-venta'
+  'ver-detalles','editar','eliminar','duplicar','imprimir','sort','renovar','suspender','reactivar','enviar-venta','open-image-modal'
 ]);
 
 // Flags
@@ -510,6 +600,10 @@ const showTooltip = ref(false);
 const hoveredDoc = ref(null);
 const tooltipPosition = ref({ x: 0, y: 0 });
 let tooltipTimeout = null;
+
+// Modal de imagen
+const showImageModal = ref(false);
+const selectedImage = ref('');
 
 const getViewport = () => {
   if (typeof window === 'undefined') return { w: 1280, h: 800 };
@@ -703,6 +797,21 @@ const config = computed(() => {
         'activo':        { label: 'Activo',        classes: 'bg-emerald-100 text-emerald-700', color: 'bg-emerald-400' },
         'inactivo':      { label: 'Inactivo',      classes: 'bg-gray-100 text-gray-600',       color: 'bg-gray-400' }
       }
+    },
+    herramientas: {
+      titulo: 'Herramientas',
+      mostrarCampoExtra: false,
+      mostrarPrecio: false,
+      mostrarTotal: false,
+      mostrarProductos: false,
+      mostrarTecnico: true,
+      mostrarFoto: true,
+      campoExtra: { key: 'numero_serie', label: 'N° Serie' },
+      acciones: { editar: true, duplicar: false, imprimir: false, eliminar: true },
+      estados: {
+        'asignada':    { label: 'Asignada',    classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
+        'sin_asignar': { label: 'Sin asignar', classes: 'bg-orange-100 text-orange-700', color: 'bg-orange-400' }
+      }
     }
   };
 
@@ -790,6 +899,14 @@ const items = computed(() => {
           (doc.sku || doc.codigo_barras || '').toLowerCase().includes(term) ||
           (doc.estado || '').toLowerCase().includes(term) ||
           (doc.descripcion || '').toLowerCase().includes(term)
+        );
+      }
+      if (props.tipo === 'herramientas') {
+        return (
+          (doc.titulo || '').toLowerCase().includes(term) ||
+          (doc.subtitulo || '').toLowerCase().includes(term) ||
+          (doc.meta?.tecnico?.nombre || '').toLowerCase().includes(term) ||
+          (doc.meta?.tecnico?.apellido || '').toLowerCase().includes(term)
         );
       }
       if (isEquipos.value) {
@@ -890,9 +1007,14 @@ const items = computed(() => {
         aVal = (a.numero_compra || a.id || '').toString().toLowerCase();
         bVal = (b.numero_compra || b.id || '').toString().toLowerCase();
         break;
-      case 'nombre': // clientes/equipos/productos
-        aVal = (isClientes.value ? (a.titulo || '') : (a.nombre || a.titulo || '')).toLowerCase();
-        bVal = (isClientes.value ? (b.titulo || '') : (b.nombre || b.titulo || '')).toLowerCase();
+      case 'nombre': // clientes/equipos/productos/herramientas
+        if (props.tipo === 'herramientas') {
+          aVal = (a.titulo || '').toLowerCase();
+          bVal = (b.titulo || '').toLowerCase();
+        } else {
+          aVal = (isClientes.value ? (a.titulo || '') : (a.nombre || a.titulo || '')).toLowerCase();
+          bVal = (isClientes.value ? (b.titulo || '') : (b.nombre || b.titulo || '')).toLowerCase();
+        }
         break;
       case 'rfc':
         aVal = (isClientes.value ? (a.extra || '') : (a.rfc || '')).toLowerCase();
@@ -920,6 +1042,9 @@ const items = computed(() => {
         if (isClientes.value) {
           aVal = a.estado === 'activo' ? '1' : '0';
           bVal = b.estado === 'activo' ? '1' : '0';
+        } else if (props.tipo === 'herramientas') {
+          aVal = a.meta?.tecnico ? 'asignada' : 'sin_asignar';
+          bVal = b.meta?.tecnico ? 'asignada' : 'sin_asignar';
         } else {
           aVal = a.estado || '';
           bVal = b.estado || '';
@@ -952,6 +1077,29 @@ const onSort = (field) => {
   const current = props.sortBy.startsWith(field) ? props.sortBy : `${field}-desc`;
   const newOrder = current === `${field}-desc` ? `${field}-asc` : `${field}-desc`;
   emit('sort', newOrder);
+};
+
+const getColspan = () => {
+  let count = 4; // Fecha, Nombre, Estado, Acciones (siempre presentes)
+
+  if (config.value.mostrarCampoExtra) count++;
+  if (config.value.mostrarTecnico) count++;
+  if (config.value.mostrarFoto) count++;
+  if (config.value.mostrarPrecio) count++;
+  if (config.value.mostrarTotal !== false) count++;
+  if (config.value.mostrarProductos !== false) count++;
+
+  return count;
+};
+
+const openImageModal = (imageUrl) => {
+  selectedImage.value = imageUrl;
+  showImageModal.value = true;
+};
+
+const closeImageModal = () => {
+  showImageModal.value = false;
+  selectedImage.value = '';
 };
 </script>
 
