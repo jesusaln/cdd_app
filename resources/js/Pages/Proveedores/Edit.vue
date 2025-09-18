@@ -742,31 +742,30 @@ const validateTelefono = () => {
   }
 };
 
-const validateCodigoPostal = (event) => {
+const validateCodigoPostal = async (event) => {
   // Only allow numeric input and limit to 5 digits
   const value = event.target.value.replace(/\D/g, '').slice(0, 5);
   form.codigo_postal = value;
 
-  // Here you could add CP validation and auto-complete municipality/state
+  // Autocompletar cuando tenga 5 dígitos
   if (value.length === 5) {
-    // Mock auto-completion - in real app, this would call an API
-    autoCompleteLocation(value);
-  }
-};
+    try {
+      const response = await fetch(`/api/cp/${value}`);
+      if (response.ok) {
+        const data = await response.json();
+        form.estado = data.estado;
+        form.municipio = data.municipio;
+        form.pais = data.pais;
 
-const autoCompleteLocation = async (cp) => {
-  // Mock function - replace with actual API call
-  // This is just for demonstration
-  const mockData = {
-    '01000': { municipio: 'ÁLVARO OBREGÓN', estado: 'CIUDAD DE MÉXICO' },
-    '03100': { municipio: 'BENITO JUÁREZ', estado: 'CIUDAD DE MÉXICO' },
-    '06600': { municipio: 'CUAUHTÉMOC', estado: 'CIUDAD DE MÉXICO' }
-  };
-
-  if (mockData[cp]) {
-    form.municipio = mockData[cp].municipio;
-    form.estado = mockData[cp].estado;
-    form.pais = 'MÉXICO';
+        // Si solo hay una colonia, la seleccionamos automáticamente
+        if (data.colonias && data.colonias.length === 1) {
+          form.colonia = data.colonias[0];
+        }
+      }
+    } catch (error) {
+      console.warn('Error al consultar código postal:', error);
+      // No mostramos error al usuario, solo continuamos
+    }
   }
 };
 

@@ -66,12 +66,11 @@
                 Email <span class="text-red-500">*</span>
               </label>
               <input
-                type="email"
-                id="email"
-                v-model="form.email"
-                placeholder="correo@ejemplo.com"
-                autocomplete="email"
-                :class="[
+               type="email"
+               id="email"
+               v-model="form.email"
+               placeholder="correo@ejemplo.com"
+               :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.email ? 'border-red-300 bg-red-50' : 'border-gray-300'
                 ]"
@@ -87,12 +86,11 @@
                 Teléfono
               </label>
               <input
-                type="tel"
-                id="telefono"
-                v-model="form.telefono"
-                placeholder="Opcional"
-                autocomplete="tel"
-                :class="[
+               type="tel"
+               id="telefono"
+               v-model="form.telefono"
+               placeholder="Opcional"
+               :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.telefono ? 'border-red-300 bg-red-50' : 'border-gray-300'
                 ]"
@@ -317,19 +315,33 @@
               <label for="colonia" class="block text-sm font-medium text-gray-700">
                 Colonia <span class="text-red-500">*</span>
               </label>
-              <input
-                type="text"
+              <select
                 id="colonia"
                 v-model="form.colonia"
-                @blur="toUpper('colonia')"
+                :disabled="availableColonias.length === 0"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
-                  form.errors.colonia ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                  form.errors.colonia ? 'border-red-300 bg-red-50' : 'border-gray-300',
+                  availableColonias.length === 0 ? 'bg-gray-100 text-gray-400' : ''
                 ]"
                 required
-              />
+              >
+                <option value="">
+                  {{ availableColonias.length === 0 ? 'Ingresa un código postal primero' : 'Selecciona una colonia' }}
+                </option>
+                <option
+                  v-for="colonia in availableColonias"
+                  :key="colonia"
+                  :value="colonia"
+                >
+                  {{ colonia }}
+                </option>
+              </select>
               <div v-if="form.errors.colonia" class="mt-2 text-sm text-red-600">
                 {{ form.errors.colonia }}
+              </div>
+              <div v-if="availableColonias.length === 0" class="mt-1 text-xs text-gray-500">
+                Primero ingresa un código postal válido para cargar las colonias disponibles
               </div>
             </div>
 
@@ -364,7 +376,6 @@
                 type="text"
                 id="municipio"
                 v-model="form.municipio"
-                @blur="toUpper('municipio')"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.municipio ? 'border-red-300 bg-red-50' : 'border-gray-300'
@@ -481,6 +492,43 @@ const props = defineProps({
 
 const showSuccessMessage = ref(false)
 const isDevelopment = ref(import.meta.env?.DEV || false)
+const availableColonias = ref([])
+
+// Mapeo de nombres de estados a claves SAT
+const estadoMapping = {
+  'Aguascalientes': 'AGU',
+  'Baja California': 'BCN',
+  'Baja California Sur': 'BCS',
+  'Campeche': 'CAM',
+  'Chihuahua': 'CHH',
+  'Chiapas': 'CHP',
+  'Ciudad de México': 'CMX',
+  'Coahuila': 'COA',
+  'Colima': 'COL',
+  'Durango': 'DUR',
+  'Guerrero': 'GRO',
+  'Guanajuato': 'GUA',
+  'Hidalgo': 'HID',
+  'Jalisco': 'JAL',
+  'Estado de México': 'MEX',
+  'Michoacán': 'MIC',
+  'Morelos': 'MOR',
+  'Nayarit': 'NAY',
+  'Nuevo León': 'NLE',
+  'Oaxaca': 'OAX',
+  'Puebla': 'PUE',
+  'Querétaro': 'QUE',
+  'Quintana Roo': 'ROO',
+  'Sinaloa': 'SIN',
+  'San Luis Potosí': 'SLP',
+  'Sonora': 'SON',
+  'Tabasco': 'TAB',
+  'Tamaulipas': 'TAM',
+  'Tlaxcala': 'TLA',
+  'Veracruz': 'VER',
+  'Yucatán': 'YUC',
+  'Zacatecas': 'ZAC'
+}
 
 // Inicializa form con valores por defecto seguros
 const initFormData = () => ({
@@ -531,8 +579,8 @@ const isFormValid = computed(() => {
 // Opciones para selects
 const estados = computed(() => {
   return (props.catalogs?.estados || []).map(e => ({
-    value: e.clave,
-    text: `${e.clave} — ${e.nombre}`
+    value: e.nombre,
+    text: e.nombre
   }))
 })
 
@@ -600,11 +648,51 @@ const onCurpInput = (event) => {
   if (form.curp && form.errors.curp) form.clearErrors('curp')
 }
 
-const onCpInput = (event) => {
+const onCpInput = async (event) => {
   const value = event.target ? event.target.value : event
   const digits = String(value).replace(/\D/g, '')
   form.codigo_postal = digits.slice(0, 5)
   if (form.codigo_postal && form.errors.codigo_postal) form.clearErrors('codigo_postal')
+
+  // Autocompletar cuando tenga 5 dígitos
+  if (form.codigo_postal.length === 5) {
+    try {
+      const response = await fetch(`/api/cp/${form.codigo_postal}`)
+      if (response.ok) {
+        const data = await response.json()
+        form.estado = data.estado
+        form.municipio = data.municipio
+        form.pais = data.pais
+
+        // Poblar lista de colonias disponibles
+        availableColonias.value = data.colonias || []
+
+        // Si solo hay una colonia, la seleccionamos automáticamente
+        if (data.colonias && data.colonias.length === 1) {
+          form.colonia = data.colonias[0]
+        } else if (data.colonias && data.colonias.length > 1) {
+          // Si hay múltiples colonias, limpiar selección actual
+          form.colonia = ''
+        }
+
+        // Limpiar errores de campos autocompletados
+        form.clearErrors(['estado', 'municipio', 'pais'])
+      } else {
+        // Si hay error, limpiar colonias disponibles
+        availableColonias.value = []
+        form.colonia = ''
+      }
+    } catch (error) {
+      console.warn('Error al consultar código postal:', error)
+      // Limpiar colonias disponibles en caso de error
+      availableColonias.value = []
+      form.colonia = ''
+    }
+  } else {
+    // Si el CP no tiene 5 dígitos, limpiar colonias
+    availableColonias.value = []
+    form.colonia = ''
+  }
 }
 
 const toUpper = (campo) => {
@@ -620,6 +708,7 @@ const resetForm = () => {
   Object.keys(newData).forEach(key => { form[key] = newData[key] })
   form.clearErrors()
   showSuccessMessage.value = false
+  availableColonias.value = []
 }
 
 const submit = () => {

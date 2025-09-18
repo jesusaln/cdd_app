@@ -10,7 +10,7 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
-        "eclipxe/sepomexphp": "*",
+        "eclipxe/sepomexphp": "^4.0",
         "facturapi/facturapi-php": "^3.4",
         "fakerphp/faker": "^1.24",
         "inertiajs/inertia-laravel": "^1.0",
@@ -21,6 +21,8 @@
         "maatwebsite/excel": "^3.1",
         "owen-it/laravel-auditing": "^14.0",
         "spatie/laravel-permission": "^6.16",
+        "symfony/browser-kit": "^7.3",
+        "symfony/http-client": "^7.3",
         "tightenco/ziggy": "^2.5"
     },
     "require-dev": {

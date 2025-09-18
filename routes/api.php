@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Api\ClienteController;
 use App\Http\Controllers\Api\CategoriaController;
 use App\Http\Controllers\Api\MarcaController;
@@ -38,6 +39,39 @@ Route::get('/create-token', [AuthController::class, 'createToken'])->middleware(
 Route::get('/check-email', [ClienteController::class, 'checkEmail'])->name('api.check-email');
 Route::get('/clientes/check-email', [ClienteController::class, 'checkEmail'])->name('api.clientes.check-email');
 Route::post('/validar-rfc', [ClienteController::class, 'validarRfc'])->name('api.validar-rfc');
+
+// Endpoint para autocompletado de direcciones por código postal
+Route::get('/cp/{cp}', function (string $cp) {
+    try {
+        // Validar que el CP tenga 5 dígitos
+        if (!preg_match('/^\d{5}$/', $cp)) {
+            return response()->json(['error' => 'Código postal debe tener 5 dígitos'], 400);
+        }
+
+        $sepomex = \Eclipxe\SepomexPhp\SepomexPhp::createForDatabaseFile(storage_path('sepomex.sqlite'));
+        $zipCodeData = $sepomex->getZipCodeData($cp);
+
+        if (!$zipCodeData) {
+            return response()->json(['error' => 'Código postal no encontrado'], 404);
+        }
+
+        // Obtener datos del código postal
+        $colonias = [];
+        foreach ($zipCodeData->locations as $location) {
+            $colonias[] = $location->name;
+        }
+
+        return response()->json([
+            'estado' => $zipCodeData->state->name,
+            'municipio' => $zipCodeData->district->name,
+            'colonias' => $colonias,
+            'pais' => 'México',
+        ]);
+    } catch (\Exception $e) {
+        Log::error('Error consultando código postal: ' . $e->getMessage(), ['cp' => $cp]);
+        return response()->json(['error' => 'Error interno del servidor'], 500);
+    }
+})->name('api.cp');
 
 // =====================================================
 // RECURSOS API (Con nombres únicos para evitar conflictos)

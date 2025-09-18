@@ -777,14 +777,31 @@ const validarTelefono = () => {
 };
 
 // Validación del código postal
-const validarCodigoPostal = () => {
+const validarCodigoPostal = async () => {
   // Solo permitir números
   form.codigo_postal = form.codigo_postal.replace(/\D/g, '');
 
   if (form.codigo_postal.length === 5) {
-    // Aquí podrías agregar lógica para buscar municipio y estado por CP
-    // Por ahora mantenemos los valores predeterminados
     form.clearErrors('codigo_postal');
+
+    // Autocompletar cuando tenga 5 dígitos
+    try {
+      const response = await fetch(`/api/cp/${form.codigo_postal}`);
+      if (response.ok) {
+        const data = await response.json();
+        form.estado = data.estado;
+        form.municipio = data.municipio;
+        form.pais = data.pais;
+
+        // Si solo hay una colonia, la seleccionamos automáticamente
+        if (data.colonias && data.colonias.length === 1) {
+          form.colonia = data.colonias[0];
+        }
+      }
+    } catch (error) {
+      console.warn('Error al consultar código postal:', error);
+      // No mostramos error al usuario, solo continuamos
+    }
   } else if (form.codigo_postal.length > 0) {
     form.setError('codigo_postal', 'El código postal debe tener exactamente 5 dígitos.');
   }
