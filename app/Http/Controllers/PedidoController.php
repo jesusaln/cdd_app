@@ -11,6 +11,7 @@ use App\Models\Producto;
 use App\Models\Servicio;
 use App\Enums\EstadoPedido;
 use App\Enums\EstadoVenta;
+use App\Enums\EstadoCotizacion;
 use App\Services\MarginService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -443,11 +444,83 @@ class PedidoController extends Controller
     }
 
     /**
+     * Confirm the specified resource (reserve inventory).
+     */
+    public function confirmar($id)
+    {
+        $pedido = Pedido::with('items.pedible')->findOrFail($id);
+
+        // Permitir confirmar solo si está en Pendiente
+        if ($pedido->estado !== EstadoPedido::Pendiente) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Solo pedidos pendientes pueden ser confirmados'
+            ], 400);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Validar y reservar inventario para productos
+            foreach ($pedido->items as $item) {
+                if ($item->pedible_type === Producto::class) {
+                    $producto = Producto::find($item->pedible_id);
+                    if (!$producto) {
+                        return response()->json([
+                            'success' => false,
+                            'error' => "Producto con ID {$item->pedible_id} no encontrado"
+                        ], 400);
+                    }
+
+                    if ($producto->stock_disponible < $item->cantidad) {
+                        return response()->json([
+                            'success' => false,
+                            'error' => "Stock insuficiente para '{$producto->nombre}'. Disponible: {$producto->stock_disponible}, Solicitado: {$item->cantidad}"
+                        ], 400);
+                    }
+
+                    // Reservar inventario
+                    $producto->increment('reservado', $item->cantidad);
+                    Log::info("Inventario reservado para producto {$producto->id}", [
+                        'producto_id' => $producto->id,
+                        'pedido_id' => $pedido->id,
+                        'cantidad_reservada' => $item->cantidad,
+                        'reservado_anterior' => $producto->reservado - $item->cantidad,
+                        'reservado_actual' => $producto->reservado
+                    ]);
+                }
+            }
+
+            // Actualizar estado a confirmado
+            $pedido->update(['estado' => EstadoPedido::Confirmado]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Pedido confirmado e inventario reservado exitosamente'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al confirmar pedido: ' . $e->getMessage(), [
+                'pedido_id' => $id,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al confirmar el pedido',
+                'details' => app()->environment('local') ? $e->getMessage() : null
+            ], 500);
+        }
+    }
+
+    /**
      * Cancel the specified resource (soft cancel).
      */
     public function cancel($id)
     {
-        $pedido = Pedido::findOrFail($id);
+        $pedido = Pedido::with('items.pedible')->findOrFail($id);
 
         // Permitir cancelar en cualquier estado excepto ya cancelado
         if ($pedido->estado === EstadoPedido::Cancelado) {
@@ -457,18 +530,64 @@ class PedidoController extends Controller
             ], 400);
         }
 
-        // Actualizar estado a cancelado y registrar quién lo canceló
-        $pedido->update([
-            'estado' => EstadoPedido::Cancelado,
-            'deleted_by' => Auth::id(),
-            'deleted_at' => now()
-        ]);
+        DB::beginTransaction();
+        try {
+            // Liberar reservas si el pedido estaba confirmado
+            if (in_array($pedido->estado, [EstadoPedido::Confirmado, EstadoPedido::EnPreparacion, EstadoPedido::ListoEntrega])) {
+                foreach ($pedido->items as $item) {
+                    if ($item->pedible_type === Producto::class) {
+                        $producto = Producto::find($item->pedible_id);
+                        if ($producto && $producto->reservado >= $item->cantidad) {
+                            $producto->decrement('reservado', $item->cantidad);
+                            Log::info("Reserva liberada para producto {$producto->id}", [
+                                'producto_id' => $producto->id,
+                                'pedido_id' => $pedido->id,
+                                'cantidad_liberada' => $item->cantidad,
+                                'reservado_anterior' => $producto->reservado + $item->cantidad,
+                                'reservado_actual' => $producto->reservado
+                            ]);
+                        }
+                    }
+                }
+            }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Pedido cancelado exitosamente',
-            'eliminado_por' => Auth::user()->name ?? 'Usuario actual'
-        ]);
+            // Revertir estado de la cotización asociada a pendiente
+            if ($pedido->cotizacion) {
+                $pedido->cotizacion->update(['estado' => EstadoCotizacion::Pendiente]);
+                Log::info("Cotización revertida a pendiente al cancelar pedido", [
+                    'pedido_id' => $pedido->id,
+                    'cotizacion_id' => $pedido->cotizacion_id
+                ]);
+            }
+
+            // Actualizar estado a cancelado y registrar quién lo canceló
+            $pedido->update([
+                'estado' => EstadoPedido::Cancelado,
+                'deleted_by' => Auth::id(),
+                'deleted_at' => now()
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Pedido cancelado exitosamente',
+                'eliminado_por' => Auth::user()->name ?? 'Usuario actual'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al cancelar pedido: ' . $e->getMessage(), [
+                'pedido_id' => $id,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al cancelar el pedido',
+                'details' => app()->environment('local') ? $e->getMessage() : null
+            ], 500);
+        }
     }
 
     /**
@@ -687,7 +806,7 @@ class PedidoController extends Controller
                 ], 409); // 409 Conflict
             }
 
-            // ✅ VALIDAR STOCK DISPONIBLE ANTES DE CREAR VENTA
+            // ✅ VALIDAR STOCK DISPONIBLE ANTES DE CREAR VENTA (considerando reservas)
             foreach ($pedido->items as $item) {
                 if ($item->pedible_type === Producto::class) {
                     $producto = Producto::find($item->pedible_id);
@@ -699,10 +818,10 @@ class PedidoController extends Controller
                         ], 400);
                     }
 
-                    if ($producto->stock < $item->cantidad) {
+                    if ($producto->stock_disponible < $item->cantidad) {
                         return response()->json([
                             'success' => false,
-                            'error' => "Stock insuficiente para '{$producto->nombre}'. Disponible: {$producto->stock}, Solicitado: {$item->cantidad}",
+                            'error' => "Stock insuficiente para '{$producto->nombre}'. Disponible: {$producto->stock_disponible}, Solicitado: {$item->cantidad}",
                             'requiere_confirmacion' => false
                         ], 400);
                     }
@@ -742,19 +861,41 @@ class PedidoController extends Controller
                     'subtotal' => $item->subtotal,
                 ]);
 
-                // ✅ DESCONTAR INVENTARIO SOLO PARA PRODUCTOS
+                // ✅ DESCONTAR INVENTARIO SOLO PARA PRODUCTOS (consumir reservas)
                 if ($item->pedible_type === Producto::class) {
                     $producto = Producto::find($item->pedible_id);
                     if ($producto) {
-                        $producto->decrement('stock', $item->cantidad);
-                        Log::info("Stock reducido para producto {$producto->id} (pedido → venta)", [
-                            'producto_id' => $producto->id,
-                            'pedido_id' => $pedido->id,
-                            'venta_id' => $venta->id,
-                            'cantidad_reducida' => $item->cantidad,
-                            'stock_anterior' => $producto->stock + $item->cantidad,
-                            'stock_actual' => $producto->stock
-                        ]);
+                        $cantidadRestante = $item->cantidad;
+
+                        // Consumir reservas
+                        if ($producto->reservado >= $cantidadRestante) {
+                            $producto->decrement('reservado', $cantidadRestante);
+                            Log::info("Reserva consumida para producto {$producto->id} (pedido → venta)", [
+                                'producto_id' => $producto->id,
+                                'pedido_id' => $pedido->id,
+                                'venta_id' => $venta->id,
+                                'reserva_consumida' => $cantidadRestante,
+                                'reservado_anterior' => $producto->reservado + $cantidadRestante,
+                                'reservado_actual' => $producto->reservado
+                            ]);
+                            $cantidadRestante = 0;
+                        } else {
+                            // Si no hay suficientes reservas, consumir lo disponible y reducir stock
+                            $consumirReserva = $producto->reservado;
+                            $producto->decrement('reservado', $consumirReserva);
+                            $cantidadRestante -= $consumirReserva;
+
+                            $producto->decrement('stock', $cantidadRestante);
+                            Log::info("Reserva parcial y stock reducido para producto {$producto->id} (pedido → venta)", [
+                                'producto_id' => $producto->id,
+                                'pedido_id' => $pedido->id,
+                                'venta_id' => $venta->id,
+                                'reserva_consumida' => $consumirReserva,
+                                'stock_reducido' => $cantidadRestante,
+                                'reservado_actual' => $producto->reservado,
+                                'stock_actual' => $producto->stock
+                            ]);
+                        }
                     }
                 }
             }

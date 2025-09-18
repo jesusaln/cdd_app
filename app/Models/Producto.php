@@ -24,6 +24,7 @@ class Producto extends Model
         'proveedor_id',
         'almacen_id',
         'stock',
+        'reservado',
         'stock_minimo',
         'precio_compra',
         'precio_venta',
@@ -95,6 +96,15 @@ class Producto extends Model
     public function cotizacionItems(): MorphMany
     {
         return $this->morphMany(CotizacionItem::class, 'cotizable');
+    }
+
+    /* =========================
+     * Accessors
+     * ========================= */
+
+    public function getStockDisponibleAttribute()
+    {
+        return $this->stock - $this->reservado;
     }
 
     /* =========================

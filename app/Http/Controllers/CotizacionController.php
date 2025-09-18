@@ -711,14 +711,14 @@ class CotizacionController extends Controller
                 ], 400);
             }
 
-            // Crear nuevo pedido
+            // Crear nuevo pedido confirmado
             $pedido = new Pedido();
             $pedido->fill([
                 'cliente_id' => $cotizacion->cliente_id,
                 'cotizacion_id' => $cotizacion->id,
                 'numero_pedido' => $this->generarNumeroPedido(),
                 'fecha' => now(),
-                'estado' => EstadoPedido::Borrador,
+                'estado' => EstadoPedido::Confirmado, // ← Cambiado a confirmado
                 'subtotal' => $cotizacion->subtotal,
                 'descuento_general' => $cotizacion->descuento_general,
                 'iva' => $cotizacion->iva,
@@ -738,6 +738,32 @@ class CotizacionController extends Controller
                     'subtotal' => $item->subtotal,
                     'descuento_monto' => $item->descuento_monto
                 ]);
+            }
+
+            // Reservar inventario automáticamente (ya que está confirmado)
+            foreach ($cotizacion->items as $item) {
+                if ($item->cotizable_type === Producto::class) {
+                    $producto = Producto::find($item->cotizable_id);
+                    if ($producto) {
+                        if ($producto->stock_disponible < $item->cantidad) {
+                            DB::rollBack();
+                            return response()->json([
+                                'success' => false,
+                                'error' => "Stock insuficiente para '{$producto->nombre}'. Disponible: {$producto->stock_disponible}, Solicitado: {$item->cantidad}",
+                                'requiere_confirmacion' => false
+                            ], 400);
+                        }
+
+                        $producto->increment('reservado', $item->cantidad);
+                        Log::info("Inventario reservado automáticamente al enviar cotización a pedido", [
+                            'producto_id' => $producto->id,
+                            'pedido_id' => $pedido->id,
+                            'cotizacion_id' => $cotizacion->id,
+                            'cantidad_reservada' => $item->cantidad,
+                            'reservado_actual' => $producto->reservado
+                        ]);
+                    }
+                }
             }
 
             // Actualizar estado de la cotización

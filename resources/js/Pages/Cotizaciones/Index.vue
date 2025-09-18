@@ -373,11 +373,22 @@ const duplicarCotizacion = async (cotizacion) => {
   try {
     validarCotizacion(cotizacion)
 
-    if (!confirm(`¿Duplicar cotización #${cotizacion.numero || cotizacion.id}?`)) {
-      return
-    }
+    // Usar modal de confirmación personalizado
+    fila.value = cotizacion
+    modalMode.value = 'confirm-duplicate'
+    showModal.value = true
+  } catch (error) {
+    notyf.error(error.message)
+  }
+}
+
+const confirmarDuplicarCotizacion = async () => {
+  try {
+    const cotizacion = fila.value
+    if (!cotizacion?.id) throw new Error('Cotización no válida')
 
     loading.value = true
+    cerrarModal()
 
     router.post(`/cotizaciones/${cotizacion.id}/duplicate`, {}, {
       onStart: () => {
@@ -670,6 +681,7 @@ const crearNuevaCotizacion = () => {
       :auditoria="auditoriaForModal"
       @close="cerrarModal"
       @confirm-delete="eliminarCotizacion"
+      @confirm-duplicate="confirmarDuplicarCotizacion"
       @imprimir="imprimirFila"
       @editar="editarFila"
       @enviar-pedido="enviarAPedido"

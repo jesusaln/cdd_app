@@ -10,6 +10,7 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "eclipxe/sepomexphp": "*",
         "facturapi/facturapi-php": "^3.4",
         "fakerphp/faker": "^1.24",
         "inertiajs/inertia-laravel": "^1.0",

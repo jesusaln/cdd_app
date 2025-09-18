@@ -216,10 +216,10 @@ class ProductoController extends Controller
                     continue;
                 }
 
-                if ($producto->stock < $item['cantidad']) {
+                if ($producto->stock_disponible < $item['cantidad']) {
                     $errors[] = [
                         'producto' => $producto->nombre,
-                        'mensaje'  => "Stock insuficiente. Disponible: {$producto->stock}, Solicitado: {$item['cantidad']}",
+                        'mensaje'  => "Stock insuficiente. Disponible: {$producto->stock_disponible}, Solicitado: {$item['cantidad']}",
                     ];
                     $valid = false;
                 }

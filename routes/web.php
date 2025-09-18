@@ -153,6 +153,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // =====================================================
     // RUTAS ESPECÍFICAS DE PEDIDOS
     // =====================================================
+    Route::post('/pedidos/{id}/confirmar', [PedidoController::class, 'confirmar'])->name('pedidos.confirmar');
     Route::post('/pedidos/{id}/enviar-a-venta', [PedidoController::class, 'enviarAVenta'])
         ->name('pedidos.enviar-a-venta');
     Route::post('/pedidos/{id}/cancel', [PedidoController::class, 'cancel'])->name('pedidos.cancel');

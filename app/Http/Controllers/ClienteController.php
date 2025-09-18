@@ -14,6 +14,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Validation\ValidationException;
 use Exception;
@@ -41,33 +42,57 @@ class ClienteController extends Controller
 
     private function getRegimenesFiscales(): array
     {
-        return Cache::remember('regimenes_fiscales_db', self::CACHE_TTL, function () {
+        try {
+            return Cache::remember('regimenes_fiscales_db', self::CACHE_TTL, function () {
+                return SatRegimenFiscal::orderBy('clave')
+                    ->get(['clave', 'descripcion', 'persona_fisica', 'persona_moral'])
+                    ->keyBy('clave')
+                    ->toArray();
+            });
+        } catch (\Exception $e) {
+            Log::warning('Error obteniendo regímenes fiscales del cache, usando DB directa', ['error' => $e->getMessage()]);
             return SatRegimenFiscal::orderBy('clave')
                 ->get(['clave', 'descripcion', 'persona_fisica', 'persona_moral'])
                 ->keyBy('clave')
                 ->toArray();
-        });
+        }
     }
 
     private function getUsosCFDI(): array
     {
-        return Cache::remember('usos_cfdi_db', self::CACHE_TTL, function () {
+        try {
+            return Cache::remember('usos_cfdi_db', self::CACHE_TTL, function () {
+                return SatUsoCfdi::orderBy('clave')
+                    ->get(['clave', 'descripcion', 'persona_fisica', 'persona_moral'])
+                    ->keyBy('clave')
+                    ->toArray();
+            });
+        } catch (\Exception $e) {
+            Log::warning('Error obteniendo usos CFDI del cache, usando DB directa', ['error' => $e->getMessage()]);
             return SatUsoCfdi::orderBy('clave')
                 ->get(['clave', 'descripcion', 'persona_fisica', 'persona_moral'])
                 ->keyBy('clave')
                 ->toArray();
-        });
+        }
     }
 
     private function getEstadosMexico(): array
     {
-        // Estados SAT (3 letras) -> nombre
-        return Cache::remember('estados_mexico_db', self::CACHE_TTL, function () {
+        try {
+            // Estados SAT (3 letras) -> nombre
+            return Cache::remember('estados_mexico_db', self::CACHE_TTL, function () {
+                return SatEstado::orderBy('nombre')
+                    ->get(['clave', 'nombre'])
+                    ->pluck('nombre', 'clave') // ['SON' => 'Sonora', ...]
+                    ->toArray();
+            });
+        } catch (\Exception $e) {
+            Log::warning('Error obteniendo estados del cache, usando DB directa', ['error' => $e->getMessage()]);
             return SatEstado::orderBy('nombre')
                 ->get(['clave', 'nombre'])
-                ->pluck('nombre', 'clave') // ['SON' => 'Sonora', ...]
+                ->pluck('nombre', 'clave')
                 ->toArray();
-        });
+        }
     }
 
     private function estadosSatCsv(): string
@@ -131,6 +156,12 @@ class ClienteController extends Controller
         ];
     }
 
+    private function hasFulltextIndex(): bool
+    {
+        $driver = Schema::getConnection()->getDriverName();
+        return $driver === 'mysql';
+    }
+
     // ========================= Query base =========================
     // En tu ClienteController (o trait/repo)
     private function buildSearchQuery(Request $request)
@@ -138,11 +169,17 @@ class ClienteController extends Controller
         $q = \App\Models\Cliente::query()->with(['estadoSat', 'regimen', 'uso']);
 
         if ($s = trim((string) $request->input('search', ''))) {
-            $q->where(function ($w) use ($s) {
-                $w->where('nombre_razon_social', 'like', "%{$s}%")
-                    ->orWhere('rfc', 'like', "%{$s}%")
-                    ->orWhere('email', 'like', "%{$s}%");
-            });
+            // Use FULLTEXT search if available and query is long enough
+            if (strlen($s) >= 3 && $this->hasFulltextIndex()) {
+                $q->whereRaw("MATCH(nombre_razon_social, email, rfc) AGAINST(? IN NATURAL LANGUAGE MODE)", [$s]);
+            } else {
+                // Fallback to LIKE search
+                $q->where(function ($w) use ($s) {
+                    $w->where('nombre_razon_social', 'like', "%{$s}%")
+                        ->orWhere('rfc', 'like', "%{$s}%")
+                        ->orWhere('email', 'like', "%{$s}%");
+                });
+            }
         }
 
         if ($tp = $request->input('tipo_persona')) {
@@ -200,9 +237,15 @@ class ClienteController extends Controller
             'regex:/^[A-ZÑ&]{3,4}[0-9]{6}[A-Z0-9]{3}$/',
             function ($attribute, $value, $fail) use ($clienteId) {
                 $value = strtoupper(trim($value));
-                $query = Cliente::where('rfc', $value);
-                if ($clienteId) $query->where('id', '!=', $clienteId);
-                if ($query->exists()) {
+
+                // Use cache for faster lookup
+                $existingRfc = Cache::remember("rfc_exists_{$value}", 30, function () use ($value) {
+                    return Cliente::where('rfc', $value)->value('id');
+                });
+
+                $isDuplicate = $existingRfc && (!$clienteId || $existingRfc != $clienteId);
+
+                if ($isDuplicate) {
                     if ($value === 'XAXX010101000') {
                         $fail('Ya existe el cliente genérico. No se pueden crear múltiples clientes con RFC genérico.');
                     } else {

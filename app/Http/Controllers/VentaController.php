@@ -136,7 +136,7 @@ class VentaController extends Controller
 
         DB::beginTransaction();
         try {
-            // Validar stock disponible para productos
+            // Validar stock disponible para productos (considerando reservas)
             foreach ($validated['productos'] as $item) {
                 if ($item['tipo'] === 'producto') {
                     $producto = Producto::find($item['id']);
@@ -144,9 +144,9 @@ class VentaController extends Controller
                         return redirect()->back()->with('error', "Producto con ID {$item['id']} no encontrado");
                     }
 
-                    if ($producto->stock < $item['cantidad']) {
+                    if ($producto->stock_disponible < $item['cantidad']) {
                         return redirect()->back()->with('error',
-                            "Stock insuficiente para '{$producto->nombre}'. Disponible: {$producto->stock}, Solicitado: {$item['cantidad']}"
+                            "Stock insuficiente para '{$producto->nombre}'. Disponible: {$producto->stock_disponible}, Solicitado: {$item['cantidad']}"
                         );
                     }
                 }
@@ -231,15 +231,34 @@ class VentaController extends Controller
                     'descuento_monto' => $descuentoMontoItem,
                 ]);
 
-                // Reducir inventario solo para productos
+                // Reducir inventario solo para productos (priorizar reservas)
                 if ($item['tipo'] === 'producto') {
-                    $modelo->decrement('stock', $item['cantidad']);
-                    Log::info("Stock reducido para producto {$modelo->id}", [
-                        'producto_id' => $modelo->id,
-                        'cantidad_reducida' => $item['cantidad'],
-                        'stock_anterior' => $modelo->stock + $item['cantidad'],
-                        'stock_actual' => $modelo->stock
-                    ]);
+                    $cantidadRestante = $item['cantidad'];
+
+                    // Primero consumir reservas si existen
+                    if ($modelo->reservado > 0) {
+                        $consumirReserva = min($modelo->reservado, $cantidadRestante);
+                        $modelo->decrement('reservado', $consumirReserva);
+                        $cantidadRestante -= $consumirReserva;
+
+                        Log::info("Reserva consumida para producto {$modelo->id}", [
+                            'producto_id' => $modelo->id,
+                            'reserva_consumida' => $consumirReserva,
+                            'reservado_anterior' => $modelo->reservado + $consumirReserva,
+                            'reservado_actual' => $modelo->reservado
+                        ]);
+                    }
+
+                    // Si queda cantidad por consumir, reducir stock físico
+                    if ($cantidadRestante > 0) {
+                        $modelo->decrement('stock', $cantidadRestante);
+                        Log::info("Stock reducido para producto {$modelo->id}", [
+                            'producto_id' => $modelo->id,
+                            'cantidad_reducida' => $cantidadRestante,
+                            'stock_anterior' => $modelo->stock + $cantidadRestante,
+                            'stock_actual' => $modelo->stock
+                        ]);
+                    }
                 }
             }
 
@@ -621,17 +640,18 @@ class VentaController extends Controller
 
         DB::beginTransaction();
         try {
-            // Devolver inventario de productos
+            // Devolver inventario de productos (incrementar reservas)
             foreach ($venta->items as $item) {
                 if ($item->ventable_type === Producto::class) {
                     $producto = $item->ventable;
                     if ($producto) {
-                        $producto->increment('stock', $item->cantidad);
-                        Log::info("Stock devuelto para producto {$producto->id}", [
+                        // Devolver a reservas (ya que la venta consumió reservas)
+                        $producto->increment('reservado', $item->cantidad);
+                        Log::info("Reserva devuelta para producto {$producto->id}", [
                             'producto_id' => $producto->id,
                             'cantidad_devuelta' => $item->cantidad,
-                            'stock_anterior' => $producto->stock - $item->cantidad,
-                            'stock_actual' => $producto->stock
+                            'reservado_anterior' => $producto->reservado - $item->cantidad,
+                            'reservado_actual' => $producto->reservado
                         ]);
                     }
                 }

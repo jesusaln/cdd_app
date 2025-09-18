@@ -8,7 +8,7 @@
     >
       <div
         :class="{
-          'max-w-md': mode === 'confirm',
+          'max-w-md': mode === 'confirm' || mode === 'confirm-duplicate',
           'max-w-4xl': mode === 'details'
         }"
         class="bg-white rounded-lg shadow-xl w-full max-h-[90vh] overflow-y-auto p-6 outline-none"
@@ -49,6 +49,38 @@
               class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
             >
               Eliminar
+            </button>
+          </div>
+        </div>
+
+        <!-- Modo: Confirmación de duplicado -->
+        <div v-if="mode === 'confirm-duplicate'" class="text-center">
+          <div class="w-12 h-12 mx-auto bg-blue-100 rounded-full flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V7M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"/>
+            </svg>
+          </div>
+          <h3 class="text-lg font-medium mb-2">
+            ¿Duplicar {{ config.titulo.toLowerCase() }}?
+          </h3>
+          <p class="text-gray-600 mb-6" v-if="selected?.numero_cotizacion">
+            Se creará una copia de la {{ config.titulo.toLowerCase() }} <strong>#{{ selected.numero_cotizacion }}</strong> con estado "Borrador".
+          </p>
+          <p class="text-gray-600 mb-6" v-else>
+            Se creará una copia de esta {{ config.titulo.toLowerCase() }} con estado "Borrador".
+          </p>
+          <div class="flex gap-3">
+            <button
+              @click="onCancel"
+              class="flex-1 px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              @click="onConfirmDuplicate"
+              class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Duplicar
             </button>
           </div>
         </div>
@@ -578,7 +610,7 @@ import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
-  mode: { type: String, default: 'details', validator: (v) => ['confirm','details'].includes(v) },
+  mode: { type: String, default: 'details', validator: (v) => ['confirm','confirm-duplicate','details'].includes(v) },
   selected: { type: Object, default: null },
   tipo: {
     type: String,
@@ -595,6 +627,7 @@ const props = defineProps({
 const emit = defineEmits([
   'close',
   'confirm-delete',
+  'confirm-duplicate',
   'confirm-receive',
   'confirmar-recepcion',
   'marcar-urgente',
@@ -825,6 +858,7 @@ const confirmarRecibirCompra = () => { emit('recibir-compra', props.selected) }
 // Emits comunes
 const onCancel  = () => emit('close')
 const onConfirm = () => emit('confirm-delete')
+const onConfirmDuplicate = () => emit('confirm-duplicate')
 const onClose   = () => emit('close')
 const onImprimir= () => emit('imprimir', props.selected)
 const onEditar  = () => emit('editar', props.selected?.id)

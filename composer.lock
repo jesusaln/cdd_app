@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "5531cf79282963bcf88a38bc8a76cd5d",
+    "content-hash": "934a8046d1dca7b368e8ed988c303368",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -702,6 +702,68 @@
                 }
             ],
             "time": "2024-10-09T13:47:03+00:00"
+        },
+        {
+            "name": "eclipxe/sepomexphp",
+            "version": "v4.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/eclipxe13/sepomexphp.git",
+                "reference": "9c932a8fb4ad58c7ed2490ee3eee80b8bf49a972"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/eclipxe13/sepomexphp/zipball/9c932a8fb4ad58c7ed2490ee3eee80b8bf49a972",
+                "reference": "9c932a8fb4ad58c7ed2490ee3eee80b8bf49a972",
+                "shasum": ""
+            },
+            "require": {
+                "ext-iconv": "*",
+                "ext-pdo": "*",
+                "ext-zip": "*",
+                "php": ">=8.1"
+            },
+            "require-dev": {
+                "dms/phpunit-arraysubset-asserts": "^0.4.0",
+                "guzzlehttp/guzzle": "^7.7",
+                "phpunit/phpunit": "^9.5",
+                "symfony/browser-kit": "^6.3",
+                "symfony/http-client": "^6.3",
+                "symfony/mime": "^6.3"
+            },
+            "suggest": {
+                "guzzlehttp/guzzle": "Perform the download process using Guzzle",
+                "symfony/browser-kit": "Perform the download process using Symfony Browser Kit (recommended)"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Eclipxe\\SepomexPhp\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Carlos C Soto",
+                    "email": "eclipxe13@gmail.com"
+                }
+            ],
+            "description": "Servicio Postal Mexicano PHP Library (Unofficial)",
+            "homepage": "http://github/eclipxe13/sepomexphp",
+            "keywords": [
+                "código postal",
+                "códigos postales",
+                "mexico",
+                "sepomex"
+            ],
+            "support": {
+                "issues": "https://github.com/eclipxe13/sepomexphp/issues",
+                "source": "https://github.com/eclipxe13/sepomexphp/tree/v4.0.0"
+            },
+            "time": "2023-07-01T06:17:23+00:00"
         },
         {
             "name": "egulias/email-validator",
