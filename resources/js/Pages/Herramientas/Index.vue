@@ -10,19 +10,20 @@ import 'notyf/notyf.min.css'
 import UniversalHeader from '@/Components/IndexComponents/UniversalHeader.vue'
 import DocumentosTable from '@/Components/IndexComponents/DocumentosTable.vue'
 import Modales from '@/Components/IndexComponents/Modales.vue'
+import Pagination from '@/Components/Pagination.vue'
 
 defineOptions({ layout: AppLayout })
 
 /**
  * Props esperadas desde HerramientaController@index:
- * - herramientas: paginator (con .data)
+ * - herramientas: objeto de paginación de Laravel
  * - stats: { total, asignadas, sin_asignar }
  * - catalogs (opcional)
  * - filters (opcional)
  * - sorting (opcional)
  */
 const props = defineProps({
-  herramientas: { type: Object, required: true }, // paginator
+  herramientas: { type: Array, required: true }, // array directo para paginación del lado del cliente
   stats: {
     type: Object,
     default: () => ({ total: 0, asignadas: 0, sin_asignar: 0 })
@@ -55,9 +56,13 @@ const showImageModal = ref(false)
 const selectedImage = ref('')
 
 // Filtros/ordenamiento (mapeados al header universal)
-const searchTerm = ref(props.filters?.search ?? '')
-const sortBy = ref(mapSortingToHeader(props.sorting)) // 'fecha-desc' / 'fecha-asc' / 'nombre-asc' / 'nombre-desc'
-const filtroEstado = ref('') // asignada/sin_asignar
+const searchTerm = ref('')
+const sortBy = ref('fecha-desc')
+const filtroEstado = ref('')
+
+// Paginación del lado del cliente
+const currentPage = ref(1)
+const perPage = ref(10)
 
 // Header configurable
 const headerConfig = {
@@ -66,66 +71,128 @@ const headerConfig = {
   searchPlaceholder: 'Buscar por nombre, número de serie, técnico...'
 }
 
-// ---------- Datos base (paginados) ----------
-const herramientasOriginales = ref(Array.isArray(props.herramientas?.data) ? [...props.herramientas.data] : [])
-
-// Transformar URLs de fotos
-herramientasOriginales.value = herramientasOriginales.value.map(h => ({
-  ...h,
-  foto: h.foto ? `/storage/${h.foto}` : null
-}))
-
-// Mantener sincronizado si cambian las props por navegación Inertia
-watch(() => props.herramientas, (nuevo) => {
-  herramientasOriginales.value = Array.isArray(nuevo?.data) ? [...nuevo.data] : []
-  // Transformar URLs de fotos en cada cambio
-  herramientasOriginales.value = herramientasOriginales.value.map(h => ({
+// ---------- Datos base ----------
+// Función para transformar URLs de fotos
+const transformarHerramientas = (herramientas) => {
+  return Array.isArray(herramientas) ? herramientas.map(h => ({
     ...h,
     foto: h.foto ? `/storage/${h.foto}` : null
-  }))
-}, { deep: true })
+  })) : []
+}
 
-// ---------- Estadísticas locales ----------
-const estadisticas = computed(() => ({
-  total: props.stats?.total ?? herramientasOriginales.value.length,
-  aprobadas: props.stats?.asignadas ?? herramientasOriginales.value.filter(h => h.tecnico).length,   // usamos "aprobadas" para mapear al header
-  pendientes: props.stats?.sin_asignar ?? herramientasOriginales.value.filter(h => !h.tecnico).length // y "pendientes" idem
-}))
+// Estadísticas calculadas
+const estadisticas = computed(() => props.stats)
 
-// ---------- Transformación para DocumentosTable ----------
-// DocumentosTable es genérica; para `tipo="herramientas"` asumimos formato:
-// { id, titulo, subtitulo, estado, extra, fecha, meta, raw }
-// Adaptamos cada herramienta a ese shape sin perder el objeto original en "raw".
-const documentosHerramientas = computed(() => {
-  return herramientasOriginales.value.map(h => ({
+// Transformación base para DocumentosTable
+const documentosHerramientasBase = computed(() => {
+  const herramientasArray = props.herramientas || []
+  const transformadas = transformarHerramientas(herramientasArray)
+
+  return transformadas.map(h => ({
     id: h.id,
-    titulo: h.nombre || 'Sin nombre',        // principal
-    subtitulo: h.numero_serie || 'N/A',      // número de serie
-    estado: h.tecnico ? 'asignada' : 'sin_asignar', // badge/estado
-    extra: h.tecnico ? `${h.tecnico.nombre} ${h.tecnico.apellido}` : 'Sin asignar', // técnico asignado
-    created_at: h.created_at,                // fecha de creación para mostrar
-    fecha: h.created_at,                     // para orden por fecha
-    meta: {
-      tecnico: h.tecnico,
-      foto: h.foto
-    },
-    raw: h                               // guardamos el original
+    titulo: h.nombre || 'Sin nombre',
+    subtitulo: h.numero_serie || 'N/A',
+    estado: h.tecnico ? 'asignada' : 'sin_asignar',
+    extra: h.tecnico ? `${h.tecnico.nombre} ${h.tecnico.apellido}` : 'Sin asignar',
+    fecha: h.created_at,
+    meta: { tecnico: h.tecnico, foto: h.foto },
+    raw: h
   }))
 })
 
-// ---------- Handlers UniversalHeader ----------
-function handleLimpiarFiltros () {
+// Herramientas filtradas y ordenadas (sin paginación)
+const herramientasFiltradasYOrdenadas = computed(() => {
+  let arr = [...documentosHerramientasBase.value]
+
+  // Buscar
+  if (searchTerm.value) {
+    const q = searchTerm.value.toLowerCase()
+    arr = arr.filter(d =>
+      d.titulo?.toLowerCase().includes(q) ||
+      d.subtitulo?.toLowerCase().includes(q) ||
+      d.extra?.toLowerCase().includes(q)
+    )
+  }
+
+  // Filtro estado
+  if (filtroEstado.value) {
+    arr = arr.filter(d => d.estado === filtroEstado.value)
+  }
+
+  // Orden
+  const [campo, dir] = sortBy.value.split('-')
+  arr.sort((a, b) => {
+    let va = '', vb = ''
+    if (campo === 'nombre') { va = (a.titulo || '').toLowerCase(); vb = (b.titulo || '').toLowerCase() }
+    else if (campo === 'fecha') { va = a.fecha || ''; vb = b.fecha || '' }
+    else { va = (a.titulo || '').toLowerCase(); vb = (b.titulo || '').toLowerCase() }
+
+    if (va > vb) return dir === 'asc' ? 1 : -1
+    if (va < vb) return dir === 'asc' ? -1 : 1
+    return 0
+  })
+
+  return arr
+})
+
+// Documentos para mostrar (con paginación del lado del cliente)
+const documentosHerramientas = computed(() => {
+  const startIndex = (currentPage.value - 1) * perPage.value
+  const endIndex = startIndex + perPage.value
+  return herramientasFiltradasYOrdenadas.value.slice(startIndex, endIndex)
+})
+
+// Información de paginación
+const totalPages = computed(() => Math.ceil(herramientasFiltradasYOrdenadas.value.length / perPage.value))
+const totalFiltered = computed(() => herramientasFiltradasYOrdenadas.value.length)
+
+// Datos de paginación simulados para el componente Pagination
+const paginationData = computed(() => ({
+  current_page: currentPage.value,
+  last_page: totalPages.value,
+  per_page: perPage.value,
+  from: totalFiltered.value > 0 ? ((currentPage.value - 1) * perPage.value) + 1 : 0,
+  to: Math.min(currentPage.value * perPage.value, totalFiltered.value),
+  total: totalFiltered.value,
+  prev_page_url: currentPage.value > 1 ? '#' : null,
+  next_page_url: currentPage.value < totalPages.value ? '#' : null,
+  links: [] // No necesitamos links para client-side
+}))
+
+// Watch para resetear página cuando cambien filtros
+watch([searchTerm, sortBy, filtroEstado, perPage], () => {
+  currentPage.value = 1
+}, { deep: true })
+
+// Handlers UniversalHeader
+function handleLimpiarFiltros() {
   searchTerm.value = ''
   sortBy.value = 'fecha-desc'
   filtroEstado.value = ''
-  notyf.success('Filtros limpiados')
+  perPage.value = 10
+
+  router.get(route('herramientas.index'), {}, {
+    preserveState: true,
+    preserveScroll: true
+  })
+
+  notyf.success('Filtros limpiados correctamente')
 }
 
-// El header emite v-model:sort-by (string). Lo mantenemos.
 const updateSort = (nuevo) => {
   if (nuevo && typeof nuevo === 'string') {
     sortBy.value = nuevo
   }
+}
+
+// Manejo de paginación
+const handlePerPageChange = (newPerPage) => {
+  perPage.value = newPerPage
+  currentPage.value = 1 // Reset to first page when changing per_page
+}
+
+const handlePageChange = (newPage) => {
+  currentPage.value = newPage
 }
 
 // ---------- Acciones ----------
@@ -155,12 +222,10 @@ const eliminarHerramienta = () => {
     preserveScroll: true,
     onSuccess: () => {
       notyf.success('Herramienta eliminada')
-      // remover localmente sin esperar refetch
-      const idx = herramientasOriginales.value.findIndex(h => h.id === selectedId.value)
-      if (idx !== -1) herramientasOriginales.value.splice(idx, 1)
-
       showModal.value = false
       selectedId.value = null
+      // Recargar la página actual para actualizar los datos
+      router.reload({ preserveScroll: true })
     },
     onError: (errors) => {
       console.error(errors)
@@ -169,47 +234,8 @@ const eliminarHerramienta = () => {
   })
 }
 
-// ---------- Búsqueda / Orden / Filtro estado (lado cliente) ----------
-// Si tu DocumentosTable ya maneja search/sort/filters internamente, pásale estos v-models.
-// Si NO, podrías filtrar/ordenar aquí y pasarle el resultado.
-const herramientasFiltradasYOrdenadas = computed(() => {
-  let arr = [...documentosHerramientas.value]
 
-  // Buscar
-  if (searchTerm.value) {
-    const q = searchTerm.value.toLowerCase()
-    arr = arr.filter(d =>
-      d.titulo?.toLowerCase().includes(q) ||
-      d.subtitulo?.toLowerCase().includes(q) ||
-      d.extra?.toLowerCase().includes(q)
-    )
-  }
-
-  // Filtro estado (opcional): 'asignada' | 'sin_asignar'
-  if (filtroEstado.value) {
-    arr = arr.filter(d => d.estado === filtroEstado.value)
-  }
-
-  // Orden
-  const [campo, dir] = sortBy.value.split('-') // ejemplo: 'nombre-asc', 'fecha-desc'
-  arr.sort((a, b) => {
-    let va = '', vb = ''
-    if (campo === 'nombre') { va = (a.titulo || '').toLowerCase(); vb = (b.titulo || '').toLowerCase() }
-    else if (campo === 'fecha') { va = a.fecha || ''; vb = b.fecha || '' }
-    else { va = (a.titulo || '').toLowerCase(); vb = (b.titulo || '').toLowerCase() }
-
-    if (va > vb) return dir === 'asc' ? 1 : -1
-    if (va < vb) return dir === 'asc' ? -1 : 1
-    return 0
-  })
-
-  return arr
-})
-
-// ---------- Helpers ----------
-function mapSortingToHeader (sorting) {
-  // mapping simple desde sorting del servidor a las opciones del header
-  // opciones del header: 'nombre-asc', 'nombre-desc', 'fecha-asc', 'fecha-desc'
+function mapSortingToHeader(sorting) {
   const by = sorting?.sort_by ?? 'created_at'
   const dir = sorting?.sort_direction ?? 'desc'
   if (by === 'nombre') return `nombre-${dir}`
@@ -217,7 +243,6 @@ function mapSortingToHeader (sorting) {
   return 'fecha-desc'
 }
 
-// ---------- Handlers para modales ----------
 const handleOpenImageModal = (imageUrl) => {
   selectedImage.value = imageUrl
   showImageModal.value = true
@@ -228,7 +253,6 @@ const closeImageModal = () => {
   selectedImage.value = ''
 }
 
-// ---------- Flash messages ----------
 onMounted(() => {
   const flash = page.props.flash
   if (flash?.success) notyf.success(flash.success)
@@ -241,11 +265,10 @@ onMounted(() => {
   <div class="herramientas-index min-h-screen bg-gray-50">
     <!-- Contenido principal -->
     <div class="max-w-8xl mx-auto px-6 py-8">
-      <!-- Header universal reutilizable -->
       <UniversalHeader
-        :total="props.stats.total"
-        :aprobadas="props.stats.asignadas"
-        :pendientes="props.stats.sin_asignar"
+        :total="estadisticas.total"
+        :aprobadas="estadisticas.asignadas"
+        :pendientes="estadisticas.sin_asignar"
         v-model:search-term="searchTerm"
         v-model:sort-by="sortBy"
         v-model:filtro-estado="filtroEstado"
@@ -253,11 +276,16 @@ onMounted(() => {
         @limpiar-filtros="handleLimpiarFiltros"
       />
 
-      <!-- Tabla (reutilizamos DocumentosTable con tipo='herramientas') -->
       <div class="mt-6">
         <DocumentosTable
-          :documentos="herramientasFiltradasYOrdenadas"
+          :documentos="documentosHerramientas"
           tipo="herramientas"
+          :mapeo="{
+            nombre: 'herramienta.nombre',
+            numero_serie: 'herramienta.numero_serie',
+            asignada: 'herramienta.tecnico',
+            fecha: 'herramienta.created_at'
+          }"
           :search-term="searchTerm"
           :sort-by="sortBy"
           :filtro-estado="filtroEstado"
@@ -268,47 +296,12 @@ onMounted(() => {
           @open-image-modal="handleOpenImageModal"
         />
 
-        <!-- Paginación -->
-        <div class="mt-6">
-          <div class="flex items-center justify-between">
-            <div class="text-sm text-gray-700">
-              Mostrando {{ props.herramientas.from }} a {{ props.herramientas.to }} de {{ props.herramientas.total }} resultados
-            </div>
-            <div class="flex space-x-1">
-              <Link
-                v-if="props.herramientas.prev_page_url"
-                :href="props.herramientas.prev_page_url"
-                class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-                preserve-scroll
-              >
-                Anterior
-              </Link>
-
-              <Link
-                v-for="link in props.herramientas.links.filter(l => l.url)"
-                :key="link.label"
-                :href="link.url"
-                :class="[
-                  'px-3 py-2 text-sm font-medium border rounded-md',
-                  link.active
-                    ? 'text-blue-600 bg-blue-50 border-blue-500'
-                    : 'text-gray-500 bg-white border-gray-300 hover:bg-gray-50'
-                ]"
-                :preserve-scroll="true"
-                v-html="link.label"
-              />
-
-              <Link
-                v-if="props.herramientas.next_page_url"
-                :href="props.herramientas.next_page_url"
-                class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-                preserve-scroll
-              >
-                Siguiente
-              </Link>
-            </div>
-          </div>
-        </div>
+        <!-- Componente de paginación -->
+        <Pagination
+          :pagination-data="paginationData"
+          @per-page-change="handlePerPageChange"
+          @page-change="handlePageChange"
+        />
       </div>
     </div>
 
@@ -325,7 +318,7 @@ onMounted(() => {
 
     <!-- Modal para imagen ampliada -->
     <div v-if="showImageModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4" @click.self="closeImageModal">
-      <div class="bg-white p-4 rounded-lg max-w-2xl max-h-[90vh] overflow-auto">
+      <div class="bg-white p-4 rounded-lg max-w-2xl max-h-[90vh] overflow-auto relative">
         <img :src="selectedImage" alt="Imagen ampliada" class="max-w-full h-auto rounded-lg" />
         <button @click="closeImageModal" class="absolute top-2 right-2 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

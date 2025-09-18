@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Log;
 class HerramientaController extends Controller
 {
     /**
-     * Muestra una lista de todas las herramientas con paginación y relaciones precargadas.
+     * Muestra una lista de herramientas con paginación y relaciones precargadas.
      *
      * @return \Inertia\Response
      */
@@ -25,11 +25,11 @@ class HerramientaController extends Controller
         if ($search = trim($request->input('search', ''))) {
             $query->where(function ($q) use ($search) {
                 $q->where('nombre', 'like', "%{$search}%")
-                  ->orWhere('numero_serie', 'like', "%{$search}%")
-                  ->orWhereHas('tecnico', function ($tq) use ($search) {
-                      $tq->where('nombre', 'like', "%{$search}%")
-                         ->orWhere('apellido', 'like', "%{$search}%");
-                  });
+                    ->orWhere('numero_serie', 'like', "%{$search}%")
+                    ->orWhereHas('tecnico', function ($tq) use ($search) {
+                        $tq->where('nombre', 'like', "%{$search}%")
+                            ->orWhere('apellido', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -43,18 +43,8 @@ class HerramientaController extends Controller
             }
         }
 
-        // Ordenamiento
-        $sortBy = $request->get('sort_by', 'created_at');
-        $sortDirection = $request->get('sort_direction', 'desc');
-        $validSort = ['nombre', 'numero_serie', 'created_at'];
-
-        if (!in_array($sortBy, $validSort)) $sortBy = 'created_at';
-        if (!in_array($sortDirection, ['asc', 'desc'])) $sortDirection = 'desc';
-
-        $query->orderBy($sortBy, $sortDirection);
-
-        // Paginación
-        $herramientas = $query->paginate(10)->appends($request->query());
+        // Para paginación del lado del cliente, enviamos TODAS las herramientas
+        $herramientas = $query->orderBy('created_at', 'desc')->get();
 
         // Estadísticas
         $totalHerramientas = Herramienta::count();
@@ -80,7 +70,7 @@ class HerramientaController extends Controller
                 }),
             ],
             'filters' => $request->only(['search', 'filtro_estado']),
-            'sorting' => ['sort_by' => $sortBy, 'sort_direction' => $sortDirection],
+            'sorting' => ['sort_by' => 'created_at', 'sort_direction' => 'desc'],
         ]);
     }
 
