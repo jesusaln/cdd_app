@@ -130,6 +130,15 @@
     @close="mostrarVistaPrevia = false"
     @print="() => window.print()"
   />
+
+  <!-- Modal Alerta Margen -->
+  <MarginAlertModal
+    :show="mostrarAlertaMargen"
+    :productos-bajo-margen="productosBajoMargen"
+    :processing="procesandoAjusteMargen"
+    @close="cerrarAlertaMargen"
+    @ajustar-automaticamente="ajustarPreciosAutomaticamente"
+  />
 </template>
 
 <script setup>
@@ -145,6 +154,7 @@ import PySSeleccionados from '@/Components/CreateComponents/PySSeleccionados.vue
 import Totales from '@/Components/CreateComponents/Totales.vue';
 import BotonesAccion from '@/Components/CreateComponents/BotonesAccion.vue';
 import VistaPreviaModal from '@/Components/Modals/VistaPreviaModal.vue';
+import MarginAlertModal from '@/Components/MarginAlertModal.vue';
 
 // Inicializar notificaciones
 const notyf = new Notyf({
@@ -217,6 +227,9 @@ const discounts = ref({});
 const clienteSeleccionado = ref(null);
 const mostrarVistaPrevia = ref(false);
 const mostrarAtajos = ref(true);
+const mostrarAlertaMargen = ref(false);
+const productosBajoMargen = ref([]);
+const procesandoAjusteMargen = ref(false);
 
 // Función para manejar localStorage de forma segura
 const saveToLocalStorage = (key, data) => {
@@ -510,7 +523,16 @@ const crearCotizacion = () => {
 
   // Enviar formulario
   form.post(route('cotizaciones.store'), {
-    onSuccess: () => {
+    onSuccess: (page) => {
+      // Verificar si hay alerta de margen insuficiente
+      if (page.props.flash?.warning && page.props.flash?.requiere_confirmacion_margen) {
+        // Usar los datos estructurados enviados por el backend
+        productosBajoMargen.value = page.props.flash.productos_bajo_margen || [];
+        mostrarAlertaMargen.value = true;
+        return;
+      }
+
+      // Éxito normal
       removeFromLocalStorage('cotizacionEnProgreso');
       selectedProducts.value = [];
       quantities.value = {};
@@ -590,4 +612,45 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('beforeunload', handleBeforeUnload);
 });
+
+// Funciones para manejar alerta de margen insuficiente
+const cerrarAlertaMargen = () => {
+  mostrarAlertaMargen.value = false;
+  productosBajoMargen.value = [];
+};
+
+const ajustarPreciosAutomaticamente = async () => {
+  procesandoAjusteMargen.value = true;
+
+  try {
+    // Agregar el flag de ajuste automático al formulario
+    form.ajustar_margen = true;
+
+    // Reenviar el formulario con el flag de ajuste
+    form.post(route('cotizaciones.store'), {
+      onSuccess: () => {
+        removeFromLocalStorage('cotizacionEnProgreso');
+        selectedProducts.value = [];
+        quantities.value = {};
+        prices.value = {};
+        discounts.value = {};
+        clienteSeleccionado.value = null;
+        form.reset();
+        mostrarAlertaMargen.value = false;
+        productosBajoMargen.value = [];
+        showNotification('Cotización creada con precios ajustados automáticamente');
+      },
+      onError: (errors) => {
+        console.error('Errores al ajustar precios:', errors);
+        showNotification('Error al ajustar precios automáticamente', 'error');
+      },
+    });
+  } catch (error) {
+    console.error('Error al ajustar precios:', error);
+    showNotification('Error al procesar el ajuste automático', 'error');
+  } finally {
+    procesandoAjusteMargen.value = false;
+  }
+};
+
 </script>

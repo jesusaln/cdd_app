@@ -171,7 +171,11 @@ class VentaController extends Controller
                 } else {
                     // Mostrar advertencia y permitir al usuario decidir
                     $mensaje = $marginService->generarMensajeAdvertencia($validacionMargen['productos_bajo_margen']);
-                    return redirect()->back()->withInput()->with('warning', $mensaje)->with('requiere_confirmacion_margen', true);
+                    return redirect()->back()
+                        ->withInput()
+                        ->with('warning', $mensaje)
+                        ->with('requiere_confirmacion_margen', true)
+                        ->with('productos_bajo_margen', $validacionMargen['productos_bajo_margen']);
                 }
             }
 
@@ -352,7 +356,11 @@ class VentaController extends Controller
             } else {
                 // Mostrar advertencia y permitir al usuario decidir
                 $mensaje = $marginService->generarMensajeAdvertencia($validacionMargen['productos_bajo_margen']);
-                return Redirect::back()->withInput()->with('warning', $mensaje)->with('requiere_confirmacion_margen', true);
+                return Redirect::back()
+                    ->withInput()
+                    ->with('warning', $mensaje)
+                    ->with('requiere_confirmacion_margen', true)
+                    ->with('productos_bajo_margen', $validacionMargen['productos_bajo_margen']);
             }
         }
 

@@ -164,7 +164,11 @@ class PedidoController extends Controller
             } else {
                 // Mostrar advertencia y permitir al usuario decidir
                 $mensaje = $marginService->generarMensajeAdvertencia($validacionMargen['productos_bajo_margen']);
-                return redirect()->back()->withInput()->with('warning', $mensaje)->with('requiere_confirmacion_margen', true);
+                return redirect()->back()
+                    ->withInput()
+                    ->with('warning', $mensaje)
+                    ->with('requiere_confirmacion_margen', true)
+                    ->with('productos_bajo_margen', $validacionMargen['productos_bajo_margen']);
             }
         }
 
@@ -357,7 +361,11 @@ class PedidoController extends Controller
             } else {
                 // Mostrar advertencia y permitir al usuario decidir
                 $mensaje = $marginService->generarMensajeAdvertencia($validacionMargen['productos_bajo_margen']);
-                return Redirect::back()->withInput()->with('warning', $mensaje)->with('requiere_confirmacion_margen', true);
+                return Redirect::back()
+                    ->withInput()
+                    ->with('warning', $mensaje)
+                    ->with('requiere_confirmacion_margen', true)
+                    ->with('productos_bajo_margen', $validacionMargen['productos_bajo_margen']);
             }
         }
 
@@ -625,6 +633,7 @@ class PedidoController extends Controller
     /**
      * Convertir un pedido en venta.
      * - Se unifican nombres con VentaController (numero_venta, fecha, ventable_*).
+     * - Se valida y descuenta inventario de productos.
      */
     public function enviarAVenta(Request $request, $id)
     {
@@ -678,6 +687,28 @@ class PedidoController extends Controller
                 ], 409); // 409 Conflict
             }
 
+            // ✅ VALIDAR STOCK DISPONIBLE ANTES DE CREAR VENTA
+            foreach ($pedido->items as $item) {
+                if ($item->pedible_type === Producto::class) {
+                    $producto = Producto::find($item->pedible_id);
+                    if (!$producto) {
+                        return response()->json([
+                            'success' => false,
+                            'error' => "Producto con ID {$item->pedible_id} no encontrado",
+                            'requiere_confirmacion' => false
+                        ], 400);
+                    }
+
+                    if ($producto->stock < $item->cantidad) {
+                        return response()->json([
+                            'success' => false,
+                            'error' => "Stock insuficiente para '{$producto->nombre}'. Disponible: {$producto->stock}, Solicitado: {$item->cantidad}",
+                            'requiere_confirmacion' => false
+                        ], 400);
+                    }
+                }
+            }
+
             // Generar número de venta (formato propio de este controlador)
             $numeroVenta = $this->generarNumeroVenta();
 
@@ -698,7 +729,7 @@ class PedidoController extends Controller
             ]);
             $venta->save();
 
-            // Copiar ítems del pedido a la venta
+            // Copiar ítems del pedido a la venta y DESCONTAR INVENTARIO
             foreach ($pedido->items as $item) {
                 VentaItem::create([
                     'venta_id' => $venta->id,
@@ -710,6 +741,22 @@ class PedidoController extends Controller
                     'descuento_monto' => $item->descuento_monto,
                     'subtotal' => $item->subtotal,
                 ]);
+
+                // ✅ DESCONTAR INVENTARIO SOLO PARA PRODUCTOS
+                if ($item->pedible_type === Producto::class) {
+                    $producto = Producto::find($item->pedible_id);
+                    if ($producto) {
+                        $producto->decrement('stock', $item->cantidad);
+                        Log::info("Stock reducido para producto {$producto->id} (pedido → venta)", [
+                            'producto_id' => $producto->id,
+                            'pedido_id' => $pedido->id,
+                            'venta_id' => $venta->id,
+                            'cantidad_reducida' => $item->cantidad,
+                            'stock_anterior' => $producto->stock + $item->cantidad,
+                            'stock_actual' => $producto->stock
+                        ]);
+                    }
+                }
             }
 
             // Actualizar estado del pedido a enviado a venta
@@ -719,7 +766,7 @@ class PedidoController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Venta creada exitosamente',
+                'message' => 'Venta creada exitosamente con descuento de inventario',
                 'venta_id' => $venta->id,
                 'numero_venta' => $venta->numero_venta,
                 'items_count' => $venta->items()->count(),

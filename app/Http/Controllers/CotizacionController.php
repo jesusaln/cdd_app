@@ -37,6 +37,7 @@ class CotizacionController extends Controller
             'createdBy:id,name',
             'updatedBy:id,name',
         ])
+            ->orderBy('created_at', 'desc')
             ->get()
             ->filter(function ($cotizacion) {
                 // Cotizaciones con cliente y al menos un ítem
@@ -159,23 +160,48 @@ class CotizacionController extends Controller
         $marginService = new MarginService();
         $validacionMargen = $marginService->validarMargenesProductos($validated['productos']);
 
+        Log::info('Validación de márgenes en cotización', [
+            'productos_count' => count($validated['productos']),
+            'todos_validos' => $validacionMargen['todos_validos'],
+            'productos_bajo_margen_count' => count($validacionMargen['productos_bajo_margen']),
+            'ajustar_margen_request' => $request->has('ajustar_margen') ? $request->ajustar_margen : 'no_presente'
+        ]);
+
         if (!$validacionMargen['todos_validos']) {
+            Log::info('Productos con margen insuficiente detectados', [
+                'productos_bajo_margen' => $validacionMargen['productos_bajo_margen']
+            ]);
+
             // Si hay productos con margen insuficiente, verificar si el usuario aceptó el ajuste
             if ($request->has('ajustar_margen') && $request->ajustar_margen === 'true') {
+                Log::info('Usuario aceptó ajuste automático de márgenes');
                 // Ajustar precios automáticamente
                 foreach ($validated['productos'] as &$item) {
                     if ($item['tipo'] === 'producto') {
                         $producto = Producto::find($item['id']);
                         if ($producto) {
+                            $precioOriginal = $item['precio'];
                             $item['precio'] = $marginService->ajustarPrecioAlMargen($producto, $item['precio']);
+                            Log::info('Precio ajustado', [
+                                'producto_id' => $producto->id,
+                                'precio_original' => $precioOriginal,
+                                'precio_ajustado' => $item['precio']
+                            ]);
                         }
                     }
                 }
             } else {
+                Log::info('Mostrando modal de confirmación de márgenes insuficientes');
                 // Mostrar advertencia y permitir al usuario decidir
                 $mensaje = $marginService->generarMensajeAdvertencia($validacionMargen['productos_bajo_margen']);
-                return redirect()->back()->withInput()->with('warning', $mensaje)->with('requiere_confirmacion_margen', true);
+                return redirect()->back()
+                    ->withInput()
+                    ->with('warning', $mensaje)
+                    ->with('requiere_confirmacion_margen', true)
+                    ->with('productos_bajo_margen', $validacionMargen['productos_bajo_margen']);
             }
+        } else {
+            Log::info('Todos los productos tienen márgenes válidos');
         }
 
         $subtotal = 0;
@@ -349,23 +375,51 @@ class CotizacionController extends Controller
         $marginService = new MarginService();
         $validacionMargen = $marginService->validarMargenesProductos($validated['productos']);
 
+        Log::info('Validación de márgenes en actualización de cotización', [
+            'cotizacion_id' => $id,
+            'productos_count' => count($validated['productos']),
+            'todos_validos' => $validacionMargen['todos_validos'],
+            'productos_bajo_margen_count' => count($validacionMargen['productos_bajo_margen']),
+            'ajustar_margen_request' => $request->has('ajustar_margen') ? $request->ajustar_margen : 'no_presente'
+        ]);
+
         if (!$validacionMargen['todos_validos']) {
+            Log::info('Productos con margen insuficiente detectados en actualización', [
+                'cotizacion_id' => $id,
+                'productos_bajo_margen' => $validacionMargen['productos_bajo_margen']
+            ]);
+
             // Si hay productos con margen insuficiente, verificar si el usuario aceptó el ajuste
             if ($request->has('ajustar_margen') && $request->ajustar_margen === 'true') {
+                Log::info('Usuario aceptó ajuste automático de márgenes en actualización', ['cotizacion_id' => $id]);
                 // Ajustar precios automáticamente
                 foreach ($validated['productos'] as &$item) {
                     if ($item['tipo'] === 'producto') {
                         $producto = Producto::find($item['id']);
                         if ($producto) {
+                            $precioOriginal = $item['precio'];
                             $item['precio'] = $marginService->ajustarPrecioAlMargen($producto, $item['precio']);
+                            Log::info('Precio ajustado en actualización', [
+                                'cotizacion_id' => $id,
+                                'producto_id' => $producto->id,
+                                'precio_original' => $precioOriginal,
+                                'precio_ajustado' => $item['precio']
+                            ]);
                         }
                     }
                 }
             } else {
+                Log::info('Mostrando modal de confirmación de márgenes insuficientes en actualización', ['cotizacion_id' => $id]);
                 // Mostrar advertencia y permitir al usuario decidir
                 $mensaje = $marginService->generarMensajeAdvertencia($validacionMargen['productos_bajo_margen']);
-                return Redirect::back()->withInput()->with('warning', $mensaje)->with('requiere_confirmacion_margen', true);
+                return Redirect::back()
+                    ->withInput()
+                    ->with('warning', $mensaje)
+                    ->with('requiere_confirmacion_margen', true)
+                    ->with('productos_bajo_margen', $validacionMargen['productos_bajo_margen']);
             }
+        } else {
+            Log::info('Todos los productos tienen márgenes válidos en actualización', ['cotizacion_id' => $id]);
         }
 
         // Cálculos: redondeamos a 2 decimales para evitar ruido por flotantes
