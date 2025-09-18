@@ -45,11 +45,12 @@
                   Nombre/Razón Social <span class="text-red-500">*</span>
                 </label>
                 <input
-                  type="text"
-                  id="nombre_razon_social"
-                  v-model="form.nombre_razon_social"
-                  @blur="toUpper('nombre_razon_social')"
-                  :class="[
+                 type="text"
+                 id="nombre_razon_social"
+                 v-model="form.nombre_razon_social"
+                 @blur="toUpper('nombre_razon_social')"
+                 autocomplete="off"
+                 :class="[
                     'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                     form.errors.nombre_razon_social ? 'border-red-300 bg-red-50' : 'border-gray-300'
                   ]"
@@ -69,7 +70,9 @@
                type="email"
                id="email"
                v-model="form.email"
+               autocomplete="new-password"
                placeholder="correo@ejemplo.com"
+
                :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.email ? 'border-red-300 bg-red-50' : 'border-gray-300'
@@ -88,8 +91,10 @@
               <input
                type="tel"
                id="telefono"
+               autocomplete="new-password"
                v-model="form.telefono"
                placeholder="Opcional"
+
                :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.telefono ? 'border-red-300 bg-red-50' : 'border-gray-300'
@@ -141,6 +146,7 @@
                 :value="form.rfc"
                 @input="onRfcInput"
                 :disabled="!form.tipo_persona"
+                autocomplete="off"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.rfc ? 'border-red-300 bg-red-50' : 'border-gray-300',
@@ -170,6 +176,7 @@
                 :value="form.curp"
                 @input="onCurpInput"
                 :disabled="form.tipo_persona === 'moral' || !form.tipo_persona"
+                autocomplete="off"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.curp ? 'border-red-300 bg-red-50' : 'border-gray-300',
@@ -260,6 +267,7 @@
                   id="calle"
                   v-model="form.calle"
                   @blur="toUpper('calle')"
+                  autocomplete="new-password"
                   :class="[
                     'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                     form.errors.calle ? 'border-red-300 bg-red-50' : 'border-gray-300'
@@ -281,6 +289,7 @@
                 id="numero_exterior"
                 v-model="form.numero_exterior"
                 @blur="toUpper('numero_exterior')"
+                autocomplete="new-password"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.numero_exterior ? 'border-red-300 bg-red-50' : 'border-gray-300'
@@ -301,6 +310,7 @@
                 id="numero_interior"
                 v-model="form.numero_interior"
                 @blur="toUpper('numero_interior')"
+                autocomplete="new-password"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.numero_interior ? 'border-red-300 bg-red-50' : 'border-gray-300'
@@ -357,6 +367,7 @@
                 :value="form.codigo_postal"
                 @input="onCpInput"
                 placeholder="12345"
+                autocomplete="new-password"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.codigo_postal ? 'border-red-300 bg-red-50' : 'border-gray-300'
@@ -376,6 +387,7 @@
                 type="text"
                 id="municipio"
                 v-model="form.municipio"
+                autocomplete="new-password"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.municipio ? 'border-red-300 bg-red-50' : 'border-gray-300'
@@ -535,7 +547,7 @@ const initFormData = () => ({
   nombre_razon_social: props.cliente?.nombre_razon_social || '',
   email: props.cliente?.email || '',
   telefono: props.cliente?.telefono || '',
-  tipo_persona: props.cliente?.tipo_persona || '',
+  tipo_persona: '',
   rfc: props.cliente?.rfc || '',
   curp: props.cliente?.curp || '',                 // <<< NUEVO
   regimen_fiscal: props.cliente?.regimen_fiscal || '',
@@ -547,7 +559,7 @@ const initFormData = () => ({
   codigo_postal: props.cliente?.codigo_postal || '',
   municipio: props.cliente?.municipio || '',
   estado: props.cliente?.estado || '',
-  pais: props.cliente?.pais || 'MX',
+  pais: '',
 })
 
 const form = useForm(initFormData())

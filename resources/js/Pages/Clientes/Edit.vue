@@ -52,6 +52,7 @@
                   id="nombre_razon_social"
                   v-model="form.nombre_razon_social"
                   @blur="toUpper('nombre_razon_social')"
+                  autocomplete="off"
                   :class="[
                     'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                     form.errors.nombre_razon_social ? 'border-red-300 bg-red-50' : 'border-gray-300'
@@ -74,6 +75,7 @@
                v-model="form.email"
                @blur="() => validateEmail(form.email)"
                placeholder="correo@ejemplo.com"
+               autocomplete="new-password"
                :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.email ? 'border-red-300 bg-red-50' : 'border-gray-300'
@@ -90,11 +92,12 @@
                 Teléfono
               </label>
               <input
-               type="tel"
-               id="telefono"
-               v-model="form.telefono"
-               placeholder="Opcional"
-               :class="[
+                type="tel"
+                id="telefono"
+                v-model="form.telefono"
+                placeholder="Opcional"
+                autocomplete="tel-national"
+                :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.telefono ? 'border-red-300 bg-red-50' : 'border-gray-300'
                 ]"
@@ -146,6 +149,7 @@
                 @input="onRfcInput"
                 @blur="() => { toUpper('rfc'); validateRfc(form.rfc, props.cliente.id) }"
                 :disabled="!form.tipo_persona"
+                autocomplete="off"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.rfc ? 'border-red-300 bg-red-50' : 'border-gray-300',
@@ -174,6 +178,7 @@
                 :disabled="form.tipo_persona === 'moral'"
                 :maxlength="18"
                 :placeholder="form.tipo_persona === 'fisica' ? 'ABCD123456HMEFGH99' : 'Opcional'"
+                autocomplete="off"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.curp ? 'border-red-300 bg-red-50' : 'border-gray-300',
@@ -263,6 +268,7 @@
                   id="calle"
                   v-model="form.calle"
                   @blur="toUpper('calle')"
+                  autocomplete="off"
                   :class="[
                     'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                     form.errors.calle ? 'border-red-300 bg-red-50' : 'border-gray-300'
@@ -284,6 +290,7 @@
                 id="numero_exterior"
                 v-model="form.numero_exterior"
                 @blur="toUpper('numero_exterior')"
+                autocomplete="off"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.numero_exterior ? 'border-red-300 bg-red-50' : 'border-gray-300'
@@ -304,6 +311,7 @@
                 id="numero_interior"
                 v-model="form.numero_interior"
                 @blur="toUpper('numero_interior')"
+                autocomplete="off"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.numero_interior ? 'border-red-300 bg-red-50' : 'border-gray-300'
@@ -360,6 +368,7 @@
                 :value="form.codigo_postal"
                 @input="onCpInput"
                 placeholder="12345"
+                autocomplete="off"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.codigo_postal ? 'border-red-300 bg-red-50' : 'border-gray-300'
@@ -379,6 +388,7 @@
                 type="text"
                 id="municipio"
                 v-model="form.municipio"
+                autocomplete="off"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.municipio ? 'border-red-300 bg-red-50' : 'border-gray-300'

@@ -5,6 +5,8 @@ namespace Database\Seeders;
 use App\Models\Cliente;
 use Illuminate\Database\Seeder;
 use Faker\Factory as Faker;
+use Illuminate\Support\Facades\DB;
+use Eclipxe\SepomexPhp\SepomexPhp;
 
 class ClienteSeeder extends Seeder
 {
@@ -32,49 +34,24 @@ class ClienteSeeder extends Seeder
             ]
         );
 
-        // 2. Clientes de prueba (solo en desarrollo)
+        // 2. Clientes de prueba con datos reales de SEPOMEX (solo en desarrollo)
         if (app()->environment('local', 'testing')) {
             $faker = Faker::create('es_MX');
 
             $regimenesFiscales = ['601', '603', '605', '606', '608', '610', '615', '616', '620'];
             $usosCFDI = ['G01', 'G02', 'G03', 'I01', 'I02', 'I03', 'I04', 'I05', 'I06', 'I07', 'I08'];
 
-            // ⬇️ Ahora usamos CLAVES de estados, no nombres
-            $clavesEstados = [
-                'AGU',
-                'BCN',
-                'BCS',
-                'CAM',
-                'CHP',
-                'CHH',
-                'DIF',
-                'DUR',
-                'GUA',
-                'GRO',
-                'HID',
-                'JAL',
-                'MEX',
-                'MIC',
-                'MOR',
-                'NAY',
-                'NLE',
-                'OAX',
-                'PUE',
-                'QUE',
-                'ROO',
-                'SIN',
-                'SLP',
-                'SON',
-                'TAB',
-                'TAM',
-                'TLA',
-                'VER',
-                'YUC',
-                'ZAC'
-            ];
+            // Obtener códigos postales reales de SEPOMEX
+            $codigosPostalesReales = $this->obtenerCodigosPostalesReales();
 
-            for ($i = 0; $i < 15; $i++) {
+            for ($i = 0; $i < min(15, count($codigosPostalesReales)); $i++) {
                 $tipoPersona = $faker->randomElement(['fisica', 'moral']); // ¡minúsculas!
+
+                // Usar datos reales de SEPOMEX
+                $datosCP = $codigosPostalesReales[$i];
+                $coloniaAleatoria = !empty($datosCP['colonias']) ?
+                    $faker->randomElement($datosCP['colonias']) :
+                    'CENTRO';
 
                 Cliente::create([
                     'nombre_razon_social' => $tipoPersona === 'fisica' ?
@@ -89,15 +66,100 @@ class ClienteSeeder extends Seeder
                     'calle' => $faker->streetName(),
                     'numero_exterior' => $faker->buildingNumber(),
                     'numero_interior' => $faker->optional(0.3)->buildingNumber(),
-                    'colonia' => $faker->citySuffix(),
-                    'codigo_postal' => $faker->postcode(),
-                    'municipio' => $faker->city(),
-                    'estado' => $faker->randomElement($clavesEstados), // ⬅️ ¡Clave!
-                    'pais' => 'MX', // ⬅️ ¡Importante!
+                    'colonia' => $coloniaAleatoria,
+                    'codigo_postal' => $datosCP['codigo_postal'],
+                    'municipio' => $datosCP['municipio'],
+                    'estado' => $datosCP['estado'], // ⬅️ ¡Nombre completo del estado!
+                    'pais' => 'MX',
                     'activo' => $faker->boolean(90)
                 ]);
             }
         }
+    }
+
+    private function obtenerCodigosPostalesReales(): array
+    {
+        try {
+            // Códigos postales de ejemplo de diferentes estados
+            $codigosEjemplo = [
+                '01000', // Ciudad de México
+                '83117', // Hermosillo, Sonora
+                '45050', // Zapopan, Jalisco
+                '22000', // Tijuana, Baja California
+                '64000', // Monterrey, Nuevo León
+                '44100', // Guadalajara, Jalisco
+                '20000', // Aguascalientes, Aguascalientes
+                '31000', // Chihuahua, Chihuahua
+                '29000', // Tuxtla Gutiérrez, Chiapas
+                '97000', // Mérida, Yucatán
+                '80000', // Culiacán, Sinaloa
+                '86000', // Villahermosa, Tabasco
+                '24000', // Campeche, Campeche
+                '85000', // Ciudad Obregón, Sonora
+                '27000', // Torreón, Coahuila
+            ];
+
+            $resultados = [];
+
+            foreach ($codigosEjemplo as $cp) {
+                try {
+                    $sepomex = SepomexPhp::createForDatabaseFile(storage_path('sepomex.sqlite'));
+                    $zipCodeData = $sepomex->getZipCodeData($cp);
+
+                    if ($zipCodeData) {
+                        $colonias = [];
+                        foreach ($zipCodeData->locations as $location) {
+                            $colonias[] = $location->name;
+                        }
+
+                        $resultados[] = [
+                            'codigo_postal' => $cp,
+                            'estado' => $zipCodeData->state->name,
+                            'municipio' => $zipCodeData->district->name,
+                            'colonias' => $colonias
+                        ];
+                    }
+                } catch (\Exception $e) {
+                    // Si hay error con un CP específico, continuar con el siguiente
+                    continue;
+                }
+            }
+
+            // Si no se pudieron obtener datos reales, devolver datos de respaldo
+            if (empty($resultados)) {
+                return $this->datosRespaldo();
+            }
+
+            return $resultados;
+
+        } catch (\Exception $e) {
+            // En caso de error, usar datos de respaldo
+            return $this->datosRespaldo();
+        }
+    }
+
+    private function datosRespaldo(): array
+    {
+        return [
+            [
+                'codigo_postal' => '01000',
+                'estado' => 'Ciudad de México',
+                'municipio' => 'Álvaro Obregón',
+                'colonias' => ['San Ángel', 'Centro']
+            ],
+            [
+                'codigo_postal' => '83117',
+                'estado' => 'Sonora',
+                'municipio' => 'Hermosillo',
+                'colonias' => ['Centro', 'Bicentenario Residencial']
+            ],
+            [
+                'codigo_postal' => '45050',
+                'estado' => 'Jalisco',
+                'municipio' => 'Zapopan',
+                'colonias' => ['Centro', 'Ciudad Del Sol']
+            ]
+        ];
     }
 
     private function generarRFC(string $tipoPersona): string
