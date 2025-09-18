@@ -16,12 +16,75 @@ use Carbon\Carbon;
 class CitaController extends Controller
 {
     /**
-     * Mostrar todas las citas.
+     * Mostrar todas las citas con paginación y filtros.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $citas = Cita::with('tecnico', 'cliente')->orderBy('fecha_hora', 'desc')->get();
-        return Inertia::render('Citas/Index', ['citas' => $citas]);
+        $query = Cita::with('tecnico', 'cliente');
+
+        // Filtros
+        if ($request->filled('estado')) {
+            $query->where('estado', $request->estado);
+        }
+
+        if ($request->filled('tecnico_id')) {
+            $query->where('tecnico_id', $request->tecnico_id);
+        }
+
+        if ($request->filled('cliente_id')) {
+            $query->where('cliente_id', $request->cliente_id);
+        }
+
+        if ($request->filled('fecha_desde')) {
+            $query->whereDate('fecha_hora', '>=', $request->fecha_desde);
+        }
+
+        if ($request->filled('fecha_hasta')) {
+            $query->whereDate('fecha_hora', '<=', $request->fecha_hasta);
+        }
+
+        if ($request->filled('busqueda')) {
+            $search = $request->busqueda;
+            $query->where(function($q) use ($search) {
+                $q->where('tipo_servicio', 'like', "%{$search}%")
+                  ->orWhere('descripcion', 'like', "%{$search}%")
+                  ->orWhere('problema_reportado', 'like', "%{$search}%")
+                  ->orWhereHas('cliente', function($clienteQuery) use ($search) {
+                      $clienteQuery->where('nombre_razon_social', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('tecnico', function($tecnicoQuery) use ($search) {
+                      $tecnicoQuery->where('nombre', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        $citas = $query->orderBy('fecha_hora', 'desc')->paginate(15);
+
+        // Datos adicionales para filtros
+        $tecnicos = Tecnico::select('id', 'nombre')->get();
+        $clientes = Cliente::select('id', 'nombre_razon_social')->get();
+        $estados = [
+            Cita::ESTADO_PENDIENTE => 'Pendiente',
+            Cita::ESTADO_EN_PROCESO => 'En Proceso',
+            Cita::ESTADO_COMPLETADO => 'Completado',
+            Cita::ESTADO_CANCELADO => 'Cancelado',
+        ];
+
+        return Inertia::render('Citas/Index', [
+            'citas' => $citas->items(), // Solo los items del array
+            'pagination' => [
+                'current_page' => $citas->currentPage(),
+                'last_page' => $citas->lastPage(),
+                'per_page' => $citas->perPage(),
+                'total' => $citas->total(),
+                'from' => $citas->firstItem(),
+                'to' => $citas->lastItem(),
+            ],
+            'tecnicos' => $tecnicos,
+            'clientes' => $clientes,
+            'estados' => $estados,
+            'filtros' => $request->only(['estado', 'tecnico_id', 'cliente_id', 'fecha_desde', 'fecha_hasta', 'busqueda'])
+        ]);
     }
 
     /**
@@ -50,7 +113,7 @@ class CitaController extends Controller
                 'after:now',
                 function ($attribute, $value, $fail) {
                     $fecha = Carbon::parse($value);
-                    if ($fecha->isSunday()) { // Cambiado de isWeekend() a isSunday()
+                    if ($fecha->isSunday()) {
                         $fail('No se pueden programar citas los domingos.');
                     }
                     if ($fecha->hour < 8 || $fecha->hour > 18) {
@@ -58,6 +121,7 @@ class CitaController extends Controller
                     }
                 }
             ],
+            'prioridad' => 'nullable|string|in:baja,media,alta,urgente',
             'descripcion' => 'nullable|string|max:1000',
             'tipo_equipo' => 'required|string|max:255',
             'marca_equipo' => 'required|string|max:255',
@@ -132,17 +196,18 @@ class CitaController extends Controller
                 'date',
                 function ($attribute, $value, $fail) use ($cita) {
                     $fecha = Carbon::parse($value);
-                    if ($fecha->isPast() && $cita->estado === 'pendiente') {
+                    if ($fecha->isPast() && $cita->estado === Cita::ESTADO_PENDIENTE) {
                         $fail('No se puede programar una cita pendiente en el pasado.');
                     }
-                    if ($fecha->isSunday()) { // Cambiado de isWeekend() a isSunday()
+                    if ($fecha->isSunday()) {
                         $fail('No se pueden programar citas los domingos.');
                     }
-                    if ($fecha->hour < 6 || $fecha->hour > 20) {
-                        $fail('Las citas deben programarse entre las 6:00 AM y 8:00 PM.');
+                    if ($fecha->hour < 8 || $fecha->hour > 18) {
+                        $fail('Las citas deben programarse entre las 8:00 AM y 6:00 PM.');
                     }
                 }
             ],
+            'prioridad' => 'nullable|string|in:baja,media,alta,urgente',
             'descripcion' => 'nullable|string|max:1000',
             'tipo_equipo' => 'sometimes|required|string|max:255',
             'marca_equipo' => 'sometimes|required|string|max:255',
@@ -291,30 +356,11 @@ class CitaController extends Controller
      */
     public function show(Cita $cita)
     {
-        $cita->load('cliente', 'tecnico');
+        $cita->load(['cliente', 'tecnico']);
+
         return Inertia::render('Citas/Show', [
             'cita' => $cita,
-            'tecnicos' => Tecnico::all(),
-            'clientes' => Cliente::all(),
         ]);
     }
 
-    /**
-     * Método original mantenido para compatibilidad completa
-     */
-    public function updateIndex(Request $request, $id)
-    {
-        $cita = Cita::findOrFail($id);
-
-        $validated = $request->validate([
-            'estado' => 'required|in:pendiente,en_proceso,completado,cancelado',
-        ]);
-
-        $cita->update([
-            'estado' => $validated['estado'],
-        ]);
-
-        // Devolver una respuesta compatible con Inertia
-        return redirect()->back()->with('success', 'Estado actualizado correctamente');
-    }
 }
