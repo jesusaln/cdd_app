@@ -997,7 +997,9 @@ const items = computed(() => {
   if (props.filtroEstado) {
     filtered = filtered.filter(doc => {
       if (isClientes.value) {
-        return doc.estado === props.filtroEstado;
+        // Mapear filtroEstado ('1', '0') a estado del doc ('activo', 'inactivo')
+        const estadoFiltro = props.filtroEstado === '1' ? 'activo' : (props.filtroEstado === '0' ? 'inactivo' : '');
+        return doc.estado === estadoFiltro;
       }
       return doc.estado === props.filtroEstado;
     });

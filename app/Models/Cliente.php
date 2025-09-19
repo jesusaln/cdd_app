@@ -137,7 +137,9 @@ class Cliente extends Model implements AuditableContract
 
     public function scopeActivos($query)
     {
-        return $query->where('activo', true);
+        return $query->where(function ($q) {
+            $q->where('activo', true)->orWhereNull('activo');
+        });
     }
 
     public function scopeInactivos($query)

@@ -199,14 +199,18 @@ class ClienteController extends Controller
         if ($request->query->has('activo')) {
             $val = (string) $request->query('activo');
 
-            if (in_array($val, ['0', '1'], true)) {
-                $q->where('activo', (int) $val); // 0 o 1
+            if ($val === '1') {
+                // Activos: true o NULL (considerar NULL como true por defecto)
+                $q->where(function ($query) {
+                    $query->where('activo', true)->orWhereNull('activo');
+                });
+            } elseif ($val === '0') {
+                // Inactivos: solo false
+                $q->where('activo', false);
             }
             // Si NO es '0' ni '1', NO filtramos (mostrar todos)
-        } else {
-            // Por defecto, mostrar solo clientes activos
-            $q->where('activo', true);
         }
+        // Por defecto, mostrar todos los clientes (activos e inactivos)
 
 
         return $q->orderByDesc('created_at');
@@ -365,7 +369,9 @@ class ClienteController extends Controller
             $clientes = $this->transformClientesPaginator($clientes);
 
             $clientesCount   = Cliente::count();
-            $clientesActivos = Cliente::where('activo', true)->count();
+            $clientesActivos = Cliente::where(function ($q) {
+                $q->where('activo', true)->orWhereNull('activo');
+            })->count();
 
             return Inertia::render('Clientes/Index', [
                 'titulo'   => 'Clientes',

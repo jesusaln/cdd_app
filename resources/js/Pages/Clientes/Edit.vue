@@ -109,6 +109,26 @@
           </div>
         </div>
 
+        <!-- Estado del Cliente -->
+        <div class="border-b border-gray-200 pb-6">
+          <h2 class="text-lg font-medium text-gray-900 mb-4">Estado del Cliente</h2>
+          <div class="grid grid-cols-1 gap-6">
+            <div class="mb-4">
+              <label class="inline-flex items-center">
+                <input
+                  type="checkbox"
+                  v-model="form.activo"
+                  class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                />
+                <span class="ml-2 text-sm font-medium text-gray-700">Cliente Activo</span>
+              </label>
+              <p class="mt-1 text-xs text-gray-500">
+                Desmarca para inactivar el cliente. Los clientes inactivos no aparecerán en listas por defecto.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <!-- Información Fiscal -->
         <div class="border-b border-gray-200 pb-6">
           <h2 class="text-lg font-medium text-gray-900 mb-4">Información Fiscal</h2>
@@ -582,6 +602,7 @@ const initFormData = () => ({
   municipio: props.cliente?.municipio || '',
   estado: props.cliente?.estado || '',
   pais: props.cliente?.pais || 'MX',
+  activo: props.cliente?.activo ?? true,
 })
 
 const form = useForm(initFormData())

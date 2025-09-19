@@ -97,10 +97,15 @@ const selectedId = ref(null)
 // ---------- Datos locales para manipulación ----------
 const clientesOriginales = ref([])
 
+// Función para mapear valores del backend a frontend (mantener como '1', '0', '')
+function mapActivoToEstado(val) {
+  return val // ya viene como '1', '0', '' del backend
+}
+
 // Filtros/ordenamiento (mapeados al header universal)
 const searchTerm = ref(props.filters?.search ?? '')
 const sortBy = ref(mapSortingToHeader(props.sorting)) // 'fecha-desc' / 'fecha-asc' / 'nombre-asc' / 'nombre-desc'
-const filtroEstado = ref(props.filters?.activo ?? '') // activo/inactivo (opcional) - usar el valor del backend
+const filtroEstado = ref(mapActivoToEstado(props.filters?.activo ?? '')) // activo/inactivo (opcional) - usar el valor del backend
 
 // Paginación del lado del cliente
 const currentPage = ref(1)
@@ -177,8 +182,8 @@ function handleLimpiarFiltros () {
     per_page: 10,
     page: 1
   }, {
-    preserveState: true,
-    preserveScroll: true
+    preserveState: false,
+    preserveScroll: false
   })
 
   notyf.success('Filtros limpiados')
@@ -195,24 +200,25 @@ function handleSearchChange(newSearch) {
     per_page: perPage.value,
     page: 1 // Reset to first page
   }, {
-    preserveState: true,
-    preserveScroll: true
+    preserveState: false,
+    preserveScroll: false
   })
 }
 
 // Handler para filtro de estado
 function handleEstadoChange(newEstado) {
-  filtroEstado.value = newEstado
+  filtroEstado.value = newEstado; // '1', '0', ''
+  const activoParam = newEstado; // ya es '1', '0', ''
   router.get(route('clientes.index'), {
     search: searchTerm.value,
     sort_by: sortBy.value.split('-')[0],
     sort_direction: sortBy.value.split('-')[1] || 'desc',
-    activo: newEstado,
+    activo: activoParam,
     per_page: perPage.value,
     page: 1 // Reset to first page
   }, {
-    preserveState: true,
-    preserveScroll: true
+    preserveState: false,
+    preserveScroll: false
   })
 }
 
@@ -227,8 +233,8 @@ function handleSortChange(newSort) {
     per_page: perPage.value,
     page: 1 // Reset to first page
   }, {
-    preserveState: true,
-    preserveScroll: true
+    preserveState: false,
+    preserveScroll: false
   })
 }
 
@@ -245,8 +251,8 @@ const updateSort = (newSort) => {
     sort_by: field,
     sort_direction: direction
   }, {
-    preserveState: true,
-    preserveScroll: true
+    preserveState: false,
+    preserveScroll: false
   })
 }
 
@@ -335,8 +341,8 @@ const handlePerPageChange = (newPerPage) => {
     per_page: newPerPage,
     page: 1 // Reset to first page
   }, {
-    preserveState: true,
-    preserveScroll: true
+    preserveState: false,
+    preserveScroll: false
   })
 }
 
@@ -346,8 +352,8 @@ const handlePageChange = (newPage) => {
     ...props.sorting,
     page: newPage
   }, {
-    preserveState: true,
-    preserveScroll: true
+    preserveState: false,
+    preserveScroll: false
   })
 }
 
@@ -411,7 +417,7 @@ onMounted(() => {
           }"
           :search-term="props.filters?.search || ''"
           :sort-by="`${props.sorting?.sort_by || 'created_at'}-${props.sorting?.sort_direction || 'desc'}`"
-          :filtro-estado="props.filters?.activo || ''"
+          :filtro-estado="filtroEstado.value"
           @ver-detalles="verDetalles"
           @editar="editarCliente"
           @duplicar="duplicarNoSoportado"
