@@ -40,6 +40,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('clientes.export');
     Route::get('/productos/export', [ProductoController::class, 'export'])
         ->name('productos.export');
+    Route::get('/servicios/export', [ServicioController::class, 'export'])
+        ->name('servicios.export');
 });
 
 
@@ -73,6 +75,35 @@ Route::get('/', function () {
 })->name('welcome');
 
 Route::get('/empresas', [EmpresasController::class, 'index'])->name('empresas.index');
+Route::get('/empresas', [EmpresasController::class, 'index'])->name('empresas.index');
+
+// =====================================================
+// RUTA PARA PLACEHOLDERS SVG
+// =====================================================
+Route::get('/placeholder/{w}x{h}/{bg?}/{fg?}', function (int $w, int $h, $bg = 'e5e7eb', $fg = '6b7280') {
+    $text = \Illuminate\Support\Str::of(request('text', 'Sin imagen'))->limit(40);
+    $fontSize = max(12, min($w / 12, 24)); // Tamaño de fuente adaptativo
+
+    $svg = <<<SVG
+<svg xmlns="http://www.w3.org/2000/svg" width="{$w}" height="{$h}" viewBox="0 0 {$w} {$h}">
+  <rect width="100%" height="100%" fill="#{$bg}"/>
+  <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
+        font-family="system-ui, -apple-system, sans-serif" font-size="{$fontSize}" fill="#{$fg}"
+        font-weight="500">
+    {$text}
+  </text>
+</svg>
+SVG;
+
+    return response($svg, 200, [
+        'Content-Type' => 'image/svg+xml',
+        'Cache-Control' => 'public, max-age=3600', // Cache por 1 hora
+    ]);
+})->name('placeholder');
+
+// =====================================================
+// RECURSOS PRINCIPALES
+// =====================================================
 
 // =====================================================
 // RECURSOS PRINCIPALES

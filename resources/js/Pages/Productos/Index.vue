@@ -88,15 +88,15 @@ const productosDocumentosBase = computed(() => {
     const price = Number(p.precio_venta ?? p.precio ?? 0)
 
     // Estado basado en stock y estado del producto
-    let estadoStr = p.estado || 'activo'
-    if (estadoStr === 'activo') {
-      if (stock <= 0) {
-        estadoStr = 'agotado'
-      } else if (stock <= 10) {
-        estadoStr = 'bajo_stock'
-      } else {
-        estadoStr = 'activo'
-      }
+    // Primero priorizamos el stock, luego el estado del producto
+    let estadoStr
+    if (stock <= 0) {
+      estadoStr = 'agotado'
+    } else if (stock <= 10) {
+      estadoStr = 'bajo_stock'
+    } else {
+      // Si hay stock suficiente, usamos el estado del producto
+      estadoStr = p.estado || 'activo'
     }
 
     const precioTxt = price.toLocaleString('es-MX', {
