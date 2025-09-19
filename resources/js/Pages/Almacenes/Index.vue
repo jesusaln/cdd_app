@@ -1,438 +1,603 @@
-<template>
-    <Head title="Almacenes" />
-    <div class="p-6 space-y-6">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-                <h1 class="text-3xl font-bold text-gray-900">Almacenes</h1>
-                <p class="text-gray-600 mt-1">Gestiona todos los almacenes de productos</p>
-            </div>
-            <div class="flex items-center gap-3">
-                <div class="relative">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <i class="fas fa-search text-gray-400"></i>
-                    </div>
-                    <input
-                        v-model="searchTerm"
-                        type="text"
-                        placeholder="Buscar almacenes..."
-                        class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 w-64"
-                        aria-label="Buscar almacenes"
-                        @input="filtrarAlmacenes"
-                    />
-                </div>
-                <Link
-                    :href="route('almacenes.create')"
-                    class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium rounded-lg hover:from-blue-700 hover:to-blue-800 focus:ring-4 focus:ring-blue-300 transition-all duration-200 shadow-lg hover:shadow-xl"
-                    aria-label="Crear nuevo almacén"
-                >
-                    <i class="fas fa-plus mr-2"></i>
-                    Nuevo Almacén
-                </Link>
-            </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div class="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-blue-100 text-sm font-medium">Total Almacenes</p>
-                        <p class="text-3xl font-bold">{{ almacenes.length }}</p>
-                    </div>
-                    <div class="bg-blue-400 bg-opacity-30 rounded-lg p-3">
-                        <i class="fas fa-warehouse text-2xl"></i> </div>
-                </div>
-            </div>
-
-            <div class="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-6 text-white shadow-lg">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-green-100 text-sm font-medium">Con Descripción</p>
-                        <p class="text-3xl font-bold">{{ almacenesConDescripcion }}</p>
-                    </div>
-                    <div class="bg-green-400 bg-opacity-30 rounded-lg p-3">
-                        <i class="fas fa-align-left text-2xl"></i>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-xl p-6 text-white shadow-lg">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-yellow-100 text-sm font-medium">Promedio Descripción</p>
-                        <p class="text-3xl font-bold">{{ longitudPromedioDescripcion }} car.</p>
-                    </div>
-                    <div class="bg-yellow-400 bg-opacity-30 rounded-lg p-3">
-                        <i class="fas fa-ruler-horizontal text-2xl"></i>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl p-6 text-white shadow-lg">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-purple-100 text-sm font-medium">Último Creado</p>
-                        <p class="text-3xl font-bold text-ellipsis overflow-hidden whitespace-nowrap max-w-[150px]">{{ ultimoAlmacenCreado.nombre || 'N/A' }}</p>
-                    </div>
-                    <div class="bg-purple-400 bg-opacity-30 rounded-lg p-3">
-                        <i class="fas fa-calendar-plus text-2xl"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div class="flex flex-wrap items-center gap-4">
-                <button
-                    @click="limpiarFiltros"
-                    class="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200"
-                    aria-label="Limpiar filtros"
-                >
-                    <i class="fas fa-times mr-2"></i>
-                    Limpiar Filtros
-                </button>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div v-if="almacenesFiltrados.length > 0">
-                <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-lg font-semibold text-gray-900">Lista de Almacenes</h3>
-                        <span class="text-sm text-gray-500">{{ almacenesFiltrados.length }} almacenes encontrados</span>
-                    </div>
-                </div>
-
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Almacén
-                                </th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Descripción
-                                </th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Ubicación
-                                </th>
-                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Acciones
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            <tr v-for="almacen in almacenesFiltrados" :key="almacen.id" class="hover:bg-gray-100 transition-colors duration-150">
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex items-center">
-                                        <div class="flex-shrink-0 h-12 w-12">
-                                            <div class="h-12 w-12 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                                                <i class="fas fa-warehouse text-white text-lg"></i>
-                                            </div>
-                                        </div>
-                                        <div class="ml-4">
-                                            <div class="text-sm font-medium text-gray-900">{{ almacen.nombre }}</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-normal max-w-xs overflow-hidden text-ellipsis">
-                                    <div class="text-sm text-gray-700">{{ almacen.descripcion || 'Sin descripción' }}</div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm text-gray-700">{{ almacen.ubicacion }}</div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <div class="flex items-center justify-end space-x-4 acciones-container">
-                                        <Link
-                                            :href="route('almacenes.edit', almacen.id)"
-                                            class="inline-flex items-center px-3 py-1.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-md hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-200"
-                                            aria-label="Editar almacén"
-                                        >
-                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                                            </svg>
-                                            Editar
-                                        </Link>
-                                        <button
-                                            @click="confirmarEliminacion(almacen)"
-                                            :disabled="loading"
-                                            class="inline-flex items-center px-3 py-1.5 bg-red-100 text-red-700 text-xs font-medium rounded-md hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                                            aria-label="Eliminar almacén"
-                                        >
-                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                            </svg>
-                                            <span v-if="!loading">Eliminar</span>
-                                            <span v-else>Eliminando...</span>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div v-else class="text-center py-12">
-                <div class="mx-auto h-24 w-24 text-gray-400 mb-4">
-                    <i class="fas fa-warehouse text-6xl"></i>
-                </div>
-                <h3 class="text-lg font-medium text-gray-900 mb-2">No hay almacenes</h3>
-                <p class="text-gray-500 mb-6">
-                    {{ searchTerm ? 'No se encontraron almacenes que coincidan con tu búsqueda.' : 'Comienza creando tu primer almacén.' }}
-                </p>
-                <Link
-                    :href="route('almacenes.create')"
-                    class="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200"
-                    aria-label="Crear primer almacén"
-                >
-                    <i class="fas fa-plus mr-2"></i>
-                    Crear Primer Almacén
-                </Link>
-            </div>
-        </div>
-
-        <Transition name="modal">
-            <div v-if="isConfirmOpen" class="fixed inset-0 z-50 overflow-y-auto">
-                <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="cancelarEliminacion"></div>
-
-                    <div class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
-                        <div class="sm:flex sm:items-start">
-                            <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-                                <i class="fas fa-exclamation-triangle text-red-600"></i>
-                            </div>
-                            <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                                <h3 class="text-lg leading-6 font-medium text-gray-900">
-                                    Confirmar eliminación
-                                </h3>
-                                <div class="mt-2">
-                                    <p class="text-sm text-gray-500">
-                                        ¿Estás seguro de que deseas eliminar el almacén <strong>{{ almacenAEliminar?.nombre }}</strong>?
-                                        Esta acción no se puede deshacer.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-                            <button
-                                @click="eliminarAlmacenConfirmado"
-                                :disabled="loading"
-                                class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                aria-label="Confirmar eliminación"
-                            >
-                                <i v-if="loading" class="fas fa-spinner fa-spin mr-2"></i>
-                                {{ loading ? 'Eliminando...' : 'Eliminar' }}
-                            </button>
-                            <button
-                                @click="cancelarEliminacion"
-                                class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:w-auto sm:text-sm"
-                                aria-label="Cancelar eliminación"
-                            >
-                                Cancelar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </Transition>
-    </div>
-</template>
-
+<!-- /resources/js/Pages/Almacenes/Index.vue -->
 <script setup>
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { ref, computed, watchEffect } from 'vue';
-import { Notyf } from 'notyf';
-import 'notyf/notyf.min.css';
-import AppLayout from '@/Layouts/AppLayout.vue';
+import { ref, computed, onMounted } from 'vue'
+import { Head, router, usePage, Link } from '@inertiajs/vue3'
+import AppLayout from '@/Layouts/AppLayout.vue'
+import { Notyf } from 'notyf'
+import 'notyf/notyf.min.css'
 
-// Define el layout del dashboard
-defineOptions({ layout: AppLayout });
+defineOptions({ layout: AppLayout })
 
-// Recibe los almacenes como prop y lo hace reactivo
-const props = defineProps({
-    almacenes: Array
-});
-
-const loading = ref(false);
-const searchTerm = ref('');
-const isConfirmOpen = ref(false);
-const almacenAEliminar = ref(null); // Almacena el objeto completo del almacén
-
-// Usa una referencia reactiva para la lista de almacenes para poder actualizarla localmente
-const almacenes = ref(props.almacenes);
-
-// Computed properties
-const almacenesFiltrados = computed(() => {
-    let filtered = almacenes.value;
-
-    // Filtro por búsqueda
-    if (searchTerm.value) {
-        filtered = filtered.filter(almacen => {
-            return almacen.nombre.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
-                   (almacen.descripcion && almacen.descripcion.toLowerCase().includes(searchTerm.value.toLowerCase())) ||
-                   (almacen.ubicacion && almacen.ubicacion.toLowerCase().includes(searchTerm.value.toLowerCase()));
-        });
-    }
-    return filtered;
-});
-
-const almacenesConDescripcion = computed(() => {
-    return almacenes.value.filter(almacen => almacen.descripcion && almacen.descripcion.trim() !== '').length;
-});
-
-const longitudPromedioDescripcion = computed(() => {
-    const almacenesConDesc = almacenes.value.filter(almacen => almacen.descripcion && almacen.descripcion.trim() !== '');
-    if (almacenesConDesc.length === 0) return '0';
-    const totalLength = almacenesConDesc.reduce((sum, almacen) => sum + almacen.descripcion.length, 0);
-    return Math.round(totalLength / almacenesConDesc.length);
-});
-
-const ultimoAlmacenCreado = computed(() => {
-    if (almacenes.value.length === 0) return {};
-    // Assuming 'created_at' exists and is sortable, otherwise, the last item in the array is used
-    // If you have a 'created_at' field:
-    // return [...almacenes.value].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
-    return almacenes.value[almacenes.value.length - 1]; // Fallback if no created_at
-});
-
-// Notification setup
+// Notificaciones
 const notyf = new Notyf({
-    duration: 4000,
-    position: { x: 'right', y: 'top' },
-    types: [
-        {
-            type: 'success',
-            background: 'linear-gradient(135deg, #10b981, #059669)',
-            icon: {
-                className: 'fas fa-check',
-                tagName: 'i',
-                color: 'white'
-            }
-        },
-        {
-            type: 'error',
-            background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-            icon: {
-                className: 'fas fa-exclamation-triangle',
-                tagName: 'i',
-                color: 'white'
-            }
-        }
-    ]
-});
+  duration: 4000,
+  position: { x: 'right', y: 'top' },
+  types: [
+    { type: 'success', background: '#10b981', icon: false },
+    { type: 'error', background: '#ef4444', icon: false },
+    { type: 'warning', background: '#f59e0b', icon: false }
+  ]
+})
 
-const page = usePage();
+const page = usePage()
+onMounted(() => {
+  const flash = page.props.flash
+  if (flash?.success) notyf.success(flash.success)
+  if (flash?.error) notyf.error(flash.error)
+})
 
-// Watch for flash messages
-watchEffect(() => {
-    if (page.props.flash?.success) {
-        notyf.success(page.props.flash.success);
+// Props
+const props = defineProps({
+  almacenes: { type: [Object, Array], required: true },
+  stats: { type: Object, default: () => ({}) },
+  filters: { type: Object, default: () => ({}) },
+  sorting: { type: Object, default: () => ({ sort_by: 'nombre', sort_direction: 'asc' }) },
+})
+
+// Estado UI
+const showModal = ref(false)
+const modalMode = ref('details')
+const selectedAlmacen = ref(null)
+const selectedId = ref(null)
+
+// Filtros
+const searchTerm = ref(props.filters?.search ?? '')
+const sortBy = ref('nombre-asc')
+const filtroEstado = ref(props.filters?.estado ?? '')
+
+// Paginación
+const perPage = ref(10)
+
+// Header config
+const headerConfig = {
+  module: 'almacenes',
+  createButtonText: 'Nuevo Almacén',
+  searchPlaceholder: 'Buscar por nombre, dirección, responsable...'
+}
+
+// Datos
+const almacenesPaginator = computed(() => props.almacenes)
+const almacenesData = computed(() => almacenesPaginator.value?.data || [])
+
+// Estadísticas
+const estadisticas = computed(() => ({
+  total: props.stats?.total ?? 0,
+  activos: props.stats?.activos ?? 0,
+  inactivos: props.stats?.inactivos ?? 0,
+  activosPorcentaje: props.stats?.activos_porcentaje ?? 0,
+  inactivosPorcentaje: props.stats?.inactivos_porcentaje ?? 0
+}))
+
+// Transformación de datos
+const almacenesDocumentos = computed(() => {
+  return almacenesData.value.map(a => ({
+    id: a.id,
+    titulo: a.nombre || 'Sin nombre',
+    subtitulo: a.direccion ? `Dirección: ${a.direccion.substring(0, 40)}${a.direccion.length > 40 ? '...' : ''}` : 'Sin dirección',
+    estado: a.estado || 'activo',
+    extra: `Responsable: ${a.responsable || 'Sin asignar'} • Tel: ${a.telefono || 'N/A'}`,
+    fecha: a.created_at,
+    raw: a
+  }))
+})
+
+// Handlers
+function handleSearchChange(newSearch) {
+  searchTerm.value = newSearch
+  router.get(route('almacenes.index'), {
+    search: newSearch,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'asc',
+    estado: filtroEstado.value,
+    per_page: perPage.value,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+function handleEstadoChange(newEstado) {
+  filtroEstado.value = newEstado
+  router.get(route('almacenes.index'), {
+    search: searchTerm.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'asc',
+    estado: newEstado,
+    per_page: perPage.value,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+function handleSortChange(newSort) {
+  sortBy.value = newSort
+  router.get(route('almacenes.index'), {
+    search: searchTerm.value,
+    sort_by: newSort.split('-')[0],
+    sort_direction: newSort.split('-')[1] || 'asc',
+    estado: filtroEstado.value,
+    per_page: perPage.value,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+const verDetalles = (doc) => {
+  selectedAlmacen.value = doc.raw
+  modalMode.value = 'details'
+  showModal.value = true
+}
+
+const editarAlmacen = (id) => {
+  router.visit(route('almacenes.edit', id))
+}
+
+const confirmarEliminacion = (id) => {
+  selectedId.value = id
+  modalMode.value = 'confirm'
+  showModal.value = true
+}
+
+const eliminarAlmacen = () => {
+  router.delete(route('almacenes.destroy', selectedId.value), {
+    preserveScroll: true,
+    onSuccess: () => {
+      notyf.success('Almacén eliminado')
+      showModal.value = false
+      selectedId.value = null
+      router.reload()
+    },
+    onError: (errors) => {
+      notyf.error('No se pudo eliminar el almacén')
     }
-    if (page.props.flash?.error) {
-        notyf.error(page.props.flash.error);
+  })
+}
+
+const toggleAlmacen = (id) => {
+  const almacen = almacenesData.value.find(a => a.id === id)
+  if (!almacen) return notyf.error('Almacén no encontrado')
+  const nuevoEstado = almacen.estado === 'activo' ? 'inactivo' : 'activo'
+  const mensaje = nuevoEstado === 'activo' ? 'Almacén activado' : 'Almacén desactivado'
+
+  router.put(route('almacenes.toggle', id), {
+    preserveScroll: true,
+    onSuccess: () => {
+      notyf.success(mensaje + ' correctamente')
+      router.reload()
+    },
+    onError: (errors) => {
+      notyf.error('No se pudo cambiar el estado del almacén')
     }
-});
+  })
+}
 
-// Methods
-const confirmarEliminacion = (almacen) => {
-    almacenAEliminar.value = almacen; // Store the entire warehouse object
-    isConfirmOpen.value = true;
-};
+const exportAlmacenes = () => {
+  const params = new URLSearchParams()
+  if (searchTerm.value) params.append('search', searchTerm.value)
+  if (filtroEstado.value) params.append('estado', filtroEstado.value)
+  const queryString = params.toString()
+  const url = route('almacenes.export') + (queryString ? `?${queryString}` : '')
+  window.location.href = url
+}
 
-const cancelarEliminacion = () => {
-    isConfirmOpen.value = false;
-    almacenAEliminar.value = null;
-};
+// Paginación
+const paginationData = computed(() => ({
+  current_page: almacenesPaginator.value?.current_page || 1,
+  last_page: almacenesPaginator.value?.last_page || 1,
+  per_page: almacenesPaginator.value?.per_page || 10,
+  from: almacenesPaginator.value?.from || 0,
+  to: almacenesPaginator.value?.to || 0,
+  total: almacenesPaginator.value?.total || 0,
+  prev_page_url: almacenesPaginator.value?.prev_page_url,
+  next_page_url: almacenesPaginator.value?.next_page_url,
+  links: almacenesPaginator.value?.links || []
+}))
 
-const eliminarAlmacenConfirmado = async () => {
-    if (!almacenAEliminar.value) return;
+const handlePerPageChange = (newPerPage) => {
+  router.get(route('almacenes.index'), {
+    ...props.filters,
+    ...props.sorting,
+    per_page: newPerPage,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
 
-    loading.value = true;
-    try {
-        await router.delete(route('almacenes.destroy', almacenAEliminar.value.id), {
-            onSuccess: () => {
-                notyf.success('Almacén eliminado exitosamente.');
-                // Update the reactive array after successful deletion
-                almacenes.value = almacenes.value.filter(a => a.id !== almacenAEliminar.value.id);
-                isConfirmOpen.value = false;
-                almacenAEliminar.value = null;
-            },
-            onError: (errors) => {
-                notyf.error(errors.error || 'Error al eliminar el almacén.');
-            }
-        });
-    } catch (error) {
-        notyf.error('Ocurrió un error inesperado.');
-    } finally {
-        loading.value = false;
-    }
-};
+const handlePageChange = (newPage) => {
+  router.get(route('almacenes.index'), {
+    ...props.filters,
+    ...props.sorting,
+    page: newPage
+  }, { preserveState: true, preserveScroll: true })
+}
 
-const filtrarAlmacenes = () => {
-    // The search is automatically applied via the 'almacenesFiltrados' computed property
-};
+// Helpers
+const formatNumber = (num) => new Intl.NumberFormat('es-ES').format(num)
+const formatearFecha = (date) => {
+  if (!date) return 'Fecha no disponible'
+  try {
+    const d = new Date(date)
+    return d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  } catch {
+    return 'Fecha inválida'
+  }
+}
 
-const limpiarFiltros = () => {
-    searchTerm.value = '';
-    // Add other filters here if they were implemented for warehouses
-};
+const obtenerClasesEstado = (estado) => {
+  const clases = {
+    'activo': 'bg-green-100 text-green-700',
+    'inactivo': 'bg-red-100 text-red-700'
+  }
+  return clases[estado] || 'bg-gray-100 text-gray-700'
+}
+
+const obtenerLabelEstado = (estado) => {
+  const labels = {
+    'activo': 'Activo',
+    'inactivo': 'Inactivo'
+  }
+  return labels[estado] || 'Pendiente'
+}
 </script>
 
+<template>
+  <Head title="Almacenes" />
+  <div class="almacenes-index min-h-screen bg-gray-50">
+    <div class="max-w-8xl mx-auto px-6 py-8">
+      <!-- Header -->
+      <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-8 mb-6">
+        <div class="flex flex-col lg:flex-row gap-8 items-start lg:items-center justify-between">
+          <!-- Izquierda -->
+          <div class="flex flex-col gap-6 w-full lg:w-auto">
+            <div class="flex items-center gap-3">
+              <h1 class="text-2xl font-bold text-slate-900">Almacenes</h1>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+              <Link
+                :href="route('almacenes.create')"
+                class="inline-flex items-center gap-2.5 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                <span>{{ headerConfig.createButtonText }}</span>
+              </Link>
+
+              <button
+                @click="exportAlmacenes"
+                class="inline-flex items-center gap-2 px-4 py-3 bg-green-50 text-green-700 rounded-xl hover:bg-green-100 transition-all duration-200 border border-green-200"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                </svg>
+                <span class="text-sm font-medium">Exportar</span>
+              </button>
+            </div>
+
+            <!-- Estadísticas con barras de progreso -->
+            <div class="flex flex-wrap items-center gap-4 text-sm">
+              <div class="flex items-center gap-2 px-4 py-3 bg-slate-50 rounded-xl border border-slate-200">
+                <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span class="font-medium text-slate-700">Total:</span>
+                <span class="font-bold text-slate-900 text-lg">{{ formatNumber(estadisticas.total) }}</span>
+              </div>
+
+              <div class="flex items-center gap-2 px-4 py-3 bg-green-50 rounded-xl border border-green-200">
+                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span class="font-medium text-slate-700">Activos:</span>
+                <span class="font-bold text-green-700 text-lg">{{ formatNumber(estadisticas.activos) }}</span>
+                <div class="ml-2 flex items-center gap-2">
+                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      class="h-full bg-green-500 transition-all duration-300"
+                      :style="{ width: estadisticas.activosPorcentaje + '%' }"
+                    ></div>
+                  </div>
+                  <span class="text-xs text-green-600 font-medium">{{ estadisticas.activosPorcentaje }}%</span>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2 px-4 py-3 bg-red-50 rounded-xl border border-red-200">
+                <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span class="font-medium text-slate-700">Inactivos:</span>
+                <span class="font-bold text-red-700 text-lg">{{ formatNumber(estadisticas.inactivos) }}</span>
+                <div class="ml-2 flex items-center gap-2">
+                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      class="h-full bg-red-500 transition-all duration-300"
+                      :style="{ width: estadisticas.inactivosPorcentaje + '%' }"
+                    ></div>
+                  </div>
+                  <span class="text-xs text-red-600 font-medium">{{ estadisticas.inactivosPorcentaje }}%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Derecha: Filtros -->
+          <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto lg:flex-shrink-0">
+            <!-- Búsqueda -->
+            <div class="relative">
+              <input
+                v-model="searchTerm"
+                @input="handleSearchChange($event.target.value)"
+                type="text"
+                :placeholder="headerConfig.searchPlaceholder"
+                class="w-full sm:w-64 lg:w-80 pl-4 pr-10 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+              />
+              <svg class="absolute right-3 top-3.5 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+
+            <!-- Estado -->
+            <select
+              v-model="filtroEstado"
+              @change="handleEstadoChange($event.target.value)"
+              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+            >
+              <option value="">Todos los Estados</option>
+              <option value="activo">Activos</option>
+              <option value="inactivo">Inactivos</option>
+            </select>
+
+            <!-- Orden -->
+            <select
+              v-model="sortBy"
+              @change="handleSortChange($event.target.value)"
+              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+            >
+              <option value="nombre-asc">Nombre A-Z</option>
+              <option value="nombre-desc">Nombre Z-A</option>
+              <option value="fecha-desc">Más Recientes</option>
+              <option value="fecha-asc">Más Antiguos</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabla -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Fecha</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Almacén</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Dirección</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Responsable</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Estado</th>
+                <th class="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Acciones</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <tr v-for="almacen in almacenesDocumentos" :key="almacen.id" class="hover:bg-gray-50 transition-colors duration-150">
+                <td class="px-6 py-4">
+                  <div class="text-sm text-gray-900">{{ formatearFecha(almacen.fecha) }}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="text-sm font-medium text-gray-900">{{ almacen.titulo }}</div>
+                  <div class="text-sm text-gray-500">{{ almacen.raw.telefono || 'Sin teléfono' }}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="text-sm text-gray-700 max-w-xs truncate">{{ almacen.raw.direccion || 'Sin dirección' }}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="text-sm text-gray-700">{{ almacen.raw.responsable || 'Sin asignar' }}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <span :class="obtenerClasesEstado(almacen.estado)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                    {{ obtenerLabelEstado(almacen.estado) }}
+                  </span>
+                </td>
+                <td class="px-6 py-4 text-right">
+                  <div class="flex items-center justify-end space-x-1">
+                    <button @click="verDetalles(almacen)" class="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors duration-150" title="Ver detalles">
+                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    </button>
+                    <button @click="editarAlmacen(almacen.id)" class="w-8 h-8 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-colors duration-150" title="Editar">
+                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button @click="toggleAlmacen(almacen.id)" class="w-8 h-8 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors duration-150" title="Cambiar estado">
+                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    </button>
+                    <button @click="confirmarEliminacion(almacen.id)" class="w-8 h-8 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors duration-150" title="Eliminar">
+                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="almacenesDocumentos.length === 0">
+                <td colspan="6" class="px-6 py-16 text-center">
+                  <div class="flex flex-col items-center space-y-4">
+                    <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                      <svg class="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                    </div>
+                    <div class="space-y-1">
+                      <p class="text-gray-700 font-medium">No hay almacenes</p>
+                      <p class="text-sm text-gray-500">Los almacenes aparecerán aquí cuando se creen</p>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Paginación -->
+        <div v-if="paginationData.lastPage > 1" class="bg-white border-t border-gray-200 px-4 py-3 sm:px-6">
+          <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+              <p class="text-sm text-gray-700">
+                Mostrando {{ paginationData.from }} - {{ paginationData.to }} de {{ paginationData.total }} resultados
+              </p>
+              <select
+                :value="paginationData.perPage"
+                @change="handlePerPageChange(parseInt($event.target.value))"
+                class="border border-gray-300 rounded-md text-sm py-1 px-2 bg-white"
+              >
+                <option value="10">10</option>
+                <option value="15">15</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+              </select>
+            </div>
+
+            <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+              <button
+                v-if="paginationData.prevPageUrl"
+                @click="handlePageChange(paginationData.currentPage - 1)"
+                class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+              >
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+              </button>
+
+              <span v-else class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-gray-100 text-sm font-medium text-gray-400">
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+              </span>
+
+              <button
+                v-for="page in [paginationData.currentPage - 1, paginationData.currentPage, paginationData.currentPage + 1].filter(p => p > 0 && p <= paginationData.lastPage)"
+                :key="page"
+                @click="handlePageChange(page)"
+                :class="page === paginationData.currentPage ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'"
+                class="relative inline-flex items-center px-4 py-2 border text-sm font-medium"
+              >
+                {{ page }}
+              </button>
+
+              <button
+                v-if="paginationData.nextPageUrl"
+                @click="handlePageChange(paginationData.currentPage + 1)"
+                class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+              >
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                </svg>
+              </button>
+
+              <span v-else class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-gray-100 text-sm font-medium text-gray-400">
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                </svg>
+              </span>
+            </nav>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal mejorado -->
+      <div v-if="showModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="showModal = false">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <!-- Header del modal -->
+          <div class="flex items-center justify-between p-6 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">
+              {{ modalMode === 'details' ? 'Detalles del Almacén' : 'Confirmar Eliminación' }}
+            </h3>
+            <button @click="showModal = false" class="text-gray-400 hover:text-gray-600 transition-colors">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="p-6">
+            <div v-if="modalMode === 'details' && selectedAlmacen">
+              <div class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div class="space-y-3">
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Nombre</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedAlmacen.nombre }}</p>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Estado</label>
+                      <span :class="obtenerClasesEstado(selectedAlmacen.estado)" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium mt-1">
+                        {{ obtenerLabelEstado(selectedAlmacen.estado) }}
+                      </span>
+                    </div>
+                  </div>
+                  <div class="space-y-3">
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Responsable</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedAlmacen.responsable || 'Sin asignar' }}</p>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Teléfono</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedAlmacen.telefono || 'Sin teléfono' }}</p>
+                    </div>
+                  </div>
+                </div>
+                <div v-if="selectedAlmacen.direccion">
+                  <label class="block text-sm font-medium text-gray-700">Dirección</label>
+                  <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md whitespace-pre-wrap">{{ selectedAlmacen.direccion }}</p>
+                </div>
+                <div v-if="selectedAlmacen.descripcion">
+                  <label class="block text-sm font-medium text-gray-700">Descripción</label>
+                  <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md whitespace-pre-wrap">{{ selectedAlmacen.descripcion }}</p>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="modalMode === 'confirm'">
+              <div class="text-center">
+                <div class="w-12 h-12 mx-auto bg-red-100 rounded-full flex items-center justify-center mb-4">
+                  <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                  </svg>
+                </div>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">¿Eliminar Almacén?</h3>
+                <p class="text-sm text-gray-500 mb-4">
+                  ¿Estás seguro de que deseas eliminar el almacén <strong>{{ selectedAlmacen?.nombre }}</strong>?
+                  Esta acción no se puede deshacer.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer del modal -->
+          <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+            <button @click="showModal = false" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+              {{ modalMode === 'details' ? 'Cerrar' : 'Cancelar' }}
+            </button>
+            <div v-if="modalMode === 'details'" class="flex gap-2">
+              <button @click="toggleAlmacen(selectedAlmacen.id)" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                Cambiar Estado
+              </button>
+              <button @click="editarAlmacen(selectedAlmacen.id)" class="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors">
+                Editar
+              </button>
+            </div>
+            <button v-if="modalMode === 'confirm'" @click="eliminarAlmacen" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+              Eliminar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
 <style scoped>
-/* Estilos para tooltips personalizados */
-[data-tooltip] {
-    position: relative;
-}
-[data-tooltip]:hover:after {
-    content: attr(data-tooltip);
-    position: absolute;
-    bottom: 100%;
-    right: 0;
-    background: #1f2937;
-    color: white;
-    padding: 6px 12px;
-    border-radius: 4px;
-    font-size: 12px;
-    white-space: nowrap;
-    z-index: 10;
-    transform: translateY(-4px);
-    transition: all 0.2s ease;
-}
-
-/* Estilos para transiciones de la modal */
-.modal-enter-active,
-.modal-leave-active {
-    transition: opacity 0.3s ease;
-}
-.modal-enter-from,
-.modal-leave-to {
-    opacity: 0;
-}
-.modal-enter-active .modal-container,
-.modal-leave-active .modal-container {
-    transition: all 0.3s ease;
-}
-.modal-enter-from .modal-container,
-.modal-leave-to .modal-container {
-    transform: scale(0.95);
-}
-
-/* Diseño responsivo para la columna de acciones */
-@media (max-width: 640px) {
-    .acciones-container {
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-}
-
-/* Mejora en la tabla para mayor legibilidad */
-tbody tr:hover {
-    background-color: #f9fafb;
-}
-
-/* Asegurar que los botones sean más visibles */
-button:focus,
-a:focus {
-    outline: none;
+.almacenes-index {
+  min-height: 100vh;
+  background-color: #f9fafb;
 }
 </style>

@@ -5,19 +5,72 @@ namespace App\Http\Controllers;
 use Inertia\Inertia;
 use App\Models\Marca;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class MarcaController extends Controller
 {
     /**
-     * Muestra una lista de todas las marcas.
+     * Muestra una lista de todas las marcas con paginación y filtros.
      */
-    public function index()
+    public function index(Request $request)
     {
-        //return response()->json(Marca::all());
-        $marcas = Marca::all();
-        return Inertia::render('Marcas/Index', [
-            'marcas' => $marcas,
-        ]);
+        try {
+            $query = Marca::query();
+
+            // Filtros
+            if ($search = trim($request->input('search', ''))) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('nombre', 'like', "%{$search}%")
+                      ->orWhere('descripcion', 'like', "%{$search}%");
+                });
+            }
+
+            if ($estado = $request->input('estado')) {
+                if ($estado === 'activo') {
+                    $query->where('estado', 'activo');
+                } elseif ($estado === 'inactivo') {
+                    $query->where('estado', 'inactivo');
+                }
+            }
+
+            // Ordenamiento
+            $sortBy = $request->input('sort_by', 'nombre');
+            $sortDirection = $request->input('sort_direction', 'asc');
+
+            $validSortFields = ['nombre', 'descripcion', 'created_at'];
+            if (!in_array($sortBy, $validSortFields)) {
+                $sortBy = 'nombre';
+            }
+
+            $query->orderBy($sortBy, $sortDirection);
+
+            // Paginación
+            $perPage = min((int) $request->input('per_page', 10), 50);
+            $marcas = $query->paginate($perPage)->appends($request->query());
+
+            // Estadísticas
+            $total = Marca::count();
+            $activos = Marca::where('estado', 'activo')->count();
+            $inactivos = Marca::where('estado', 'inactivo')->count();
+
+            $stats = [
+                'total' => $total,
+                'activos' => $activos,
+                'inactivos' => $inactivos,
+                'activos_porcentaje' => $total > 0 ? round(($activos / $total) * 100, 1) : 0,
+                'inactivos_porcentaje' => $total > 0 ? round(($inactivos / $total) * 100, 1) : 0,
+            ];
+
+            return Inertia::render('Marcas/Index', [
+                'marcas' => $marcas,
+                'stats' => $stats,
+                'filters' => $request->only(['search', 'estado']),
+                'sorting' => ['sort_by' => $sortBy, 'sort_direction' => $sortDirection],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error en MarcaController@index: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al cargar las marcas.');
+        }
     }
 
     /**
@@ -36,6 +89,7 @@ class MarcaController extends Controller
         $request->validate([
             'nombre' => 'required|string|max:100|unique:marcas,nombre',
             'descripcion' => 'nullable|string|max:1000',
+            'estado' => 'required|in:activo,inactivo',
         ]);
 
         Marca::create($request->all());
@@ -61,6 +115,7 @@ class MarcaController extends Controller
         $validated = $request->validate([
             'nombre' => 'required|string|max:100|unique:marcas,nombre,' . $marca->id,
             'descripcion' => 'nullable|string|max:1000',
+            'estado' => 'required|in:activo,inactivo',
         ]);
 
         $marca->update($validated);
@@ -74,22 +129,102 @@ class MarcaController extends Controller
     public function destroy($id)
     {
         try {
-            // Buscar la marca por ID
             $marca = Marca::findOrFail($id);
 
-            // Verificar si tiene productos relacionados antes de eliminarla
+            // Verificar si tiene productos relacionados antes de eliminar
             if ($marca->productos()->exists()) {
-                return back()->withErrors(['error' => 'No se puede eliminar la marca porque tiene productos asociados.']);
+                return redirect()->route('marcas.index')->withErrors(['error' => 'No se puede eliminar la marca porque tiene productos asociados.']);
             }
 
-            // Eliminar la marca
             $marca->delete();
 
-            // Retornar mensaje de éxito
-            return back()->with('success', 'La marca ha sido eliminada exitosamente.');
+            return redirect()->route('marcas.index')->with('success', 'Marca eliminada correctamente.');
         } catch (\Exception $e) {
-            // Capturar y manejar cualquier error inesperado
-            return back()->withErrors(['error' => 'Hubo un error al intentar eliminar la marca.']);
+            Log::error('Error al eliminar marca: ' . $e->getMessage());
+            return redirect()->route('marcas.index')->withErrors(['error' => 'Error al eliminar la marca.']);
+        }
+    }
+
+    /**
+     * Alterna el estado de una marca (activo/inactivo).
+     */
+    public function toggle(Marca $marca)
+    {
+        try {
+            $marca->update(['estado' => $marca->estado === 'activo' ? 'inactivo' : 'activo']);
+
+            $mensaje = $marca->estado === 'activo' ? 'Marca activada correctamente' : 'Marca desactivada correctamente';
+
+            return redirect()->back()->with('success', $mensaje);
+        } catch (\Exception $e) {
+            Log::error('Error al cambiar estado de marca: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al cambiar el estado de la marca.');
+        }
+    }
+
+    /**
+     * Exporta marcas a CSV
+     */
+    public function export(Request $request)
+    {
+        try {
+            $query = Marca::query();
+
+            // Aplicar los mismos filtros que en index
+            if ($search = trim($request->input('search', ''))) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('nombre', 'like', "%{$search}%")
+                      ->orWhere('descripcion', 'like', "%{$search}%");
+                });
+            }
+
+            if ($estado = $request->input('estado')) {
+                if ($estado === 'activo') {
+                    $query->where('estado', 'activo');
+                } elseif ($estado === 'inactivo') {
+                    $query->where('estado', 'inactivo');
+                }
+            }
+
+            $marcas = $query->get();
+
+            $filename = 'marcas_' . date('Y-m-d_H-i-s') . '.csv';
+
+            $headers = [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            ];
+
+            $callback = function () use ($marcas) {
+                $file = fopen('php://output', 'w');
+                fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF)); // UTF-8 BOM
+
+                fputcsv($file, [
+                    'ID',
+                    'Nombre',
+                    'Descripción',
+                    'Estado',
+                    'Fecha Creación'
+                ]);
+
+                foreach ($marcas as $marca) {
+                    fputcsv($file, [
+                        $marca->id,
+                        $marca->nombre,
+                        $marca->descripcion ?? '',
+                        $marca->estado,
+                        $marca->created_at?->format('d/m/Y H:i:s')
+                    ]);
+                }
+                fclose($file);
+            };
+
+            Log::info('Exportación de marcas', ['total' => $marcas->count()]);
+
+            return response()->stream($callback, 200, $headers);
+        } catch (\Exception $e) {
+            Log::error('Error en exportación de marcas: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al exportar las marcas.');
         }
     }
 }

@@ -4,41 +4,46 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Almacen extends Model
 {
     use HasFactory;
 
-    protected $table = 'almacenes';
-
-    /**
-     * Los atributos que son asignables en masa.
-     *
-     * @var array
-     */
     protected $fillable = [
         'nombre',
         'descripcion',
-        'ubicacion',
+        'direccion',
+        'telefono',
+        'responsable',
+        'estado',
+    ];
+
+    protected $casts = [
+        'estado' => 'string',
     ];
 
     /**
-     * Los atributos que deben ser ocultados para arrays.
-     *
-     * @var array
+     * Relación con productos
      */
-    protected $hidden = [];
-
-    /**
-     * Los atributos que deben ser convertidos a tipos nativos.
-     *
-     * @var array
-     */
-    protected $casts = [];
-
-    // Definir la relación con el modelo Producto
-    public function productos()
+    public function productos(): HasMany
     {
         return $this->hasMany(Producto::class);
+    }
+
+    /**
+     * Scope para almacenes activos
+     */
+    public function scopeActivos($query)
+    {
+        return $query->where('estado', 'activo');
+    }
+
+    /**
+     * Scope para almacenes inactivos
+     */
+    public function scopeInactivos($query)
+    {
+        return $query->where('estado', 'inactivo');
     }
 }

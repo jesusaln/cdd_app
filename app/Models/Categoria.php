@@ -4,21 +4,43 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Categoria extends Model
 {
     use HasFactory;
 
-    // Define los atributos que pueden ser asignados masivamente
     protected $fillable = [
         'nombre',
         'descripcion',
+        'estado',
     ];
 
-    // Relación: Una categoría tiene muchos productos
-    public function productos()
+    protected $casts = [
+        'estado' => 'string',
+    ];
+
+    /**
+     * Relación con productos
+     */
+    public function productos(): HasMany
     {
         return $this->hasMany(Producto::class);
+    }
+
+    /**
+     * Scope para categorías activas
+     */
+    public function scopeActivas($query)
+    {
+        return $query->where('estado', 'activo');
+    }
+
+    /**
+     * Scope para categorías inactivas
+     */
+    public function scopeInactivas($query)
+    {
+        return $query->where('estado', 'inactivo');
     }
 }

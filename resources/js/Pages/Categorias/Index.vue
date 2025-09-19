@@ -1,433 +1,594 @@
-<template>
-    <Head title="Categorías" />
-    <div class="p-6 space-y-6">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-                <h1 class="text-3xl font-bold text-gray-900">Categorías</h1>
-                <p class="text-gray-600 mt-1">Gestiona todas las categorías de servicios</p>
-            </div>
-            <div class="flex items-center gap-3">
-                <div class="relative">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <i class="fas fa-search text-gray-400"></i>
-                    </div>
-                    <input
-                        v-model="searchTerm"
-                        type="text"
-                        placeholder="Buscar categorías..."
-                        class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 w-64"
-                        aria-label="Buscar categorías"
-                        @input="filtrarCategorias"
-                    />
-                </div>
-                <Link
-                    :href="route('categorias.create')"
-                    class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium rounded-lg hover:from-blue-700 hover:to-blue-800 focus:ring-4 focus:ring-blue-300 transition-all duration-200 shadow-lg hover:shadow-xl"
-                    aria-label="Crear nueva categoría"
-                >
-                    <i class="fas fa-plus mr-2"></i>
-                    Nueva Categoría
-                </Link>
-            </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div class="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-blue-100 text-sm font-medium">Total Categorías</p>
-                        <p class="text-3xl font-bold">{{ categorias.length }}</p>
-                    </div>
-                    <div class="bg-blue-400 bg-opacity-30 rounded-lg p-3">
-                        <i class="fas fa-tags text-2xl"></i> </div>
-                </div>
-            </div>
-
-            <div class="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-6 text-white shadow-lg">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-green-100 text-sm font-medium">Categorías con descripción</p>
-                        <p class="text-3xl font-bold">{{ categoriasConDescripcion }}</p>
-                    </div>
-                    <div class="bg-green-400 bg-opacity-30 rounded-lg p-3">
-                        <i class="fas fa-align-left text-2xl"></i>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-xl p-6 text-white shadow-lg">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-yellow-100 text-sm font-medium">Longitud Promedio Desc.</p>
-                        <p class="text-3xl font-bold">{{ longitudPromedioDescripcion }} caracteres</p>
-                    </div>
-                    <div class="bg-yellow-400 bg-opacity-30 rounded-lg p-3">
-                        <i class="fas fa-ruler-horizontal text-2xl"></i>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl p-6 text-white shadow-lg">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-purple-100 text-sm font-medium">Última Creada</p>
-                        <p class="text-3xl font-bold text-ellipsis overflow-hidden whitespace-nowrap max-w-[150px]">{{ ultimaCategoriaCreada.nombre || 'N/A' }}</p>
-                    </div>
-                    <div class="bg-purple-400 bg-opacity-30 rounded-lg p-3">
-                        <i class="fas fa-calendar-plus text-2xl"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div class="flex flex-wrap items-center gap-4">
-                <button
-                    @click="limpiarFiltros"
-                    class="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200"
-                    aria-label="Limpiar filtros"
-                >
-                    <i class="fas fa-times mr-2"></i>
-                    Limpiar Filtros
-                </button>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div v-if="categoriasFiltradas.length > 0">
-                <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-lg font-semibold text-gray-900">Lista de Categorías</h3>
-                        <span class="text-sm text-gray-500">{{ categoriasFiltradas.length }} categorías encontradas</span>
-                    </div>
-                </div>
-
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Categoría
-                                </th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Descripción
-                                </th>
-                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Acciones
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            <tr v-for="categoria in categoriasFiltradas" :key="categoria.id" class="hover:bg-gray-100 transition-colors duration-150">
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex items-center">
-                                        <div class="flex-shrink-0 h-12 w-12">
-                                            <div class="h-12 w-12 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                                                <i class="fas fa-tags text-white text-lg"></i>
-                                            </div>
-                                        </div>
-                                        <div class="ml-4">
-                                            <div class="text-sm font-medium text-gray-900">{{ categoria.nombre }}</div>
-                                            </div>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-normal max-w-xs overflow-hidden text-ellipsis">
-                                    <div class="text-sm text-gray-700">{{ categoria.descripcion || 'Sin descripción' }}</div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <div class="flex items-center justify-end space-x-4 acciones-container">
-                                        <Link
-                                            :href="route('categorias.edit', categoria.id)"
-                                            class="inline-flex items-center px-3 py-1.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-md hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-200"
-                                            aria-label="Editar categoría"
-                                        >
-                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                                            </svg>
-                                            Editar
-                                        </Link>
-                                        <button
-                                            @click="confirmarEliminacion(categoria)"
-                                            :disabled="loading"
-                                            class="inline-flex items-center px-3 py-1.5 bg-red-100 text-red-700 text-xs font-medium rounded-md hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                                            aria-label="Eliminar categoría"
-                                        >
-                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                            </svg>
-                                            <span v-if="!loading">Eliminar</span>
-                                            <span v-else>Eliminando...</span>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div v-else class="text-center py-12">
-                <div class="mx-auto h-24 w-24 text-gray-400 mb-4">
-                    <i class="fas fa-tags text-6xl"></i>
-                </div>
-                <h3 class="text-lg font-medium text-gray-900 mb-2">No hay categorías</h3>
-                <p class="text-gray-500 mb-6">
-                    {{ searchTerm ? 'No se encontraron categorías que coincidan con tu búsqueda.' : 'Comienza creando tu primera categoría.' }}
-                </p>
-                <Link
-                    :href="route('categorias.create')"
-                    class="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200"
-                    aria-label="Crear primera categoría"
-                >
-                    <i class="fas fa-plus mr-2"></i>
-                    Crear Primera Categoría
-                </Link>
-            </div>
-        </div>
-
-        <Transition name="modal">
-            <div v-if="isConfirmOpen" class="fixed inset-0 z-50 overflow-y-auto">
-                <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="cancelarEliminacion"></div>
-
-                    <div class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
-                        <div class="sm:flex sm:items-start">
-                            <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-                                <i class="fas fa-exclamation-triangle text-red-600"></i>
-                            </div>
-                            <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                                <h3 class="text-lg leading-6 font-medium text-gray-900">
-                                    Confirmar eliminación
-                                </h3>
-                                <div class="mt-2">
-                                    <p class="text-sm text-gray-500">
-                                        ¿Estás seguro de que deseas eliminar la categoría <strong>{{ categoriaAEliminar?.nombre }}</strong>?
-                                        Esta acción no se puede deshacer.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-                            <button
-                                @click="eliminarCategoriaConfirmado"
-                                :disabled="loading"
-                                class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                aria-label="Confirmar eliminación"
-                            >
-                                <i v-if="loading" class="fas fa-spinner fa-spin mr-2"></i>
-                                {{ loading ? 'Eliminando...' : 'Eliminar' }}
-                            </button>
-                            <button
-                                @click="cancelarEliminacion"
-                                class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:w-auto sm:text-sm"
-                                aria-label="Cancelar eliminación"
-                            >
-                                Cancelar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </Transition>
-    </div>
-</template>
-
+<!-- /resources/js/Pages/Categorias/Index.vue -->
 <script setup>
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { ref, computed, watchEffect } from 'vue';
-import { Notyf } from 'notyf';
-import 'notyf/notyf.min.css';
-import AppLayout from '@/Layouts/AppLayout.vue';
+import { ref, computed, onMounted } from 'vue'
+import { Head, router, usePage, Link } from '@inertiajs/vue3'
+import AppLayout from '@/Layouts/AppLayout.vue'
+import { Notyf } from 'notyf'
+import 'notyf/notyf.min.css'
 
-// Define el layout del dashboard
-defineOptions({ layout: AppLayout });
+defineOptions({ layout: AppLayout })
 
-const props = defineProps({
-    categorias: Array
-});
-
-// Reactive data
-const loading = ref(false);
-const searchTerm = ref('');
-const isConfirmOpen = ref(false);
-const categoriaAEliminar = ref(null);
-const categorias = ref(props.categorias); // Aseguramos que sea reactivo
-
-// Computed properties
-const categoriasFiltradas = computed(() => {
-    let filtered = categorias.value;
-
-    // Filtro por búsqueda
-    if (searchTerm.value) {
-        filtered = filtered.filter(categoria => {
-            return categoria.nombre.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
-                   (categoria.descripcion && categoria.descripcion.toLowerCase().includes(searchTerm.value.toLowerCase()));
-        });
-    }
-    return filtered;
-});
-
-const categoriasConDescripcion = computed(() => {
-    return categorias.value.filter(categoria => categoria.descripcion && categoria.descripcion.trim() !== '').length;
-});
-
-const longitudPromedioDescripcion = computed(() => {
-    const categoriasConDesc = categorias.value.filter(categoria => categoria.descripcion && categoria.descripcion.trim() !== '');
-    if (categoriasConDesc.length === 0) return '0';
-    const totalLength = categoriasConDesc.reduce((sum, categoria) => sum + categoria.descripcion.length, 0);
-    return Math.round(totalLength / categoriasConDesc.length);
-});
-
-const ultimaCategoriaCreada = computed(() => {
-    if (categorias.value.length === 0) return {};
-    // Asumimos que las categorías vienen ordenadas o tienen un campo 'created_at' para ordenar
-    // Si tienes un campo 'created_at', podrías hacer:
-    // return [...categorias.value].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
-    // Por ahora, tomamos la última de la lista si no hay un orden específico garantizado
-    return categorias.value[categorias.value.length - 1];
-});
-
-
-// Notification setup
+// Notificaciones
 const notyf = new Notyf({
-    duration: 4000,
-    position: { x: 'right', y: 'top' },
-    types: [
-        {
-            type: 'success',
-            background: 'linear-gradient(135deg, #10b981, #059669)',
-            icon: {
-                className: 'fas fa-check',
-                tagName: 'i',
-                color: 'white'
-            }
-        },
-        {
-            type: 'error',
-            background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-            icon: {
-                className: 'fas fa-exclamation-triangle',
-                tagName: 'i',
-                color: 'white'
-            }
-        }
-    ]
-});
+  duration: 4000,
+  position: { x: 'right', y: 'top' },
+  types: [
+    { type: 'success', background: '#10b981', icon: false },
+    { type: 'error', background: '#ef4444', icon: false },
+    { type: 'warning', background: '#f59e0b', icon: false }
+  ]
+})
 
-const page = usePage();
+const page = usePage()
+onMounted(() => {
+  const flash = page.props.flash
+  if (flash?.success) notyf.success(flash.success)
+  if (flash?.error) notyf.error(flash.error)
+})
 
-// Watch for flash messages
-watchEffect(() => {
-    if (page.props.flash?.success) {
-        notyf.success(page.props.flash.success);
-        // Opcional: recargar las categorías si el cambio en la base de datos es necesario
-        // router.reload({ only: ['categorias'] });
+// Props
+const props = defineProps({
+  categorias: { type: [Object, Array], required: true },
+  stats: { type: Object, default: () => ({}) },
+  filters: { type: Object, default: () => ({}) },
+  sorting: { type: Object, default: () => ({ sort_by: 'nombre', sort_direction: 'asc' }) },
+})
+
+// Estado UI
+const showModal = ref(false)
+const modalMode = ref('details')
+const selectedCategoria = ref(null)
+const selectedId = ref(null)
+
+// Filtros
+const searchTerm = ref(props.filters?.search ?? '')
+const sortBy = ref('nombre-asc')
+const filtroEstado = ref('')
+
+// Paginación
+const perPage = ref(10)
+
+// Header config
+const headerConfig = {
+  module: 'categorias',
+  createButtonText: 'Nueva Categoría',
+  searchPlaceholder: 'Buscar por nombre o descripción...'
+}
+
+// Datos
+const categoriasPaginator = computed(() => props.categorias)
+const categoriasData = computed(() => categoriasPaginator.value?.data || [])
+
+// Estadísticas
+const estadisticas = computed(() => ({
+  total: props.stats?.total ?? 0,
+  activos: props.stats?.activos ?? 0,
+  inactivos: props.stats?.inactivos ?? 0,
+  activosPorcentaje: props.stats?.activos_porcentaje ?? 0,
+  inactivosPorcentaje: props.stats?.inactivos_porcentaje ?? 0
+}))
+
+// Transformación de datos
+const categoriasDocumentos = computed(() => {
+  return categoriasData.value.map(c => ({
+    id: c.id,
+    titulo: c.nombre || 'Sin nombre',
+    subtitulo: c.descripcion ? `Descripción: ${c.descripcion.substring(0, 50)}${c.descripcion.length > 50 ? '...' : ''}` : 'Sin descripción',
+    estado: c.estado || 'activo',
+    extra: `Creada: ${new Date(c.created_at).toLocaleDateString('es-MX')}`,
+    fecha: c.created_at,
+    raw: c
+  }))
+})
+
+// Handlers
+function handleSearchChange(newSearch) {
+  searchTerm.value = newSearch
+  router.get(route('categorias.index'), {
+    search: newSearch,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'asc',
+    estado: filtroEstado.value,
+    per_page: perPage.value,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+function handleEstadoChange(newEstado) {
+  filtroEstado.value = newEstado
+  router.get(route('categorias.index'), {
+    search: searchTerm.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'asc',
+    estado: newEstado,
+    per_page: perPage.value,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+function handleSortChange(newSort) {
+  sortBy.value = newSort
+  router.get(route('categorias.index'), {
+    search: searchTerm.value,
+    sort_by: newSort.split('-')[0],
+    sort_direction: newSort.split('-')[1] || 'asc',
+    estado: filtroEstado.value,
+    per_page: perPage.value,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+const verDetalles = (doc) => {
+  selectedCategoria.value = doc.raw
+  modalMode.value = 'details'
+  showModal.value = true
+}
+
+const editarCategoria = (id) => {
+  router.visit(route('categorias.edit', id))
+}
+
+const confirmarEliminacion = (id) => {
+  selectedId.value = id
+  modalMode.value = 'confirm'
+  showModal.value = true
+}
+
+const eliminarCategoria = () => {
+  router.delete(route('categorias.destroy', selectedId.value), {
+    preserveScroll: true,
+    onSuccess: () => {
+      notyf.success('Categoría eliminada')
+      showModal.value = false
+      selectedId.value = null
+      router.reload()
+    },
+    onError: (errors) => {
+      notyf.error('No se pudo eliminar la categoría')
     }
-    if (page.props.flash?.error) {
-        notyf.error(page.props.flash.error);
+  })
+}
+
+const toggleCategoria = (id) => {
+  const categoria = categoriasData.value.find(c => c.id === id)
+  if (!categoria) return notyf.error('Categoría no encontrada')
+  const nuevoEstado = categoria.estado === 'activo' ? 'inactivo' : 'activo'
+  const mensaje = nuevoEstado === 'activo' ? 'Categoría activada' : 'Categoría desactivada'
+
+  router.put(route('categorias.toggle', id), {
+    preserveScroll: true,
+    onSuccess: () => {
+      notyf.success(mensaje + ' correctamente')
+      router.reload()
+    },
+    onError: (errors) => {
+      notyf.error('No se pudo cambiar el estado de la categoría')
     }
-});
+  })
+}
 
-// Methods
-const confirmarEliminacion = (categoria) => {
-    categoriaAEliminar.value = categoria;
-    isConfirmOpen.value = true;
-};
+const exportCategorias = () => {
+  const params = new URLSearchParams()
+  if (searchTerm.value) params.append('search', searchTerm.value)
+  if (filtroEstado.value) params.append('estado', filtroEstado.value)
+  const queryString = params.toString()
+  const url = route('categorias.export') + (queryString ? `?${queryString}` : '')
+  window.location.href = url
+}
 
-const cancelarEliminacion = () => {
-    isConfirmOpen.value = false;
-    categoriaAEliminar.value = null;
-};
+// Paginación
+const paginationData = computed(() => ({
+  current_page: categoriasPaginator.value?.current_page || 1,
+  last_page: categoriasPaginator.value?.last_page || 1,
+  per_page: categoriasPaginator.value?.per_page || 10,
+  from: categoriasPaginator.value?.from || 0,
+  to: categoriasPaginator.value?.to || 0,
+  total: categoriasPaginator.value?.total || 0,
+  prev_page_url: categoriasPaginator.value?.prev_page_url,
+  next_page_url: categoriasPaginator.value?.next_page_url,
+  links: categoriasPaginator.value?.links || []
+}))
 
-const eliminarCategoriaConfirmado = async () => {
-    if (!categoriaAEliminar.value) return;
+const handlePerPageChange = (newPerPage) => {
+  router.get(route('categorias.index'), {
+    ...props.filters,
+    ...props.sorting,
+    per_page: newPerPage,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
 
-    loading.value = true;
-    try {
-        await router.delete(route('categorias.destroy', categoriaAEliminar.value.id), {
-            onSuccess: () => {
-                notyf.success('Categoría eliminada exitosamente.');
-                // Actualiza el array reactivo después de una eliminación exitosa
-                categorias.value = categorias.value.filter(c => c.id !== categoriaAEliminar.value.id);
-                isConfirmOpen.value = false;
-                categoriaAEliminar.value = null;
-            },
-            onError: (errors) => {
-                notyf.error(errors.error || 'Error al eliminar la categoría.');
-            }
-        });
-    } catch (error) {
-        notyf.error('Ocurrió un error inesperado al eliminar.');
-    } finally {
-        loading.value = false;
-    }
-};
+const handlePageChange = (newPage) => {
+  router.get(route('categorias.index'), {
+    ...props.filters,
+    ...props.sorting,
+    page: newPage
+  }, { preserveState: true, preserveScroll: true })
+}
 
-const filtrarCategorias = () => {
-    // La búsqueda se aplica automáticamente a través de computed property 'categoriasFiltradas'
-};
+// Helpers
+const formatNumber = (num) => new Intl.NumberFormat('es-ES').format(num)
+const formatearFecha = (date) => {
+  if (!date) return 'Fecha no disponible'
+  try {
+    const d = new Date(date)
+    return d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  } catch {
+    return 'Fecha inválida'
+  }
+}
 
-const limpiarFiltros = () => {
-    searchTerm.value = '';
-    // Si agregas más filtros en el futuro, límpialos aquí también
-};
+const obtenerClasesEstado = (estado) => {
+  const clases = {
+    'activo': 'bg-green-100 text-green-700',
+    'inactivo': 'bg-red-100 text-red-700'
+  }
+  return clases[estado] || 'bg-gray-100 text-gray-700'
+}
+
+const obtenerLabelEstado = (estado) => {
+  const labels = {
+    'activo': 'Activo',
+    'inactivo': 'Inactivo'
+  }
+  return labels[estado] || 'Pendiente'
+}
 </script>
 
+<template>
+  <Head title="Categorías" />
+  <div class="categorias-index min-h-screen bg-gray-50">
+    <div class="max-w-8xl mx-auto px-6 py-8">
+      <!-- Header -->
+      <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-8 mb-6">
+        <div class="flex flex-col lg:flex-row gap-8 items-start lg:items-center justify-between">
+          <!-- Izquierda -->
+          <div class="flex flex-col gap-6 w-full lg:w-auto">
+            <div class="flex items-center gap-3">
+              <h1 class="text-2xl font-bold text-slate-900">Categorías</h1>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+              <Link
+                :href="route('categorias.create')"
+                class="inline-flex items-center gap-2.5 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>{{ headerConfig.createButtonText }}</span>
+              </Link>
+
+              <button
+                @click="exportCategorias"
+                class="inline-flex items-center gap-2 px-4 py-3 bg-green-50 text-green-700 rounded-xl hover:bg-green-100 transition-all duration-200 border border-green-200"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                </svg>
+                <span class="text-sm font-medium">Exportar</span>
+              </button>
+            </div>
+
+            <!-- Estadísticas con barras de progreso -->
+            <div class="flex flex-wrap items-center gap-4 text-sm">
+              <div class="flex items-center gap-2 px-4 py-3 bg-slate-50 rounded-xl border border-slate-200">
+                <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span class="font-medium text-slate-700">Total:</span>
+                <span class="font-bold text-slate-900 text-lg">{{ formatNumber(estadisticas.total) }}</span>
+              </div>
+
+              <div class="flex items-center gap-2 px-4 py-3 bg-green-50 rounded-xl border border-green-200">
+                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span class="font-medium text-slate-700">Activos:</span>
+                <span class="font-bold text-green-700 text-lg">{{ formatNumber(estadisticas.activos) }}</span>
+                <div class="ml-2 flex items-center gap-2">
+                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      class="h-full bg-green-500 transition-all duration-300"
+                      :style="{ width: estadisticas.activosPorcentaje + '%' }"
+                    ></div>
+                  </div>
+                  <span class="text-xs text-green-600 font-medium">{{ estadisticas.activosPorcentaje }}%</span>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2 px-4 py-3 bg-red-50 rounded-xl border border-red-200">
+                <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span class="font-medium text-slate-700">Inactivos:</span>
+                <span class="font-bold text-red-700 text-lg">{{ formatNumber(estadisticas.inactivos) }}</span>
+                <div class="ml-2 flex items-center gap-2">
+                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      class="h-full bg-red-500 transition-all duration-300"
+                      :style="{ width: estadisticas.inactivosPorcentaje + '%' }"
+                    ></div>
+                  </div>
+                  <span class="text-xs text-red-600 font-medium">{{ estadisticas.inactivosPorcentaje }}%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Derecha: Filtros -->
+          <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto lg:flex-shrink-0">
+            <!-- Búsqueda -->
+            <div class="relative">
+              <input
+                v-model="searchTerm"
+                @input="handleSearchChange($event.target.value)"
+                type="text"
+                :placeholder="headerConfig.searchPlaceholder"
+                class="w-full sm:w-64 lg:w-80 pl-4 pr-10 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+              />
+              <svg class="absolute right-3 top-3.5 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+
+            <!-- Estado -->
+            <select
+              v-model="filtroEstado"
+              @change="handleEstadoChange($event.target.value)"
+              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+            >
+              <option value="">Todos los Estados</option>
+              <option value="activo">Activos</option>
+              <option value="inactivo">Inactivos</option>
+            </select>
+
+            <!-- Orden -->
+            <select
+              v-model="sortBy"
+              @change="handleSortChange($event.target.value)"
+              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+            >
+              <option value="nombre-asc">Nombre A-Z</option>
+              <option value="nombre-desc">Nombre Z-A</option>
+              <option value="fecha-desc">Más Recientes</option>
+              <option value="fecha-asc">Más Antiguos</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabla -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Fecha</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Categoría</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Descripción</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Estado</th>
+                <th class="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Acciones</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <tr v-for="categoria in categoriasDocumentos" :key="categoria.id" class="hover:bg-gray-50 transition-colors duration-150">
+                <td class="px-6 py-4">
+                  <div class="text-sm text-gray-900">{{ formatearFecha(categoria.fecha) }}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="text-sm font-medium text-gray-900">{{ categoria.titulo }}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="text-sm text-gray-700 max-w-xs truncate">{{ categoria.raw.descripcion || 'Sin descripción' }}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <span :class="obtenerClasesEstado(categoria.estado)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                    {{ obtenerLabelEstado(categoria.estado) }}
+                  </span>
+                </td>
+                <td class="px-6 py-4 text-right">
+                  <div class="flex items-center justify-end space-x-1">
+                    <button @click="verDetalles(categoria)" class="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors duration-150" title="Ver detalles">
+                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    </button>
+                    <button @click="editarCategoria(categoria.id)" class="w-8 h-8 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-colors duration-150" title="Editar">
+                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button @click="toggleCategoria(categoria.id)" class="w-8 h-8 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors duration-150" title="Cambiar estado">
+                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    </button>
+                    <button @click="confirmarEliminacion(categoria.id)" class="w-8 h-8 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors duration-150" title="Eliminar">
+                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="categoriasDocumentos.length === 0">
+                <td colspan="5" class="px-6 py-16 text-center">
+                  <div class="flex flex-col items-center space-y-4">
+                    <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                      <svg class="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <div class="space-y-1">
+                      <p class="text-gray-700 font-medium">No hay categorías</p>
+                      <p class="text-sm text-gray-500">Las categorías aparecerán aquí cuando se creen</p>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Paginación -->
+        <div v-if="paginationData.lastPage > 1" class="bg-white border-t border-gray-200 px-4 py-3 sm:px-6">
+          <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+              <p class="text-sm text-gray-700">
+                Mostrando {{ paginationData.from }} - {{ paginationData.to }} de {{ paginationData.total }} resultados
+              </p>
+              <select
+                :value="paginationData.perPage"
+                @change="handlePerPageChange(parseInt($event.target.value))"
+                class="border border-gray-300 rounded-md text-sm py-1 px-2 bg-white"
+              >
+                <option value="10">10</option>
+                <option value="15">15</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+              </select>
+            </div>
+
+            <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+              <button
+                v-if="paginationData.prevPageUrl"
+                @click="handlePageChange(paginationData.currentPage - 1)"
+                class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+              >
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+              </button>
+
+              <span v-else class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-gray-100 text-sm font-medium text-gray-400">
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+              </span>
+
+              <button
+                v-for="page in [paginationData.currentPage - 1, paginationData.currentPage, paginationData.currentPage + 1].filter(p => p > 0 && p <= paginationData.lastPage)"
+                :key="page"
+                @click="handlePageChange(page)"
+                :class="page === paginationData.currentPage ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'"
+                class="relative inline-flex items-center px-4 py-2 border text-sm font-medium"
+              >
+                {{ page }}
+              </button>
+
+              <button
+                v-if="paginationData.nextPageUrl"
+                @click="handlePageChange(paginationData.currentPage + 1)"
+                class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+              >
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                </svg>
+              </button>
+
+              <span v-else class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-gray-100 text-sm font-medium text-gray-400">
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                </svg>
+              </span>
+            </nav>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal mejorado -->
+      <div v-if="showModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="showModal = false">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <!-- Header del modal -->
+          <div class="flex items-center justify-between p-6 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">
+              {{ modalMode === 'details' ? 'Detalles de la Categoría' : 'Confirmar Eliminación' }}
+            </h3>
+            <button @click="showModal = false" class="text-gray-400 hover:text-gray-600 transition-colors">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="p-6">
+            <div v-if="modalMode === 'details' && selectedCategoria">
+              <div class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div class="space-y-3">
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Nombre</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedCategoria.nombre }}</p>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Estado</label>
+                      <span :class="obtenerClasesEstado(selectedCategoria.estado)" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium mt-1">
+                        {{ obtenerLabelEstado(selectedCategoria.estado) }}
+                      </span>
+                    </div>
+                  </div>
+                  <div class="space-y-3">
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Fecha de creación</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ formatearFecha(selectedCategoria.created_at) }}</p>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Última actualización</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ formatearFecha(selectedCategoria.updated_at) }}</p>
+                    </div>
+                  </div>
+                </div>
+                <div v-if="selectedCategoria.descripcion">
+                  <label class="block text-sm font-medium text-gray-700">Descripción</label>
+                  <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md whitespace-pre-wrap">{{ selectedCategoria.descripcion }}</p>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="modalMode === 'confirm'">
+              <div class="text-center">
+                <div class="w-12 h-12 mx-auto bg-red-100 rounded-full flex items-center justify-center mb-4">
+                  <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                  </svg>
+                </div>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">¿Eliminar Categoría?</h3>
+                <p class="text-sm text-gray-500 mb-4">
+                  ¿Estás seguro de que deseas eliminar la categoría <strong>{{ selectedCategoria?.nombre }}</strong>?
+                  Esta acción no se puede deshacer.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer del modal -->
+          <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+            <button @click="showModal = false" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+              {{ modalMode === 'details' ? 'Cerrar' : 'Cancelar' }}
+            </button>
+            <div v-if="modalMode === 'details'" class="flex gap-2">
+              <button @click="toggleCategoria(selectedCategoria.id)" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                Cambiar Estado
+              </button>
+              <button @click="editarCategoria(selectedCategoria.id)" class="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors">
+                Editar
+              </button>
+            </div>
+            <button v-if="modalMode === 'confirm'" @click="eliminarCategoria" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+              Eliminar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
 <style scoped>
-/* Estilos para tooltips personalizados */
-[data-tooltip] {
-    position: relative;
-}
-[data-tooltip]:hover:after {
-    content: attr(data-tooltip);
-    position: absolute;
-    bottom: 100%;
-    right: 0;
-    background: #1f2937;
-    color: white;
-    padding: 6px 12px;
-    border-radius: 4px;
-    font-size: 12px;
-    white-space: nowrap;
-    z-index: 10;
-    transform: translateY(-4px);
-    transition: all 0.2s ease;
-}
-
-/* Estilos para transiciones de la modal */
-.modal-enter-active,
-.modal-leave-active {
-    transition: opacity 0.3s ease;
-}
-.modal-enter-from,
-.modal-leave-to {
-    opacity: 0;
-}
-.modal-enter-active .modal-container,
-.modal-leave-active .modal-container {
-    transition: all 0.3s ease;
-}
-.modal-enter-from .modal-container,
-.modal-leave-to .modal-container {
-    transform: scale(0.95);
-}
-
-/* Diseño responsivo para la columna de acciones */
-@media (max-width: 640px) {
-    .acciones-container {
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-}
-
-/* Mejora en la tabla para mayor legibilidad */
-tbody tr:hover {
-    background-color: #f9fafb;
-}
-
-/* Asegurar que los botones sean más visibles */
-button:focus,
-a:focus {
-    outline: none;
+.categorias-index {
+  min-height: 100vh;
+  background-color: #f9fafb;
 }
 </style>

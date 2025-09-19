@@ -1,241 +1,203 @@
-<template>
-    <Head title="Crear Marca" />
-    <div class="min-h-screen bg-gray-50 py-10">
-        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <!-- Header Section -->
-            <div class="mb-10 flex items-center justify-between">
-                <div>
-                    <h1 class="text-4xl font-extrabold text-gray-900 leading-tight">Crear Nueva Marca</h1>
-                    <p class="mt-2 text-lg text-gray-600">Completa la información para agregar una nueva marca a tu catálogo.</p>
-                </div>
-                <Link
-                    :href="route('marcas.index')"
-                    class="inline-flex items-center px-5 py-2.5 text-base font-medium text-gray-700 bg-white border border-gray-300 rounded-xl shadow-sm hover:bg-gray-50 hover:border-gray-400 transition-all duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
-                >
-                    <i class="fas fa-arrow-left mr-2"></i>
-                    Volver
-                </Link>
-            </div>
-
-            <!-- Form Card -->
-            <div class="bg-white rounded-3xl shadow-xl border border-gray-200 overflow-hidden">
-                <form @submit.prevent="submit" class="divide-y divide-gray-200">
-                    <!-- Form Header -->
-                    <div class="px-8 py-5 bg-gradient-to-br from-teal-50 to-emerald-50 border-b border-gray-200">
-                        <div class="flex items-center">
-                            <div class="flex-shrink-0">
-                                <div class="w-12 h-12 bg-teal-100 rounded-xl flex items-center justify-center shadow-md">
-                                    <i class="fas fa-building text-teal-700 text-xl"></i>
-                                </div>
-                            </div>
-                            <div class="ml-5">
-                                <h3 class="text-xl font-semibold text-gray-900">Información de la Marca</h3>
-                                <p class="mt-1 text-sm text-gray-500">Ingresa los detalles principales para tu nueva marca de productos.</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Form Body -->
-                    <div class="p-8">
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                            <!-- Nombre de la Marca -->
-                            <div class="space-y-6">
-                                <div>
-                                    <label for="nombre" class="block text-sm font-semibold text-gray-700 mb-2">
-                                        <span class="flex items-center">
-                                            <i class="fas fa-tag text-gray-400 mr-2"></i>
-                                            Nombre de la Marca
-                                            <span class="text-red-500 ml-1">*</span>
-                                        </span>
-                                    </label>
-                                    <input
-                                        v-model="form.nombre"
-                                        type="text"
-                                        id="nombre"
-                                        placeholder="Ej: L'Oréal, Revlon, Wahl"
-                                        :class="[
-                                            'w-full px-4 py-3 border rounded-xl transition-all duration-300 ease-in-out focus:ring-3 focus:ring-teal-300 focus:border-teal-500 shadow-sm',
-                                            form.errors.nombre ? 'border-red-400 bg-red-50' : 'border-gray-300 hover:border-gray-400'
-                                        ]"
-                                        required
-                                    />
-                                    <div v-if="form.errors.nombre" class="mt-2 flex items-center text-sm text-red-600">
-                                        <i class="fas fa-exclamation-circle mr-2"></i>
-                                        {{ form.errors.nombre }}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Descripción y Vista Previa -->
-                            <div class="space-y-6">
-                                <div>
-                                    <label for="descripcion" class="block text-sm font-semibold text-gray-700 mb-2">
-                                        <span class="flex items-center">
-                                            <i class="fas fa-align-left text-gray-400 mr-2"></i>
-                                            Descripción
-                                        </span>
-                                    </label>
-                                    <textarea
-                                        v-model="form.descripcion"
-                                        id="descripcion"
-                                        placeholder="Describe brevemente la filosofía o los productos clave de esta marca. Por ejemplo: 'Marca líder en productos para el cuidado del cabello y la piel, conocida por su innovación y calidad.'"
-                                        rows="6"
-                                        maxlength="500"
-                                        class="w-full px-4 py-3 border border-gray-300 rounded-xl transition-all duration-300 ease-in-out focus:ring-3 focus:ring-teal-300 focus:border-teal-500 hover:border-gray-400 resize-none shadow-sm"
-                                    ></textarea>
-                                    <div class="mt-1 text-xs text-gray-500 text-right">
-                                        {{ form.descripcion.length }}/500 caracteres
-                                    </div>
-                                    <div v-if="form.errors.descripcion" class="mt-2 flex items-center text-sm text-red-600">
-                                        <i class="fas fa-exclamation-circle mr-2"></i>
-                                        {{ form.errors.descripcion }}
-                                    </div>
-                                </div>
-
-                                <!-- Preview Card -->
-                                <div class="bg-gray-50 rounded-2xl p-5 border border-gray-200 shadow-inner">
-                                    <h4 class="text-base font-semibold text-gray-700 mb-4 flex items-center">
-                                        <i class="fas fa-eye text-gray-500 mr-2"></i>
-                                        Vista Previa de la Tarjeta de Marca
-                                    </h4>
-                                    <div class="bg-white rounded-xl p-5 border border-gray-200 shadow-md">
-                                        <div class="flex items-start justify-between">
-                                            <div class="flex-1">
-                                                <h5 class="font-bold text-lg text-gray-900 truncate">
-                                                    {{ form.nombre || 'Nombre de la Marca' }}
-                                                </h5>
-                                                <p class="text-sm text-gray-600 mt-2 line-clamp-3">
-                                                    {{ form.descripcion || 'Una descripción concisa de la marca, sus productos o su enfoque principal.' }}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Form Footer -->
-                    <div class="px-8 py-5 bg-gray-50 flex items-center justify-between border-t border-gray-200">
-                        <div class="flex items-center text-sm text-gray-500">
-                            <i class="fas fa-info-circle mr-2 text-teal-600"></i>
-                            Los campos marcados con <span class="text-red-500 ml-1 font-bold">*</span> son obligatorios.
-                        </div>
-                        <div class="flex items-center space-x-4">
-                            <Link
-                                :href="route('marcas.index')"
-                                class="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-100 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400"
-                            >
-                                Cancelar
-                            </Link>
-                            <button
-                                type="submit"
-                                :disabled="form.processing"
-                                class="px-8 py-2.5 bg-gradient-to-r from-teal-600 to-teal-700 text-white font-semibold rounded-xl hover:from-teal-700 hover:to-teal-800 focus:ring-4 focus:ring-teal-300 transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transform hover:-translate-y-0.5"
-                            >
-                                <i v-if="form.processing" class="fas fa-spinner fa-spin mr-2"></i>
-                                <i v-else class="fas fa-save mr-2"></i>
-                                {{ form.processing ? 'Guardando...' : 'Crear Marca' }}
-                            </button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-
-            <!-- Tips Section -->
-            <div class="mt-10 bg-teal-50 rounded-3xl p-7 border border-teal-200 shadow-md">
-                <div class="flex items-start">
-                    <div class="flex-shrink-0">
-                        <i class="fas fa-lightbulb text-teal-600 text-2xl mt-1"></i>
-                    </div>
-                    <div class="ml-5">
-                        <h3 class="text-xl font-bold text-teal-900 mb-3">Consejos para crear una nueva marca</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 text-base text-teal-800">
-                            <div class="flex items-start">
-                                <i class="fas fa-check-circle text-teal-600 mr-2 mt-1 flex-shrink-0"></i>
-                                <span>Usa el nombre oficial de la marca para evitar confusiones.</span>
-                            </div>
-                            <div class="flex items-start">
-                                <i class="fas fa-check-circle text-teal-600 mr-2 mt-1 flex-shrink-0"></i>
-                                <span>La descripción debe ser concisa y destacar la esencia de la marca.</span>
-                            </div>
-                            <div class="flex items-start">
-                                <i class="fas fa-check-circle text-teal-600 mr-2 mt-1 flex-shrink-0"></i>
-                                <span>Asegúrate de que la marca sea relevante para tus productos/servicios.</span>
-                            </div>
-                            <div class="flex items-start">
-                                <i class="fas fa-check-circle text-teal-600 mr-2 mt-1 flex-shrink-0"></i>
-                                <span>Mantén la información actualizada para una mejor gestión.</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</template>
-
+<!-- /resources/js/Pages/Marcas/Create.vue -->
 <script setup>
-import { Head, Link, useForm } from '@inertiajs/vue3';
-import { Notyf } from 'notyf';
-import 'notyf/notyf.min.css';
-import AppLayout from '@/Layouts/AppLayout.vue';
+import { ref, onMounted } from 'vue'
+import { Head, router, usePage } from '@inertiajs/vue3'
+import AppLayout from '@/Layouts/AppLayout.vue'
+import { Notyf } from 'notyf'
+import 'notyf/notyf.min.css'
 
-// Define el layout del dashboard
-defineOptions({ layout: AppLayout });
+defineOptions({ layout: AppLayout })
 
-// Notification setup
+// Notificaciones
 const notyf = new Notyf({
-    duration: 4000,
-    position: { x: 'right', y: 'top' },
-    types: [
-        {
-            type: 'success',
-            background: 'linear-gradient(135deg, #10b981, #059669)', // Tailwind `emerald-600` to `emerald-800`
-            icon: {
-                className: 'fas fa-check',
-                tagName: 'i',
-                color: 'white'
-            }
-        },
-        {
-            type: 'error',
-            background: 'linear-gradient(135deg, #ef4444, #dc2626)', // Tailwind `red-500` to `red-700`
-            icon: {
-                className: 'fas fa-exclamation-triangle',
-                tagName: 'i',
-                color: 'white'
-            }
-        }
-    ]
-});
+  duration: 4000,
+  position: { x: 'right', y: 'top' },
+  types: [
+    { type: 'success', background: '#10b981', icon: false },
+    { type: 'error', background: '#ef4444', icon: false },
+    { type: 'warning', background: '#f59e0b', icon: false }
+  ]
+})
 
-// Form setup
-const form = useForm({
-    nombre: '',
-    descripcion: '',
-});
+const page = usePage()
+onMounted(() => {
+  const flash = page.props.flash
+  if (flash?.success) notyf.success(flash.success)
+  if (flash?.error) notyf.error(flash.error)
+})
 
-// Methods
+// Form data
+const form = ref({
+  nombre: '',
+  descripcion: '',
+  estado: 'activo'
+})
+
+// Estados
+const loading = ref(false)
+
+// Métodos
 const submit = () => {
-    form.post(route('marcas.store'), {
-        onSuccess: () => {
-            notyf.success('¡Marca creada exitosamente!');
-            form.reset(); // Reset form fields after successful submission
-        },
-        onError: () => {
-            notyf.error('Error al crear la marca. Por favor, revisa los datos ingresados.');
-        }
-    });
-};
+  loading.value = true
+
+  router.post(route('marcas.store'), form.value, {
+    onSuccess: () => {
+      notyf.success('Marca creada correctamente')
+      router.visit(route('marcas.index'))
+    },
+    onError: (errors) => {
+      console.error('Errores de validación:', errors)
+      notyf.error('Error al crear la marca')
+    },
+    onFinish: () => {
+      loading.value = false
+    }
+  })
+}
+
+const cancel = () => {
+  router.visit(route('marcas.index'))
+}
 </script>
 
+<template>
+  <Head title="Crear Marca" />
+
+  <div class="min-h-screen bg-gray-50">
+    <div class="max-w-4xl mx-auto px-6 py-8">
+      <!-- Header -->
+      <div class="mb-8">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-3xl font-bold text-gray-900">Crear Nueva Marca</h1>
+            <p class="text-gray-600 mt-1">Agrega una nueva marca al sistema</p>
+          </div>
+          <button
+            @click="cancel"
+            class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Cancelar
+          </button>
+        </div>
+      </div>
+
+      <!-- Formulario -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+        <form @submit.prevent="submit" class="space-y-6">
+          <!-- Nombre -->
+          <div>
+            <label for="nombre" class="block text-sm font-medium text-gray-700 mb-2">
+              Nombre de la Marca *
+            </label>
+            <input
+              id="nombre"
+              v-model="form.nombre"
+              type="text"
+              required
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+              placeholder="Ingresa el nombre de la marca"
+            />
+          </div>
+
+          <!-- Descripción -->
+          <div>
+            <label for="descripcion" class="block text-sm font-medium text-gray-700 mb-2">
+              Descripción
+            </label>
+            <textarea
+              id="descripcion"
+              v-model="form.descripcion"
+              rows="4"
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+              placeholder="Ingresa una descripción opcional para la marca"
+            ></textarea>
+          </div>
+
+          <!-- Estado -->
+          <div>
+            <label for="estado" class="block text-sm font-medium text-gray-700 mb-2">
+              Estado *
+            </label>
+            <select
+              id="estado"
+              v-model="form.estado"
+              required
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+            >
+              <option value="activo">Activo</option>
+              <option value="inactivo">Inactivo</option>
+            </select>
+            <p class="mt-1 text-sm text-gray-500">
+              Las marcas activas estarán disponibles para ser usadas en productos
+            </p>
+          </div>
+
+          <!-- Información de ayuda -->
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div class="flex">
+              <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                </svg>
+              </div>
+              <div class="ml-3">
+                <h3 class="text-sm font-medium text-blue-800">
+                  Información importante
+                </h3>
+                <div class="mt-2 text-sm text-blue-700">
+                  <ul class="list-disc pl-5 space-y-1">
+                    <li>El nombre de la marca debe ser único en el sistema</li>
+                    <li>Puedes cambiar el estado de la marca en cualquier momento</li>
+                    <li>Las marcas inactivas no estarán disponibles para nuevos productos</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Botones de acción -->
+          <div class="flex justify-end gap-4 pt-6 border-t border-gray-200">
+            <button
+              type="button"
+              @click="cancel"
+              :disabled="loading"
+              class="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 focus:ring-4 focus:ring-gray-300 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              :disabled="loading"
+              class="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold rounded-lg hover:from-green-700 hover:to-green-800 focus:ring-4 focus:ring-green-300 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+            >
+              <svg v-if="loading" class="animate-spin -ml-1 mr-3 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <svg v-else class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+              {{ loading ? 'Creando...' : 'Crear Marca' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</template>
+
 <style scoped>
-.line-clamp-3 {
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+/* Animaciones para el loading */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
 }
 </style>

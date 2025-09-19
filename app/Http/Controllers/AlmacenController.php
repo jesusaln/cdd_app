@@ -2,354 +2,245 @@
 
 namespace App\Http\Controllers;
 
+use Inertia\Inertia;
 use App\Models\Almacen;
 use Illuminate\Http\Request;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Validation\ValidationException;
-use Inertia\Inertia;
-use Inertia\Response;
-use Exception;
 use Illuminate\Support\Facades\Log;
 
 class AlmacenController extends Controller
 {
     /**
-     * Display a listing of warehouses.
-     *
-     * @return Response
+     * Muestra una lista de todos los almacenes con paginación y filtros.
      */
-    public function index(): Response
+    public function index(Request $request)
     {
         try {
-            $almacenes = Almacen::select(['id', 'nombre', 'descripcion', 'ubicacion', 'created_at'])
-                ->orderBy('nombre')
-                ->get();
+            $query = Almacen::query();
+
+            // Filtros
+            if ($search = trim($request->input('search', ''))) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('nombre', 'like', "%{$search}%")
+                      ->orWhere('descripcion', 'like', "%{$search}%")
+                      ->orWhere('direccion', 'like', "%{$search}%")
+                      ->orWhere('responsable', 'like', "%{$search}%");
+                });
+            }
+
+            if ($estado = $request->input('estado')) {
+                if ($estado === 'activo') {
+                    $query->where('estado', 'activo');
+                } elseif ($estado === 'inactivo') {
+                    $query->where('estado', 'inactivo');
+                }
+            }
+
+            // Ordenamiento
+            $sortBy = $request->input('sort_by', 'nombre');
+            $sortDirection = $request->input('sort_direction', 'asc');
+
+            $validSortFields = ['nombre', 'descripcion', 'direccion', 'created_at'];
+            if (!in_array($sortBy, $validSortFields)) {
+                $sortBy = 'nombre';
+            }
+
+            $query->orderBy($sortBy, $sortDirection);
+
+            // Paginación
+            $perPage = min((int) $request->input('per_page', 10), 50);
+            $almacenes = $query->paginate($perPage)->appends($request->query());
+
+            // Estadísticas
+            $total = Almacen::count();
+            $activos = Almacen::where('estado', 'activo')->count();
+            $inactivos = Almacen::where('estado', 'inactivo')->count();
+
+            $stats = [
+                'total' => $total,
+                'activos' => $activos,
+                'inactivos' => $inactivos,
+                'activos_porcentaje' => $total > 0 ? round(($activos / $total) * 100, 1) : 0,
+                'inactivos_porcentaje' => $total > 0 ? round(($inactivos / $total) * 100, 1) : 0,
+            ];
 
             return Inertia::render('Almacenes/Index', [
                 'almacenes' => $almacenes,
-                'success' => session('success'),
-                'error' => session('error'),
+                'stats' => $stats,
+                'filters' => $request->only(['search', 'estado']),
+                'sorting' => ['sort_by' => $sortBy, 'sort_direction' => $sortDirection],
             ]);
-        } catch (Exception $e) {
-            return Inertia::render('Almacenes/Index', [
-                'almacenes' => collect([]),
-                'error' => 'Error al cargar los almacenes. Por favor, intente nuevamente.',
-            ]);
+        } catch (\Exception $e) {
+            Log::error('Error en AlmacenController@index: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al cargar los almacenes.');
         }
     }
 
     /**
-     * Show the form for creating a new warehouse.
-     *
-     * @return Response
+     * Muestra el formulario para crear un nuevo almacén.
      */
-    public function create(): Response
+    public function create()
     {
         return Inertia::render('Almacenes/Create');
     }
 
     /**
-     * Store a newly created warehouse in storage.
-     *
-     * @param Request $request
-     * @return RedirectResponse
-     * @throws ValidationException
+     * Almacena un nuevo almacén en la base de datos.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request)
     {
-        try {
-            $validated = $this->validateWarehouse($request);
+        $request->validate([
+            'nombre' => 'required|string|max:100|unique:almacenes,nombre',
+            'descripcion' => 'nullable|string|max:1000',
+            'direccion' => 'nullable|string|max:255',
+            'telefono' => 'nullable|string|max:20',
+            'responsable' => 'nullable|string|max:100',
+            'estado' => 'required|in:activo,inactivo',
+        ]);
 
-            $almacen = Almacen::create([
-                'nombre' => trim($validated['nombre']),
-                'descripcion' => isset($validated['descripcion']) ? trim($validated['descripcion']) : null,
-                'ubicacion' => trim($validated['ubicacion']),
-            ]);
+        Almacen::create($request->all());
 
-            return redirect()
-                ->route('almacenes.index')
-                ->with('success', "El almacén '{$almacen->nombre}' ha sido creado exitosamente.");
-        } catch (ValidationException $e) {
-            throw $e;
-        } catch (Exception $e) {
-            return redirect()
-                ->back()
-                ->withInput()
-                ->withErrors(['error' => 'Error al crear el almacén. Por favor, intente nuevamente.']);
-        }
+        return redirect()->route('almacenes.index')->with('success', 'Almacén creado correctamente.');
     }
 
     /**
-     * Display the specified warehouse.
-     *
-     * @param Almacen $almacen
-     * @return Response
+     * Muestra el formulario para editar un almacén existente.
      */
-    public function show(Almacen $almacen): Response
+    public function edit(Almacen $almacen)
     {
-        $almacen->load(['productos' => function ($query) {
-            $query->select(['id', 'nombre', 'almacen_id', 'stock']);
-        }]);
-
-        return Inertia::render('Almacenes/Show', [
+        return Inertia::render('Almacenes/Edit', [
             'almacen' => $almacen,
         ]);
     }
 
     /**
-     * Muestra el formulario para editar un almacén existente.
-     *
-     * @param int $id
-     * @return Response
+     * Actualiza un almacén existente en la base de datos.
      */
-    public function edit(int $id): Response
+    public function update(Request $request, Almacen $almacen)
     {
-        try {
-            $almacen = Almacen::select(['id', 'nombre', 'descripcion', 'ubicacion'])
-                ->findOrFail($id);
+        $validated = $request->validate([
+            'nombre' => 'required|string|max:100|unique:almacenes,nombre,' . $almacen->id,
+            'descripcion' => 'nullable|string|max:1000',
+            'direccion' => 'nullable|string|max:255',
+            'telefono' => 'nullable|string|max:20',
+            'responsable' => 'nullable|string|max:100',
+            'estado' => 'required|in:activo,inactivo',
+        ]);
 
-            Log::info('Cargando almacén para edición', [
-                'id' => $almacen->id,
-                'nombre' => $almacen->nombre
-            ]);
+        $almacen->update($validated);
 
-            return Inertia::render('Almacenes/Edit', [
-                'almacen' => [
-                    'id' => $almacen->id,
-                    'nombre' => $almacen->nombre,
-                    'descripcion' => $almacen->descripcion,
-                    'ubicacion' => $almacen->ubicacion,
-                ],
-                'status' => [
-                    'success' => session('success'),
-                    'error' => session('error'),
-                ],
-            ]);
-        } catch (ModelNotFoundException $e) {
-            Log::warning('Almacén no encontrado para edición', ['id' => $id]);
-
-            return Inertia::render('Almacenes/Index', [
-                'almacenes' => Almacen::select(['id', 'nombre', 'descripcion', 'ubicacion', 'created_at'])
-                    ->orderBy('nombre')
-                    ->get(),
-                'status' => [
-                    'error' => 'El almacén solicitado no existe.'
-                ],
-            ]);
-        } catch (Exception $e) {
-            Log::error('Error al cargar almacén para edición', [
-                'id' => $id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return Inertia::render('Almacenes/Index', [
-                'almacenes' => Almacen::select(['id', 'nombre', 'descripcion', 'ubicacion', 'created_at'])
-                    ->orderBy('nombre')
-                    ->get(),
-                'status' => [
-                    'error' => 'Error al cargar el almacén para edición.'
-                ],
-            ]);
-        }
-    }
-    /**
-     * MÉTODO ALTERNATIVO usando Route Model Binding (si el anterior no funciona)
-     * Reemplaza el método edit de arriba con este si tienes problemas:
-     */
-    /*
-    public function edit(Almacen $almacen): Response
-    {
-        try {
-            // Debug log
-            \Log::info('Almacén recibido via model binding:', $almacen->toArray());
-
-            // Verificar que el almacén existe
-            if (!$almacen->exists) {
-                throw new ModelNotFoundException();
-            }
-
-            return Inertia::render('Almacenes/Edit', [
-                'almacen' => $almacen->toArray(), // Usar toArray() en lugar de only()
-            ]);
-        } catch (Exception $e) {
-            \Log::error('Error en edit method:', ['error' => $e->getMessage()]);
-
-            return redirect()
-                ->route('almacenes.index')
-                ->withErrors(['error' => 'Error al cargar el almacén para edición.']);
-        }
-    }
-    */
-
-    /**
-     * Update the specified warehouse in storage.
-     *
-     * @param Request $request
-     * @param int $id
-     * @return RedirectResponse
-     * @throws ValidationException
-     */
-    public function update(Request $request, $id): RedirectResponse
-    {
-        try {
-            // Buscar el almacén explícitamente
-            $almacen = Almacen::findOrFail($id);
-
-            $validated = $this->validateWarehouse($request, $almacen->id);
-
-            $almacen->update([
-                'nombre' => trim($validated['nombre']),
-                'descripcion' => isset($validated['descripcion']) ? trim($validated['descripcion']) : null,
-                'ubicacion' => trim($validated['ubicacion']),
-            ]);
-
-            return redirect()
-                ->route('almacenes.index')
-                ->with('success', "El almacén '{$almacen->nombre}' ha sido actualizado exitosamente.");
-        } catch (ModelNotFoundException $e) {
-            return redirect()
-                ->route('almacenes.index')
-                ->withErrors(['error' => 'El almacén solicitado no existe.']);
-        } catch (ValidationException $e) {
-            throw $e;
-        } catch (Exception $e) {
-            Log::error('Error al actualizar almacén:', [
-                'id' => $id,
-                'error' => $e->getMessage()
-            ]);
-
-            return redirect()
-                ->back()
-                ->withInput()
-                ->withErrors(['error' => 'Error al actualizar el almacén. Por favor, intente nuevamente.']);
-        }
+        return redirect()->route('almacenes.index')->with('success', 'Almacén actualizado correctamente.');
     }
 
     /**
-     * Remove the specified warehouse from storage.
-     *
-     * @param int $id
-     * @return RedirectResponse
+     * Elimina un almacén de la base de datos.
      */
-    public function destroy(int $id): RedirectResponse
+    public function destroy($id)
     {
         try {
             $almacen = Almacen::findOrFail($id);
 
-            // Check if warehouse has associated products
-            if ($this->hasAssociatedProducts($almacen)) {
-                return redirect()
-                    ->back()
-                    ->withErrors([
-                        'error' => "No se puede eliminar el almacén '{$almacen->nombre}' porque tiene productos asociados. Primero elimine o reasigne los productos."
-                    ]);
+            // Verificar si tiene productos relacionados antes de eliminar
+            if ($almacen->productos()->exists()) {
+                return redirect()->route('almacenes.index')->withErrors(['error' => 'No se puede eliminar el almacén porque tiene productos asociados.']);
             }
 
-            $nombreAlmacen = $almacen->nombre;
             $almacen->delete();
 
-            return redirect()
-                ->route('almacenes.index')
-                ->with('success', "El almacén '{$nombreAlmacen}' ha sido eliminado exitosamente.");
-        } catch (ModelNotFoundException $e) {
-            return redirect()
-                ->back()
-                ->withErrors(['error' => 'El almacén solicitado no existe.']);
-        } catch (Exception $e) {
-            return redirect()
-                ->back()
-                ->withErrors(['error' => 'Error al eliminar el almacén. Por favor, intente nuevamente.']);
+            return redirect()->route('almacenes.index')->with('success', 'Almacén eliminado correctamente.');
+        } catch (\Exception $e) {
+            Log::error('Error al eliminar almacén: ' . $e->getMessage());
+            return redirect()->route('almacenes.index')->withErrors(['error' => 'Error al eliminar el almacén.']);
         }
     }
 
     /**
-     * Validate warehouse data.
-     *
-     * @param Request $request
-     * @param int|null $almacenId
-     * @return array
-     * @throws ValidationException
+     * Alterna el estado de un almacén (activo/inactivo).
      */
-    private function validateWarehouse(Request $request, ?int $almacenId = null): array
-    {
-        $uniqueRule = $almacenId
-            ? "unique:almacenes,nombre,{$almacenId}"
-            : 'unique:almacenes,nombre';
-
-        return $request->validate([
-            'nombre' => [
-                'required',
-                'string',
-                'min:2',
-                'max:100',
-                $uniqueRule,
-                'regex:/^[a-zA-ZáéíóúÁÉÍÓÚñÑ0-9\s\-_]+$/', // Solo letras, números, espacios, guiones y guión bajo
-            ],
-            'descripcion' => [
-                'nullable',
-                'string',
-                'max:1000',
-            ],
-            'ubicacion' => [
-                'required',
-                'string',
-                'min:5',
-                'max:255',
-            ],
-        ], [
-            'nombre.required' => 'El nombre del almacén es obligatorio.',
-            'nombre.min' => 'El nombre debe tener al menos 2 caracteres.',
-            'nombre.max' => 'El nombre no puede exceder los 100 caracteres.',
-            'nombre.unique' => 'Ya existe un almacén con este nombre.',
-            'nombre.regex' => 'El nombre solo puede contener letras, números, espacios, guiones y guión bajo.',
-            'descripcion.max' => 'La descripción no puede exceder los 1000 caracteres.',
-            'ubicacion.required' => 'La ubicación es obligatoria.',
-            'ubicacion.min' => 'La ubicación debe tener al menos 5 caracteres.',
-            'ubicacion.max' => 'La ubicación no puede exceder los 255 caracteres.',
-        ]);
-    }
-
-    /**
-     * Check if warehouse has associated products.
-     *
-     * @param Almacen $almacen
-     * @return bool
-     */
-    private function hasAssociatedProducts(Almacen $almacen): bool
-    {
-        return $almacen->productos()->exists();
-    }
-
-    /**
-     * Get warehouses for select options.
-     *
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function getSelectOptions()
+    public function toggle(Almacen $almacen)
     {
         try {
-            $almacenes = Almacen::select(['id', 'nombre', 'ubicacion'])
-                ->orderBy('nombre')
-                ->get()
-                ->map(function ($almacen) {
-                    return [
-                        'value' => $almacen->id,
-                        'label' => $almacen->nombre,
-                        'ubicacion' => $almacen->ubicacion,
-                    ];
-                });
+            $almacen->update(['estado' => $almacen->estado === 'activo' ? 'inactivo' : 'activo']);
 
-            return response()->json([
-                'success' => true,
-                'data' => $almacenes,
-            ]);
-        } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al cargar los almacenes.',
-            ], 500);
+            $mensaje = $almacen->estado === 'activo' ? 'Almacén activado correctamente' : 'Almacén desactivado correctamente';
+
+            return redirect()->back()->with('success', $mensaje);
+        } catch (\Exception $e) {
+            Log::error('Error al cambiar estado de almacén: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al cambiar el estado del almacén.');
+        }
+    }
+
+    /**
+     * Exporta almacenes a CSV
+     */
+    public function export(Request $request)
+    {
+        try {
+            $query = Almacen::query();
+
+            // Aplicar los mismos filtros que en index
+            if ($search = trim($request->input('search', ''))) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('nombre', 'like', "%{$search}%")
+                      ->orWhere('descripcion', 'like', "%{$search}%")
+                      ->orWhere('direccion', 'like', "%{$search}%")
+                      ->orWhere('responsable', 'like', "%{$search}%");
+                });
+            }
+
+            if ($estado = $request->input('estado')) {
+                if ($estado === 'activo') {
+                    $query->where('estado', 'activo');
+                } elseif ($estado === 'inactivo') {
+                    $query->where('estado', 'inactivo');
+                }
+            }
+
+            $almacenes = $query->get();
+
+            $filename = 'almacenes_' . date('Y-m-d_H-i-s') . '.csv';
+
+            $headers = [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            ];
+
+            $callback = function () use ($almacenes) {
+                $file = fopen('php://output', 'w');
+                fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF)); // UTF-8 BOM
+
+                fputcsv($file, [
+                    'ID',
+                    'Nombre',
+                    'Descripción',
+                    'Dirección',
+                    'Teléfono',
+                    'Responsable',
+                    'Estado',
+                    'Fecha Creación'
+                ]);
+
+                foreach ($almacenes as $almacen) {
+                    fputcsv($file, [
+                        $almacen->id,
+                        $almacen->nombre,
+                        $almacen->descripcion ?? '',
+                        $almacen->direccion ?? '',
+                        $almacen->telefono ?? '',
+                        $almacen->responsable ?? '',
+                        $almacen->estado,
+                        $almacen->created_at?->format('d/m/Y H:i:s')
+                    ]);
+                }
+                fclose($file);
+            };
+
+            Log::info('Exportación de almacenes', ['total' => $almacenes->count()]);
+
+            return response()->stream($callback, 200, $headers);
+        } catch (\Exception $e) {
+            Log::error('Error en exportación de almacenes: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al exportar los almacenes.');
         }
     }
 }
