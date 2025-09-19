@@ -499,6 +499,7 @@
                                         :src="props.producto.imagen"
                                         :alt="props.producto.nombre"
                                         class="w-full h-48 object-cover rounded-lg border border-gray-300"
+                                        @error="handleImageError"
                                     />
                                     <div class="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-all duration-200 rounded-lg"></div>
                                 </div>
@@ -657,6 +658,14 @@ const handleImageUpload = (event) => {
 
         form.imagen = file;
     }
+};
+
+// Función para manejar errores de carga de imagen
+const handleImageError = (event) => {
+    console.warn('Error al cargar imagen del producto:', event.target.src);
+    // Establecer una imagen de placeholder local
+    event.target.src = '/images/placeholder-product.svg';
+    event.target.alt = 'Imagen no disponible';
 };
 </script>
 

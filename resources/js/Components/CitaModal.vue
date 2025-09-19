@@ -203,7 +203,8 @@ const generarUrl = (ruta) => {
 // Manejar errores en las imágenes
 const handleImageError = (event, tipo) => {
   console.warn(`Error al cargar la imagen (${tipo}):`, event.target.src);
-  event.target.src = '/path/to/default/image.jpg'; // Imagen predeterminada
+  event.target.src = '/images/placeholder-product.svg'; // Imagen de placeholder
+  event.target.alt = `Imagen ${tipo} no disponible`;
 };
 </script>
 

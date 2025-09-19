@@ -78,7 +78,10 @@
       <section class="border-b border-gray-200 pb-6 mb-6" v-if="herramienta.foto">
         <h2 class="text-lg font-medium text-gray-900 mb-4">Foto</h2>
         <div class="flex justify-center">
-          <img :src="herramienta.foto" :alt="`Foto de ${herramienta.nombre}`" class="max-w-md h-auto rounded-lg shadow-sm border border-gray-200" />
+          <img :src="herramienta.foto"
+               :alt="`Foto de ${herramienta.nombre}`"
+               class="max-w-md h-auto rounded-lg shadow-sm border border-gray-200"
+               @error="handleImageError" />
         </div>
       </section>
 
@@ -153,6 +156,14 @@ const formatearFecha = (date) => {
     return 'Fecha inválida'
   }
 }
+
+// Función para manejar errores de carga de imagen
+const handleImageError = (event) => {
+  console.warn('Error al cargar imagen de herramienta:', event.target.src);
+  // Establecer una imagen de placeholder local
+  event.target.src = '/images/placeholder-product.svg';
+  event.target.alt = 'Imagen no disponible';
+};
 </script>
 
 <style scoped>

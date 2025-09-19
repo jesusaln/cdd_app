@@ -11,18 +11,72 @@ use App\Models\Almacen;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class ProductoController extends Controller
 {
     /**
-     * Muestra una lista de todos los productos.
+     * Muestra una lista de todos los productos con paginación y filtros.
      */
-    public function index()
+    public function index(Request $request)
     {
-        return Inertia::render('Productos/Index', [
-            'productos' => Producto::all(),
-        ]);
+        try {
+            $query = Producto::query()->with(['categoria', 'marca', 'proveedor', 'almacen']);
+
+            // Filtros
+            if ($search = trim($request->input('search', ''))) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('nombre', 'like', "%{$search}%")
+                      ->orWhere('codigo', 'like', "%{$search}%")
+                      ->orWhere('codigo_barras', 'like', "%{$search}%")
+                      ->orWhere('descripcion', 'like', "%{$search}%");
+                });
+            }
+
+            if ($estado = $request->input('estado')) {
+                if ($estado === 'activo') {
+                    $query->where('estado', 'activo');
+                } elseif ($estado === 'inactivo') {
+                    $query->where('estado', 'inactivo');
+                } elseif ($estado === 'agotado') {
+                    $query->where('stock', '<=', 0);
+                }
+            }
+
+            // Ordenamiento
+            $sortBy = $request->input('sort_by', 'nombre');
+            $sortDirection = $request->input('sort_direction', 'asc');
+
+            $validSortFields = ['nombre', 'codigo', 'precio_venta', 'stock', 'created_at'];
+            if (!in_array($sortBy, $validSortFields)) {
+                $sortBy = 'nombre';
+            }
+
+            $query->orderBy($sortBy, $sortDirection);
+
+            // Paginación
+            $perPage = min((int) $request->input('per_page', 10), 50);
+            $productos = $query->paginate($perPage)->appends($request->query());
+
+            // Estadísticas basadas en estado del producto
+            $stats = [
+                'total' => Producto::count(),
+                'activos' => Producto::where('estado', 'activo')->count(),
+                'inactivos' => Producto::where('estado', 'inactivo')->count(),
+                'agotado' => Producto::where('stock', '<=', 0)->count(),
+            ];
+
+            return Inertia::render('Productos/Index', [
+                'productos' => $productos,
+                'stats' => $stats,
+                'filters' => $request->only(['search', 'estado']),
+                'sorting' => ['sort_by' => $sortBy, 'sort_direction' => $sortDirection],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error en ProductoController@index: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al cargar los productos.');
+        }
     }
 
     /**
@@ -252,5 +306,108 @@ class ProductoController extends Controller
             'errors'        => $errors,
             'pricesUpdated' => $pricesUpdated,
         ]);
+    }
+
+    /**
+     * Exporta productos a CSV
+     */
+    public function export(Request $request)
+    {
+        try {
+            $query = Producto::query()->with(['categoria', 'marca', 'proveedor', 'almacen']);
+
+            // Aplicar los mismos filtros que en index
+            if ($search = trim($request->input('search', ''))) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('nombre', 'like', "%{$search}%")
+                      ->orWhere('codigo', 'like', "%{$search}%")
+                      ->orWhere('codigo_barras', 'like', "%{$search}%")
+                      ->orWhere('descripcion', 'like', "%{$search}%");
+                });
+            }
+
+            if ($estado = $request->input('estado')) {
+                if ($estado === 'activo') {
+                    $query->where('estado', 'activo');
+                } elseif ($estado === 'inactivo') {
+                    $query->where('estado', 'inactivo');
+                } elseif ($estado === 'agotado') {
+                    $query->where('stock', '<=', 0);
+                }
+            }
+
+            $productos = $query->get();
+
+            $filename = 'productos_' . date('Y-m-d_H-i-s') . '.csv';
+
+            $headers = [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            ];
+
+            $callback = function () use ($productos) {
+                $file = fopen('php://output', 'w');
+                fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF)); // UTF-8 BOM
+
+                fputcsv($file, [
+                    'ID',
+                    'Nombre',
+                    'Código',
+                    'Código de Barras',
+                    'Descripción',
+                    'Categoría',
+                    'Marca',
+                    'Proveedor',
+                    'Precio Venta',
+                    'Stock',
+                    'Stock Mínimo',
+                    'Estado',
+                    'Fecha Creación'
+                ]);
+
+                foreach ($productos as $producto) {
+                    fputcsv($file, [
+                        $producto->id,
+                        $producto->nombre,
+                        $producto->codigo,
+                        $producto->codigo_barras,
+                        $producto->descripcion,
+                        $producto->categoria?->nombre ?? '',
+                        $producto->marca?->nombre ?? '',
+                        $producto->proveedor?->nombre_razon_social ?? '',
+                        $producto->precio_venta,
+                        $producto->stock,
+                        $producto->stock_minimo,
+                        $producto->estado,
+                        $producto->created_at?->format('d/m/Y H:i:s')
+                    ]);
+                }
+                fclose($file);
+            };
+
+            Log::info('Exportación de productos', ['total' => $productos->count()]);
+
+            return response()->stream($callback, 200, $headers);
+        } catch (\Exception $e) {
+            Log::error('Error en exportación de productos: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al exportar los productos.');
+        }
+    }
+
+    /**
+     * Alterna el estado de un producto (activo/inactivo).
+     */
+    public function toggle(Producto $producto)
+    {
+        try {
+            $producto->update(['estado' => $producto->estado === 'activo' ? 'inactivo' : 'activo']);
+
+            $mensaje = $producto->estado === 'activo' ? 'Producto activado correctamente' : 'Producto desactivado correctamente';
+
+            return redirect()->back()->with('success', $mensaje);
+        } catch (\Exception $e) {
+            Log::error('Error al cambiar estado del producto: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al cambiar el estado del producto.');
+        }
     }
 }

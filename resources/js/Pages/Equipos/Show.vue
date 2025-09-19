@@ -49,7 +49,11 @@
         <!-- Foto del Equipo -->
         <div class="mb-4">
           <label class="block text-gray-700 text-sm font-bold mb-2">Foto del Equipo</label>
-          <img v-if="props.equipo.foto" :src="props.equipo.foto" alt="Foto del Equipo" class="max-w-full h-auto rounded-md shadow-sm">
+          <img v-if="props.equipo.foto"
+               :src="props.equipo.foto"
+               alt="Foto del Equipo"
+               class="max-w-full h-auto rounded-md shadow-sm"
+               @error="handleImageError">
           <p v-else class="text-gray-500 italic">No hay foto del equipo disponible</p>
         </div>
       </div>
@@ -84,6 +88,14 @@
       mantenimiento: 'En Mantenimiento',
     };
     return estados[estado] || 'Desconocido';
+  };
+
+  // Función para manejar errores de carga de imagen
+  const handleImageError = (event) => {
+    console.warn('Error al cargar imagen de equipo:', event.target.src);
+    // Establecer una imagen de placeholder local
+    event.target.src = '/images/placeholder-product.svg';
+    event.target.alt = 'Imagen no disponible';
   };
   </script>
 

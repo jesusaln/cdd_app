@@ -38,6 +38,8 @@ use App\Http\Controllers\CfdiController;
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/clientes/export', [ClienteController::class, 'export'])
         ->name('clientes.export');
+    Route::get('/productos/export', [ProductoController::class, 'export'])
+        ->name('productos.export');
 });
 
 
@@ -139,6 +141,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // RUTAS ESPECÍFICAS DE PRODUCTOS
     // =====================================================
     Route::post('/productos/validate-stock', [ProductoController::class, 'validateStock'])->name('productos.validateStock');
+    Route::put('/productos/{producto}/toggle', [ProductoController::class, 'toggle'])->name('productos.toggle');
 
     // =====================================================
     // RUTAS ESPECÍFICAS DE COTIZACIONES

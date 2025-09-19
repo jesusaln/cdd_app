@@ -129,7 +129,6 @@ const estadisticas = computed(() => ({
 }))
 
 // ---------- Transformación base para DocumentosTable ----------
-console.log('Transformando clientes para DocumentosTable...')
 // DocumentosTable es genérica; para `tipo="clientes"` asumimos formato:
 // { id, titulo, subtitulo, estado, extra, fecha, meta, raw }
 // Adaptamos cada cliente a ese shape sin perder el objeto original en "raw".

@@ -244,6 +244,54 @@
                 </p>
               </div>
 
+              <!-- PRODUCTOS -->
+              <div v-else-if="props.tipo === 'productos'">
+                <p class="text-sm text-gray-600">
+                  <strong>Nombre:</strong> {{ selected.nombre || 'Sin nombre' }}
+                </p>
+                <p class="text-sm text-gray-600" v-if="selected.descripcion">
+                  <strong>Descripción:</strong> {{ selected.descripcion }}
+                </p>
+                <p class="text-sm text-gray-600" v-if="selected.categoria">
+                  <strong>Categoría:</strong> {{ selected.categoria?.nombre || 'Sin categoría' }}
+                </p>
+                <p class="text-sm text-gray-600" v-if="selected.marca">
+                  <strong>Marca:</strong> {{ selected.marca?.nombre || 'Sin marca' }}
+                </p>
+                <p class="text-sm text-gray-600" v-if="selected.proveedor">
+                  <strong>Proveedor:</strong> {{ selected.proveedor?.nombre_razon_social || 'Sin proveedor' }}
+                </p>
+                <p class="text-sm text-gray-600" v-if="selected.precio_venta">
+                  <strong>Precio de Venta:</strong> ${{ formatearMoneda(selected.precio_venta) }}
+                </p>
+                <p class="text-sm text-gray-600" v-if="selected.stock !== undefined">
+                  <strong>Stock:</strong> {{ selected.stock }} unidades
+                </p>
+                <p class="text-sm text-gray-600" v-if="selected.stock_minimo">
+                  <strong>Stock Mínimo:</strong> {{ selected.stock_minimo }} unidades
+                </p>
+                <p class="text-sm text-gray-600" v-if="selected.codigo">
+                  <strong>Código:</strong> {{ selected.codigo }}
+                </p>
+                <p class="text-sm text-gray-600" v-if="selected.codigo_barras">
+                  <strong>Código de Barras:</strong> {{ selected.codigo_barras }}
+                </p>
+                <p class="text-sm text-gray-600">
+                  <strong>Fecha de creación:</strong>
+                  {{ formatearFecha(selected.created_at) }}
+                </p>
+                <p class="text-sm text-gray-600">
+                  <strong>Estado:</strong>
+                  <span
+                    :class="obtenerClasesEstado(selected.estado)"
+                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                  >
+                    <span class="w-1.5 h-1.5 rounded-full mr-1.5" :class="obtenerColorPuntoEstado(selected.estado)"></span>
+                    {{ obtenerLabelEstado(selected.estado) }}
+                  </span>
+                </p>
+              </div>
+
               <!-- HERRAMIENTAS -->
               <div v-else-if="props.tipo === 'herramientas'">
                 <p class="text-sm text-gray-600">

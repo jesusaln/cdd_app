@@ -128,7 +128,11 @@
               <div class="mt-6">
                 <label class="block text-sm font-medium text-gray-700">Imagen</label>
                 <div class="mt-1 block w-full rounded-md bg-gray-100 p-2">
-                  <img v-if="producto.imagen_url" :src="producto.imagen_url" alt="Imagen del Producto" class="w-full h-auto rounded-md"/>
+                  <img v-if="producto.imagen_url"
+                       :src="producto.imagen_url"
+                       alt="Imagen del Producto"
+                       class="w-full h-auto rounded-md"
+                       @error="handleImageError"/>
                   <span v-else>No disponible</span>
                 </div>
               </div>
@@ -197,6 +201,14 @@ const fetchEntityNombre = async (endpoint, id, nombreRef, cacheNamespace) => {
     console.error(`Error al obtener ${endpoint}:`, error);
     nombreRef.value = 'No disponible';
   }
+};
+
+// Función para manejar errores de carga de imagen
+const handleImageError = (event) => {
+  console.warn('Error al cargar imagen del producto:', event.target.src);
+  // Establecer una imagen de placeholder local
+  event.target.src = '/images/placeholder-product.svg';
+  event.target.alt = 'Imagen no disponible';
 };
 
 // Llama a fetchEntityNombre cuando el modal se abre
