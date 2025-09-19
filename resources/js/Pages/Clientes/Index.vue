@@ -10,6 +10,7 @@ import 'notyf/notyf.min.css'
 import UniversalHeader from '@/Components/IndexComponents/UniversalHeader.vue'
 import DocumentosTable from '@/Components/IndexComponents/DocumentosTable.vue'
 import Modales from '@/Components/IndexComponents/Modales.vue'
+import Pagination from '@/Components/Pagination.vue'
 
 defineOptions({ layout: AppLayout })
 
@@ -49,6 +50,42 @@ const notyf = new Notyf({
   ]
 })
 
+// Mapeo de claves SAT a nombres completos de estados
+const estadoMapping = {
+  'AGU': 'Aguascalientes',
+  'BCN': 'Baja California',
+  'BCS': 'Baja California Sur',
+  'CAM': 'Campeche',
+  'CHH': 'Chihuahua',
+  'CHP': 'Chiapas',
+  'CMX': 'Ciudad de México',
+  'COA': 'Coahuila',
+  'COL': 'Colima',
+  'DUR': 'Durango',
+  'GRO': 'Guerrero',
+  'GUA': 'Guanajuato',
+  'HID': 'Hidalgo',
+  'JAL': 'Jalisco',
+  'MEX': 'Estado de México',
+  'MIC': 'Michoacán',
+  'MOR': 'Morelos',
+  'NAY': 'Nayarit',
+  'NLE': 'Nuevo León',
+  'OAX': 'Oaxaca',
+  'PUE': 'Puebla',
+  'QUE': 'Querétaro',
+  'ROO': 'Quintana Roo',
+  'SIN': 'Sinaloa',
+  'SLP': 'San Luis Potosí',
+  'SON': 'Sonora',
+  'TAB': 'Tabasco',
+  'TAM': 'Tamaulipas',
+  'TLA': 'Tlaxcala',
+  'VER': 'Veracruz',
+  'YUC': 'Yucatán',
+  'ZAC': 'Zacatecas'
+}
+
 const page = usePage()
 
 // ---------- Estado UI ----------
@@ -62,6 +99,10 @@ const searchTerm = ref(props.filters?.search ?? '')
 const sortBy = ref(mapSortingToHeader(props.sorting)) // 'fecha-desc' / 'fecha-asc' / 'nombre-asc' / 'nombre-desc'
 const filtroEstado = ref('') // activo/inactivo (opcional)
 
+// Paginación del lado del cliente
+const currentPage = ref(1)
+const perPage = ref(10)
+
 // Header configurable
 const headerConfig = {
   module: 'clientes',
@@ -69,7 +110,7 @@ const headerConfig = {
   searchPlaceholder: 'Buscar por nombre, RFC o email...'
 }
 
-// ---------- Datos base (paginados) ----------
+// ---------- Datos base ----------
 const clientesOriginales = ref(Array.isArray(props.clientes?.data) ? [...props.clientes.data] : [])
 
 // Mantener sincronizado si cambian las props por navegación Inertia
@@ -84,12 +125,13 @@ const estadisticas = computed(() => ({
   pendientes: props.stats?.inactivos ?? clientesOriginales.value.filter(c => !c.activo).length // y "pendientes" idem
 }))
 
-// ---------- Transformación para DocumentosTable ----------
+// ---------- Transformación base para DocumentosTable ----------
 // DocumentosTable es genérica; para `tipo="clientes"` asumimos formato:
 // { id, titulo, subtitulo, estado, extra, fecha, meta, raw }
 // Adaptamos cada cliente a ese shape sin perder el objeto original en "raw".
-const documentosClientes = computed(() => {
+const documentosClientesBase = computed(() => {
   return clientesOriginales.value.map(c => {
+    const estadoNombre = estadoMapping[c.estado] || c.estado
     const direccion = [
       c.calle,
       c.numero_exterior,
@@ -97,7 +139,7 @@ const documentosClientes = computed(() => {
       c.colonia,
       c.codigo_postal,
       c.municipio,
-      c.estado,
+      estadoNombre,
       c.pais
     ].filter(Boolean).join(', ')
 
@@ -122,6 +164,13 @@ function handleLimpiarFiltros () {
   searchTerm.value = ''
   sortBy.value = 'fecha-desc'
   filtroEstado.value = ''
+  perPage.value = 10
+
+  router.get(route('clientes.index'), {}, {
+    preserveState: true,
+    preserveScroll: true
+  })
+
   notyf.success('Filtros limpiados')
 }
 
@@ -181,7 +230,7 @@ const imprimirNoSoportado = () => notyf.error('Imprimir no está disponible para
 // Si tu DocumentosTable ya maneja search/sort/filters internamente, pásale estos v-models.
 // Si NO, podrías filtrar/ordenar aquí y pasarle el resultado.
 const clientesFiltradosYOrdenados = computed(() => {
-  let arr = [...documentosClientes.value]
+  let arr = [...documentosClientesBase.value]
 
   // Buscar
   if (searchTerm.value) {
@@ -213,6 +262,45 @@ const clientesFiltradosYOrdenados = computed(() => {
 
   return arr
 })
+
+// Documentos para mostrar (con paginación del lado del cliente)
+const documentosClientes = computed(() => {
+  const startIndex = (currentPage.value - 1) * perPage.value
+  const endIndex = startIndex + perPage.value
+  return clientesFiltradosYOrdenados.value.slice(startIndex, endIndex)
+})
+
+// Información de paginación
+const totalPages = computed(() => Math.ceil(clientesFiltradosYOrdenados.value.length / perPage.value))
+const totalFiltered = computed(() => clientesFiltradosYOrdenados.value.length)
+
+// Datos de paginación simulados para el componente Pagination
+const paginationData = computed(() => ({
+  current_page: currentPage.value,
+  last_page: totalPages.value,
+  per_page: perPage.value,
+  from: totalFiltered.value > 0 ? ((currentPage.value - 1) * perPage.value) + 1 : 0,
+  to: Math.min(currentPage.value * perPage.value, totalFiltered.value),
+  total: totalFiltered.value,
+  prev_page_url: currentPage.value > 1 ? '#' : null,
+  next_page_url: currentPage.value < totalPages.value ? '#' : null,
+  links: [] // No necesitamos links para client-side
+}))
+
+// Watch para resetear página cuando cambien filtros
+watch([searchTerm, sortBy, filtroEstado, perPage], () => {
+  currentPage.value = 1
+}, { deep: true })
+
+// Manejo de paginación
+const handlePerPageChange = (newPerPage) => {
+  perPage.value = newPerPage
+  currentPage.value = 1 // Reset to first page when changing per_page
+}
+
+const handlePageChange = (newPage) => {
+  currentPage.value = newPage
+}
 
 // ---------- Helpers ----------
 function mapSortingToHeader (sorting) {
@@ -256,7 +344,7 @@ onMounted(() => {
       <!-- Tabla (reutilizamos DocumentosTable con tipo='clientes') -->
       <div class="mt-6">
         <DocumentosTable
-          :documentos="clientesFiltradosYOrdenados"
+          :documentos="documentosClientes"
           tipo="clientes"
           :mapeo="{
     nombre: 'cliente.nombre',     // ej. viene dentro de cliente.nombre
@@ -273,6 +361,13 @@ onMounted(() => {
           @imprimir="imprimirNoSoportado"
           @eliminar="confirmarEliminacion"
           @sort="updateSort"
+        />
+
+        <!-- Componente de paginación -->
+        <Pagination
+          :pagination-data="paginationData"
+          @per-page-change="handlePerPageChange"
+          @page-change="handlePageChange"
         />
       </div>
     </div>

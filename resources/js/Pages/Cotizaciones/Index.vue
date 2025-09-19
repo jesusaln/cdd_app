@@ -11,6 +11,7 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import UniversalHeader from '@/Components/IndexComponents/UniversalHeader.vue'
 import DocumentosTable from '@/Components/IndexComponents/DocumentosTable.vue'
 import Modal from '@/Components/IndexComponents/Modales.vue'
+import Pagination from '@/Components/Pagination.vue'
 
 defineOptions({ layout: AppLayout })
 
@@ -84,43 +85,22 @@ const auditoriaForModal = computed(() => {
 /* =========================
    Filtrado y ordenamiento
 ========================= */
-const cotizacionesFiltradas = computed(() => {
+const cotizacionesFiltradasYOrdenadas = computed(() => {
   let result = [...cotizacionesOriginales.value]
 
-  // Aplicar filtro de búsqueda (con debug)
-if (searchTerm.value.trim()) {
-  const search = searchTerm.value.toLowerCase().trim()
+  // Aplicar filtro de búsqueda
+  if (searchTerm.value.trim()) {
+    const search = searchTerm.value.toLowerCase().trim()
+    result = result.filter(cotizacion => {
+      const cliente = cotizacion.cliente?.nombre?.toLowerCase() || ''
+      const numero = String(cotizacion.numero_cotizacion || cotizacion.id || '').toLowerCase()
+      const estado = cotizacion.estado?.toLowerCase() || ''
 
-  // DEBUG: Ver qué estás buscando
-  //console.log('Buscando:', search)
-
-  result = result.filter(cotizacion => {
-    // DEBUG: Ver la estructura de cada cotización
-    //console.log('Cotización completa:', cotizacion)
-
-    const cliente = cotizacion.cliente?.nombre?.toLowerCase() || ''
-    const numero = String(cotizacion.numero_cotizacion || cotizacion.id || '').toLowerCase()
-    const estado = cotizacion.estado?.toLowerCase() || ''
-
-    // DEBUG: Ver qué valores estás comparando
-    //console.log('Cliente:', cliente)
-    //console.log('Número:', numero)
-    //console.log('Estado:', estado)
-
-    const matches = cliente.includes(search) ||
-                   numero.includes(search) ||
-                   estado.includes(search)
-
-    // DEBUG: Ver si hay coincidencias
-    //console.log('¿Coincide?', matches)
-    //console.log('---')
-
-    return matches
-  })
-
-  // DEBUG: Ver cuántos resultados quedan
-  //console.log('Resultados filtrados:', result.length)
-}
+      return cliente.includes(search) ||
+             numero.includes(search) ||
+             estado.includes(search)
+    })
+  }
 
   // Aplicar filtro de estado
   if (filtroEstado.value) {
@@ -167,74 +147,48 @@ if (searchTerm.value.trim()) {
 })
 
 /* =========================
-   Paginación
+    Paginación del lado del cliente
 ========================= */
 const currentPage = ref(1)
-const itemsPerPage = ref(10)
+const perPage = ref(10)
 
-const totalPages = computed(() => {
-  const filtered = cotizacionesFiltradas.value
-  return Math.ceil((filtered?.length || 0) / itemsPerPage.value)
+// Documentos para mostrar (con paginación del lado del cliente)
+const documentosCotizaciones = computed(() => {
+  const startIndex = (currentPage.value - 1) * perPage.value
+  const endIndex = startIndex + perPage.value
+  return cotizacionesFiltradasYOrdenadas.value.slice(startIndex, endIndex)
 })
 
-const paginatedCotizaciones = computed(() => {
-  const filtered = cotizacionesFiltradas.value
-  if (!filtered || !Array.isArray(filtered)) return []
+// Información de paginación
+const totalPages = computed(() => Math.ceil(cotizacionesFiltradasYOrdenadas.value.length / perPage.value))
+const totalFiltered = computed(() => cotizacionesFiltradasYOrdenadas.value.length)
 
-  const start = (currentPage.value - 1) * itemsPerPage.value
-  const end = start + itemsPerPage.value
-  return filtered.slice(start, end)
-})
+// Datos de paginación simulados para el componente Pagination
+const paginationData = computed(() => ({
+  current_page: currentPage.value,
+  last_page: totalPages.value,
+  per_page: perPage.value,
+  from: totalFiltered.value > 0 ? ((currentPage.value - 1) * perPage.value) + 1 : 0,
+  to: Math.min(currentPage.value * perPage.value, totalFiltered.value),
+  total: totalFiltered.value,
+  prev_page_url: currentPage.value > 1 ? '#' : null,
+  next_page_url: currentPage.value < totalPages.value ? '#' : null,
+  links: [] // No necesitamos links para client-side
+}))
 
-const visiblePages = computed(() => {
-  const pages = []
-  const total = totalPages.value
-  const current = currentPage.value
+// Watch para resetear página cuando cambien filtros
+watch([searchTerm, sortBy, filtroEstado, perPage], () => {
+  currentPage.value = 1
+}, { deep: true })
 
-  if (total <= 7) {
-    // Mostrar todas las páginas si hay 7 o menos
-    for (let i = 1; i <= total; i++) {
-      pages.push(i)
-    }
-  } else {
-    // Lógica corregida para evitar duplicaciones
-    if (current <= 3) {
-      // Si estamos en las primeras 3 páginas, mostrar 1,2,3,4,5
-      for (let i = 1; i <= 5; i++) {
-        pages.push(i)
-      }
-    } else if (current >= total - 2) {
-      // Si estamos en las últimas 3 páginas, mostrar las últimas 5
-      for (let i = total - 4; i <= total; i++) {
-        pages.push(i)
-      }
-    } else {
-      // En el medio, mostrar página actual ± 2
-      for (let i = current - 2; i <= current + 2; i++) {
-        pages.push(i)
-      }
-    }
-  }
-
-  return pages
-})
-
-const goToPage = (page) => {
-  if (page >= 1 && page <= totalPages.value) {
-    currentPage.value = page
-  }
+// Manejo de paginación
+const handlePerPageChange = (newPerPage) => {
+  perPage.value = newPerPage
+  currentPage.value = 1 // Reset to first page when changing per_page
 }
 
-const nextPage = () => {
-  if (currentPage.value < totalPages.value) {
-    currentPage.value++
-  }
-}
-
-const prevPage = () => {
-  if (currentPage.value > 1) {
-    currentPage.value--
-  }
+const handlePageChange = (newPage) => {
+  currentPage.value = newPage
 }
 
 // Watchers para props y filtros
@@ -290,6 +244,7 @@ const handleLimpiarFiltros = () => {
   searchTerm.value = ''
   sortBy.value = 'fecha-desc'
   filtroEstado.value = ''
+  perPage.value = 10
   currentPage.value = 1
   notyf.success('Filtros limpiados correctamente')
 }
@@ -574,32 +529,10 @@ const crearNuevaCotizacion = () => {
         @limpiar-filtros="handleLimpiarFiltros"
       />
 
-      <!-- Información de paginación -->
-      <div class="flex justify-between items-center mb-4 text-sm text-gray-600">
-        <div>
-          Mostrando {{ (currentPage - 1) * itemsPerPage + 1 }} -
-          {{ Math.min(currentPage * itemsPerPage, cotizacionesFiltradas.length) }}
-          de {{ cotizacionesFiltradas.length }} cotizaciones
-        </div>
-        <div class="flex items-center space-x-2">
-          <span>Elementos por página:</span>
-          <select
-            v-model="itemsPerPage"
-            @change="currentPage = 1"
-            class="border border-gray-300 rounded px-2 py-1 text-sm"
-          >
-            <option value="10">10</option>
-            <option value="25">25</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
-          </select>
-        </div>
-      </div>
-
       <!-- Tabla de documentos -->
       <div class="mt-6">
         <DocumentosTable
-          :documentos="paginatedCotizaciones"
+          :documentos="documentosCotizaciones"
           tipo="cotizaciones"
           :search-term="searchTerm"
           :sort-by="sortBy"
@@ -611,65 +544,15 @@ const crearNuevaCotizacion = () => {
           @eliminar="confirmarEliminacion"
           @sort="updateSort"
         />
+
+        <!-- Componente de paginación -->
+        <Pagination
+          :pagination-data="paginationData"
+          @per-page-change="handlePerPageChange"
+          @page-change="handlePageChange"
+        />
       </div>
 
-      <!-- Controles de paginación -->
-      <div v-if="totalPages > 1" class="flex justify-center items-center space-x-2 mt-6">
-  <button
-    @click="prevPage"
-    :disabled="currentPage === 1"
-    class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-  >
-    Anterior
-  </button>
-
-  <div class="flex space-x-1">
-    <!-- Primera página (solo si no está en visiblePages) -->
-    <template v-if="!visiblePages.includes(1) && totalPages > 7">
-      <button
-        @click="goToPage(1)"
-        class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-      >
-        1
-      </button>
-      <span class="px-3 py-2 text-sm text-gray-500">...</span>
-    </template>
-
-    <!-- Páginas visibles -->
-    <button
-      v-for="page in visiblePages"
-      :key="page"
-      @click="goToPage(page)"
-      :class="[
-        'px-3 py-2 text-sm font-medium border border-gray-300 rounded-md',
-        page === currentPage
-          ? 'bg-blue-500 text-white border-blue-500'
-          : 'text-gray-700 bg-white hover:bg-gray-50'
-      ]"
-    >
-      {{ page }}
-    </button>
-
-    <!-- Última página (solo si no está en visiblePages) -->
-    <template v-if="!visiblePages.includes(totalPages) && totalPages > 7">
-      <span class="px-3 py-2 text-sm text-gray-500">...</span>
-      <button
-        @click="goToPage(totalPages)"
-        class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-      >
-        {{ totalPages }}
-      </button>
-    </template>
-  </div>
-
-  <button
-    @click="nextPage"
-    :disabled="currentPage === totalPages"
-    class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-  >
-    Siguiente
-  </button>
-</div>
     </div>
 
     <!-- Modal de detalles / confirmación -->

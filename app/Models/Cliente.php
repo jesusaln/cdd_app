@@ -22,8 +22,11 @@ class Cliente extends Model implements AuditableContract
         'identificacion',
         'curp',
         'rfc',
-        'regimen_fiscal',  // clave SAT
-        'uso_cfdi',        // clave SAT
+        'regimen_fiscal',  // clave SAT c_RegimenFiscal
+        'uso_cfdi',        // clave SAT c_UsoCFDI
+        'domicilio_fiscal_cp', // Código postal del domicilio fiscal (CFDI 4.0)
+        'residencia_fiscal',   // c_Pais para extranjeros (CFDI 4.0)
+        'num_reg_id_trib',     // Número de registro fiscal extranjero (CFDI 4.0)
         'email',
         'telefono',
         'calle',
@@ -49,7 +52,7 @@ class Cliente extends Model implements AuditableContract
 
     protected $attributes = [
         'activo' => true,
-        'pais'   => 'MX',
+        // 'pais' se deja sin valor por defecto para permitir extranjeros
     ];
 
     protected $auditExclude = [
@@ -78,9 +81,7 @@ class Cliente extends Model implements AuditableContract
             if (is_null($cliente->activo)) {
                 $cliente->activo = true;
             }
-            if (empty($cliente->pais)) {
-                $cliente->pais = 'MX';
-            }
+            // No forzar país a MX para permitir clientes extranjeros
         });
     }
 
@@ -162,7 +163,10 @@ class Cliente extends Model implements AuditableContract
 
     public function setRfcAttribute($value): void
     {
-        $this->attributes['rfc'] = mb_strtoupper(trim((string) $value), 'UTF-8');
+        // Normalizar RFC: mayúsculas, sin espacios/guiones
+        $normalized = mb_strtoupper(trim((string) $value), 'UTF-8');
+        $normalized = str_replace([' ', '-', '_'], '', $normalized);
+        $this->attributes['rfc'] = $normalized;
     }
 
     public function setCurpAttribute($value): void
@@ -190,9 +194,27 @@ class Cliente extends Model implements AuditableContract
 
     public function setPaisAttribute($value): void
     {
-        // Forzar MX si viene vacío/incorrecto
-        $v = mb_strtoupper(trim((string) $value), 'UTF-8');
-        $this->attributes['pais'] = ($v === 'MX' || $v === '') ? 'MX' : $v;
+        // Normalizar código de país a mayúsculas, permitir vacío
+        $this->attributes['pais'] = $value ? mb_strtoupper(trim((string) $value), 'UTF-8') : null;
+    }
+
+    public function setDomicilioFiscalCpAttribute($value): void
+    {
+        // Código postal del domicilio fiscal - debe ser válido según SAT
+        $digits = preg_replace('/\D+/', '', (string) $value);
+        $this->attributes['domicilio_fiscal_cp'] = str_pad(substr($digits, 0, 5), 5, '0', STR_PAD_LEFT);
+    }
+
+    public function setResidenciaFiscalAttribute($value): void
+    {
+        // Código de país según catálogo c_Pais del SAT (solo para extranjeros)
+        $this->attributes['residencia_fiscal'] = $value ? mb_strtoupper(trim((string) $value), 'UTF-8') : null;
+    }
+
+    public function setNumRegIdTribAttribute($value): void
+    {
+        // Número de registro fiscal extranjero (máximo 40 caracteres)
+        $this->attributes['num_reg_id_trib'] = $value ? mb_strtoupper(trim((string) $value), 'UTF-8') : null;
     }
 
     // ------------------------------------------------------------------
@@ -245,5 +267,85 @@ class Cliente extends Model implements AuditableContract
     {
         return $this->payment_form_default
             ?: (string) config('facturapi.defaults.payment_form', '03');
+    }
+
+    /**
+     * Verificar si el cliente es extranjero (no mexicano)
+     */
+    public function getEsExtranjeroAttribute(): bool
+    {
+        return $this->pais !== 'MX' || $this->rfc === 'XEXX010101000';
+    }
+
+    /**
+     * Validar que el cliente tenga todos los datos requeridos para CFDI 4.0
+     */
+    public function validarParaCfdi(): array
+    {
+        $errores = [];
+
+        // RFC obligatorio y válido
+        if (empty($this->rfc)) {
+            $errores[] = 'RFC es obligatorio';
+        } elseif (!$this->validarRfc($this->rfc)) {
+            $errores[] = 'RFC no tiene formato válido';
+        }
+
+        // Nombre/Razón social obligatorio
+        if (empty($this->nombre_razon_social)) {
+            $errores[] = 'Nombre o razón social es obligatorio';
+        }
+
+        // Régimen fiscal obligatorio
+        if (empty($this->regimen_fiscal)) {
+            $errores[] = 'Régimen fiscal es obligatorio';
+        }
+
+        // Uso CFDI obligatorio
+        if (empty($this->uso_cfdi) && empty($this->cfdi_default_use)) {
+            $errores[] = 'Uso CFDI es obligatorio';
+        }
+
+        // Código postal del domicilio fiscal obligatorio
+        if (empty($this->domicilio_fiscal_cp)) {
+            $errores[] = 'Código postal del domicilio fiscal es obligatorio';
+        }
+
+        // Para extranjeros: residencia fiscal y num_reg_id_trib obligatorios
+        if ($this->es_extranjero) {
+            if (empty($this->residencia_fiscal)) {
+                $errores[] = 'Residencia fiscal es obligatoria para clientes extranjeros';
+            }
+            if (empty($this->num_reg_id_trib)) {
+                $errores[] = 'Número de registro fiscal extranjero es obligatorio';
+            }
+        }
+
+        return $errores;
+    }
+
+    /**
+     * Validar formato de RFC básico
+     */
+    private function validarRfc(string $rfc): bool
+    {
+        $rfc = strtoupper($rfc);
+
+        // RFC genérico extranjero
+        if ($rfc === 'XEXX010101000') {
+            return true;
+        }
+
+        // Persona física: 13 caracteres
+        if (preg_match('/^[A-ZÑ&]{4}\d{6}[A-Z\d]{3}$/', $rfc)) {
+            return true;
+        }
+
+        // Persona moral: 12 caracteres
+        if (preg_match('/^[A-ZÑ&]{3}\d{6}[A-Z\d]{3}$/', $rfc)) {
+            return true;
+        }
+
+        return false;
     }
 }

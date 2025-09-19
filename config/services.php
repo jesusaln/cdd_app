@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'facturaloplus' => [
+        'base_url' => env('FACTURALO_BASE_URL', 'https://dev.facturaloplus.com/api/rest/servicio'),
+        'apikey'   => env('FACTURALO_APIKEY', ''),
+    ],
+
 ];

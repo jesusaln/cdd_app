@@ -274,6 +274,39 @@
                 </p>
               </div>
 
+              <!-- SERVICIOS -->
+              <div v-else-if="props.tipo === 'servicios'">
+                <p class="text-sm text-gray-600">
+                  <strong>Nombre:</strong> {{ selected.nombre || 'Sin nombre' }}
+                </p>
+                <p class="text-sm text-gray-600" v-if="selected.codigo">
+                  <strong>Código:</strong> {{ selected.codigo }}
+                </p>
+                <p class="text-sm text-gray-600" v-if="selected.descripcion">
+                  <strong>Descripción:</strong> {{ selected.descripcion }}
+                </p>
+                <p class="text-sm text-gray-600" v-if="selected.precio">
+                  <strong>Precio:</strong> ${{ formatearMoneda(selected.precio) }}
+                </p>
+                <p class="text-sm text-gray-600" v-if="selected.duracion">
+                  <strong>Duración:</strong> {{ selected.duracion }} minutos
+                </p>
+                <p class="text-sm text-gray-600">
+                  <strong>Fecha de creación:</strong>
+                  {{ formatearFecha(selected.created_at) }}
+                </p>
+                <p class="text-sm text-gray-600">
+                  <strong>Estado:</strong>
+                  <span
+                    :class="obtenerClasesEstado(selected.estado)"
+                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                  >
+                    <span class="w-1.5 h-1.5 rounded-full mr-1.5" :class="obtenerColorPuntoEstado(selected.estado)"></span>
+                    {{ obtenerLabelEstado(selected.estado) }}
+                  </span>
+                </p>
+              </div>
+
               <!-- Otros (cotizaciones, pedidos, ventas, etc.) -->
               <div v-else>
                 <p class="text-sm text-gray-600">
@@ -645,7 +678,7 @@ const props = defineProps({
   tipo: {
     type: String,
     required: true,
-    validator: (v) => ['cotizaciones','pedidos','ventas','compras','ordenescompra','rentas','equipos','clientes','productos','herramientas'].includes(v)
+    validator: (v) => ['cotizaciones','pedidos','ventas','compras','ordenescompra','rentas','equipos','clientes','productos','herramientas','servicios'].includes(v)
   },
   // NUEVO: pasar auditoría desde el padre (o venir en selected.metadata)
   auditoria: {
@@ -801,6 +834,16 @@ const config = computed(() => {
       estados: baseEstados({
         'asignada': { label: 'Asignada', classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
         'sin_asignar': { label: 'Sin asignar', classes: 'bg-orange-100 text-orange-700', color: 'bg-orange-400' }
+      })
+    },
+    servicios: {
+      titulo: 'Servicio',
+      mostrarCampoExtra: true,
+      campoExtra: { key: 'codigo', label: 'Código' },
+      acciones: { editar: true, imprimir: false, enviarPedido: false, enviarAVenta: false },
+      estados: baseEstados({
+        'activo': { label: 'Activo', classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
+        'inactivo': { label: 'Inactivo', classes: 'bg-red-100 text-red-700', color: 'bg-red-400' }
       })
     },
     compras: {

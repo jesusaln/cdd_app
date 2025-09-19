@@ -269,6 +269,16 @@
                     </div>
                   </div>
 
+                  <!-- Para servicios -->
+                  <div v-else-if="props.tipo === 'servicios'" class="space-y-1">
+                    <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800">
+                      {{ doc.nombre || doc.titulo || 'Sin nombre' }}
+                    </div>
+                    <div v-if="doc.descripcion" class="text-xs text-gray-500 line-clamp-2 max-w-48">
+                      {{ doc.descripcion }}
+                    </div>
+                  </div>
+
                   <!-- Otros tipos -->
                   <template v-else>
                     <!-- ventas/pedidos/compras -->
@@ -569,7 +579,7 @@ const props = defineProps({
   tipo: {
     type: String,
     required: true,
-    validator: (value) => ['cotizaciones', 'pedidos', 'ventas', 'compras', 'ordenescompra', 'rentas', 'equipos', 'clientes', 'productos', 'herramientas'].includes(value)
+    validator: (value) => ['cotizaciones', 'pedidos', 'ventas', 'compras', 'ordenescompra', 'rentas', 'equipos', 'clientes', 'productos', 'herramientas', 'servicios'].includes(value)
   },
   searchTerm: { type: String, default: '' },
   sortBy: { type: String, default: 'fecha-desc' },
@@ -812,6 +822,21 @@ const config = computed(() => {
         'asignada':    { label: 'Asignada',    classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
         'sin_asignar': { label: 'Sin asignar', classes: 'bg-orange-100 text-orange-700', color: 'bg-orange-400' }
       }
+    },
+    servicios: {
+      titulo: 'Servicios',
+      mostrarCampoExtra: true,
+      mostrarPrecio: true,
+      mostrarTotal: false,
+      mostrarProductos: false,
+      mostrarTecnico: false,
+      mostrarFoto: false,
+      campoExtra: { key: 'codigo', label: 'Código' },
+      acciones: { editar: true, duplicar: false, imprimir: false, eliminar: true },
+      estados: {
+        'activo':   { label: 'Activo',   classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
+        'inactivo': { label: 'Inactivo', classes: 'bg-red-100 text-red-700',    color: 'bg-red-400' }
+      }
     }
   };
 
@@ -954,6 +979,13 @@ const items = computed(() => {
           (doc.numero_venta || doc.id || '').toString().toLowerCase().includes(term)
         );
       }
+      if (props.tipo === 'servicios') {
+        return (
+          (doc.nombre || doc.titulo || '').toLowerCase().includes(term) ||
+          (doc.codigo || '').toLowerCase().includes(term) ||
+          (doc.descripcion || '').toLowerCase().includes(term)
+        );
+      }
       return (
         (doc.cliente?.nombre_razon_social || '').toLowerCase().includes(term) ||
         (props.tipo === 'ordenescompra' ? doc.items : props.tipo === 'ordenescompra' ? doc.items : doc.productos)?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
@@ -1019,6 +1051,10 @@ const items = computed(() => {
       case 'rfc':
         aVal = (isClientes.value ? (a.extra || '') : (a.rfc || '')).toLowerCase();
         bVal = (isClientes.value ? (b.extra || '') : (b.rfc || '')).toLowerCase();
+        break;
+      case 'codigo':
+        aVal = (a.codigo || '').toLowerCase();
+        bVal = (b.codigo || '').toLowerCase();
         break;
       case 'email':
         aVal = (a.subtitulo || '').toLowerCase();

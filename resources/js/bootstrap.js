@@ -17,7 +17,9 @@ window.axios.interceptors.response.use(
     response => response,
     error => {
         if (error.response?.status === 419) {
-            console.error('CSRF token mismatch - page may need to be refreshed');
+            console.warn('CSRF token mismatch - reloading page to refresh token...');
+            // Recargar la página para obtener un nuevo token CSRF
+            window.location.reload();
         }
         return Promise.reject(error);
     }

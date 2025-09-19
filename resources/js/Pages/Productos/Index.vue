@@ -10,6 +10,7 @@ import 'notyf/notyf.min.css'
 import UniversalHeader from '@/Components/IndexComponents/UniversalHeader.vue'
 import DocumentosTable from '@/Components/IndexComponents/DocumentosTable.vue'
 import Modales from '@/Components/IndexComponents/Modales.vue'
+import Pagination from '@/Components/Pagination.vue'
 
 defineOptions({ layout: AppLayout })
 
@@ -50,6 +51,10 @@ const selectedId = ref(null)
 const searchTerm = ref(props.filters?.search ?? '')
 const sortBy = ref(mapSortingToHeader(props.sorting))
 const filtroEstado = ref('')
+
+// Paginación del lado del cliente
+const currentPage = ref(1)
+const perPage = ref(10)
 
 // Header
 const headerConfig = {
@@ -108,8 +113,8 @@ const estadisticas = computed(() => {
   }
 })
 
-// ---------- Mapeo para DocumentosTable ----------
-const productosDocumentos = computed(() => {
+// ---------- Mapeo base para DocumentosTable ----------
+const productosDocumentosBase = computed(() => {
   return productosOriginales.value.map(p => {
     const stock = Number(p.stock ?? p.cantidad_disponible ?? 0)
     const price = Number(p.precio_venta ?? p.precio ?? 0)
@@ -169,6 +174,13 @@ function handleLimpiarFiltros () {
   searchTerm.value = ''
   sortBy.value = 'nombre-asc'
   filtroEstado.value = ''
+  perPage.value = 10
+
+  router.get(route('productos.index'), {}, {
+    preserveState: true,
+    preserveScroll: true
+  })
+
   notyf.success('Filtros limpiados')
 }
 
@@ -263,9 +275,9 @@ onMounted(() => {
   verificarBajoStock()
 })
 
-// ---------- Filtrado/Orden ----------
+// Productos filtrados y ordenados (sin paginación)
 const productosFiltradosYOrdenados = computed(() => {
-  let arr = [...productosDocumentos.value]
+  let arr = [...productosDocumentosBase.value]
 
   if (searchTerm.value) {
     const q = searchTerm.value.toLowerCase()
@@ -326,6 +338,45 @@ const productosFiltradosYOrdenados = computed(() => {
 
   return arr
 })
+
+// Documentos para mostrar (con paginación del lado del cliente)
+const documentosProductos = computed(() => {
+  const startIndex = (currentPage.value - 1) * perPage.value
+  const endIndex = startIndex + perPage.value
+  return productosFiltradosYOrdenados.value.slice(startIndex, endIndex)
+})
+
+// Información de paginación
+const totalPages = computed(() => Math.ceil(productosFiltradosYOrdenados.value.length / perPage.value))
+const totalFiltered = computed(() => productosFiltradosYOrdenados.value.length)
+
+// Datos de paginación simulados para el componente Pagination
+const paginationData = computed(() => ({
+  current_page: currentPage.value,
+  last_page: totalPages.value,
+  per_page: perPage.value,
+  from: totalFiltered.value > 0 ? ((currentPage.value - 1) * perPage.value) + 1 : 0,
+  to: Math.min(currentPage.value * perPage.value, totalFiltered.value),
+  total: totalFiltered.value,
+  prev_page_url: currentPage.value > 1 ? '#' : null,
+  next_page_url: currentPage.value < totalPages.value ? '#' : null,
+  links: [] // No necesitamos links para client-side
+}))
+
+// Watch para resetear página cuando cambien filtros
+watch([searchTerm, sortBy, filtroEstado, perPage], () => {
+  currentPage.value = 1
+}, { deep: true })
+
+// Manejo de paginación
+const handlePerPageChange = (newPerPage) => {
+  perPage.value = newPerPage
+  currentPage.value = 1 // Reset to first page when changing per_page
+}
+
+const handlePageChange = (newPage) => {
+  currentPage.value = newPage
+}
 
 function mapSortingToHeader (sorting) {
   const by = sorting?.sort_by ?? 'nombre'
@@ -426,7 +477,7 @@ function mapSortingToHeader (sorting) {
 
       <div class="mt-6">
         <DocumentosTable
-          :documentos="productosFiltradosYOrdenados"
+          :documentos="documentosProductos"
           tipo="productos"
           :mapeo="{
             nombre: 'nombre',
@@ -444,8 +495,14 @@ function mapSortingToHeader (sorting) {
           @duplicar="duplicarNoSoportado"
           @imprimir="imprimirNoSoportado"
           @eliminar="confirmarEliminacion"
-          @toggle="toggleProducto"
           @sort="updateSort"
+        />
+
+        <!-- Componente de paginación -->
+        <Pagination
+          :pagination-data="paginationData"
+          @per-page-change="handlePerPageChange"
+          @page-change="handlePageChange"
         />
       </div>
     </div>

@@ -141,6 +141,7 @@ export default {
 
       } catch (error) {
         console.error('Error loading notifications:', error);
+        this.handleAuthError(error);
       } finally {
         this.loading = false;
       }
@@ -153,6 +154,7 @@ export default {
 
       } catch (error) {
         console.error('Error loading unread count:', error);
+        this.handleAuthError(error);
       }
     },
 
@@ -171,6 +173,7 @@ export default {
 
       } catch (error) {
         console.error('Error marking notification as read:', error);
+        this.handleAuthError(error);
       }
     },
 
@@ -197,7 +200,10 @@ export default {
 
       } catch (error) {
         console.error('Error marking all notifications as read:', error);
-        alert('Error al marcar las notificaciones como leídas');
+        this.handleAuthError(error);
+        if (!error.response || (error.response.status !== 401 && error.response.status !== 419)) {
+          alert('Error al marcar las notificaciones como leídas');
+        }
       }
     },
 
@@ -225,7 +231,10 @@ export default {
           alert('La funcionalidad de eliminar notificaciones no está disponible en el servidor');
         } else {
           console.error('Error removing notification:', error);
-          alert('Error al eliminar la notificación');
+          this.handleAuthError(error);
+          if (!error.response || (error.response.status !== 401 && error.response.status !== 419)) {
+            alert('Error al eliminar la notificación');
+          }
         }
       }
     },
@@ -249,7 +258,10 @@ export default {
 
       } catch (error) {
         console.error('Error removing all notifications:', error);
-        alert('Error al eliminar todas las notificaciones');
+        this.handleAuthError(error);
+        if (!error.response || (error.response.status !== 401 && error.response.status !== 419)) {
+          alert('Error al eliminar todas las notificaciones');
+        }
       }
     },
 
@@ -284,6 +296,18 @@ export default {
         hour: '2-digit',
         minute: '2-digit'
       });
+    },
+
+    handleAuthError(error) {
+      if (error.response?.status === 401) {
+        // Usuario no autenticado - redirigir al login
+        console.warn('Usuario no autenticado, redirigiendo al login...');
+        window.location.href = '/login';
+      } else if (error.response?.status === 419) {
+        // CSRF token mismatch - refrescar la página
+        console.warn('CSRF token mismatch, refrescando la página...');
+        window.location.reload();
+      }
     }
   }
 }

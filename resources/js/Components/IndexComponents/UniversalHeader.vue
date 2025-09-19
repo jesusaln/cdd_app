@@ -300,6 +300,35 @@ const defaultConfigs = {
     ]
   },
 
+  servicios: {
+    module: 'servicios',
+    title: 'Servicios',
+    createRoute: '/servicios/create',
+    createButtonText: 'Nuevo Servicio',
+    searchPlaceholder: 'Buscar por nombre, código, descripción...',
+    searchFields: ['nombre', 'codigo', 'descripcion'],
+    estadisticas: {
+      total: { label: 'Total', icon: 'document', description: 'Total de servicios' },
+      aprobadas: { label: 'Activos', icon: 'check-circle', color: 'green', description: 'Servicios activos' },
+      pendientes: { label: 'Inactivos', icon: 'x-circle', color: 'red', description: 'Servicios inactivos' }
+    },
+    estados: [
+      { value: '', label: 'Todos', color: 'slate' },
+      { value: 'activo', label: 'Activos', color: 'green' },
+      { value: 'inactivo', label: 'Inactivos', color: 'red' }
+    ],
+    sortOptions: [
+      { value: 'fecha-desc', label: 'Más Recientes', icon: 'arrow-down' },
+      { value: 'fecha-asc', label: 'Más Antiguos', icon: 'arrow-up' },
+      { value: 'nombre-asc', label: 'Nombre A-Z', icon: 'sort-ascending' },
+      { value: 'nombre-desc', label: 'Nombre Z-A', icon: 'sort-descending' },
+      { value: 'precio-desc', label: 'Precio Mayor', icon: 'currency-dollar' },
+      { value: 'precio-asc', label: 'Precio Menor', icon: 'currency-dollar' },
+      { value: 'duracion-desc', label: 'Duración Mayor', icon: 'clock' },
+      { value: 'duracion-asc', label: 'Duración Menor', icon: 'clock' }
+    ]
+  },
+
   herramientas: {
     module: 'herramientas',
     title: 'Herramientas',
@@ -398,6 +427,12 @@ const estadisticasConPorcentaje = computed(() => {
     };
   }
   if (finalConfig.value.module === 'herramientas') {
+    return {
+      aprobadas: { ...finalConfig.value.estadisticas.aprobadas, porcentaje: Math.round(((props.aprobadas || 0) / total) * 100) },
+      pendientes:{ ...finalConfig.value.estadisticas.pendientes, porcentaje: Math.round(((props.pendientes || 0) / total) * 100) },
+    };
+  }
+  if (finalConfig.value.module === 'servicios') {
     return {
       aprobadas: { ...finalConfig.value.estadisticas.aprobadas, porcentaje: Math.round(((props.aprobadas || 0) / total) * 100) },
       pendientes:{ ...finalConfig.value.estadisticas.pendientes, porcentaje: Math.round(((props.pendientes || 0) / total) * 100) },
@@ -952,6 +987,17 @@ const getIconPath = (iconName) => icons[iconName] || icons.document;
     <span>{{ estadisticasConPorcentaje.pendientes?.porcentaje || 0 }}% {{ finalConfig.estadisticas.pendientes.label }}</span>
   </div>
 </template>
+<!-- Para servicios mostrar Activos e Inactivos -->
+<template v-else-if="finalConfig.module === 'servicios'">
+  <div class="flex items-center gap-1">
+    <div class="w-3 h-3 rounded-full" :class="getColorClasses(finalConfig.estadisticas.aprobadas.color).text.replace('text-', 'bg-')"></div>
+    <span>{{ estadisticasConPorcentaje.aprobadas?.porcentaje || 0 }}% {{ finalConfig.estadisticas.aprobadas.label }}</span>
+  </div>
+  <div class="flex items-center gap-1">
+    <div class="w-3 h-3 rounded-full" :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text.replace('text-', 'bg-')"></div>
+    <span>{{ estadisticasConPorcentaje.pendientes?.porcentaje || 0 }}% {{ finalConfig.estadisticas.pendientes.label }}</span>
+  </div>
+</template>
 <!-- Para otros módulos mantener solo pendientes -->
 <template v-else>
   <div class="flex items-center gap-1">
@@ -998,6 +1044,10 @@ const getIconPath = (iconName) => icons[iconName] || icons.document;
     <div :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.pendientes?.porcentaje || 0}%` }"></div>
   </template>
   <template v-else-if="finalConfig.module === 'herramientas'">
+    <div :class="getColorClasses(finalConfig.estadisticas.aprobadas.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.aprobadas?.porcentaje || 0}%` }"></div>
+    <div :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.pendientes?.porcentaje || 0}%` }"></div>
+  </template>
+  <template v-else-if="finalConfig.module === 'servicios'">
     <div :class="getColorClasses(finalConfig.estadisticas.aprobadas.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.aprobadas?.porcentaje || 0}%` }"></div>
     <div :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.pendientes?.porcentaje || 0}%` }"></div>
   </template>

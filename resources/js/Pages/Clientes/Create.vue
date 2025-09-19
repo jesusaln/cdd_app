@@ -34,6 +34,25 @@
         <p class="text-sm font-medium text-green-800">Cliente creado exitosamente</p>
       </div>
 
+      <!-- Mensaje de autocompletado -->
+      <div
+        v-if="showAutoCompleteMessage"
+        class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md"
+        aria-live="polite"
+      >
+        <div class="flex">
+          <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+            </svg>
+          </div>
+          <div class="ml-3">
+            <p class="text-sm font-medium text-blue-800">Dirección autocompletada</p>
+            <p class="text-sm text-blue-700">Los campos de estado y municipio se han completado automáticamente.</p>
+          </div>
+        </div>
+      </div>
+
       <form @submit.prevent="submit" class="space-y-8">
         <!-- Información General -->
         <div class="border-b border-gray-200 pb-6">
@@ -377,6 +396,9 @@
               <div v-if="form.errors.codigo_postal" class="mt-2 text-sm text-red-600">
                 {{ form.errors.codigo_postal }}
               </div>
+              <div class="mt-1 text-xs text-gray-500">
+                Al ingresar un código postal válido, se autocompletarán automáticamente el estado y municipio.
+              </div>
             </div>
 
             <div class="mb-4">
@@ -401,16 +423,12 @@
 
             <div class="mb-4">
               <label for="estado" class="block text-sm font-medium text-gray-700">
-                Estado <span class="text-red-500">*</span>
+                Estado
               </label>
               <select
                 id="estado"
                 v-model="form.estado"
-                :class="[
-                  'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
-                  form.errors.estado ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                ]"
-                required
+                class="mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border-gray-300"
               >
                 <option value="">Selecciona una opción</option>
                 <option
@@ -418,27 +436,38 @@
                   :key="estado.value"
                   :value="estado.value"
                 >
-                  {{ estado.text }}
+                  {{ estado.text || estado.label }}
                 </option>
               </select>
               <div v-if="form.errors.estado" class="mt-2 text-sm text-red-600">
                 {{ form.errors.estado }}
               </div>
+              <div class="mt-1 text-xs text-gray-500">
+                Opcional para clientes extranjeros
+              </div>
             </div>
 
             <div class="mb-4">
               <label for="pais" class="block text-sm font-medium text-gray-700">
-                País <span class="text-red-500">*</span>
+                País
               </label>
               <input
                 type="text"
                 id="pais"
                 v-model="form.pais"
-                readonly
-                class="mt-1 block w-full rounded-md border-gray-300 bg-gray-50 shadow-sm sm:text-sm"
+                @blur="toUpper('pais')"
+                placeholder="MX (México por defecto)"
+                autocomplete="new-password"
+                :class="[
+                  'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                  form.errors.pais ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                ]"
               />
               <div v-if="form.errors.pais" class="mt-2 text-sm text-red-600">
                 {{ form.errors.pais }}
+              </div>
+              <div class="mt-1 text-xs text-gray-500">
+                Código de país (2-3 letras). México por defecto, cambia para clientes extranjeros.
               </div>
             </div>
           </div>
@@ -505,6 +534,7 @@ const props = defineProps({
 const showSuccessMessage = ref(false)
 const isDevelopment = ref(import.meta.env?.DEV || false)
 const availableColonias = ref([])
+const showAutoCompleteMessage = ref(false)
 
 // Mapeo de nombres de estados a claves SAT
 const estadoMapping = {
@@ -559,7 +589,7 @@ const initFormData = () => ({
   codigo_postal: props.cliente?.codigo_postal || '',
   municipio: props.cliente?.municipio || '',
   estado: props.cliente?.estado || '',
-  pais: '',
+  pais: 'MX',
 })
 
 const form = useForm(initFormData())
@@ -569,8 +599,9 @@ const hasGlobalErrors = computed(() => Object.keys(form.errors).length > 0)
 const requiredFields = [
   'nombre_razon_social', 'email', 'tipo_persona', 'rfc',
   'regimen_fiscal', 'uso_cfdi', 'calle', 'numero_exterior',
-  'colonia', 'codigo_postal', 'municipio', 'estado', 'pais'
+  'colonia', 'codigo_postal', 'municipio'
 ]
+// Nota: estado y pais son opcionales para clientes extranjeros
 // Nota: CURP NO es requerida (backend la valida como nullable)
 
 const requiredFieldsFilled = computed(() => {
@@ -588,11 +619,40 @@ const isFormValid = computed(() => {
   return requiredFieldsFilled.value && !hasGlobalErrors.value && !form.processing
 })
 
+// Detectar si es cliente extranjero
+const isExtranjero = computed(() => form.rfc?.toUpperCase() === 'XEXX010101000')
+
+// Normalizar datos antes de enviar al backend
+const normalizeForBackend = (payload) => {
+  const out = { ...payload }
+
+  // Estado: mantener como está (solo informativo, sin conversión a claves SAT)
+  // País: tu backend pide "MX" (no "MEX"); sólo fuerza MX si NO es extranjero
+  if (!isExtranjero.value) {
+    out.pais = 'MX'
+  }
+  return out
+}
+
 // Opciones para selects
 const estados = computed(() => {
-  return (props.catalogs?.estados || []).map(e => ({
-    value: e.nombre,
-    text: e.nombre
+  // Si props.catalogs.estados ya viene formateado correctamente, úsalo
+  if (Array.isArray(props.catalogs?.estados) && props.catalogs.estados[0]?.value) {
+    return props.catalogs.estados
+  }
+
+  // Si props.catalogs.estados viene como [{ clave: 'SON', nombre: 'Sonora' }, ...] ÚSALO DIRECTO:
+  if (Array.isArray(props.catalogs?.estados) && props.catalogs.estados[0]?.clave) {
+    return props.catalogs.estados.map(e => ({
+      value: e.clave,               // <-- CLAVE SAT (3)
+      text: `${e.clave} — ${e.nombre}`
+    }))
+  }
+
+  // Si sólo tienes nombres, deriva la clave con estadoMapping:
+  return Object.entries(estadoMapping).map(([nombre, clave]) => ({
+    value: clave,                   // <-- CLAVE SAT (3)
+    text: `${clave} — ${nombre}`
   }))
 })
 
@@ -609,8 +669,8 @@ const regimenesFiltrados = computed(() => {
 
 const usosCFDI = computed(() => {
   return (props.catalogs?.usosCFDI || []).map(u => ({
-    value: u.clave,
-    text: `${u.clave} — ${u.descripcion}`
+    value: u.value || u.clave,
+    text: u.text || `${u.clave} — ${u.descripcion}`
   }))
 })
 
@@ -636,6 +696,11 @@ watch(() => form.tipo_persona, (newVal, oldVal) => {
       form.clearErrors('curp')
     }
   }
+})
+
+// Forzar país a "MX" cuando no es extranjero
+watch(isExtranjero, (val) => {
+  if (!val) form.pais = 'MX'
 })
 
 // Handlers
@@ -669,33 +734,62 @@ const onCpInput = async (event) => {
   // Autocompletar cuando tenga 5 dígitos
   if (form.codigo_postal.length === 5) {
     try {
-      const response = await fetch(`/api/cp/${form.codigo_postal}`)
-      if (response.ok) {
-        const data = await response.json()
-        form.estado = data.estado
+      const response = await axios.get(`/api/cp/${form.codigo_postal}`)
+      const data = response.data
+
+      // AUTOCOMPLETAR ESTADO Y MUNICIPIO
+      // Estado: convertir nombre completo a clave SAT (3 letras)
+      if (data.estado) {
+        const estadoClave = estadoMapping[data.estado] || data.estado
+        form.estado = estadoClave
+        console.log('Estado autocompletado:', data.estado, '->', estadoClave)
+      }
+
+      // Municipio: autocompletar siempre
+      if (data.municipio) {
         form.municipio = data.municipio
+        console.log('Municipio autocompletado:', data.municipio)
+      }
+
+      // Solo autocompletar país si no está establecido (para permitir clientes extranjeros)
+      if (!form.pais || form.pais.trim() === '') {
         form.pais = data.pais
+      }
 
-        // Poblar lista de colonias disponibles
-        availableColonias.value = data.colonias || []
+      // Poblar lista de colonias disponibles
+      availableColonias.value = data.colonias || []
 
-        // Si solo hay una colonia, la seleccionamos automáticamente
-        if (data.colonias && data.colonias.length === 1) {
-          form.colonia = data.colonias[0]
-        } else if (data.colonias && data.colonias.length > 1) {
-          // Si hay múltiples colonias, limpiar selección actual
-          form.colonia = ''
-        }
-
-        // Limpiar errores de campos autocompletados
-        form.clearErrors(['estado', 'municipio', 'pais'])
-      } else {
-        // Si hay error, limpiar colonias disponibles
-        availableColonias.value = []
+      // Si solo hay una colonia, la seleccionamos automáticamente
+      if (data.colonias && data.colonias.length === 1) {
+        form.colonia = data.colonias[0]
+      } else if (data.colonias && data.colonias.length > 1) {
+        // Si hay múltiples colonias, limpiar selección actual
         form.colonia = ''
+      }
+
+      // Limpiar errores de campos autocompletados
+      form.clearErrors(['estado', 'municipio', 'pais'])
+
+      // Mostrar mensaje de éxito de autocompletado
+      if (data.estado || data.municipio) {
+        showAutoCompleteMessage.value = true
+        console.log('✅ Dirección autocompletada desde código postal')
+
+        // Ocultar mensaje después de 3 segundos
+        setTimeout(() => {
+          showAutoCompleteMessage.value = false
+        }, 3000)
       }
     } catch (error) {
       console.warn('Error al consultar código postal:', error)
+      // Mostrar error al usuario
+      if (error.response?.status === 404) {
+        console.warn('Código postal no encontrado en la base de datos')
+      } else if (error.response?.status === 500) {
+        console.error('Error interno del servidor al consultar código postal')
+      } else {
+        console.error('Error de red al consultar código postal:', error.message)
+      }
       // Limpiar colonias disponibles en caso de error
       availableColonias.value = []
       form.colonia = ''
@@ -720,6 +814,7 @@ const resetForm = () => {
   Object.keys(newData).forEach(key => { form[key] = newData[key] })
   form.clearErrors()
   showSuccessMessage.value = false
+  showAutoCompleteMessage.value = false
   availableColonias.value = []
 }
 
@@ -730,19 +825,15 @@ const submit = () => {
     return
   }
 
-  // (opcional) verificación local de requeridos
-  const dataToSend = { ...form.data() }
-  requiredFields.forEach(field => {
-    if (!dataToSend[field] || String(dataToSend[field]).trim() === '') {
-      console.error(`Campo requerido vacío: ${field}`)
-      return
-    }
-  })
+  // Normalizar datos para el backend
+  const dataToSend = normalizeForBackend(form.data())
 
   form.post(route('clientes.store'), {
+    data: dataToSend,
     preserveScroll: true,
     onSuccess: () => {
       showSuccessMessage.value = true
+      showAutoCompleteMessage.value = false // Ocultar mensaje de autocompletado
       setTimeout(() => {
         showSuccessMessage.value = false
         resetForm()
@@ -750,6 +841,8 @@ const submit = () => {
     },
     onError: (errors) => {
       console.error('Errores de validación:', errors)
+      // Scroll to top to show error messages
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   })
 }

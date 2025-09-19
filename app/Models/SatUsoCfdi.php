@@ -22,6 +22,7 @@ class SatUsoCfdi extends Model
         'descripcion',
         'persona_fisica',
         'persona_moral',
+        'regimen_fiscal_receptor',
     ];
 
     protected $casts = [

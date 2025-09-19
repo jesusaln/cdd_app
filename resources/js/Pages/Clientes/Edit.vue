@@ -402,16 +402,12 @@
 
             <div class="mb-4">
               <label for="estado" class="block text-sm font-medium text-gray-700">
-                Estado <span class="text-red-500">*</span>
+                Estado
               </label>
               <select
                 id="estado"
                 v-model="form.estado"
-                :class="[
-                  'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
-                  form.errors.estado ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                ]"
-                required
+                class="mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border-gray-300"
               >
                 <option value="">Selecciona una opción</option>
                 <option
@@ -425,21 +421,32 @@
               <div v-if="form.errors.estado" class="mt-2 text-sm text-red-600">
                 {{ form.errors.estado }}
               </div>
+              <div class="mt-1 text-xs text-gray-500">
+                Opcional para clientes extranjeros
+              </div>
             </div>
 
             <div class="mb-4">
               <label for="pais" class="block text-sm font-medium text-gray-700">
-                País <span class="text-red-500">*</span>
+                País
               </label>
               <input
                 type="text"
                 id="pais"
                 v-model="form.pais"
-                readonly
-                class="mt-1 block w-full rounded-md border-gray-300 bg-gray-50 shadow-sm sm:text-sm"
+                @blur="toUpper('pais')"
+                placeholder="MX (usa MEX sólo si tu backend lo admite)"
+                autocomplete="new-password"
+                :class="[
+                  'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                  form.errors.pais ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                ]"
               />
               <div v-if="form.errors.pais" class="mt-2 text-sm text-red-600">
                 {{ form.errors.pais }}
+              </div>
+              <div class="mt-1 text-xs text-gray-500">
+                Código de país (2-3 letras). MX para México, USA para Estados Unidos, etc.
               </div>
             </div>
           </div>
@@ -584,8 +591,9 @@ const hasGlobalErrors = computed(() => Object.keys(form.errors).length > 0)
 const requiredFields = [
   'nombre_razon_social', 'email', 'tipo_persona', 'rfc',
   'regimen_fiscal', 'uso_cfdi', 'calle', 'numero_exterior',
-  'colonia', 'codigo_postal', 'municipio', 'estado', 'pais'
+  'colonia', 'codigo_postal', 'municipio'
 ]
+// Nota: estado y pais son opcionales para clientes extranjeros
 
 const requiredFieldsFilled = computed(() => {
   return requiredFields.every(field => {
@@ -602,25 +610,41 @@ const isFormValid = computed(() => {
   return requiredFieldsFilled.value && !hasGlobalErrors.value && !form.processing
 })
 
+// Detectar si es cliente extranjero
+const isExtranjero = computed(() => form.rfc?.toUpperCase() === 'XEXX010101000')
+
+// Normalizar datos antes de enviar al backend
+const normalizeForBackend = (payload) => {
+  const out = { ...payload }
+
+  // Estado: si por alguna razón viene nombre, pásalo a clave
+  if (out.estado && out.estado.length !== 3) {
+    const clave = estadoMapping[out.estado]
+    if (clave) out.estado = clave
+  }
+
+  // País: tu backend pide "MX" (no "MEX"); sólo fuerza MX si NO es extranjero
+  if (!isExtranjero.value) {
+    out.pais = 'MX'
+  }
+  return out
+}
+
 // Opciones para selects con validaciones y fallbacks
 const estados = computed(() => {
-  const estadosData = props.catalogs?.estados || []
-  console.log('Estados raw data:', estadosData)
+  // Si props.catalogs.estados viene como [{ clave: 'SON', nombre: 'Sonora' }, ...] ÚSALO DIRECTO:
+  if (Array.isArray(props.catalogs?.estados) && props.catalogs.estados[0]?.clave) {
+    return props.catalogs.estados.map(e => ({
+      value: e.clave,               // <-- CLAVE SAT (3)
+      text: `${e.clave} — ${e.nombre}`
+    }))
+  }
 
-  return estadosData.map(e => {
-    // Manejar diferentes estructuras posibles
-    if (typeof e === 'string') {
-      return { value: e, text: e }
-    }
-
-    const clave = e.clave || e.codigo || e.id || e.value
-    const nombre = e.nombre || e.descripcion || e.text || e.label || clave
-
-    return {
-      value: nombre,
-      text: nombre
-    }
-  })
+  // Si sólo tienes nombres, deriva la clave con estadoMapping:
+  return Object.entries(estadoMapping).map(([nombre, clave]) => ({
+    value: clave,                   // <-- CLAVE SAT (3)
+    text: `${clave} — ${nombre}`
+  }))
 })
 
 const regimenesFiltrados = computed(() => {
@@ -684,6 +708,11 @@ watch(() => form.tipo_persona, (newVal, oldVal) => {
   }
 })
 
+// Forzar país a "MX" cuando no es extranjero
+watch(isExtranjero, (val) => {
+  if (!val) form.pais = 'MX'
+})
+
 // Funciones de manejo de input
 const onTipoPersonaChange = () => {
   // En edición, solo limpiar si realmente cambió el tipo
@@ -721,9 +750,19 @@ const onCpInput = async (event) => {
       const response = await fetch(`/api/cp/${form.codigo_postal}`)
       if (response.ok) {
         const data = await response.json()
-        form.estado = data.estado
+
+        // Estado: forzar CLAVE SAT (3)
+        if (data.estado) {
+          // si viene como "Sonora", conviértelo a "SON"
+          const clave = estadoMapping[data.estado] || data.estado  // si ya viene "SON", la deja
+          form.estado = clave
+        }
+
         form.municipio = data.municipio
-        form.pais = data.pais
+        // Solo autocompletar país si no está establecido (para permitir clientes extranjeros)
+        if (!form.pais || form.pais.trim() === '') {
+          form.pais = data.pais
+        }
 
         // Poblar lista de colonias disponibles
         availableColonias.value = data.colonias || []
@@ -832,8 +871,12 @@ const submit = () => {
     return
   }
 
+  // Normalizar datos para el backend
+  const dataToSend = normalizeForBackend(form.data())
+
   // Usar PUT/PATCH para actualización
   form.put(route('clientes.update', props.cliente.id), {
+    data: dataToSend,
     preserveScroll: true,
     onSuccess: () => {
       showSuccessMessage.value = true

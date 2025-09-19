@@ -32,6 +32,7 @@ use App\Http\Controllers\EquipoController;
 use App\Http\Controllers\RentasController;
 use App\Http\Controllers\BitacoraActividadController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\CfdiController;
 
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -220,4 +221,11 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
             ->parameters(['bitacora' => 'bitacora'])
             ->names('bitacora');
     });
+
+    // =====================================================
+    // RUTAS CFDI (FacturaLO Plus)
+    // =====================================================
+    Route::get('/cfdi/timbrar-demo', [CfdiController::class, 'timbrarDemo']);
+    Route::post('/cfdi/cancelar-demo', [CfdiController::class, 'cancelarDemo']);
+    Route::post('/cfdi/estado-sat', [CfdiController::class, 'estadoSat']);
 });

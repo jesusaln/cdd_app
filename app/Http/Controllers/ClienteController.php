@@ -387,15 +387,33 @@ class ClienteController extends Controller
         return Inertia::render('Clientes/Create', [
             'catalogs' => [
                 'tiposPersona' => [
-                    ['value' => 'fisica', 'label' => 'Persona Física'],
-                    ['value' => 'moral', 'label' => 'Persona Moral'],
+                    ['value' => 'fisica', 'text' => 'Persona Física'],
+                    ['value' => 'moral', 'text' => 'Persona Moral'],
                 ],
-                'estados' => SatEstado::all(['clave', 'nombre'])->toArray(),
-                'regimenesFiscales' => SatRegimenFiscal::all(['clave', 'descripcion', 'persona_fisica', 'persona_moral'])->toArray(),
-                'usosCFDI' => SatUsoCfdi::all(['clave', 'descripcion', 'persona_fisica', 'persona_moral'])->toArray(),
+                'estados' => SatEstado::orderBy('nombre')
+                    ->get(['clave', 'nombre'])
+                    ->map(function ($estado) {
+                        return [
+                            'value' => $estado->clave,
+                            'text' => $estado->clave . ' — ' . $estado->nombre
+                        ];
+                    })
+                    ->toArray(),
+                'regimenesFiscales' => SatRegimenFiscal::orderBy('clave')
+                    ->get(['clave', 'descripcion', 'persona_fisica', 'persona_moral'])
+                    ->toArray(),
+                'usosCFDI' => SatUsoCfdi::orderBy('clave')
+                    ->get(['clave', 'descripcion', 'persona_fisica', 'persona_moral'])
+                    ->map(function ($uso) {
+                        return [
+                            'value' => $uso->clave,
+                            'text' => $uso->clave . ' — ' . $uso->descripcion
+                        ];
+                    })
+                    ->toArray(),
             ],
             'cliente' => [ // valores por defecto
-                'tipo_persona' => 'fisica',
+                'tipo_persona' => '',
                 'pais' => 'MX',
             ],
         ]);
