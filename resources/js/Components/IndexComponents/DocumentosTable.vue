@@ -422,14 +422,14 @@
               <!-- Estado -->
               <td class="px-6 py-4">
                 <span
-                  :class="obtenerClasesEstado(isClientes ? (doc.estado === 'activo' ? '1' : '0') : doc.estado)"
+                  :class="obtenerClasesEstado(doc.estado)"
                   class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150 hover:shadow-sm"
                 >
                   <span
                     class="w-2 h-2 rounded-full mr-2 transition-all duration-150"
-                    :class="obtenerColorPuntoEstado(isClientes ? (doc.estado === 'activo' ? '1' : '0') : doc.estado)"
+                    :class="obtenerColorPuntoEstado(doc.estado)"
                   ></span>
-                  {{ obtenerLabelEstado(isClientes ? (doc.estado === 'activo' ? '1' : '0') : doc.estado) }}
+                  {{ obtenerLabelEstado(doc.estado) }}
                 </span>
               </td>
 
@@ -786,8 +786,8 @@ const config = computed(() => {
       campoExtra: { key: 'rfc', label: 'RFC' },
       acciones: { editar: true, duplicar: false, imprimir: false, eliminar: true },
       estados: {
-        '1': { label: 'Activo',   classes: 'bg-emerald-100 text-emerald-700', color: 'bg-emerald-400' },
-        '0': { label: 'Inactivo', classes: 'bg-red-100 text-red-700',        color: 'bg-red-400' },
+        'activo': { label: 'Activo',   classes: 'bg-emerald-100 text-emerald-700', color: 'bg-emerald-400' },
+        'inactivo': { label: 'Inactivo', classes: 'bg-red-100 text-red-700',        color: 'bg-red-400' },
       }
     },
     // 👇 CONFIG MEJORADA PARA PRODUCTOS
@@ -997,7 +997,7 @@ const items = computed(() => {
   if (props.filtroEstado) {
     filtered = filtered.filter(doc => {
       if (isClientes.value) {
-        return (doc.estado === 'activo' ? '1' : '0') === props.filtroEstado;
+        return doc.estado === props.filtroEstado;
       }
       return doc.estado === props.filtroEstado;
     });
@@ -1076,8 +1076,8 @@ const items = computed(() => {
         break;
       case 'estado':
         if (isClientes.value) {
-          aVal = a.estado === 'activo' ? '1' : '0';
-          bVal = b.estado === 'activo' ? '1' : '0';
+          aVal = a.estado || '';
+          bVal = b.estado || '';
         } else if (props.tipo === 'herramientas') {
           aVal = a.meta?.tecnico ? 'asignada' : 'sin_asignar';
           bVal = b.meta?.tecnico ? 'asignada' : 'sin_asignar';

@@ -195,14 +195,17 @@ class ClienteController extends Controller
             $q->where('estado', $edo);
         }
 
-        // CLAVE: solo filtrar si 'activo' viene exactamente como '0' o '1'
+        // Filtrar por estado activo/inactivo
         if ($request->query->has('activo')) {
             $val = (string) $request->query('activo');
 
             if (in_array($val, ['0', '1'], true)) {
                 $q->where('activo', (int) $val); // 0 o 1
             }
-            // Si NO es '0' ni '1', NO filtramos.
+            // Si NO es '0' ni '1', NO filtramos (mostrar todos)
+        } else {
+            // Por defecto, mostrar solo clientes activos
+            $q->where('activo', true);
         }
 
 

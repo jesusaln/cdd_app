@@ -94,10 +94,13 @@ const modalMode = ref('details') // 'details' | 'confirm'
 const selectedCliente = ref(null)
 const selectedId = ref(null)
 
+// ---------- Datos locales para manipulación ----------
+const clientesOriginales = ref([])
+
 // Filtros/ordenamiento (mapeados al header universal)
 const searchTerm = ref(props.filters?.search ?? '')
 const sortBy = ref(mapSortingToHeader(props.sorting)) // 'fecha-desc' / 'fecha-asc' / 'nombre-asc' / 'nombre-desc'
-const filtroEstado = ref('') // activo/inactivo (opcional)
+const filtroEstado = ref(props.filters?.activo ?? '') // activo/inactivo (opcional) - usar el valor del backend
 
 // Paginación del lado del cliente
 const currentPage = ref(1)
@@ -111,26 +114,27 @@ const headerConfig = {
 }
 
 // ---------- Datos base ----------
-const clientesOriginales = ref(Array.isArray(props.clientes?.data) ? [...props.clientes.data] : [])
+// Usamos directamente los datos del paginator del backend
+const clientesPaginator = computed(() => props.clientes)
+const clientesData = computed(() => clientesPaginator.value?.data || [])
 
-// Mantener sincronizado si cambian las props por navegación Inertia
-watch(() => props.clientes, (nuevo) => {
-  clientesOriginales.value = Array.isArray(nuevo?.data) ? [...nuevo.data] : []
-}, { deep: true })
+// Nota: Ya no necesitamos watchers para sincronizar datos locales
+// porque usamos directamente el paginator del backend
 
 // ---------- Estadísticas locales ----------
 const estadisticas = computed(() => ({
-  total: props.stats?.total ?? clientesOriginales.value.length,
-  aprobadas: props.stats?.activos ?? clientesOriginales.value.filter(c => c.activo).length,   // usamos "aprobadas" para mapear al header
-  pendientes: props.stats?.inactivos ?? clientesOriginales.value.filter(c => !c.activo).length // y "pendientes" idem
+  total: props.stats?.total ?? 0,
+  activos: props.stats?.activos ?? 0,   // usamos "activos" para mapear al header
+  inactivos: props.stats?.inactivos ?? 0 // y "inactivos" idem
 }))
 
 // ---------- Transformación base para DocumentosTable ----------
+console.log('Transformando clientes para DocumentosTable...')
 // DocumentosTable es genérica; para `tipo="clientes"` asumimos formato:
 // { id, titulo, subtitulo, estado, extra, fecha, meta, raw }
 // Adaptamos cada cliente a ese shape sin perder el objeto original en "raw".
 const documentosClientesBase = computed(() => {
-  return clientesOriginales.value.map(c => {
+  return clientesData.value.map(c => {
     const estadoNombre = estadoMapping[c.estado] || c.estado
     const direccion = [
       c.calle,
@@ -147,7 +151,7 @@ const documentosClientesBase = computed(() => {
       id: c.id,
       titulo: c.nombre_razon_social,            // principal
       subtitulo: c.email || '',                 // debajo
-      estado: c.activo ? 'activo' : 'inactivo', // badge/estado
+      estado: c.activo ? 'activo' : 'inactivo', // badge/estado (activo/inactivo)
       extra: c.rfc,                              // rfc como etiqueta secundaria
       fecha: c.created_at,                       // para orden por fecha
       meta: {
@@ -166,7 +170,14 @@ function handleLimpiarFiltros () {
   filtroEstado.value = ''
   perPage.value = 10
 
-  router.get(route('clientes.index'), {}, {
+  router.get(route('clientes.index'), {
+    search: '',
+    sort_by: 'created_at',
+    sort_direction: 'desc',
+    activo: '',
+    per_page: 10,
+    page: 1
+  }, {
     preserveState: true,
     preserveScroll: true
   })
@@ -174,11 +185,70 @@ function handleLimpiarFiltros () {
   notyf.success('Filtros limpiados')
 }
 
+// Handler para búsqueda
+function handleSearchChange(newSearch) {
+  searchTerm.value = newSearch
+  router.get(route('clientes.index'), {
+    search: newSearch,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc',
+    activo: filtroEstado.value,
+    per_page: perPage.value,
+    page: 1 // Reset to first page
+  }, {
+    preserveState: true,
+    preserveScroll: true
+  })
+}
+
+// Handler para filtro de estado
+function handleEstadoChange(newEstado) {
+  filtroEstado.value = newEstado
+  router.get(route('clientes.index'), {
+    search: searchTerm.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc',
+    activo: newEstado,
+    per_page: perPage.value,
+    page: 1 // Reset to first page
+  }, {
+    preserveState: true,
+    preserveScroll: true
+  })
+}
+
+// Handler para ordenamiento
+function handleSortChange(newSort) {
+  sortBy.value = newSort
+  router.get(route('clientes.index'), {
+    search: searchTerm.value,
+    sort_by: newSort.split('-')[0],
+    sort_direction: newSort.split('-')[1] || 'desc',
+    activo: filtroEstado.value,
+    per_page: perPage.value,
+    page: 1 // Reset to first page
+  }, {
+    preserveState: true,
+    preserveScroll: true
+  })
+}
+
+// Handler para ordenamiento desde la tabla
+function handleSortFromTable(newSort) {
+  handleSortChange(newSort)
+}
+
 // El header emite v-model:sort-by (string). Lo mantenemos.
-const updateSort = (nuevo) => {
-  if (nuevo && typeof nuevo === 'string') {
-    sortBy.value = nuevo
-  }
+const updateSort = (newSort) => {
+  const [field, direction] = newSort.split('-')
+  router.get(route('clientes.index'), {
+    ...props.filters,
+    sort_by: field,
+    sort_direction: direction
+  }, {
+    preserveState: true,
+    preserveScroll: true
+  })
 }
 
 // ---------- Acciones ----------
@@ -226,65 +296,31 @@ const eliminarCliente = () => {
 const duplicarNoSoportado = () => notyf.error('Duplicar no está disponible para clientes')
 const imprimirNoSoportado = () => notyf.error('Imprimir no está disponible para clientes')
 
-// ---------- Búsqueda / Orden / Filtro estado (lado cliente) ----------
-// Si tu DocumentosTable ya maneja search/sort/filters internamente, pásale estos v-models.
-// Si NO, podrías filtrar/ordenar aquí y pasarle el resultado.
-const clientesFiltradosYOrdenados = computed(() => {
-  let arr = [...documentosClientesBase.value]
+const exportClientes = () => {
+  const params = new URLSearchParams({
+    search: searchTerm.value,
+    activo: filtroEstado.value === 'activo' ? '1' : (filtroEstado.value === 'inactivo' ? '0' : ''),
+  }).toString()
+  const url = route('clientes.export') + (params ? `?${params}` : '')
+  window.location.href = url
+}
 
-  // Buscar
-  if (searchTerm.value) {
-    const q = searchTerm.value.toLowerCase()
-    arr = arr.filter(d =>
-      d.titulo?.toLowerCase().includes(q) ||
-      d.subtitulo?.toLowerCase().includes(q) ||
-      d.extra?.toLowerCase().includes(q)
-    )
-  }
+// ---------- Para DocumentosTable ----------
+// Usamos directamente los datos transformados del paginator
+const documentosClientes = computed(() => documentosClientesBase.value)
 
-  // Filtro estado (opcional): 'activo' | 'inactivo'
-  if (filtroEstado.value) {
-    arr = arr.filter(d => (filtroEstado.value === 'activo' ? d.estado === 'activo' : d.estado === 'inactivo'))
-  }
-
-  // Orden
-  const [campo, dir] = sortBy.value.split('-') // ejemplo: 'nombre-asc', 'fecha-desc'
-  arr.sort((a, b) => {
-    let va = '', vb = ''
-    if (campo === 'nombre') { va = (a.titulo || '').toLowerCase(); vb = (b.titulo || '').toLowerCase() }
-    else if (campo === 'fecha') { va = a.fecha || ''; vb = b.fecha || '' }
-    else { va = (a.titulo || '').toLowerCase(); vb = (b.titulo || '').toLowerCase() }
-
-    if (va > vb) return dir === 'asc' ? 1 : -1
-    if (va < vb) return dir === 'asc' ? -1 : 1
-    return 0
-  })
-
-  return arr
-})
-
-// Documentos para mostrar (con paginación del lado del cliente)
-const documentosClientes = computed(() => {
-  const startIndex = (currentPage.value - 1) * perPage.value
-  const endIndex = startIndex + perPage.value
-  return clientesFiltradosYOrdenados.value.slice(startIndex, endIndex)
-})
-
-// Información de paginación
-const totalPages = computed(() => Math.ceil(clientesFiltradosYOrdenados.value.length / perPage.value))
-const totalFiltered = computed(() => clientesFiltradosYOrdenados.value.length)
-
-// Datos de paginación simulados para el componente Pagination
+// ---------- Paginación del lado del servidor ----------
+// Usamos directamente el paginator del backend
 const paginationData = computed(() => ({
-  current_page: currentPage.value,
-  last_page: totalPages.value,
-  per_page: perPage.value,
-  from: totalFiltered.value > 0 ? ((currentPage.value - 1) * perPage.value) + 1 : 0,
-  to: Math.min(currentPage.value * perPage.value, totalFiltered.value),
-  total: totalFiltered.value,
-  prev_page_url: currentPage.value > 1 ? '#' : null,
-  next_page_url: currentPage.value < totalPages.value ? '#' : null,
-  links: [] // No necesitamos links para client-side
+  current_page: clientesPaginator.value?.current_page || 1,
+  last_page: clientesPaginator.value?.last_page || 1,
+  per_page: clientesPaginator.value?.per_page || 10,
+  from: clientesPaginator.value?.from || 0,
+  to: clientesPaginator.value?.to || 0,
+  total: clientesPaginator.value?.total || 0,
+  prev_page_url: clientesPaginator.value?.prev_page_url,
+  next_page_url: clientesPaginator.value?.next_page_url,
+  links: clientesPaginator.value?.links || []
 }))
 
 // Watch para resetear página cuando cambien filtros
@@ -292,14 +328,28 @@ watch([searchTerm, sortBy, filtroEstado, perPage], () => {
   currentPage.value = 1
 }, { deep: true })
 
-// Manejo de paginación
+// Manejo de paginación - Usando Inertia para navegación del lado del servidor
 const handlePerPageChange = (newPerPage) => {
-  perPage.value = newPerPage
-  currentPage.value = 1 // Reset to first page when changing per_page
+  router.get(route('clientes.index'), {
+    ...props.filters,
+    ...props.sorting,
+    per_page: newPerPage,
+    page: 1 // Reset to first page
+  }, {
+    preserveState: true,
+    preserveScroll: true
+  })
 }
 
 const handlePageChange = (newPage) => {
-  currentPage.value = newPage
+  router.get(route('clientes.index'), {
+    ...props.filters,
+    ...props.sorting,
+    page: newPage
+  }, {
+    preserveState: true,
+    preserveScroll: true
+  })
 }
 
 // ---------- Helpers ----------
@@ -331,37 +381,46 @@ onMounted(() => {
     <div class="max-w-8xl mx-auto px-6 py-8">
       <!-- Header universal reutilizable -->
       <UniversalHeader
-    :total="props.stats.total"
-    :aprobadas="props.stats.activos"
-    :pendientes="props.stats.inactivos"
-    v-model:search-term="searchTerm"
-    v-model:sort-by="sortBy"
-    v-model:filtro-estado="filtroEstado"
-    :config="headerConfig"
-    @limpiar-filtros="handleLimpiarFiltros"
-  />
+     :total="estadisticas.total"
+     :activos="estadisticas.activos"
+     :inactivos="estadisticas.inactivos"
+     v-model:search-term="searchTerm"
+     v-model:sort-by="sortBy"
+     v-model:filtro-estado="filtroEstado"
+     :config="headerConfig"
+     @limpiar-filtros="handleLimpiarFiltros"
+     @update:searchTerm="handleSearchChange"
+     @update:sortBy="handleSortChange"
+     @update:filtroEstado="handleEstadoChange"
+     @exportar="exportClientes"
+   />
+
+
 
       <!-- Tabla (reutilizamos DocumentosTable con tipo='clientes') -->
       <div class="mt-6">
+
         <DocumentosTable
           :documentos="documentosClientes"
           tipo="clientes"
           :mapeo="{
-    nombre: 'cliente.nombre',     // ej. viene dentro de cliente.nombre
-    rfc: 'cliente.datos_fiscales.rfc',
-    activo: 'cliente.activo',
-    fecha: 'cliente.fecha_registro'
-  }"
-          :search-term="searchTerm"
-          :sort-by="sortBy"
-          :filtro-estado="filtroEstado"
+            titulo: 'titulo',
+            subtitulo: 'subtitulo',
+            extra: 'extra',
+            estado: 'estado',
+            fecha: 'fecha'
+          }"
+          :search-term="props.filters?.search || ''"
+          :sort-by="`${props.sorting?.sort_by || 'created_at'}-${props.sorting?.sort_direction || 'desc'}`"
+          :filtro-estado="props.filters?.activo || ''"
           @ver-detalles="verDetalles"
           @editar="editarCliente"
           @duplicar="duplicarNoSoportado"
           @imprimir="imprimirNoSoportado"
           @eliminar="confirmarEliminacion"
-          @sort="updateSort"
+          @sort="handleSortFromTable"
         />
+
 
         <!-- Componente de paginación -->
         <Pagination
@@ -391,12 +450,12 @@ onMounted(() => {
   background-color: #f9fafb;
 }
 @media (max-width: 640px) {
-  .clientes-index .max-w-7xl {
+  .clientes-index .max-w-8xl {
     padding-left: 1rem;
     padding-right: 1rem;
   }
-  .clientes-index h1 {
-    font-size: 1.5rem;
+  .clientes-index .grid-cols-3 {
+    grid-template-columns: repeat(1, 1fr);
   }
 }
 @keyframes fadeIn {
@@ -404,4 +463,13 @@ onMounted(() => {
   to { opacity: 1; transform: translateY(0); }
 }
 .clientes-index > * { animation: fadeIn 0.3s ease-out; }
+
+/* Animaciones para las tarjetas de estadísticas */
+.clientes-index .grid > div {
+  transition: all 0.2s ease-in-out;
+}
+.clientes-index .grid > div:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.15);
+}
 </style>
