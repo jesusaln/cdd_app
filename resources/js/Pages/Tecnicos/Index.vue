@@ -21,7 +21,7 @@
           </div>
           <div class="flex items-center space-x-2 text-sm text-gray-500">
             <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
-              {{ tecnicos.length }} técnicos
+              {{ tecnicos.total }} técnicos
             </span>
             <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full font-medium">
               {{ tecnicosFiltrados.length }} visibles
@@ -229,128 +229,244 @@
 </template>
 
 <script setup>
-import { Head, Link, router } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
-import { Notyf } from 'notyf';
-import 'notyf/notyf.min.css';
-import TecnicoModal from '@/Components/TecnicoModal.vue';
-import AppLayout from '@/Layouts/AppLayout.vue';
+import { ref, computed, onMounted } from 'vue'
+import { Head, router, usePage, Link } from '@inertiajs/vue3'
+import AppLayout from '@/Layouts/AppLayout.vue'
+import TecnicoModal from '@/Components/TecnicoModal.vue'
+import { Notyf } from 'notyf'
+import 'notyf/notyf.min.css'
 
-// Define el layout del dashboard
-defineOptions({ layout: AppLayout });
+defineOptions({ layout: AppLayout })
 
-const props = defineProps({
-  titulo: String,
-  tecnicos: Array
-});
-
-document.title = props.titulo;
-
-const headers = ['Nombre', 'Email', 'Teléfono', 'Dirección'];
-const loading = ref(false);
-const searchTerm = ref('');
-const tecnicoSeleccionado = ref(null);
-const isModalOpen = ref(false);
-const isConfirmOpen = ref(false);
-const tecnicoAEliminar = ref(null);
-
-const tecnicos = ref(props.tecnicos);
-
-const tecnicosFiltrados = computed(() => {
-  if (!searchTerm.value) return tecnicos.value;
-
-  return tecnicos.value.filter(tecnico => {
-    const searchLower = searchTerm.value.toLowerCase();
-    return tecnico.nombre.toLowerCase().includes(searchLower) ||
-           tecnico.apellido.toLowerCase().includes(searchLower) ||
-           tecnico.email.toLowerCase().includes(searchLower) ||
-           tecnico.telefono.toLowerCase().includes(searchLower);
-  });
-});
-
+// Notificaciones
 const notyf = new Notyf({
   duration: 4000,
   position: { x: 'right', y: 'top' },
   types: [
-    {
-      type: 'success',
-      background: 'linear-gradient(135deg, #10b981, #059669)',
-      icon: {
-        className: 'notyf__icon--success',
-        tagName: 'i'
-      }
-    },
-    {
-      type: 'error',
-      background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-      icon: {
-        className: 'notyf__icon--error',
-        tagName: 'i'
-      }
-    }
+    { type: 'success', background: '#10b981', icon: false },
+    { type: 'error', background: '#ef4444', icon: false },
+    { type: 'warning', background: '#f59e0b', icon: false }
   ]
-});
+})
 
-const getInitials = (nombre, apellido) => {
-  return `${nombre.charAt(0)}${apellido.charAt(0)}`.toUpperCase();
-};
+const page = usePage()
+onMounted(() => {
+  const flash = page.props.flash
+  if (flash?.success) notyf.success(flash.success)
+  if (flash?.error) notyf.error(flash.error)
+})
+
+// Props
+const props = defineProps({
+  tecnicos: { type: [Object, Array], required: true },
+  stats: { type: Object, default: () => ({}) },
+  filters: { type: Object, default: () => ({}) },
+  sorting: { type: Object, default: () => ({ sort_by: 'nombre', sort_direction: 'asc' }) },
+})
+
+// Estado UI
+const showModal = ref(false)
+const modalMode = ref('details')
+const selectedTecnico = ref(null)
+const selectedId = ref(null)
+
+// Filtros
+const searchTerm = ref(props.filters?.search ?? '')
+const sortBy = ref('nombre-asc')
+const filtroEstado = ref('')
+
+// Paginación
+const perPage = ref(10)
+
+// Header config
+const headerConfig = {
+  module: 'tecnicos',
+  createButtonText: 'Nuevo Técnico',
+  searchPlaceholder: 'Buscar por nombre, email o teléfono...'
+}
+
+// Missing variables
+const titulo = ref('Técnicos')
+const tecnicosFiltrados = computed(() => tecnicosData.value)
+const isModalOpen = ref(false)
+const tecnicoSeleccionado = ref(null)
+const isConfirmOpen = ref(false)
+const tecnicoAEliminar = ref(null)
+const headers = ['Nombre', 'Email', 'Teléfono', 'Dirección']
+
+// Datos
+const tecnicosPaginator = computed(() => props.tecnicos)
+const tecnicosData = computed(() => tecnicosPaginator.value?.data || [])
+
+// Estadísticas
+const estadisticas = computed(() => ({
+  total: props.stats?.total ?? 0,
+  activos: props.stats?.activos ?? 0,
+  inactivos: props.stats?.inactivos ?? 0,
+  activosPorcentaje: props.stats?.activos > 0 ? Math.round((props.stats.activos / props.stats.total) * 100) : 0,
+  inactivosPorcentaje: props.stats?.inactivos > 0 ? Math.round((props.stats.inactivos / props.stats.total) * 100) : 0
+}))
+
+// Transformación de datos
+const tecnicosDocumentos = computed(() => {
+  return tecnicosData.value.map(t => ({
+    id: t.id,
+    titulo: `${t.nombre} ${t.apellido}`,
+    subtitulo: t.email,
+    estado: t.estado || 'activo',
+    extra: `Teléfono: ${t.telefono || 'N/A'} | Dirección: ${t.direccion || 'N/A'}`,
+    fecha: t.created_at,
+    raw: t
+  }))
+})
+
+// Handlers
+function handleSearchChange(newSearch) {
+  searchTerm.value = newSearch
+  router.get(route('tecnicos.index'), {
+    search: newSearch,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'asc',
+    estado: filtroEstado.value,
+    per_page: perPage.value,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+function handleEstadoChange(newEstado) {
+  filtroEstado.value = newEstado
+  router.get(route('tecnicos.index'), {
+    search: searchTerm.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'asc',
+    estado: newEstado,
+    per_page: perPage.value,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+function handleSortChange(newSort) {
+  sortBy.value = newSort
+  router.get(route('tecnicos.index'), {
+    search: searchTerm.value,
+    sort_by: newSort.split('-')[0],
+    sort_direction: newSort.split('-')[1] || 'asc',
+    estado: filtroEstado.value,
+    per_page: perPage.value,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+const verDetalles = (doc) => {
+  selectedTecnico.value = doc.raw
+  modalMode.value = 'details'
+  showModal.value = true
+}
+
+const editarTecnico = (id) => {
+  router.visit(route('tecnicos.edit', id))
+}
 
 const openModal = (tecnico) => {
-  tecnicoSeleccionado.value = tecnico;
-  isModalOpen.value = true;
-};
+  tecnicoSeleccionado.value = tecnico
+  isModalOpen.value = true
+}
 
 const closeModal = () => {
-  isModalOpen.value = false;
-  tecnicoSeleccionado.value = null;
-};
+  isModalOpen.value = false
+  tecnicoSeleccionado.value = null
+}
 
 const confirmarEliminacion = (tecnico) => {
-  tecnicoAEliminar.value = tecnico;
-  isConfirmOpen.value = true;
-};
+  tecnicoAEliminar.value = tecnico
+  isConfirmOpen.value = true
+}
 
-const eliminarTecnicoConfirmado = async () => {
-  if (!tecnicoAEliminar.value) return;
-
-  loading.value = true;
-  try {
-    await router.delete(route('tecnicos.destroy', tecnicoAEliminar.value.id), {
-      onSuccess: () => {
-        notyf.success('Técnico eliminado exitosamente');
-        tecnicos.value = tecnicos.value.filter(t => t.id !== tecnicoAEliminar.value.id);
-        isConfirmOpen.value = false;
-        tecnicoAEliminar.value = null;
-      },
-      onError: (errors) => {
-        notyf.error('Error al eliminar el técnico');
-        console.error('Error:', errors);
-      }
-    });
-  } catch (error) {
-    notyf.error('Ocurrió un error inesperado');
-    console.error('Error:', error);
-  } finally {
-    loading.value = false;
-  }
-};
+const eliminarTecnicoConfirmado = () => {
+  router.delete(route('tecnicos.destroy', tecnicoAEliminar.value.id), {
+    preserveScroll: true,
+    onSuccess: () => {
+      notyf.success('Técnico eliminado correctamente')
+      isConfirmOpen.value = false
+      tecnicoAEliminar.value = null
+      router.reload()
+    },
+    onError: (errors) => {
+      notyf.error('No se pudo eliminar el técnico')
+    }
+  })
+}
 
 const exportData = () => {
-  const csvContent = [
-    ['Nombre', 'Apellido', 'Email', 'Teléfono', 'Dirección'],
-    ...tecnicos.value.map(t => [t.nombre, t.apellido, t.email, t.telefono, t.direccion])
-  ].map(row => row.join(',')).join('\n');
+  const params = new URLSearchParams()
+  if (searchTerm.value) params.append('search', searchTerm.value)
+  if (filtroEstado.value) params.append('estado', filtroEstado.value)
+  const queryString = params.toString()
+  const url = route('tecnicos.export') + (queryString ? `?${queryString}` : '')
+  window.location.href = url
+}
 
-  const blob = new Blob([csvContent], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `tecnicos-${new Date().toISOString().split('T')[0]}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+// Paginación
+const paginationData = computed(() => ({
+  current_page: tecnicosPaginator.value?.current_page || 1,
+  last_page: tecnicosPaginator.value?.last_page || 1,
+  per_page: tecnicosPaginator.value?.per_page || 10,
+  from: tecnicosPaginator.value?.from || 0,
+  to: tecnicosPaginator.value?.to || 0,
+  total: tecnicosPaginator.value?.total || 0,
+  prev_page_url: tecnicosPaginator.value?.prev_page_url,
+  next_page_url: tecnicosPaginator.value?.next_page_url,
+  links: tecnicosPaginator.value?.links || []
+}))
 
-  notyf.success('Datos exportados exitosamente');
-};
+const handlePerPageChange = (newPerPage) => {
+  router.get(route('tecnicos.index'), {
+    ...props.filters,
+    ...props.sorting,
+    per_page: newPerPage,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+const handlePageChange = (newPage) => {
+  router.get(route('tecnicos.index'), {
+    ...props.filters,
+    ...props.sorting,
+    page: newPage
+  }, { preserveState: true, preserveScroll: true })
+}
+
+// Helpers
+const formatNumber = (num) => new Intl.NumberFormat('es-ES').format(num)
+const formatearFecha = (date) => {
+  if (!date) return 'Fecha no disponible'
+  try {
+    const d = new Date(date)
+    return d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  } catch {
+    return 'Fecha inválida'
+  }
+}
+
+const obtenerClasesEstado = (estado) => {
+  const clases = {
+    'activo': 'bg-green-100 text-green-700',
+    'inactivo': 'bg-red-100 text-red-700'
+  }
+  return clases[estado] || 'bg-gray-100 text-gray-700'
+}
+
+const obtenerLabelEstado = (estado) => {
+  const labels = {
+    'activo': 'Activo',
+    'inactivo': 'Inactivo'
+  }
+  return labels[estado] || 'Pendiente'
+}
+
+const getInitials = (nombre, apellido) => {
+  return `${nombre.charAt(0)}${apellido.charAt(0)}`.toUpperCase()
+}
 </script>
 
 <style scoped>

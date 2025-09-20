@@ -31,17 +31,10 @@ class BitacoraActividadController extends Controller
 
             Log::info('Estados a mostrar:', $estadosAMostrar);
 
-            $aplicarFiltroHoy = $this->debeAplicarFiltroHoy($filters);
-            Log::info('¿Aplicar filtro hoy?', ['valor' => $aplicarFiltroHoy]);
-
             [$desde, $hasta] = $this->validarFechas($filters['desde'] ?? null, $filters['hasta'] ?? null);
 
             $query = BitacoraActividad::with(['usuario:id,name', 'cliente:id,nombre_razon_social'])
                 ->whereIn('estado', $estadosAMostrar);
-
-            if ($aplicarFiltroHoy) {
-                $query->soloHoyOMantenerEnProceso();
-            }
 
             $query->rangoFechas($desde, $hasta)
                 ->deUsuario($filters['usuario'] ?? null)
@@ -93,6 +86,7 @@ class BitacoraActividadController extends Controller
     private function determinarEstadosAMostrar(string $estadoSeleccionado): array
     {
         switch ($estadoSeleccionado) {
+            case '':
             case 'todos':
                 return self::ESTADOS;
 
@@ -109,8 +103,8 @@ class BitacoraActividadController extends Controller
                 return ['en_proceso'];
 
             default:
-                // Vista por defecto: solo pendientes y en proceso
-                return ['pendiente', 'en_proceso'];
+                // Vista por defecto: mostrar todas las actividades
+                return self::ESTADOS;
         }
     }
 

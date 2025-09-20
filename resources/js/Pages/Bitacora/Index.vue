@@ -7,6 +7,9 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import { Notyf } from 'notyf'
 import 'notyf/notyf.min.css'
 
+// Componentes básicos
+import Pagination from '@/Components/Pagination.vue'
+
 defineOptions({ layout: AppLayout })
 
 // Notificaciones
@@ -45,17 +48,13 @@ const modalMode = ref('details')
 const selectedActividad = ref(null)
 const selectedId = ref(null)
 
-// Filtros
+// Filtros/ordenamiento
 const searchTerm = ref(props.filters?.q ?? '')
 const sortBy = ref('fecha-desc')
 const filtroEstado = ref(props.filters?.estado ?? '')
-const filtroTipo = ref(props.filters?.tipo ?? '')
-const filtroUsuario = ref(props.filters?.usuario ?? '')
-const filtroCliente = ref(props.filters?.cliente ?? '')
-const filtroDesde = ref(props.filters?.desde ?? '')
-const filtroHasta = ref(props.filters?.hasta ?? '')
 
-// Paginación
+// Paginación del lado del cliente
+const currentPage = ref(1)
 const perPage = ref(15)
 
 // Header config
@@ -97,7 +96,26 @@ const actividadesDocumentos = computed(() => {
   }))
 })
 
-// Handlers
+// Handler para limpiar filtros
+function handleLimpiarFiltros() {
+  searchTerm.value = ''
+  sortBy.value = 'fecha-desc'
+  filtroEstado.value = ''
+  perPage.value = 15
+
+  router.get(route('bitacora.index'), {
+    q: '',
+    sort_by: 'fecha',
+    sort_direction: 'desc',
+    estado: '',
+    per_page: 15,
+    page: 1
+  }, { preserveState: false, preserveScroll: false })
+
+  notyf.success('Filtros limpiados')
+}
+
+// Handler para búsqueda
 function handleSearchChange(newSearch) {
   searchTerm.value = newSearch
   router.get(route('bitacora.index'), {
@@ -105,16 +123,12 @@ function handleSearchChange(newSearch) {
     sort_by: sortBy.value.split('-')[0],
     sort_direction: sortBy.value.split('-')[1] || 'desc',
     estado: filtroEstado.value,
-    tipo: filtroTipo.value,
-    usuario: filtroUsuario.value,
-    cliente: filtroCliente.value,
-    desde: filtroDesde.value,
-    hasta: filtroHasta.value,
     per_page: perPage.value,
     page: 1
-  }, { preserveState: true, preserveScroll: true })
+  }, { preserveState: false, preserveScroll: false })
 }
 
+// Handler para filtro de estado
 function handleEstadoChange(newEstado) {
   filtroEstado.value = newEstado
   router.get(route('bitacora.index'), {
@@ -122,101 +136,12 @@ function handleEstadoChange(newEstado) {
     sort_by: sortBy.value.split('-')[0],
     sort_direction: sortBy.value.split('-')[1] || 'desc',
     estado: newEstado,
-    tipo: filtroTipo.value,
-    usuario: filtroUsuario.value,
-    cliente: filtroCliente.value,
-    desde: filtroDesde.value,
-    hasta: filtroHasta.value,
     per_page: perPage.value,
     page: 1
-  }, { preserveState: true, preserveScroll: true })
+  }, { preserveState: false, preserveScroll: false })
 }
 
-function handleTipoChange(newTipo) {
-  filtroTipo.value = newTipo
-  router.get(route('bitacora.index'), {
-    q: searchTerm.value,
-    sort_by: sortBy.value.split('-')[0],
-    sort_direction: sortBy.value.split('-')[1] || 'desc',
-    estado: filtroEstado.value,
-    tipo: newTipo,
-    usuario: filtroUsuario.value,
-    cliente: filtroCliente.value,
-    desde: filtroDesde.value,
-    hasta: filtroHasta.value,
-    per_page: perPage.value,
-    page: 1
-  }, { preserveState: true, preserveScroll: true })
-}
-
-function handleUsuarioChange(newUsuario) {
-  filtroUsuario.value = newUsuario
-  router.get(route('bitacora.index'), {
-    q: searchTerm.value,
-    sort_by: sortBy.value.split('-')[0],
-    sort_direction: sortBy.value.split('-')[1] || 'desc',
-    estado: filtroEstado.value,
-    tipo: filtroTipo.value,
-    usuario: newUsuario,
-    cliente: filtroCliente.value,
-    desde: filtroDesde.value,
-    hasta: filtroHasta.value,
-    per_page: perPage.value,
-    page: 1
-  }, { preserveState: true, preserveScroll: true })
-}
-
-function handleClienteChange(newCliente) {
-  filtroCliente.value = newCliente
-  router.get(route('bitacora.index'), {
-    q: searchTerm.value,
-    sort_by: sortBy.value.split('-')[0],
-    sort_direction: sortBy.value.split('-')[1] || 'desc',
-    estado: filtroEstado.value,
-    tipo: filtroTipo.value,
-    usuario: filtroUsuario.value,
-    cliente: newCliente,
-    desde: filtroDesde.value,
-    hasta: filtroHasta.value,
-    per_page: perPage.value,
-    page: 1
-  }, { preserveState: true, preserveScroll: true })
-}
-
-function handleDesdeChange(newDesde) {
-  filtroDesde.value = newDesde
-  router.get(route('bitacora.index'), {
-    q: searchTerm.value,
-    sort_by: sortBy.value.split('-')[0],
-    sort_direction: sortBy.value.split('-')[1] || 'desc',
-    estado: filtroEstado.value,
-    tipo: filtroTipo.value,
-    usuario: filtroUsuario.value,
-    cliente: filtroCliente.value,
-    desde: newDesde,
-    hasta: filtroHasta.value,
-    per_page: perPage.value,
-    page: 1
-  }, { preserveState: true, preserveScroll: true })
-}
-
-function handleHastaChange(newHasta) {
-  filtroHasta.value = newHasta
-  router.get(route('bitacora.index'), {
-    q: searchTerm.value,
-    sort_by: sortBy.value.split('-')[0],
-    sort_direction: sortBy.value.split('-')[1] || 'desc',
-    estado: filtroEstado.value,
-    tipo: filtroTipo.value,
-    usuario: filtroUsuario.value,
-    cliente: filtroCliente.value,
-    desde: filtroDesde.value,
-    hasta: newHasta,
-    per_page: perPage.value,
-    page: 1
-  }, { preserveState: true, preserveScroll: true })
-}
-
+// Handler para ordenamiento
 function handleSortChange(newSort) {
   sortBy.value = newSort
   router.get(route('bitacora.index'), {
@@ -224,14 +149,9 @@ function handleSortChange(newSort) {
     sort_by: newSort.split('-')[0],
     sort_direction: newSort.split('-')[1] || 'desc',
     estado: filtroEstado.value,
-    tipo: filtroTipo.value,
-    usuario: filtroUsuario.value,
-    cliente: filtroCliente.value,
-    desde: filtroDesde.value,
-    hasta: filtroHasta.value,
     per_page: perPage.value,
     page: 1
-  }, { preserveState: true, preserveScroll: true })
+  }, { preserveState: false, preserveScroll: false })
 }
 
 const verDetalles = (doc) => {
@@ -269,17 +189,12 @@ const exportActividades = () => {
   const params = new URLSearchParams()
   if (searchTerm.value) params.append('q', searchTerm.value)
   if (filtroEstado.value) params.append('estado', filtroEstado.value)
-  if (filtroTipo.value) params.append('tipo', filtroTipo.value)
-  if (filtroUsuario.value) params.append('usuario', filtroUsuario.value)
-  if (filtroCliente.value) params.append('cliente', filtroCliente.value)
-  if (filtroDesde.value) params.append('desde', filtroDesde.value)
-  if (filtroHasta.value) params.append('hasta', filtroHasta.value)
   const queryString = params.toString()
   const url = route('bitacora.export') + (queryString ? `?${queryString}` : '')
   window.location.href = url
 }
 
-// Paginación
+// Paginación del lado del servidor
 const paginationData = computed(() => ({
   current_page: actividadesPaginator.value?.current_page || 1,
   last_page: actividadesPaginator.value?.last_page || 1,
@@ -298,7 +213,7 @@ const handlePerPageChange = (newPerPage) => {
     ...props.sorting,
     per_page: newPerPage,
     page: 1
-  }, { preserveState: true, preserveScroll: true })
+  }, { preserveState: false, preserveScroll: false })
 }
 
 const handlePageChange = (newPage) => {
@@ -306,7 +221,7 @@ const handlePageChange = (newPage) => {
     ...props.filters,
     ...props.sorting,
     page: newPage
-  }, { preserveState: true, preserveScroll: true })
+  }, { preserveState: false, preserveScroll: false })
 }
 
 // Helpers
@@ -377,7 +292,7 @@ const obtenerLabelEstado = (estado) => {
               </button>
             </div>
 
-            <!-- Estadísticas con barras de progreso -->
+            <!-- Estadísticas -->
             <div class="flex flex-wrap items-center gap-4 text-sm">
               <div class="flex items-center gap-2 px-4 py-3 bg-slate-50 rounded-xl border border-slate-200">
                 <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -393,15 +308,6 @@ const obtenerLabelEstado = (estado) => {
                 </svg>
                 <span class="font-medium text-slate-700">Pendientes:</span>
                 <span class="font-bold text-yellow-700 text-lg">{{ formatNumber(estadisticas.pendientes) }}</span>
-                <div class="ml-2 flex items-center gap-2">
-                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      class="h-full bg-yellow-500 transition-all duration-300"
-                      :style="{ width: estadisticas.pendientesPorcentaje + '%' }"
-                    ></div>
-                  </div>
-                  <span class="text-xs text-yellow-600 font-medium">{{ estadisticas.pendientesPorcentaje }}%</span>
-                </div>
               </div>
 
               <div class="flex items-center gap-2 px-4 py-3 bg-blue-50 rounded-xl border border-blue-200">
@@ -410,15 +316,6 @@ const obtenerLabelEstado = (estado) => {
                 </svg>
                 <span class="font-medium text-slate-700">En Proceso:</span>
                 <span class="font-bold text-blue-700 text-lg">{{ formatNumber(estadisticas.en_proceso) }}</span>
-                <div class="ml-2 flex items-center gap-2">
-                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      class="h-full bg-blue-500 transition-all duration-300"
-                      :style="{ width: estadisticas.enProcesoPorcentaje + '%' }"
-                    ></div>
-                  </div>
-                  <span class="text-xs text-blue-600 font-medium">{{ estadisticas.enProcesoPorcentaje }}%</span>
-                </div>
               </div>
 
               <div class="flex items-center gap-2 px-4 py-3 bg-green-50 rounded-xl border border-green-200">
@@ -427,15 +324,6 @@ const obtenerLabelEstado = (estado) => {
                 </svg>
                 <span class="font-medium text-slate-700">Completados:</span>
                 <span class="font-bold text-green-700 text-lg">{{ formatNumber(estadisticas.completados) }}</span>
-                <div class="ml-2 flex items-center gap-2">
-                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      class="h-full bg-green-500 transition-all duration-300"
-                      :style="{ width: estadisticas.completadosPorcentaje + '%' }"
-                    ></div>
-                  </div>
-                  <span class="text-xs text-green-600 font-medium">{{ estadisticas.completadosPorcentaje }}%</span>
-                </div>
               </div>
             </div>
           </div>
@@ -462,60 +350,12 @@ const obtenerLabelEstado = (estado) => {
               @change="handleEstadoChange($event.target.value)"
               class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
             >
-              <option value="">Todos los Estados</option>
-              <option value="pendiente">Pendiente</option>
+              <option value="">Todos</option>
+              <option value="pendiente">Pendientes</option>
               <option value="en_proceso">En Proceso</option>
-              <option value="completado">Completado</option>
-              <option value="cancelado">Cancelado</option>
+              <option value="completado">Completados</option>
+              <option value="cancelado">Cancelados</option>
             </select>
-
-            <!-- Tipo -->
-            <select
-              v-model="filtroTipo"
-              @change="handleTipoChange($event.target.value)"
-              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-            >
-              <option value="">Todos los Tipos</option>
-              <option v-for="tipo in tipos" :key="tipo" :value="tipo">{{ tipo }}</option>
-            </select>
-
-            <!-- Usuario -->
-            <select
-              v-model="filtroUsuario"
-              @change="handleUsuarioChange($event.target.value)"
-              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-            >
-              <option value="">Todos los Usuarios</option>
-              <option v-for="usuario in usuarios" :key="usuario.id" :value="usuario.id">{{ usuario.name }}</option>
-            </select>
-
-            <!-- Cliente -->
-            <select
-              v-model="filtroCliente"
-              @change="handleClienteChange($event.target.value)"
-              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-            >
-              <option value="">Todos los Clientes</option>
-              <option v-for="cliente in clientes" :key="cliente.id" :value="cliente.id">{{ cliente.nombre_razon_social }}</option>
-            </select>
-
-            <!-- Desde -->
-            <input
-              v-model="filtroDesde"
-              @change="handleDesdeChange($event.target.value)"
-              type="date"
-              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-              placeholder="Desde"
-            />
-
-            <!-- Hasta -->
-            <input
-              v-model="filtroHasta"
-              @change="handleHastaChange($event.target.value)"
-              type="date"
-              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-              placeholder="Hasta"
-            />
 
             <!-- Orden -->
             <select
@@ -527,11 +367,19 @@ const obtenerLabelEstado = (estado) => {
               <option value="fecha-asc">Fecha Más Antigua</option>
               <option value="titulo-asc">Título A-Z</option>
               <option value="titulo-desc">Título Z-A</option>
-              <option value="estado-asc">Estado A-Z</option>
-              <option value="estado-desc">Estado Z-A</option>
-              <option value="created_at-desc">Creado Más Reciente</option>
-              <option value="created_at-asc">Creado Más Antiguo</option>
             </select>
+
+            <!-- Limpiar filtros -->
+            <button
+              v-if="searchTerm || filtroEstado"
+              @click="handleLimpiarFiltros"
+              class="px-4 py-3 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 focus:outline-none focus:ring-4 focus:ring-slate-500/10 transition-all duration-200"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              <span class="ml-2 text-sm font-medium">Limpiar</span>
+            </button>
           </div>
         </div>
       </div>
@@ -546,7 +394,6 @@ const obtenerLabelEstado = (estado) => {
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Título</th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Cliente</th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Usuario</th>
-                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Tipo</th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Estado</th>
                 <th class="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Acciones</th>
               </tr>
@@ -565,9 +412,6 @@ const obtenerLabelEstado = (estado) => {
                 </td>
                 <td class="px-6 py-4">
                   <div class="text-sm text-gray-700">{{ actividad.raw.usuario?.name || 'N/A' }}</div>
-                </td>
-                <td class="px-6 py-4">
-                  <div class="text-sm text-gray-700">{{ actividad.raw.tipo || 'N/A' }}</div>
                 </td>
                 <td class="px-6 py-4">
                   <span :class="obtenerClasesEstado(actividad.estado)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
@@ -596,7 +440,7 @@ const obtenerLabelEstado = (estado) => {
                 </td>
               </tr>
               <tr v-if="actividadesDocumentos.length === 0">
-                <td colspan="7" class="px-6 py-16 text-center">
+                <td colspan="6" class="px-6 py-16 text-center">
                   <div class="flex flex-col items-center space-y-4">
                     <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                       <svg class="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -680,7 +524,7 @@ const obtenerLabelEstado = (estado) => {
         </div>
       </div>
 
-      <!-- Modal mejorado -->
+      <!-- Modal -->
       <div v-if="showModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="showModal = false">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
           <!-- Header del modal -->
@@ -757,3 +601,20 @@ const obtenerLabelEstado = (estado) => {
                   ¿Estás seguro de que deseas eliminar la actividad <strong>{{ selectedActividad?.titulo }}</strong>?
                   Esta acción no se puede deshacer.
                 </p>
+              </div>
+
+              <div class="flex justify-end space-x-3">
+                <button @click="showModal = false" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors">
+                  Cancelar
+                </button>
+                <button @click="eliminarActividad" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
