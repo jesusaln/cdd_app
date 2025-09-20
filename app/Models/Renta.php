@@ -97,6 +97,16 @@ class Renta extends Model
     }
 
     /**
+     * Relación con Componentes del Kit.
+     */
+    public function componentesKit()
+    {
+        return $this->belongsToMany(ComponenteKit::class, 'renta_componentes_kit')
+            ->withPivot('precio_mensual', 'notas')
+            ->withTimestamps();
+    }
+
+    /**
      * Relación con Pagos.
      */
     public function pagos(): HasMany

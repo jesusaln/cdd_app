@@ -28,6 +28,7 @@ class Proveedor extends Model
         'municipio',
         'estado',
         'pais',
+        'activo',
     ];
 
     /**

@@ -29,6 +29,15 @@ class Equipo extends Model
         'accesorios',
         'fecha_garantia',
         'proveedor',
+        'computadora_numero_serie',
+        'bascula_numero_serie',
+        'lector_codigo_barras_numero_serie',
+        'cajon_dinero_numero_serie',
+        'sistema_numero_serie',
+        'impresora_ticket_numero_serie',
+        'otro_componente',
+        'otro_numero_serie',
+        'foto_kit',
     ];
 
     protected $casts = [

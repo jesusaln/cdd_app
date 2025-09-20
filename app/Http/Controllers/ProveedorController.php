@@ -8,18 +8,71 @@ use Illuminate\Http\Request;
 // Importing the Log facade for logging
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
+use Exception;
 
 class ProveedorController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        // Obtiene todos los proveedores y los pasa al frontend
-        $proveedores = Proveedor::all();
-        //return response()->json(Proveedor::all());
+        try {
+            // Construir query con filtros
+            $query = Proveedor::query();
 
-        return Inertia::render('Proveedores/Index', [
-            'proveedores' => $proveedores,
-        ]);
+            // Filtro de búsqueda
+            if ($search = trim($request->input('search', ''))) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('nombre_razon_social', 'like', "%{$search}%")
+                        ->orWhere('rfc', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('telefono', 'like', "%{$search}%");
+                });
+            }
+
+            // Filtro por estado activo/inactivo
+            if ($request->query->has('activo')) {
+                $val = (string) $request->query('activo');
+                if ($val === '1') {
+                    $query->where(function ($q) {
+                        $q->where('activo', true)->orWhereNull('activo');
+                    });
+                } elseif ($val === '0') {
+                    $query->where('activo', false);
+                }
+            }
+
+            // Ordenamiento
+            $sortBy = $request->get('sort_by', 'created_at');
+            $sortDirection = $request->get('sort_direction', 'desc');
+            $validSort = ['nombre_razon_social', 'rfc', 'email', 'created_at', 'activo'];
+
+            if (!in_array($sortBy, $validSort)) $sortBy = 'created_at';
+            if (!in_array($sortDirection, ['asc', 'desc'])) $sortDirection = 'desc';
+
+            $query->orderBy($sortBy, $sortDirection);
+
+            // Paginación
+            $proveedores = $query->paginate(10)->appends($request->query());
+
+            // Estadísticas
+            $proveedoresCount = Proveedor::count();
+            $proveedoresActivos = Proveedor::where(function ($q) {
+                $q->where('activo', true)->orWhereNull('activo');
+            })->count();
+
+            return Inertia::render('Proveedores/Index', [
+                'proveedores' => $proveedores,
+                'stats' => [
+                    'total' => $proveedoresCount,
+                    'activos' => $proveedoresActivos,
+                    'inactivos' => $proveedoresCount - $proveedoresActivos,
+                ],
+                'filters' => $request->only(['search', 'activo']),
+                'sorting' => ['sort_by' => $sortBy, 'sort_direction' => $sortDirection],
+            ]);
+        } catch (Exception $e) {
+            Log::error('Error en ProveedorController@index: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al cargar la lista de proveedores.');
+        }
     }
 
     // Método para mostrar el formulario de creación de proveedores
@@ -115,5 +168,101 @@ class ProveedorController extends Controller
     {
         $exists = Proveedor::where('email', $request->query('email'))->exists();
         return response()->json(['exists' => $exists]);
+    }
+
+    public function toggle(Proveedor $proveedor)
+    {
+        try {
+            $proveedor->update(['activo' => !$proveedor->activo]);
+            return redirect()->back()->with('success', $proveedor->activo ? 'Proveedor activado correctamente' : 'Proveedor desactivado correctamente');
+        } catch (Exception $e) {
+            Log::error('Error al cambiar estado del proveedor: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Hubo un problema al cambiar el estado del proveedor.');
+        }
+    }
+
+    public function export(Request $request)
+    {
+        try {
+            $query = Proveedor::query();
+
+            // Aplicar los mismos filtros que en index
+            if ($search = trim($request->input('search', ''))) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('nombre_razon_social', 'like', "%{$search}%")
+                        ->orWhere('rfc', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('telefono', 'like', "%{$search}%");
+                });
+            }
+
+            if ($request->query->has('activo')) {
+                $val = (string) $request->query('activo');
+                if ($val === '1') {
+                    $query->where(function ($q) {
+                        $q->where('activo', true)->orWhereNull('activo');
+                    });
+                } elseif ($val === '0') {
+                    $query->where('activo', false);
+                }
+            }
+
+            $proveedores = $query->get();
+
+            $filename = 'proveedores_' . date('Y-m-d_H-i-s') . '.csv';
+
+            $headers = [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            ];
+
+            $callback = function () use ($proveedores) {
+                $file = fopen('php://output', 'w');
+                fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF)); // UTF-8 BOM
+
+                fputcsv($file, [
+                    'ID',
+                    'Nombre/Razón Social',
+                    'RFC',
+                    'Email',
+                    'Teléfono',
+                    'Dirección',
+                    'Estado',
+                    'Activo',
+                    'Fecha Creación'
+                ]);
+
+                foreach ($proveedores as $proveedor) {
+                    $direccion = trim(implode(' ', [
+                        $proveedor->calle,
+                        $proveedor->numero_exterior,
+                        $proveedor->numero_interior ? "Int. {$proveedor->numero_interior}" : '',
+                        $proveedor->colonia,
+                        $proveedor->codigo_postal,
+                        $proveedor->municipio,
+                        $proveedor->estado,
+                        $proveedor->pais
+                    ]));
+
+                    fputcsv($file, [
+                        $proveedor->id,
+                        $proveedor->nombre_razon_social,
+                        $proveedor->rfc,
+                        $proveedor->email,
+                        $proveedor->telefono,
+                        $direccion,
+                        $proveedor->estado,
+                        $proveedor->activo ? 'Sí' : 'No',
+                        $proveedor->created_at?->format('d/m/Y H:i:s')
+                    ]);
+                }
+                fclose($file);
+            };
+
+            return response()->stream($callback, 200, $headers);
+        } catch (Exception $e) {
+            Log::error('Error en exportación de proveedores: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al exportar los proveedores.');
+        }
     }
 }

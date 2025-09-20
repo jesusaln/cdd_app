@@ -1,4 +1,4 @@
-<?php
+1<?php
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
@@ -30,6 +30,7 @@ use App\Http\Controllers\OrdenCompraController;
 use App\Http\Controllers\DatabaseBackupController;
 use App\Http\Controllers\EquipoController;
 use App\Http\Controllers\RentasController;
+use App\Http\Controllers\ComponenteKitController;
 use App\Http\Controllers\BitacoraActividadController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\CfdiController;
@@ -141,6 +142,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::resource('clientes', ClienteController::class)->names('clientes');
     Route::resource('productos', ProductoController::class)->names('productos');
     Route::resource('proveedores', ProveedorController::class)->names('proveedores');
+    Route::put('/proveedores/{proveedor}/toggle', [ProveedorController::class, 'toggle'])->name('proveedores.toggle');
+    Route::get('/proveedores/export', [ProveedorController::class, 'export'])->name('proveedores.export');
     Route::resource('categorias', CategoriaController::class)->names('categorias');
     Route::put('/categorias/{categoria}/toggle', [CategoriaController::class, 'toggle'])->name('categorias.toggle');
     Route::get('/categorias/export', [CategoriaController::class, 'export'])->name('categorias.export');
@@ -169,6 +172,13 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::put('/equipos/{equipo}/toggle', [EquipoController::class, 'toggle'])->name('equipos.toggle');
     Route::get('/equipos/export', [EquipoController::class, 'export'])->name('equipos.export');
     Route::resource('rentas', RentasController::class);
+    Route::get('/rentas/export', [RentasController::class, 'export'])->name('rentas.export');
+
+    // API routes para componentes del kit
+    Route::prefix('api')->group(function () {
+        Route::get('/componentes-kit', [ComponenteKitController::class, 'index'])->name('api.componentes-kit.index');
+    });
+
     Route::resource('bitacora-actividades', BitacoraActividadController::class)->names('bitacora-actividades');
 
 

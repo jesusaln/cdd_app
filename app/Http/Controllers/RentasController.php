@@ -5,24 +5,75 @@ namespace App\Http\Controllers;
 use App\Models\Renta;
 use App\Models\Cliente;
 use App\Models\Equipo;
+use App\Models\ComponenteKit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Exception;
+use Illuminate\Support\Facades\Log;
 
 class RentasController extends Controller
 {
     /**
      * Muestra una lista de rentas.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $rentas = Renta::with(['cliente:id,nombre,email'])
-            ->orderBy('fecha_inicio', 'desc')
-            ->paginate(10);
+        try {
+            // Construir query con filtros
+            $query = Renta::with(['cliente:id,nombre,email', 'componentesKit:id,nombre,tipo']);
 
-        return inertia('Rentas/Index', [
-            'rentas' => $rentas // Inertia maneja automáticamente la paginación
-        ]);
+            // Filtro de búsqueda
+            if ($search = trim($request->input('search', ''))) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('numero_contrato', 'like', "%{$search}%")
+                        ->orWhereHas('cliente', function ($clienteQuery) use ($search) {
+                            $clienteQuery->where('nombre', 'like', "%{$search}%")
+                                        ->orWhere('email', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('componentesKit', function ($componenteQuery) use ($search) {
+                            $componenteQuery->where('nombre', 'like', "%{$search}%");
+                        });
+                });
+            }
+
+            // Filtro por estado
+            if ($estado = $request->input('estado')) {
+                $query->where('estado', $estado);
+            }
+
+            // Ordenamiento
+            $sortBy = $request->get('sort_by', 'created_at');
+            $sortDirection = $request->get('sort_direction', 'desc');
+            $validSort = ['numero_contrato', 'fecha_inicio', 'fecha_fin', 'created_at', 'estado'];
+
+            if (!in_array($sortBy, $validSort)) $sortBy = 'created_at';
+            if (!in_array($sortDirection, ['asc', 'desc'])) $sortDirection = 'desc';
+
+            $query->orderBy($sortBy, $sortDirection);
+
+            // Paginación
+            $rentas = $query->paginate(10)->appends($request->query());
+
+            // Estadísticas
+            $rentasCount = Renta::count();
+            $rentasActivas = Renta::where('estado', 'activo')->count();
+            $rentasVencidas = Renta::whereIn('estado', ['vencido', 'moroso', 'proximo_vencimiento'])->count();
+
+            return inertia('Rentas/Index', [
+                'rentas' => $rentas,
+                'stats' => [
+                    'total' => $rentasCount,
+                    'activas' => $rentasActivas,
+                    'vencidas' => $rentasVencidas,
+                ],
+                'filters' => $request->only(['search', 'estado']),
+                'sorting' => ['sort_by' => $sortBy, 'sort_direction' => $sortDirection],
+            ]);
+        } catch (Exception $e) {
+            Log::error('Error en RentasController@index: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al cargar la lista de rentas.');
+        }
     }
 
     /**
@@ -39,11 +90,8 @@ class RentasController extends Controller
     public function createData()
     {
         $clientes = Cliente::select('id', 'nombre', 'email')->get();
-        $equipos = Equipo::where('estado', 'disponible')
-            ->select('id', 'codigo', 'nombre', 'marca', 'modelo', 'numero_serie', 'precio_renta_mensual')
-            ->get();
 
-        return response()->json(compact('clientes', 'equipos'));
+        return response()->json(compact('clientes'));
     }
 
     /**
@@ -53,8 +101,9 @@ class RentasController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'cliente_id' => 'required|exists:clientes,id',
-            'equipos' => 'required|array|min:1',
-            'equipos.*.equipo_id' => 'required|exists:equipos,id',
+            'componentes' => 'required|array|min:1',
+            'componentes.*.componente_id' => 'required|exists:componentes_kit,id',
+            'componentes.*.precio_mensual' => 'required|numeric|min:0',
             'fecha_inicio' => 'required|date',
             'duracion_meses' => 'required|integer|in:6,12,18,24',
             'tiene_prorroga' => 'boolean',
@@ -97,15 +146,15 @@ class RentasController extends Controller
             'dia_pago' => 1, // Puedes hacerlo configurable
         ]);
 
-        // Asociar equipos
-        foreach ($request->equipos as $equipoData) {
-            $renta->equipos()->attach($equipoData['equipo_id'], [
-                'precio_mensual' => $equipoData['precio_mensual']
+        // Asociar componentes del kit
+        foreach ($request->componentes as $componenteData) {
+            $renta->componentesKit()->attach($componenteData['componente_id'], [
+                'precio_mensual' => $componenteData['precio_mensual']
             ]);
 
-            // Actualizar estado del equipo
-            $equipo = Equipo::find($equipoData['equipo_id']);
-            $equipo->update(['estado' => 'rentado']);
+            // Actualizar estado del componente
+            $componente = ComponenteKit::find($componenteData['componente_id']);
+            $componente->update(['estado' => 'rentado']);
         }
 
         return response()->json([
@@ -235,5 +284,83 @@ class RentasController extends Controller
             'success' => true,
             'message' => 'Renta reactivada correctamente'
         ]);
+    }
+
+    /**
+     * Exportar rentas a CSV.
+     */
+    public function export(Request $request)
+    {
+        try {
+            $query = Renta::with(['cliente:id,nombre,email', 'componentesKit:id,nombre,tipo']);
+
+            // Aplicar los mismos filtros que en index
+            if ($search = trim($request->input('search', ''))) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('numero_contrato', 'like', "%{$search}%")
+                        ->orWhereHas('cliente', function ($clienteQuery) use ($search) {
+                            $clienteQuery->where('nombre', 'like', "%{$search}%")
+                                        ->orWhere('email', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('componentesKit', function ($componenteQuery) use ($search) {
+                            $componenteQuery->where('nombre', 'like', "%{$search}%");
+                        });
+                });
+            }
+
+            if ($estado = $request->input('estado')) {
+                $query->where('estado', $estado);
+            }
+
+            $rentas = $query->get();
+
+            $filename = 'rentas_' . date('Y-m-d_H-i-s') . '.csv';
+
+            $headers = [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            ];
+
+            $callback = function () use ($rentas) {
+                $file = fopen('php://output', 'w');
+                fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF)); // UTF-8 BOM
+
+                fputcsv($file, [
+                    'ID',
+                    'Número de Contrato',
+                    'Cliente',
+                    'Email Cliente',
+                    'Equipos',
+                    'Fecha Inicio',
+                    'Fecha Fin',
+                    'Estado',
+                    'Monto Mensual',
+                    'Fecha Creación'
+                ]);
+
+                foreach ($rentas as $renta) {
+                    $equiposNombres = $renta->equipos->pluck('nombre')->join(', ');
+
+                    fputcsv($file, [
+                        $renta->id,
+                        $renta->numero_contrato,
+                        $renta->cliente?->nombre ?? 'N/A',
+                        $renta->cliente?->email ?? 'N/A',
+                        $equiposNombres,
+                        $renta->fecha_inicio?->format('d/m/Y') ?? 'N/A',
+                        $renta->fecha_fin?->format('d/m/Y') ?? 'N/A',
+                        $renta->estado,
+                        $renta->monto_mensual,
+                        $renta->created_at?->format('d/m/Y H:i:s')
+                    ]);
+                }
+                fclose($file);
+            };
+
+            return response()->stream($callback, 200, $headers);
+        } catch (Exception $e) {
+            Log::error('Error en exportación de rentas: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al exportar las rentas.');
+        }
     }
 }

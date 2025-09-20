@@ -42,16 +42,16 @@ const notyf = new Notyf({
 
 // Estado del componente
 const clientes = ref([])
-const equiposDisponibles = ref([])
+const componentesDisponibles = ref([])
 const loading = ref(false)
 const saving = ref(false)
-const selectedEquipoId = ref('')
+const selectedComponenteId = ref('')
 
 // Formulario reactivo mejorado
 const form = useForm({
   numero_contrato: '',
   cliente_id: '',
-  equipos: [],
+  componentes: [],
   fecha_inicio: { fechaInicio: new Date().toISOString(), fechaFin: null },
   duracion_meses: 12,
   fecha_firma: { fechaInicio: new Date().toISOString(), fechaFin: null },
@@ -108,9 +108,9 @@ const mesesProrrogaOptions = [
 ]
 
 // Computadas
-const equiposDisponiblesFiltrados = computed(() => {
-  return equiposDisponibles.value.filter(equipo =>
-    !form.equipos.some(e => e.equipo_id == equipo.id) && equipo.estado === 'disponible'
+const componentesDisponiblesFiltrados = computed(() => {
+  return componentesDisponibles.value.filter(componente =>
+    !form.componentes.some(c => c.componente_id == componente.id) && componente.estado === 'disponible'
   )
 })
 
@@ -131,7 +131,7 @@ const fechaFinCalculada = computed(() => {
 const isFormValid = computed(() => {
   return form.numero_contrato &&
          form.cliente_id &&
-         form.equipos.length > 0 &&
+         form.componentes.length > 0 &&
          form.fecha_inicio.fechaInicio &&
          form.terminos_aceptados
 })
@@ -158,15 +158,19 @@ watch(() => form.renovacion_automatica, (enabled) => {
 const cargarDatos = async () => {
   loading.value = true
   try {
-    const response = await axios.get(route('api.rentas.create-data'))
-    clientes.value = response.data.clientes || []
-    equiposDisponibles.value = response.data.equipos || []
+    const [clientesResponse, componentesResponse] = await Promise.all([
+      axios.get(route('api.clientes.index')),
+      axios.get(route('api.componentes-kit.index'))
+    ])
+
+    clientes.value = clientesResponse.data.data || []
+    componentesDisponibles.value = componentesResponse.data.data || []
 
     if (clientes.value.length === 0) {
       notyf.warning('No hay clientes disponibles. Primero registra un cliente.')
     }
-    if (equiposDisponibles.value.length === 0) {
-      notyf.warning('No hay equipos disponibles para rentar.')
+    if (componentesDisponibles.value.length === 0) {
+      notyf.warning('No hay componentes disponibles para rentar.')
     }
   } catch (error) {
     console.error('Error al cargar datos:', error)
@@ -186,51 +190,52 @@ const handleApiError = (error) => {
   }
 }
 
-const agregarEquipo = () => {
-  if (!selectedEquipoId.value) {
-    notyf.error('Por favor selecciona un equipo')
+const agregarComponente = () => {
+  if (!selectedComponenteId.value) {
+    notyf.error('Por favor selecciona un componente')
     return
   }
 
-  const equipo = equiposDisponibles.value.find(e => e.id == selectedEquipoId.value)
-  if (!equipo) {
-    notyf.error('Equipo no encontrado')
+  const componente = componentesDisponibles.value.find(c => c.id == selectedComponenteId.value)
+  if (!componente) {
+    notyf.error('Componente no encontrado')
     return
   }
 
-  if (form.equipos.some(e => e.equipo_id == equipo.id)) {
-    notyf.error('Este equipo ya fue agregado al contrato')
+  if (form.componentes.some(c => c.componente_id == componente.id)) {
+    notyf.error('Este componente ya fue agregado al contrato')
     return
   }
 
-  const equipoRenta = {
-    equipo_id: equipo.id,
-    codigo: equipo.codigo || 'N/A',
-    nombre: equipo.nombre || 'Sin nombre',
-    marca: equipo.marca || 'N/A',
-    modelo: equipo.modelo || 'N/A',
-    numero_serie: equipo.numero_serie || 'N/A',
-    precio_mensual: parseFloat(equipo.precio_renta_mensual || 0).toFixed(2),
-    estado_equipo: equipo.estado || 'disponible'
+  const componenteRenta = {
+    componente_id: componente.id,
+    tipo: componente.tipo,
+    codigo: componente.codigo || 'N/A',
+    nombre: componente.nombre || 'Sin nombre',
+    marca: componente.marca || 'N/A',
+    modelo: componente.modelo || 'N/A',
+    numero_serie: componente.numero_serie || 'N/A',
+    precio_mensual: parseFloat(componente.precio_renta_mensual || 0).toFixed(2),
+    estado_componente: componente.estado || 'disponible'
   }
 
-  form.equipos.push(equipoRenta)
+  form.componentes.push(componenteRenta)
   calcularTotal()
-  selectedEquipoId.value = ''
-  notyf.success(`Equipo ${equipo.nombre} agregado correctamente`)
+  selectedComponenteId.value = ''
+  notyf.success(`Componente ${componente.nombre} agregado correctamente`)
 }
 
-const eliminarEquipo = (index) => {
-  if (index < 0 || index >= form.equipos.length) return
+const eliminarComponente = (index) => {
+  if (index < 0 || index >= form.componentes.length) return
 
-  const equipo = form.equipos[index]
-  form.equipos.splice(index, 1)
+  const componente = form.componentes[index]
+  form.componentes.splice(index, 1)
   calcularTotal()
-  notyf.success(`Equipo ${equipo.nombre} eliminado del contrato`)
+  notyf.success(`Componente ${componente.nombre} eliminado del contrato`)
 }
 
 const calcularTotal = () => {
-  const total = form.equipos.reduce((acc, item) => {
+  const total = form.componentes.reduce((acc, item) => {
     return acc + parseFloat(item.precio_mensual || 0)
   }, 0)
   form.monto_mensual = total.toFixed(2)
@@ -254,8 +259,8 @@ const validarFormulario = () => {
     errores.push('Debe seleccionar un cliente')
   }
 
-  if (form.equipos.length === 0) {
-    errores.push('Debe agregar al menos un equipo')
+  if (form.componentes.length === 0) {
+    errores.push('Debe agregar al menos un componente')
   }
 
   if (!form.fecha_inicio.fechaInicio) {
@@ -289,18 +294,34 @@ const submit = () => {
   form.clearErrors()
 
   // Preparar datos para envío
-  const data = {
-    ...form.data(),
-    fecha_inicio: form.fecha_inicio.fechaInicio,
-    fecha_fin: form.fecha_inicio.fechaFin,
-    fecha_firma: form.fecha_firma.fechaInicio,
-    fecha_instalacion: form.fecha_instalacion.fechaInicio,
-    fecha_retiro: form.fecha_retiro.fechaInicio,
-    monto_mensual: parseFloat(form.monto_mensual),
-    deposito_garantia: parseFloat(form.deposito_garantia)
-  }
+  const data = new FormData()
+
+  // Agregar datos básicos del formulario
+  Object.keys(form.data()).forEach(key => {
+    if (key !== 'equipos') {
+      data.append(key, form.data()[key])
+    }
+  })
+
+  // Agregar fechas
+  data.append('fecha_inicio', form.fecha_inicio.fechaInicio)
+  data.append('fecha_fin', form.fecha_inicio.fechaFin)
+  data.append('fecha_firma', form.fecha_firma.fechaInicio)
+  data.append('fecha_instalacion', form.fecha_instalacion.fechaInicio)
+  data.append('fecha_retiro', form.fecha_retiro.fechaInicio)
+  data.append('monto_mensual', parseFloat(form.monto_mensual))
+  data.append('deposito_garantia', parseFloat(form.deposito_garantia))
+
+  // Agregar componentes
+  form.componentes.forEach((componente, index) => {
+    data.append(`componentes[${index}][componente_id]`, componente.componente_id)
+    data.append(`componentes[${index}][precio_mensual]`, componente.precio_mensual)
+  })
 
   router.post(route('rentas.store'), data, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    },
     onSuccess: () => {
       notyf.success('¡Renta creada exitosamente!')
       // Opcional: redireccionar o limpiar formulario
@@ -350,8 +371,8 @@ onMounted(() => {
             Nueva Renta
           </h2>
           <div class="text-sm text-gray-600">
-            <span v-if="form.equipos.length > 0">
-              {{ form.equipos.length }} equipo{{ form.equipos.length !== 1 ? 's' : '' }} |
+            <span v-if="form.componentes.length > 0">
+              {{ form.componentes.length }} componente{{ form.componentes.length !== 1 ? 's' : '' }} |
               Total: ${{ form.monto_mensual }}/mes
             </span>
           </div>
@@ -463,6 +484,85 @@ onMounted(() => {
                   </div>
                 </div>
 
+                <!-- Sección: Componentes del Kit -->
+                <div class="bg-green-50 rounded-lg p-6">
+                  <h3 class="text-lg font-medium text-green-900 mb-4">Componentes del Kit</h3>
+
+                  <!-- Selector de componentes -->
+                  <div class="mb-6">
+                    <label for="componente-select" class="block text-sm font-medium text-gray-700 mb-2">
+                      Seleccionar Componente Disponible
+                    </label>
+                    <div class="flex gap-3">
+                      <select
+                        id="componente-select"
+                        v-model="selectedComponenteId"
+                        class="flex-1 border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
+                      >
+                        <option value="">-- Seleccionar componente --</option>
+                        <option
+                          v-for="componente in componentesDisponiblesFiltrados"
+                          :key="componente.id"
+                          :value="componente.id"
+                        >
+                          {{ componente.nombre }} ({{ componente.tipo }}) - ${{ componente.precio_renta_mensual }}/mes
+                        </option>
+                      </select>
+                      <button
+                        type="button"
+                        @click="agregarComponente"
+                        :disabled="!selectedComponenteId"
+                        class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Agregar
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Lista de componentes seleccionados -->
+                  <div v-if="form.componentes.length > 0" class="space-y-4">
+                    <div v-for="(componente, index) in form.componentes" :key="componente.componente_id" class="bg-white rounded-lg border border-green-200 p-4">
+                      <div class="flex justify-between items-start mb-3">
+                        <div class="flex-1">
+                          <div class="flex items-center gap-3 mb-2">
+                            <h4 class="font-medium text-gray-900">{{ componente.nombre }}</h4>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              {{ componente.tipo }}
+                            </span>
+                          </div>
+                          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
+                            <div><strong>Código:</strong> {{ componente.codigo }}</div>
+                            <div><strong>Marca:</strong> {{ componente.marca }}</div>
+                            <div><strong>Modelo:</strong> {{ componente.modelo }}</div>
+                            <div><strong>N° Serie:</strong> {{ componente.numero_serie }}</div>
+                          </div>
+                          <div class="mt-2 text-sm font-medium text-green-600">
+                            Precio mensual: ${{ componente.precio_mensual }}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          @click="eliminarComponente(index)"
+                          class="text-red-600 hover:text-red-800 text-sm font-medium ml-4"
+                        >
+                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Mensaje cuando no hay componentes -->
+                  <div v-else class="text-center py-8 text-gray-500">
+                    <svg class="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                    </svg>
+                    <p>No has seleccionado ningún componente aún.</p>
+                    <p class="text-sm">Selecciona componentes disponibles arriba para agregarlos al kit.</p>
+                  </div>
+                </div>
+
                 <!-- Sección: Términos y Condiciones -->
                 <div class="bg-red-50 border border-red-200 rounded-lg p-6">
                   <h3 class="text-lg font-medium text-red-900 mb-4">Términos y Condiciones</h3>
@@ -501,8 +601,8 @@ onMounted(() => {
                     </div>
 
                     <div>
-                      <span class="font-medium text-green-800">Equipos:</span>
-                      <span class="text-green-700 ml-2">{{ form.equipos.length }} equipo(s)</span>
+                      <span class="font-medium text-green-800">Componentes:</span>
+                      <span class="text-green-700 ml-2">{{ form.componentes.length }} componente(s)</span>
                     </div>
 
                     <div>
@@ -572,7 +672,8 @@ onMounted(() => {
           <div class="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
             <h4 class="text-lg font-medium text-blue-900 mb-3">💡 Consejos</h4>
             <ul class="text-sm text-blue-800 space-y-2">
-              <li>• Asegúrate de que todos los equipos estén disponibles antes de crear el contrato</li>
+              <li>• Selecciona los componentes que necesites para armar tu kit personalizado</li>
+              <li>• Cada componente tiene su propio precio de renta mensual</li>
               <li>• El depósito de garantía es opcional pero recomendado</li>
               <li>• Puedes guardar como borrador y completar después</li>
               <li>• La renovación automática facilita la gestión de contratos a largo plazo</li>
