@@ -13,25 +13,77 @@ use Illuminate\Support\Facades\Log;
 
 class MantenimientoController extends Controller
 {
-    // Mostrar lista de mantenimientos con alertas básicas
-    public function index()
+    // Mostrar lista de mantenimientos con paginación y filtros
+    public function index(Request $request)
     {
-        // Obtener mantenimientos con relación al carro
-        $mantenimientos = Mantenimiento::with('carro')
-            ->orderBy('fecha', 'desc')
-            ->get();
+        try {
+            $query = Mantenimiento::with('carro');
 
-        // Obtener mantenimientos próximos a vencer (30 días)
-        $proximosAVencer = $this->getMantenimientosProximosAVencer(30);
+            // Filtros
+            if ($search = trim($request->input('search', ''))) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('tipo', 'like', "%{$search}%")
+                      ->orWhere('descripcion', 'like', "%{$search}%")
+                      ->orWhereHas('carro', function ($carroQuery) use ($search) {
+                          $carroQuery->where('marca', 'like', "%{$search}%")
+                                    ->orWhere('modelo', 'like', "%{$search}%")
+                                    ->orWhere('placa', 'like', "%{$search}%");
+                      });
+                });
+            }
 
-        // Obtener carros para el filtro
-        $carros = Carro::orderBy('marca', 'asc')->orderBy('modelo', 'asc')->get();
+            if ($estado = $request->input('estado')) {
+                $query->where('estado', $estado);
+            }
 
-        return Inertia::render('Mantenimientos/Index', [
-            'mantenimientos' => $mantenimientos,
-            'proximosAVencer' => $proximosAVencer,
-            'carros' => $carros,
-        ]);
+            if ($tipo = $request->input('tipo')) {
+                $query->where('tipo', $tipo);
+            }
+
+            if ($carroId = $request->input('carro_id')) {
+                $query->where('carro_id', $carroId);
+            }
+
+            // Ordenamiento
+            $sortBy = $request->input('sort_by', 'fecha');
+            $sortDirection = $request->input('sort_direction', 'desc');
+
+            $validSortFields = ['fecha', 'tipo', 'costo', 'estado', 'created_at'];
+            if (!in_array($sortBy, $validSortFields)) {
+                $sortBy = 'fecha';
+            }
+
+            $query->orderBy($sortBy, $sortDirection);
+
+            // Paginación
+            $perPage = min((int) $request->input('per_page', 10), 50);
+            $mantenimientos = $query->paginate($perPage)->appends($request->query());
+
+            // Estadísticas
+            $stats = [
+                'total' => Mantenimiento::count(),
+                'completados' => Mantenimiento::where('estado', Mantenimiento::ESTADO_COMPLETADO)->count(),
+                'pendientes' => Mantenimiento::where('estado', Mantenimiento::ESTADO_PENDIENTE)->count(),
+                'en_proceso' => Mantenimiento::where('estado', Mantenimiento::ESTADO_EN_PROCESO)->count(),
+                'costo_total_mes' => Mantenimiento::whereMonth('fecha', now()->month)->sum('costo'),
+                'proximos_vencer' => $this->getMantenimientosProximosAVencer(30)->count(),
+            ];
+
+            // Obtener carros para el filtro
+            $carros = Carro::orderBy('marca', 'asc')->orderBy('modelo', 'asc')->get();
+
+            return Inertia::render('Mantenimientos/Index', [
+                'mantenimientos' => $mantenimientos,
+                'stats' => $stats,
+                'filters' => $request->only(['search', 'estado', 'tipo', 'carro_id']),
+                'sorting' => ['sort_by' => $sortBy, 'sort_direction' => $sortDirection],
+                'carros' => $carros,
+                'tiposMantenimiento' => $this->getTiposMantenimiento(),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error en MantenimientoController@index: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al cargar los mantenimientos.');
+        }
     }
 
     // Dashboard con métricas mejoradas pero simplificadas
@@ -387,5 +439,88 @@ class MantenimientoController extends Controller
             'Revisión de transmisión',
             'Otro servicio'
         ];
+    }
+
+    // Exportar mantenimientos a CSV
+    public function export(Request $request)
+    {
+        try {
+            $query = Mantenimiento::with('carro');
+
+            // Aplicar los mismos filtros que en index
+            if ($search = trim($request->input('search', ''))) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('tipo', 'like', "%{$search}%")
+                      ->orWhere('descripcion', 'like', "%{$search}%")
+                      ->orWhereHas('carro', function ($carroQuery) use ($search) {
+                          $carroQuery->where('marca', 'like', "%{$search}%")
+                                    ->orWhere('modelo', 'like', "%{$search}%")
+                                    ->orWhere('placa', 'like', "%{$search}%");
+                      });
+                });
+            }
+
+            if ($estado = $request->input('estado')) {
+                $query->where('estado', $estado);
+            }
+
+            if ($tipo = $request->input('tipo')) {
+                $query->where('tipo', $tipo);
+            }
+
+            if ($carroId = $request->input('carro_id')) {
+                $query->where('carro_id', $carroId);
+            }
+
+            $mantenimientos = $query->get();
+
+            $filename = 'mantenimientos_' . date('Y-m-d_H-i-s') . '.csv';
+
+            $headers = [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            ];
+
+            $callback = function () use ($mantenimientos) {
+                $file = fopen('php://output', 'w');
+                fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF)); // UTF-8 BOM
+
+                fputcsv($file, [
+                    'ID',
+                    'Vehículo',
+                    'Tipo',
+                    'Fecha',
+                    'Próximo Mantenimiento',
+                    'Kilometraje',
+                    'Costo',
+                    'Estado',
+                    'Descripción',
+                    'Fecha Creación'
+                ]);
+
+                foreach ($mantenimientos as $mantenimiento) {
+                    fputcsv($file, [
+                        $mantenimiento->id,
+                        $mantenimiento->carro ? $mantenimiento->carro->marca . ' ' . $mantenimiento->carro->modelo : 'N/A',
+                        $mantenimiento->tipo,
+                        $mantenimiento->fecha?->format('d/m/Y'),
+                        $mantenimiento->proximo_mantenimiento?->format('d/m/Y'),
+                        $mantenimiento->kilometraje_actual,
+                        $mantenimiento->costo,
+                        $mantenimiento->estado,
+                        $mantenimiento->descripcion,
+                        $mantenimiento->created_at?->format('d/m/Y H:i:s')
+                    ]);
+                }
+                fclose($file);
+            };
+
+            Log::info('Exportación de mantenimientos', ['total' => $mantenimientos->count()]);
+
+            return response()->stream($callback, 200, $headers);
+        } catch (\Exception $e) {
+            Log::error('Error en exportación de mantenimientos: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al exportar los mantenimientos.');
+        }
     }
 }

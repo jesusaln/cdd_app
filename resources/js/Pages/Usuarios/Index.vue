@@ -12,7 +12,7 @@
               <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
-              {{ usuarios.length }} usuarios registrados
+              {{ usuariosPaginator.value?.total || usuarios.value?.length || 0 }} usuarios registrados
             </div>
           </div>
           <div class="flex items-center space-x-4">
@@ -225,7 +225,7 @@
 
 <script setup>
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { Notyf } from 'notyf';
 import 'notyf/notyf.min.css';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -234,7 +234,12 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 defineOptions({ layout: AppLayout });
 
 // Propiedades
-const props = defineProps({ usuarios: Array });
+const props = defineProps({
+  usuarios: { type: [Object, Array], required: true },
+  stats: { type: Object, default: () => ({}) },
+  filters: { type: Object, default: () => ({}) },
+  sorting: { type: Object, default: () => ({ sort_by: 'name', sort_direction: 'asc' }) },
+});
 const searchTerm = ref('');
 const loading = ref(false);
 const showConfirmationDialog = ref(false);
@@ -265,7 +270,14 @@ const notyf = new Notyf({
 });
 
 // Variable reactiva local para almacenar los usuarios
-const usuarios = ref([...props.usuarios]);
+const usuariosPaginator = computed(() => props.usuarios);
+const usuariosData = computed(() => usuariosPaginator.value?.data || []);
+const usuarios = ref([]);
+
+// Watch para actualizar usuarios cuando cambian los datos del paginator
+watch(usuariosData, (newData) => {
+  usuarios.value = newData ? [...newData] : [];
+}, { immediate: true });
 
 // Filtrado de usuarios
 const usuariosFiltrados = computed(() => {

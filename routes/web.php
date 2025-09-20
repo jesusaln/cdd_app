@@ -42,6 +42,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('productos.export');
     Route::get('/servicios/export', [ServicioController::class, 'export'])
         ->name('servicios.export');
+    Route::get('/carros/export', [CarroController::class, 'export'])
+        ->name('carros.export');
+    Route::get('/mantenimientos/export', [MantenimientoController::class, 'export'])
+        ->name('mantenimientos.export');
+    Route::get('/bitacora/export', [BitacoraActividadController::class, 'export'])
+        ->name('bitacora.export');
 });
 
 
@@ -136,12 +142,19 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::resource('productos', ProductoController::class)->names('productos');
     Route::resource('proveedores', ProveedorController::class)->names('proveedores');
     Route::resource('categorias', CategoriaController::class)->names('categorias');
+    Route::put('/categorias/{categoria}/toggle', [CategoriaController::class, 'toggle'])->name('categorias.toggle');
+    Route::get('/categorias/export', [CategoriaController::class, 'export'])->name('categorias.export');
     Route::resource('marcas', MarcaController::class)->names('marcas');
+    Route::put('/marcas/{marca}/toggle', [MarcaController::class, 'toggle'])->name('marcas.toggle');
+    Route::get('/marcas/export', [MarcaController::class, 'export'])->name('marcas.export');
     Route::resource('almacenes', AlmacenController::class)->names('almacenes'); // ✅ DUPLICACIÓN ELIMINADA
+    Route::put('/almacenes/{almacen}/toggle', [AlmacenController::class, 'toggle'])->name('almacenes.toggle');
+    Route::get('/almacenes/export', [AlmacenController::class, 'export'])->name('almacenes.export');
     Route::resource('cotizaciones', CotizacionController::class)->names('cotizaciones');
     Route::resource('pedidos', PedidoController::class)->names('pedidos');
     Route::resource('ventas', VentaController::class)->names('ventas');
     Route::resource('servicios', ServicioController::class)->names('servicios');
+    Route::put('/servicios/{servicio}/toggle', [ServicioController::class, 'toggle'])->name('servicios.toggle');
     Route::resource('usuarios', UserController::class)->names('usuarios');
     Route::resource('compras', CompraController::class)->names('compras');
     Route::post('/compras/{compra}/duplicate', [CompraController::class, 'duplicate'])->name('compras.duplicate');
@@ -153,6 +166,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::resource('carros', CarroController::class)->names('carros');
     Route::resource('mantenimientos', MantenimientoController::class)->names('mantenimientos');
     Route::resource('equipos', EquipoController::class);
+    Route::put('/equipos/{equipo}/toggle', [EquipoController::class, 'toggle'])->name('equipos.toggle');
+    Route::get('/equipos/export', [EquipoController::class, 'export'])->name('equipos.export');
     Route::resource('rentas', RentasController::class);
     Route::resource('bitacora-actividades', BitacoraActividadController::class)->names('bitacora-actividades');
 

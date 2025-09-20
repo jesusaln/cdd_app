@@ -6,20 +6,75 @@ use Inertia\Inertia;
 use App\Models\Equipo;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Log;
 
 class EquipoController extends Controller
 {
     public function index(Request $request)
     {
-        // Ejemplo de paginado simple para tu índice
-        $equipos = Equipo::query()
-            ->latest()
-            ->paginate(10)
-            ->appends(request()->query());
+        try {
+            $query = Equipo::query();
 
-        return Inertia::render('Equipos/Index', [
-            'equipos' => $equipos,
-        ]);
+            // Filtros
+            if ($search = trim($request->input('search', ''))) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('nombre', 'like', "%{$search}%")
+                      ->orWhere('codigo', 'like', "%{$search}%")
+                      ->orWhere('marca', 'like', "%{$search}%")
+                      ->orWhere('modelo', 'like', "%{$search}%")
+                      ->orWhere('numero_serie', 'like', "%{$search}%");
+                });
+            }
+
+            if ($estado = $request->input('estado')) {
+                $query->where('estado', $estado);
+            }
+
+            if ($condicion = $request->input('condicion')) {
+                $query->where('condicion', $condicion);
+            }
+
+            // Ordenamiento
+            $sortBy = $request->input('sort_by', 'created_at');
+            $sortDirection = $request->input('sort_direction', 'desc');
+
+            $validSortFields = ['nombre', 'codigo', 'marca', 'modelo', 'precio_renta_mensual', 'estado', 'condicion', 'created_at'];
+            if (!in_array($sortBy, $validSortFields)) {
+                $sortBy = 'created_at';
+            }
+
+            $query->orderBy($sortBy, $sortDirection);
+
+            // Paginación
+            $perPage = min((int) $request->input('per_page', 10), 50);
+            $equipos = $query->paginate($perPage)->appends($request->query());
+
+            // Estadísticas
+            $total = Equipo::count();
+            $disponibles = Equipo::where('estado', 'disponible')->count();
+            $rentados = Equipo::where('estado', 'rentado')->count();
+            $mantenimiento = Equipo::where('estado', 'mantenimiento')->count();
+
+            $stats = [
+                'total' => $total,
+                'disponibles' => $disponibles,
+                'rentados' => $rentados,
+                'mantenimiento' => $mantenimiento,
+                'disponibles_porcentaje' => $total > 0 ? round(($disponibles / $total) * 100, 1) : 0,
+                'rentados_porcentaje' => $total > 0 ? round(($rentados / $total) * 100, 1) : 0,
+                'mantenimiento_porcentaje' => $total > 0 ? round(($mantenimiento / $total) * 100, 1) : 0,
+            ];
+
+            return Inertia::render('Equipos/Index', [
+                'equipos' => $equipos,
+                'stats' => $stats,
+                'filters' => $request->only(['search', 'estado', 'condicion']),
+                'sorting' => ['sort_by' => $sortBy, 'sort_direction' => $sortDirection],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error en EquipoController@index: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al cargar los equipos.');
+        }
     }
 
     public function create()
@@ -122,5 +177,95 @@ class EquipoController extends Controller
         $equipo->update($data);
 
         return redirect()->route('equipos.index')->with('success', 'Equipo actualizado correctamente.');
+    }
+
+    public function destroy(Equipo $equipo)
+    {
+        $equipo->delete();
+        return redirect()->route('equipos.index')->with('success', 'Equipo eliminado correctamente.');
+    }
+
+    public function toggle(Equipo $equipo)
+    {
+        try {
+            // For equipos, toggle between disponible and fuera_servicio or something similar
+            $nuevoEstado = $equipo->estado === 'disponible' ? 'fuera_servicio' : 'disponible';
+            $equipo->update(['estado' => $nuevoEstado]);
+
+            $mensaje = $nuevoEstado === 'disponible' ? 'Equipo activado correctamente' : 'Equipo desactivado correctamente';
+
+            return redirect()->back()->with('success', $mensaje);
+        } catch (\Exception $e) {
+            Log::error('Error al cambiar estado del equipo: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al cambiar el estado del equipo.');
+        }
+    }
+
+    public function export(Request $request)
+    {
+        try {
+            $query = Equipo::query();
+
+            // Aplicar los mismos filtros que en index
+            if ($search = trim($request->input('search', ''))) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('nombre', 'like', "%{$search}%")
+                      ->orWhere('codigo', 'like', "%{$search}%")
+                      ->orWhere('marca', 'like', "%{$search}%")
+                      ->orWhere('modelo', 'like', "%{$search}%")
+                      ->orWhere('numero_serie', 'like', "%{$search}%");
+                });
+            }
+
+            if ($estado = $request->input('estado')) {
+                $query->where('estado', $estado);
+            }
+
+            if ($condicion = $request->input('condicion')) {
+                $query->where('condicion', $condicion);
+            }
+
+            $equipos = $query->get();
+
+            $filename = 'equipos_' . date('Y-m-d_H-i-s') . '.csv';
+
+            $headers = [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            ];
+
+            $callback = function () use ($equipos) {
+                $file = fopen('php://output', 'w');
+                fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF)); // UTF-8 BOM
+
+                fputcsv($file, [
+                    'ID', 'Código', 'Nombre', 'Marca', 'Modelo', 'Número Serie',
+                    'Precio Renta Mensual', 'Estado', 'Condición', 'Fecha Creación'
+                ]);
+
+                foreach ($equipos as $equipo) {
+                    fputcsv($file, [
+                        $equipo->id,
+                        $equipo->codigo,
+                        $equipo->nombre,
+                        $equipo->marca ?? '',
+                        $equipo->modelo ?? '',
+                        $equipo->numero_serie ?? '',
+                        $equipo->precio_renta_mensual,
+                        $equipo->estado,
+                        $equipo->condicion,
+                        $equipo->created_at?->format('d/m/Y H:i:s')
+                    ]);
+                }
+                fclose($file);
+            };
+
+            Log::info('Exportación de equipos', ['total' => $equipos->count()]);
+
+            return response()->stream($callback, 200, $headers);
+        } catch (\Exception $e) {
+            Log::error('Error en exportación de equipos: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al exportar los equipos.');
+        }
     }
 }

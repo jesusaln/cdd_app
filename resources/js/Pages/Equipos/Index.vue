@@ -1,42 +1,13 @@
+
+<!-- /resources/js/Pages/Equipos/Index.vue -->
 <script setup>
-import { ref, computed, watch } from 'vue';
-import { router, Link } from '@inertiajs/vue3';
-import { Head } from '@inertiajs/vue3';
-import { Notyf } from 'notyf';
-import 'notyf/notyf.min.css';
-import { generarPDF } from '@/Utils/pdfGenerator';
-import AppLayout from '@/Layouts/AppLayout.vue';
-import UniversalHeader from '@/Components/IndexComponents/UniversalHeader.vue';
-import DocumentosTable from '@/Components/IndexComponents/DocumentosTable.vue';
-import Modales from '@/Components/IndexComponents/Modales.vue';
-import { estadosConfig } from '@/Config/estados';
-import axios from 'axios';
+import { ref, computed, onMounted } from 'vue'
+import { Head, router, usePage, Link } from '@inertiajs/vue3'
+import AppLayout from '@/Layouts/AppLayout.vue'
+import { Notyf } from 'notyf'
+import 'notyf/notyf.min.css'
 
-defineOptions({ layout: AppLayout });
-
-// === PROPS ===
-const props = defineProps({
-  equipos: {
-    type: Object, // Es un objeto paginado: { data: [], links: [], meta: {} }
-    required: true
-  }
-});
-
-// === REACTIVIDAD ===
-const searchTerm = ref('');
-const sortBy = ref('fecha-desc');
-const filtroEstado = ref('');
-const showModal = ref(false);
-const modalMode = ref('details');
-const selectedId = ref(null);
-const selectedEquipo = ref(null);
-
-// Configuración del header
-const headerConfig = {
-  module: 'equipos',
-  createButtonText: 'Nuevo Equipo',
-  searchPlaceholder: 'Buscar por nombre, modelo, serie...'
-};
+defineOptions({ layout: AppLayout })
 
 // Notificaciones
 const notyf = new Notyf({
@@ -44,362 +15,707 @@ const notyf = new Notyf({
   position: { x: 'right', y: 'top' },
   types: [
     { type: 'success', background: '#10b981', icon: false },
-    { type: 'error', background: '#ef4444', icon: false }
+    { type: 'error', background: '#ef4444', icon: false },
+    { type: 'warning', background: '#f59e0b', icon: false }
   ]
-});
+})
 
-// === DATOS FILTRADOS Y ORDENADOS (Computados) ===
-const documentosFiltrados = computed(() => {
-  let list = props.equipos.data || [];
+const page = usePage()
+onMounted(() => {
+  const flash = page.props.flash
+  if (flash?.success) notyf.success(flash.success)
+  if (flash?.error) notyf.error(flash.error)
+})
 
-  // Filtro por búsqueda
-  if (searchTerm.value) {
-    const term = searchTerm.value.toLowerCase();
-    list = list.filter(eq => {
-      return (
-        eq.nombre?.toLowerCase().includes(term) ||
-        eq.modelo?.toLowerCase().includes(term) ||
-        eq.numero_serie?.toLowerCase().includes(term) ||
-        eq.marca?.toLowerCase().includes(term) ||
-        eq.categoria?.toLowerCase().includes(term) ||
-        eq.codigo_interno?.toLowerCase().includes(term)
-      );
-    });
-  }
+// Props
+const props = defineProps({
+  equipos: { type: [Object, Array], required: true },
+  stats: { type: Object, default: () => ({}) },
+  filters: { type: Object, default: () => ({}) },
+  sorting: { type: Object, default: () => ({ sort_by: 'created_at', sort_direction: 'desc' }) },
+})
 
-  // Filtro por estado
-  if (filtroEstado.value) {
-    list = list.filter(eq => eq.estado === filtroEstado.value);
-  }
+// Estado UI
+const showModal = ref(false)
+const modalMode = ref('details')
+const selectedEquipo = ref(null)
+const selectedId = ref(null)
 
-  // Ordenamiento
-  list = [...list]; // Copia para no mutar
-  switch (sortBy.value) {
-    case 'fecha-asc':
-      list.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-      break;
-    case 'fecha-desc':
-      list.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-      break;
-    case 'nombre-asc':
-      list.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
-      break;
-    case 'nombre-desc':
-      list.sort((a, b) => (b.nombre || '').localeCompare(a.nombre || ''));
-      break;
-    case 'modelo-asc':
-      list.sort((a, b) => (a.modelo || '').localeCompare(b.modelo || ''));
-      break;
-    case 'modelo-desc':
-      list.sort((a, b) => (b.modelo || '').localeCompare(a.modelo || ''));
-      break;
-    default:
-      break;
-  }
+// Filtros
+const searchTerm = ref(props.filters?.search ?? '')
+const sortBy = ref('created_at-desc')
+const filtroEstado = ref('')
+const filtroCondicion = ref('')
 
-  return list;
-});
+// Paginación
+const perPage = ref(10)
 
-// === ESTADÍSTICAS ===
-const estadisticas = computed(() => {
-  const total = props.equipos.data?.length || 0;
-  const disponibles = props.equipos.data?.filter(eq => eq.estado === 'disponible').length || 0;
-  const rentados = props.equipos.data?.filter(eq => eq.estado === 'rentado').length || 0;
-  const mantenimiento = props.equipos.data?.filter(eq =>
-    ['mantenimiento', 'reparacion', 'fuera_servicio'].includes(eq.estado)
-  ).length || 0;
+// Header config
+const headerConfig = {
+  module: 'equipos',
+  createButtonText: 'Nuevo Equipo',
+  searchPlaceholder: 'Buscar por nombre, código, marca o modelo...'
+}
 
-  return {
-    total,
-    aprobadas: disponibles, // Usando 'aprobadas' para compatibilidad con UniversalHeader
-    pendientes: mantenimiento // Usando 'pendientes' para compatibilidad
-  };
-});
+// Datos
+const equiposPaginator = computed(() => props.equipos)
+const equiposData = computed(() => equiposPaginator.value?.data || [])
 
-// === MÉTODOS ===
-const handleLimpiarFiltros = () => {
-  searchTerm.value = '';
-  sortBy.value = 'fecha-desc';
-  filtroEstado.value = '';
-  notyf.success('Filtros limpiados');
-};
+// Estadísticas
+const estadisticas = computed(() => ({
+  total: props.stats?.total ?? 0,
+  disponibles: props.stats?.disponibles ?? 0,
+  rentados: props.stats?.rentados ?? 0,
+  mantenimiento: props.stats?.mantenimiento ?? 0,
+  disponiblesPorcentaje: props.stats?.disponibles > 0 ? Math.round((props.stats.disponibles / props.stats.total) * 100) : 0,
+  rentadosPorcentaje: props.stats?.rentados > 0 ? Math.round((props.stats.rentados / props.stats.total) * 100) : 0,
+  mantenimientoPorcentaje: props.stats?.mantenimiento > 0 ? Math.round((props.stats.mantenimiento / props.stats.total) * 100) : 0
+}))
 
-const updateSort = (newSort) => {
-  const validSorts = ['fecha-asc', 'fecha-desc', 'nombre-asc', 'nombre-desc', 'modelo-asc', 'modelo-desc'];
-  if (validSorts.includes(newSort)) {
-    sortBy.value = newSort;
-  }
-};
+// Transformación de datos
+const equiposDocumentos = computed(() => {
+  return equiposData.value.map(e => ({
+    id: e.id,
+    titulo: e.nombre || 'Sin nombre',
+    subtitulo: `${e.marca || 'Sin marca'} ${e.modelo || ''}`.trim(),
+    estado: e.estado || 'disponible',
+    extra: `Código: ${e.codigo} | Precio: $${e.precio_renta_mensual}`,
+    fecha: e.created_at,
+    raw: e
+  }))
+})
 
-// Acciones
-const verDetalles = (equipo) => {
-  if (!equipo) return notyf.error('Equipo no válido');
-  selectedEquipo.value = equipo;
-  modalMode.value = 'details';
-  showModal.value = true;
-};
+// Handlers
+function handleSearchChange(newSearch) {
+  searchTerm.value = newSearch
+  router.get(route('equipos.index'), {
+    search: newSearch,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc',
+    estado: filtroEstado.value,
+    condicion: filtroCondicion.value,
+    per_page: perPage.value,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+function handleEstadoChange(newEstado) {
+  filtroEstado.value = newEstado
+  router.get(route('equipos.index'), {
+    search: searchTerm.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc',
+    estado: newEstado,
+    condicion: filtroCondicion.value,
+    per_page: perPage.value,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+function handleCondicionChange(newCondicion) {
+  filtroCondicion.value = newCondicion
+  router.get(route('equipos.index'), {
+    search: searchTerm.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc',
+    estado: filtroEstado.value,
+    condicion: newCondicion,
+    per_page: perPage.value,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+function handleSortChange(newSort) {
+  sortBy.value = newSort
+  router.get(route('equipos.index'), {
+    search: searchTerm.value,
+    sort_by: newSort.split('-')[0],
+    sort_direction: newSort.split('-')[1] || 'desc',
+    estado: filtroEstado.value,
+    condicion: filtroCondicion.value,
+    per_page: perPage.value,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+const verDetalles = (doc) => {
+  selectedEquipo.value = doc.raw
+  modalMode.value = 'details'
+  showModal.value = true
+}
 
 const editarEquipo = (id) => {
-  if (!id) return notyf.error('ID inválido');
-  router.visit(`/equipos/${id}/edit`);
-};
-
-const duplicarEquipo = (equipo) => {
-  if (confirm(`¿Duplicar equipo "${equipo.nombre}"?`)) {
-    router.post(`/equipos/${equipo.id}/duplicate`, {}, {
-      onSuccess: () => notyf.success('Equipo duplicado correctamente'),
-      onError: () => notyf.error('Error al duplicar equipo')
-    });
-  }
-};
-
-const imprimirEquipo = async (equipo) => {
-  const equipoConFecha = {
-    ...equipo,
-    fecha: equipo.created_at || new Date().toISOString()
-  };
-
-  const validaciones = [
-    [equipoConFecha.id, 'ID del equipo no encontrado'],
-    [equipoConFecha.nombre, 'Nombre del equipo no encontrado'],
-    [equipoConFecha.fecha, 'Fecha no especificada']
-  ];
-
-  for (const [cond, msg] of validaciones) {
-    if (!cond) return notyf.error(`Error: ${msg}`);
-  }
-
-  try {
-    notyf.success('Generando PDF...');
-    await generarPDF('Ficha de Equipo', equipoConFecha);
-    notyf.success('PDF generado correctamente');
-  } catch (error) {
-    notyf.error(`Error al generar PDF: ${error.message}`);
-  }
-};
+  router.visit(route('equipos.edit', id))
+}
 
 const confirmarEliminacion = (id) => {
-  if (!id) return notyf.error('ID no válido');
-  selectedId.value = id;
-  modalMode.value = 'confirm';
-  showModal.value = true;
-};
+  selectedId.value = id
+  modalMode.value = 'confirm'
+  showModal.value = true
+}
 
 const eliminarEquipo = () => {
-  if (!selectedId.value) return notyf.error('No se seleccionó ningún equipo');
-
-  router.delete(`/equipos/${selectedId.value}`, {
+  router.delete(route('equipos.destroy', selectedId.value), {
+    preserveScroll: true,
     onSuccess: () => {
-      notyf.success('Equipo eliminado correctamente');
-      showModal.value = false;
-      selectedId.value = null;
+      notyf.success('Equipo eliminado correctamente')
+      showModal.value = false
+      selectedId.value = null
+      router.reload()
     },
-    onError: () => notyf.error('Error al eliminar equipo')
-  });
-};
-
-const cambiarEstadoEquipo = async (equipo, nuevoEstado) => {
-  const estadosValidos = ['disponible', 'rentado', 'mantenimiento', 'reparacion', 'fuera_servicio'];
-  if (!estadosValidos.includes(nuevoEstado)) {
-    return notyf.error(`Estado no válido: ${nuevoEstado}`);
-  }
-
-  if (!confirm(`¿Cambiar estado del equipo "${equipo.nombre}" a "${nuevoEstado}"?`)) return;
-
-  try {
-    const response = await axios.patch(`/equipos/${equipo.id}/estado`, {
-      estado: nuevoEstado
-    });
-
-    if (response.data.success) {
-      notyf.success(response.data.message || `Estado cambiado a ${nuevoEstado}`);
-      showModal.value = false;
-      // Recargar la página para actualizar los datos
-      router.reload({ only: ['equipos'] });
+    onError: (errors) => {
+      notyf.error('No se pudo eliminar el equipo')
     }
-  } catch (error) {
-    const msg = error.response?.data?.message || `Error al cambiar estado a ${nuevoEstado}`;
-    notyf.error(msg);
-  }
-};
+  })
+}
 
-const programarMantenimiento = async (equipo) => {
-  if (equipo.estado === 'mantenimiento') {
-    return notyf.error('El equipo ya está en mantenimiento');
-  }
+const toggleEquipo = (id) => {
+  const equipo = equiposData.value.find(e => e.id === id)
+  if (!equipo) return notyf.error('Equipo no encontrado')
+  const nuevoEstado = equipo.estado === 'disponible' ? 'fuera_servicio' : 'disponible'
+  const mensaje = nuevoEstado === 'disponible' ? 'Equipo activado correctamente' : 'Equipo desactivado correctamente'
 
-  if (!confirm(`¿Programar mantenimiento para "${equipo.nombre}"?`)) return;
-
-  try {
-    const response = await axios.post(`/equipos/${equipo.id}/mantenimiento`);
-    if (response.data.success) {
-      notyf.success('Mantenimiento programado correctamente');
-      showModal.value = false;
-      router.reload({ only: ['equipos'] });
+  router.put(route('equipos.toggle', id), {
+    preserveScroll: true,
+    onSuccess: () => {
+      notyf.success(mensaje)
+      router.reload()
+    },
+    onError: (errors) => {
+      notyf.error('No se pudo cambiar el estado del equipo')
     }
-  } catch (error) {
-    const msg = error.response?.data?.message || 'Error al programar mantenimiento';
-    notyf.error(msg);
+  })
+}
+
+const exportEquipos = () => {
+  const params = new URLSearchParams()
+  if (searchTerm.value) params.append('search', searchTerm.value)
+  if (filtroEstado.value) params.append('estado', filtroEstado.value)
+  if (filtroCondicion.value) params.append('condicion', filtroCondicion.value)
+  const queryString = params.toString()
+  const url = route('equipos.export') + (queryString ? `?${queryString}` : '')
+  window.location.href = url
+}
+
+// Paginación
+const paginationData = computed(() => ({
+  current_page: equiposPaginator.value?.current_page || 1,
+  last_page: equiposPaginator.value?.last_page || 1,
+  per_page: equiposPaginator.value?.per_page || 10,
+  from: equiposPaginator.value?.from || 0,
+  to: equiposPaginator.value?.to || 0,
+  total: equiposPaginator.value?.total || 0,
+  prev_page_url: equiposPaginator.value?.prev_page_url,
+  next_page_url: equiposPaginator.value?.next_page_url,
+  links: equiposPaginator.value?.links || []
+}))
+
+const handlePerPageChange = (newPerPage) => {
+  router.get(route('equipos.index'), {
+    ...props.filters,
+    ...props.sorting,
+    per_page: newPerPage,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+const handlePageChange = (newPage) => {
+  router.get(route('equipos.index'), {
+    ...props.filters,
+    ...props.sorting,
+    page: newPage
+  }, { preserveState: true, preserveScroll: true })
+}
+
+// Helpers
+const formatNumber = (num) => new Intl.NumberFormat('es-ES').format(num)
+const formatearFecha = (date) => {
+  if (!date) return 'Fecha no disponible'
+  try {
+    const d = new Date(date)
+    return d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  } catch {
+    return 'Fecha inválida'
   }
-};
+}
 
-const marcarComoDisponible = async (equipo) => {
-  await cambiarEstadoEquipo(equipo, 'disponible');
-};
+const obtenerClasesEstado = (estado) => {
+  const clases = {
+    'disponible': 'bg-green-100 text-green-700',
+    'rentado': 'bg-blue-100 text-blue-700',
+    'mantenimiento': 'bg-yellow-100 text-yellow-700',
+    'reparacion': 'bg-orange-100 text-orange-700',
+    'fuera_servicio': 'bg-red-100 text-red-700'
+  }
+  return clases[estado] || 'bg-gray-100 text-gray-700'
+}
 
-const marcarEnReparacion = async (equipo) => {
-  await cambiarEstadoEquipo(equipo, 'reparacion');
-};
+const obtenerLabelEstado = (estado) => {
+  const labels = {
+    'disponible': 'Disponible',
+    'rentado': 'Rentado',
+    'mantenimiento': 'Mantenimiento',
+    'reparacion': 'Reparación',
+    'fuera_servicio': 'Fuera de Servicio'
+  }
+  return labels[estado] || 'Pendiente'
+}
 
-const marcarFueraServicio = async (equipo) => {
-  await cambiarEstadoEquipo(equipo, 'fuera_servicio');
-};
+const obtenerClasesCondicion = (condicion) => {
+  const clases = {
+    'nuevo': 'bg-green-100 text-green-700',
+    'excelente': 'bg-blue-100 text-blue-700',
+    'bueno': 'bg-yellow-100 text-yellow-700',
+    'regular': 'bg-orange-100 text-orange-700',
+    'malo': 'bg-red-100 text-red-700'
+  }
+  return clases[condicion] || 'bg-gray-100 text-gray-700'
+}
 
-const crearNuevoEquipo = () => {
-  router.visit('/equipos/create');
-};
-
-// === WATCHERS ===
-watch([searchTerm, sortBy, filtroEstado], () => {
-  // Aquí podrías agregar lógica adicional cuando cambien los filtros
-}, { deep: true });
+const obtenerLabelCondicion = (condicion) => {
+  const labels = {
+    'nuevo': 'Nuevo',
+    'excelente': 'Excelente',
+    'bueno': 'Bueno',
+    'regular': 'Regular',
+    'malo': 'Malo'
+  }
+  return labels[condicion] || 'Sin condición'
+}
 </script>
 
 <template>
   <Head title="Equipos" />
+  <div class="equipos-index min-h-screen bg-gray-50">
+    <div class="max-w-8xl mx-auto px-6 py-8">
+      <!-- Header -->
+      <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-8 mb-6">
+        <div class="flex flex-col lg:flex-row gap-8 items-start lg:items-center justify-between">
+          <!-- Izquierda -->
+          <div class="flex flex-col gap-6 w-full lg:w-auto">
+            <div class="flex items-center gap-3">
+              <h1 class="text-2xl font-bold text-slate-900">Equipos</h1>
+            </div>
 
-  <div class="equipos-index bg-gray-50 min-h-screen">
-    <!-- Header principal -->
-    <div class="bg-white shadow-sm border-b border-gray-200 px-6 py-8">
-      <div class="max-w-7xl mx-auto">
-        <div class="flex items-center justify-between">
-          <div>
-            <h1 class="text-3xl font-bold text-gray-900">Gestión de Equipos</h1>
-            <p class="text-gray-600">Administra todo el inventario de equipos y puntos de venta.</p>
+            <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+              <Link
+                :href="route('equipos.create')"
+                class="inline-flex items-center gap-2.5 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>{{ headerConfig.createButtonText }}</span>
+              </Link>
+
+              <button
+                @click="exportEquipos"
+                class="inline-flex items-center gap-2 px-4 py-3 bg-green-50 text-green-700 rounded-xl hover:bg-green-100 transition-all duration-200 border border-green-200"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                </svg>
+                <span class="text-sm font-medium">Exportar</span>
+              </button>
+            </div>
+
+            <!-- Estadísticas con barras de progreso -->
+            <div class="flex flex-wrap items-center gap-4 text-sm">
+              <div class="flex items-center gap-2 px-4 py-3 bg-slate-50 rounded-xl border border-slate-200">
+                <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span class="font-medium text-slate-700">Total:</span>
+                <span class="font-bold text-slate-900 text-lg">{{ formatNumber(estadisticas.total) }}</span>
+              </div>
+
+              <div class="flex items-center gap-2 px-4 py-3 bg-green-50 rounded-xl border border-green-200">
+                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span class="font-medium text-slate-700">Disponibles:</span>
+                <span class="font-bold text-green-700 text-lg">{{ formatNumber(estadisticas.disponibles) }}</span>
+                <div class="ml-2 flex items-center gap-2">
+                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      class="h-full bg-green-500 transition-all duration-300"
+                      :style="{ width: estadisticas.disponiblesPorcentaje + '%' }"
+                    ></div>
+                  </div>
+                  <span class="text-xs text-green-600 font-medium">{{ estadisticas.disponiblesPorcentaje }}%</span>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2 px-4 py-3 bg-blue-50 rounded-xl border border-blue-200">
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                </svg>
+                <span class="font-medium text-slate-700">Rentados:</span>
+                <span class="font-bold text-blue-700 text-lg">{{ formatNumber(estadisticas.rentados) }}</span>
+                <div class="ml-2 flex items-center gap-2">
+                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      class="h-full bg-blue-500 transition-all duration-300"
+                      :style="{ width: estadisticas.rentadosPorcentaje + '%' }"
+                    ></div>
+                  </div>
+                  <span class="text-xs text-blue-600 font-medium">{{ estadisticas.rentadosPorcentaje }}%</span>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2 px-4 py-3 bg-yellow-50 rounded-xl border border-yellow-200">
+                <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span class="font-medium text-slate-700">Mantenimiento:</span>
+                <span class="font-bold text-yellow-700 text-lg">{{ formatNumber(estadisticas.mantenimiento) }}</span>
+                <div class="ml-2 flex items-center gap-2">
+                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      class="h-full bg-yellow-500 transition-all duration-300"
+                      :style="{ width: estadisticas.mantenimientoPorcentaje + '%' }"
+                    ></div>
+                  </div>
+                  <span class="text-xs text-yellow-600 font-medium">{{ estadisticas.mantenimientoPorcentaje }}%</span>
+                </div>
+              </div>
+            </div>
           </div>
 
-        </div>
-      </div>
-    </div>
+          <!-- Derecha: Filtros -->
+          <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto lg:flex-shrink-0">
+            <!-- Búsqueda -->
+            <div class="relative">
+              <input
+                v-model="searchTerm"
+                @input="handleSearchChange($event.target.value)"
+                type="text"
+                :placeholder="headerConfig.searchPlaceholder"
+                class="w-full sm:w-64 lg:w-80 pl-4 pr-10 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+              />
+              <svg class="absolute right-3 top-3.5 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
 
-    <!-- Contenido principal -->
-    <div class="max-w-8xl mx-auto px-6 py-8">
-      <!-- Header de filtros y estadísticas -->
-      <UniversalHeader
-        :total="estadisticas.total"
-        :aprobadas="estadisticas.aprobadas"
-        :pendientes="estadisticas.pendientes"
-        v-model:search-term="searchTerm"
-        v-model:sort-by="sortBy"
-        v-model:filtro-estado="filtroEstado"
-        :config="headerConfig"
-        @limpiar-filtros="handleLimpiarFiltros"
-      />
+            <!-- Estado -->
+            <select
+              v-model="filtroEstado"
+              @change="handleEstadoChange($event.target.value)"
+              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+            >
+              <option value="">Todos los Estados</option>
+              <option value="disponible">Disponible</option>
+              <option value="rentado">Rentado</option>
+              <option value="mantenimiento">Mantenimiento</option>
+              <option value="reparacion">Reparación</option>
+              <option value="fuera_servicio">Fuera de Servicio</option>
+            </select>
 
-      <!-- Tabla de equipos -->
-      <DocumentosTable
-        :documentos="documentosFiltrados"
-        tipo="equipos"
-        :search-term="searchTerm"
-        :sort-by="sortBy"
-        :filtro-estado="filtroEstado"
-        @ver-detalles="verDetalles"
-        @editar="editarEquipo"
-        @duplicar="duplicarEquipo"
-        @imprimir="imprimirEquipo"
-        @eliminar="confirmarEliminacion"
-        @sort="updateSort"
-        @cambiar-estado="cambiarEstadoEquipo"
-        @programar-mantenimiento="programarMantenimiento"
-        @marcar-disponible="marcarComoDisponible"
-        @marcar-reparacion="marcarEnReparacion"
-        @marcar-fuera-servicio="marcarFueraServicio"
-      />
+            <!-- Condición -->
+            <select
+              v-model="filtroCondicion"
+              @change="handleCondicionChange($event.target.value)"
+              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+            >
+              <option value="">Todas las Condiciones</option>
+              <option value="nuevo">Nuevo</option>
+              <option value="excelente">Excelente</option>
+              <option value="bueno">Bueno</option>
+              <option value="regular">Regular</option>
+              <option value="malo">Malo</option>
+            </select>
 
-      <!-- Paginación -->
-      <div v-if="equipos.links && equipos.links.length > 2" class="mt-6 flex justify-center">
-        <div class="inline-flex rounded-md shadow-sm">
-          <template v-for="link in equipos.links" :key="link.label">
-            <Link
-              v-if="link.url"
-              :href="link.url"
-              v-html="link.label"
-              :class="[
-                'px-3 py-2 text-sm border border-gray-300',
-                link.active
-                  ? 'bg-indigo-600 text-white border-indigo-600'
-                  : 'bg-white text-gray-700 hover:bg-gray-50',
-                'first:rounded-l-md last:rounded-r-md'
-              ]"
-              preserve-scroll
-            />
-            <span
-              v-else
-              v-html="link.label"
-              class="px-3 py-2 text-sm border border-gray-300 text-gray-400 cursor-not-allowed bg-gray-50 first:rounded-l-md last:rounded-r-md"
-            />
-          </template>
+            <!-- Orden -->
+            <select
+              v-model="sortBy"
+              @change="handleSortChange($event.target.value)"
+              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+            >
+              <option value="created_at-desc">Más Recientes</option>
+              <option value="created_at-asc">Más Antiguos</option>
+              <option value="nombre-asc">Nombre A-Z</option>
+              <option value="nombre-desc">Nombre Z-A</option>
+              <option value="precio_renta_mensual-desc">Precio Mayor</option>
+              <option value="precio_renta_mensual-asc">Precio Menor</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      <!-- Modales -->
-      <Modales
-        :show="showModal"
-        :mode="modalMode"
-        :selected="selectedEquipo"
-        tipo="equipos"
-        @close="showModal = false"
-        @confirm-delete="eliminarEquipo"
-        @imprimir="imprimirEquipo"
-        @editar="editarEquipo"
-        @cambiar-estado="cambiarEstadoEquipo"
-        @programar-mantenimiento="programarMantenimiento"
-        @marcar-disponible="marcarComoDisponible"
-        @marcar-reparacion="marcarEnReparacion"
-        @marcar-fuera-servicio="marcarFueraServicio"
-      />
+      <!-- Tabla -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Fecha</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Equipo</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Código</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Precio Renta</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Estado</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Condición</th>
+                <th class="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Acciones</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <tr v-for="equipo in equiposDocumentos" :key="equipo.id" class="hover:bg-gray-50 transition-colors duration-150">
+                <td class="px-6 py-4">
+                  <div class="text-sm text-gray-900">{{ formatearFecha(equipo.fecha) }}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="text-sm font-medium text-gray-900">{{ equipo.titulo }}</div>
+                  <div class="text-sm text-gray-500">{{ equipo.subtitulo }}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="text-sm text-gray-700">{{ equipo.raw.codigo }}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="text-sm text-gray-700">${{ formatNumber(equipo.raw.precio_renta_mensual) }}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <span :class="obtenerClasesEstado(equipo.estado)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                    {{ obtenerLabelEstado(equipo.estado) }}
+                  </span>
+                </td>
+                <td class="px-6 py-4">
+                  <span :class="obtenerClasesCondicion(equipo.raw.condicion)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                    {{ obtenerLabelCondicion(equipo.raw.condicion) }}
+                  </span>
+                </td>
+                <td class="px-6 py-4 text-right">
+                  <div class="flex items-center justify-end space-x-1">
+                    <button @click="verDetalles(equipo)" class="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors duration-150" title="Ver detalles">
+                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    </button>
+                    <button @click="editarEquipo(equipo.id)" class="w-8 h-8 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-colors duration-150" title="Editar">
+                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button @click="toggleEquipo(equipo.id)" class="w-8 h-8 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors duration-150" title="Cambiar estado">
+                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    </button>
+                    <button @click="confirmarEliminacion(equipo.id)" class="w-8 h-8 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors duration-150" title="Eliminar">
+                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="equiposDocumentos.length === 0">
+                <td colspan="7" class="px-6 py-16 text-center">
+                  <div class="flex flex-col items-center space-y-4">
+                    <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                      <svg class="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <div class="space-y-1">
+                      <p class="text-gray-700 font-medium">No hay equipos</p>
+                      <p class="text-sm text-gray-500">Los equipos aparecerán aquí cuando se creen</p>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Paginación -->
+        <div v-if="paginationData.lastPage > 1" class="bg-white border-t border-gray-200 px-4 py-3 sm:px-6">
+          <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+              <p class="text-sm text-gray-700">
+                Mostrando {{ paginationData.from }} - {{ paginationData.to }} de {{ paginationData.total }} resultados
+              </p>
+              <select
+                :value="paginationData.perPage"
+                @change="handlePerPageChange(parseInt($event.target.value))"
+                class="border border-gray-300 rounded-md text-sm py-1 px-2 bg-white"
+              >
+                <option value="10">10</option>
+                <option value="15">15</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+              </select>
+            </div>
+
+            <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+              <button
+                v-if="paginationData.prevPageUrl"
+                @click="handlePageChange(paginationData.currentPage - 1)"
+                class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+              >
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+              </button>
+
+              <span v-else class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-gray-100 text-sm font-medium text-gray-400">
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+              </span>
+
+              <button
+                v-for="page in [paginationData.currentPage - 1, paginationData.currentPage, paginationData.currentPage + 1].filter(p => p > 0 && p <= paginationData.lastPage)"
+                :key="page"
+                @click="handlePageChange(page)"
+                :class="page === paginationData.currentPage ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'"
+                class="relative inline-flex items-center px-4 py-2 border text-sm font-medium"
+              >
+                {{ page }}
+              </button>
+
+              <button
+                v-if="paginationData.nextPageUrl"
+                @click="handlePageChange(paginationData.currentPage + 1)"
+                class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+              >
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                </svg>
+              </button>
+
+              <span v-else class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-gray-100 text-sm font-medium text-gray-400">
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                </svg>
+              </span>
+            </nav>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal mejorado -->
+      <div v-if="showModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="showModal = false">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <!-- Header del modal -->
+          <div class="flex items-center justify-between p-6 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">
+              {{ modalMode === 'details' ? 'Detalles del Equipo' : 'Confirmar Eliminación' }}
+            </h3>
+            <button @click="showModal = false" class="text-gray-400 hover:text-gray-600 transition-colors">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="p-6">
+            <div v-if="modalMode === 'details' && selectedEquipo">
+              <div class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div class="space-y-3">
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Nombre</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedEquipo.nombre }}</p>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Código</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedEquipo.codigo }}</p>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Marca</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedEquipo.marca || 'N/A' }}</p>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Modelo</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedEquipo.modelo || 'N/A' }}</p>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Estado</label>
+                      <span :class="obtenerClasesEstado(selectedEquipo.estado)" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium mt-1">
+                        {{ obtenerLabelEstado(selectedEquipo.estado) }}
+                      </span>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Condición</label>
+                      <span :class="obtenerClasesCondicion(selectedEquipo.condicion)" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium mt-1">
+                        {{ obtenerLabelCondicion(selectedEquipo.condicion) }}
+                      </span>
+                    </div>
+                  </div>
+                  <div class="space-y-3">
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Precio Renta Mensual</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">${{ formatNumber(selectedEquipo.precio_renta_mensual) }}</p>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Precio Compra</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedEquipo.precio_compra ? '$' + formatNumber(selectedEquipo.precio_compra) : 'N/A' }}</p>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Fecha de Adquisición</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedEquipo.fecha_adquisicion ? formatearFecha(selectedEquipo.fecha_adquisicion) : 'N/A' }}</p>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Fecha de Creación</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ formatearFecha(selectedEquipo.created_at) }}</p>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Última Actualización</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ formatearFecha(selectedEquipo.updated_at) }}</p>
+                    </div>
+                  </div>
+                </div>
+                <div v-if="selectedEquipo.descripcion">
+                  <label class="block text-sm font-medium text-gray-700">Descripción</label>
+                  <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md whitespace-pre-wrap">{{ selectedEquipo.descripcion }}</p>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="modalMode === 'confirm'">
+              <div class="text-center">
+                <div class="w-12 h-12 mx-auto bg-red-100 rounded-full flex items-center justify-center mb-4">
+                  <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                  </svg>
+                </div>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">¿Eliminar Equipo?</h3>
+                <p class="text-sm text-gray-500 mb-4">
+                  ¿Estás seguro de que deseas eliminar el equipo <strong>{{ selectedEquipo?.nombre }}</strong>?
+                  Esta acción no se puede deshacer.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer del modal -->
+          <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+            <button @click="showModal = false" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+              {{ modalMode === 'details' ? 'Cerrar' : 'Cancelar' }}
+            </button>
+            <div v-if="modalMode === 'details'" class="flex gap-2">
+              <button @click="toggleEquipo(selectedEquipo.id)" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                Cambiar Estado
+              </button>
+              <button @click="editarEquipo(selectedEquipo.id)" class="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors">
+                Editar
+              </button>
+            </div>
+            <button v-if="modalMode === 'confirm'" @click="eliminarEquipo" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+              Eliminar
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
 .equipos-index {
+  min-height: 100vh;
   background-color: #f9fafb;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.equipos-index > * {
-  animation: fadeIn 0.3s ease-out;
-}
-
-/* Estilos adicionales para mejorar la apariencia */
-.equipos-index .bg-white {
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-}
-
-/* Hover effects para botones */
-.equipos-index button:hover {
-  transform: translateY(-1px);
-  transition: all 0.2s ease-in-out;
-}
-
-/* Estilo para la paginación */
-.equipos-index .inline-flex a,
-.equipos-index .inline-flex span {
-  transition: all 0.2s ease-in-out;
-}
-
-.equipos-index .inline-flex a:hover {
-  transform: translateY(-1px);
 }
 </style>

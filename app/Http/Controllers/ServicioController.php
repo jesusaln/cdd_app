@@ -141,6 +141,23 @@ class ServicioController extends Controller
     }
 
     /**
+     * Alterna el estado de un servicio (activo/inactivo).
+     */
+    public function toggle(Servicio $servicio)
+    {
+        try {
+            $servicio->update(['estado' => $servicio->estado === 'activo' ? 'inactivo' : 'activo']);
+
+            $mensaje = $servicio->estado === 'activo' ? 'Servicio activado correctamente' : 'Servicio desactivado correctamente';
+
+            return redirect()->back()->with('success', $mensaje);
+        } catch (\Exception $e) {
+            Log::error('Error al cambiar estado del servicio: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al cambiar el estado del servicio.');
+        }
+    }
+
+    /**
      * Muestra los detalles de un servicio específico.
      */
     public function show($id)

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Inertia\Inertia;
 use App\Models\Tecnico;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 //use App\Events\TecnicoCreated; // Evento opcional si deseas notificar creación de técnicos
 
 class TecnicoController extends Controller
@@ -12,14 +13,53 @@ class TecnicoController extends Controller
     /**
      * Mostrar la lista de técnicos.
      */
-    public function index()
+    public function index(Request $request)
     {
-        // Obtiene todos los técnicos y los pasa al frontend
-        $tecnicos = Tecnico::all();
+        try {
+            $query = Tecnico::query();
 
-        return Inertia::render('Tecnicos/Index', [
-            'tecnicos' => $tecnicos,
-        ]);
+            // Filtros
+            if ($search = trim($request->input('search', ''))) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('nombre', 'like', "%{$search}%")
+                      ->orWhere('apellido', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%")
+                      ->orWhere('telefono', 'like', "%{$search}%");
+                });
+            }
+
+            // Ordenamiento
+            $sortBy = $request->input('sort_by', 'nombre');
+            $sortDirection = $request->input('sort_direction', 'asc');
+
+            $validSortFields = ['nombre', 'apellido', 'email', 'telefono', 'created_at'];
+            if (!in_array($sortBy, $validSortFields)) {
+                $sortBy = 'nombre';
+            }
+
+            $query->orderBy($sortBy, $sortDirection);
+
+            // Paginación
+            $perPage = min((int) $request->input('per_page', 10), 50);
+            $tecnicos = $query->paginate($perPage)->appends($request->query());
+
+            // Estadísticas
+            $total = Tecnico::count();
+
+            $stats = [
+                'total' => $total,
+            ];
+
+            return Inertia::render('Tecnicos/Index', [
+                'tecnicos' => $tecnicos,
+                'stats' => $stats,
+                'filters' => $request->only(['search']),
+                'sorting' => ['sort_by' => $sortBy, 'sort_direction' => $sortDirection],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error en TecnicoController@index: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al cargar los técnicos.');
+        }
     }
 
     /**

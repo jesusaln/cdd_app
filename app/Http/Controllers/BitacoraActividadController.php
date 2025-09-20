@@ -21,50 +21,70 @@ class BitacoraActividadController extends Controller
 
     public function index(Request $request)
     {
-        $filters = $request->only(['q', 'usuario', 'cliente', 'desde', 'hasta', 'tipo', 'estado']);
+        try {
+            $filters = $request->only(['q', 'usuario', 'cliente', 'desde', 'hasta', 'tipo', 'estado']);
 
-        Log::info('Filtros recibidos:', $filters);
+            Log::info('Filtros recibidos:', $filters);
 
-        $estadoSeleccionado = $filters['estado'] ?? '';
-        $estadosAMostrar = $this->determinarEstadosAMostrar($estadoSeleccionado);
+            $estadoSeleccionado = $filters['estado'] ?? '';
+            $estadosAMostrar = $this->determinarEstadosAMostrar($estadoSeleccionado);
 
-        Log::info('Estados a mostrar:', $estadosAMostrar);
+            Log::info('Estados a mostrar:', $estadosAMostrar);
 
-        $aplicarFiltroHoy = $this->debeAplicarFiltroHoy($filters);
-        Log::info('¿Aplicar filtro hoy?', ['valor' => $aplicarFiltroHoy]);
+            $aplicarFiltroHoy = $this->debeAplicarFiltroHoy($filters);
+            Log::info('¿Aplicar filtro hoy?', ['valor' => $aplicarFiltroHoy]);
 
-        [$desde, $hasta] = $this->validarFechas($filters['desde'] ?? null, $filters['hasta'] ?? null);
+            [$desde, $hasta] = $this->validarFechas($filters['desde'] ?? null, $filters['hasta'] ?? null);
 
-        $query = BitacoraActividad::with(['usuario:id,name', 'cliente:id,nombre_razon_social'])
-            ->whereIn('estado', $estadosAMostrar);
+            $query = BitacoraActividad::with(['usuario:id,name', 'cliente:id,nombre_razon_social'])
+                ->whereIn('estado', $estadosAMostrar);
 
-        if ($aplicarFiltroHoy) {
-            $query->soloHoyOMantenerEnProceso();
+            if ($aplicarFiltroHoy) {
+                $query->soloHoyOMantenerEnProceso();
+            }
+
+            $query->rangoFechas($desde, $hasta)
+                ->deUsuario($filters['usuario'] ?? null)
+                ->deCliente($filters['cliente'] ?? null)
+                ->buscar($filters['q'] ?? null)
+                ->when($filters['tipo'] ?? null, fn($q, $v) => $q->where('tipo', $v));
+
+            Log::info('SQL generado:', [$query->toSql(), $query->getBindings()]);
+
+            // Paginación con per_page configurable
+            $perPage = min((int) $request->input('per_page', 15), 50);
+            $actividades = $query->orderByDesc('fecha')
+                ->orderByDesc('id')
+                ->paginate($perPage)
+                ->withQueryString();
+
+            Log::info('Total de actividades encontradas:', ['total' => $actividades->total()]);
+
+            // Estadísticas
+            $stats = [
+                'total' => BitacoraActividad::count(),
+                'pendientes' => BitacoraActividad::where('estado', 'pendiente')->count(),
+                'en_proceso' => BitacoraActividad::where('estado', 'en_proceso')->count(),
+                'completados' => BitacoraActividad::where('estado', 'completado')->count(),
+                'cancelados' => BitacoraActividad::where('estado', 'cancelado')->count(),
+                'costo_total_mes' => BitacoraActividad::whereMonth('fecha', now()->month)->sum('costo_mxn'),
+                'actividades_mes' => BitacoraActividad::whereMonth('fecha', now()->month)->count(),
+            ];
+
+            return Inertia::render('Bitacora/Index', [
+                'actividades' => $actividades,
+                'stats' => $stats,
+                'filters' => $filters,
+                'sorting' => ['sort_by' => 'fecha', 'sort_direction' => 'desc'],
+                'usuarios' => $this->getUsuarios(),
+                'clientes' => $this->getClientes(),
+                'tipos' => self::TIPOS,
+                'estados' => self::ESTADOS,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error en BitacoraActividadController@index: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al cargar las actividades.');
         }
-
-        $query->rangoFechas($desde, $hasta)
-            ->deUsuario($filters['usuario'] ?? null)
-            ->deCliente($filters['cliente'] ?? null)
-            ->buscar($filters['q'] ?? null)
-            ->when($filters['tipo'] ?? null, fn($q, $v) => $q->where('tipo', $v));
-
-        Log::info('SQL generado:', [$query->toSql(), $query->getBindings()]);
-
-        $actividades = $query->orderByDesc('fecha')
-            ->orderByDesc('id')
-            ->paginate(15)
-            ->withQueryString();
-
-        Log::info('Total de actividades encontradas:', ['total' => $actividades->total()]);
-
-        return Inertia::render('Bitacora/Index', [
-            'actividades' => $actividades,
-            'filters'     => $filters,
-            'usuarios'    => $this->getUsuarios(),
-            'clientes'    => $this->getClientes(),
-            'tipos'       => self::TIPOS,
-            'estados'     => self::ESTADOS,
-        ]);
     }
 
     /**
@@ -219,6 +239,89 @@ class BitacoraActividadController extends Controller
             $inicio = Carbon::parse($data['inicio_at']);
             $data['fecha'] = $inicio->toDateString();
             $data['hora'] = $inicio->format('H:i');
+        }
+    }
+
+    // Exportar actividades a CSV
+    public function export(Request $request)
+    {
+        try {
+            $filters = $request->only(['q', 'usuario', 'cliente', 'desde', 'hasta', 'tipo', 'estado']);
+
+            $estadoSeleccionado = $filters['estado'] ?? '';
+            $estadosAMostrar = $this->determinarEstadosAMostrar($estadoSeleccionado);
+
+            $aplicarFiltroHoy = $this->debeAplicarFiltroHoy($filters);
+            [$desde, $hasta] = $this->validarFechas($filters['desde'] ?? null, $filters['hasta'] ?? null);
+
+            $query = BitacoraActividad::with(['usuario:id,name', 'cliente:id,nombre_razon_social'])
+                ->whereIn('estado', $estadosAMostrar);
+
+            if ($aplicarFiltroHoy) {
+                $query->soloHoyOMantenerEnProceso();
+            }
+
+            $query->rangoFechas($desde, $hasta)
+                ->deUsuario($filters['usuario'] ?? null)
+                ->deCliente($filters['cliente'] ?? null)
+                ->buscar($filters['q'] ?? null)
+                ->when($filters['tipo'] ?? null, fn($q, $v) => $q->where('tipo', $v));
+
+            $actividades = $query->orderByDesc('fecha')->orderByDesc('id')->get();
+
+            $filename = 'bitacora_actividades_' . date('Y-m-d_H-i-s') . '.csv';
+
+            $headers = [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            ];
+
+            $callback = function () use ($actividades) {
+                $file = fopen('php://output', 'w');
+                fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF)); // UTF-8 BOM
+
+                fputcsv($file, [
+                    'ID',
+                    'Título',
+                    'Usuario',
+                    'Cliente',
+                    'Tipo',
+                    'Estado',
+                    'Fecha',
+                    'Hora',
+                    'Ubicación',
+                    'Prioridad',
+                    'Es Facturable',
+                    'Costo MXN',
+                    'Fecha Creación'
+                ]);
+
+                foreach ($actividades as $actividad) {
+                    fputcsv($file, [
+                        $actividad->id,
+                        $actividad->titulo,
+                        $actividad->usuario?->name ?? 'N/A',
+                        $actividad->cliente?->nombre_razon_social ?? 'N/A',
+                        $actividad->tipo,
+                        $actividad->estado,
+                        $actividad->fecha?->format('d/m/Y'),
+                        $actividad->hora_fmt ?? 'N/A',
+                        $actividad->ubicacion ?? '',
+                        $actividad->prioridad ?? '',
+                        $actividad->es_facturable ? 'Sí' : 'No',
+                        $actividad->costo_mxn ?? 0,
+                        $actividad->created_at?->format('d/m/Y H:i:s')
+                    ]);
+                }
+                fclose($file);
+            };
+
+            Log::info('Exportación de actividades', ['total' => $actividades->count()]);
+
+            return response()->stream($callback, 200, $headers);
+        } catch (\Exception $e) {
+            Log::error('Error en exportación de actividades: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al exportar las actividades.');
         }
     }
 }

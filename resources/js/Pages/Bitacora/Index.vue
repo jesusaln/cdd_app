@@ -1,823 +1,759 @@
-<template>
-  <Head title="Bitácora de Actividades" />
-  <div class="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-indigo-50/30 py-8">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <!-- Header -->
-      <div class="mb-8">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-          <div class="mb-4 sm:mb-0">
-            <h1 class="text-3xl font-bold bg-gradient-to-r from-gray-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent tracking-tight">
-              Bitácora de Actividades
-            </h1>
-            <p class="mt-2 text-sm text-gray-600">Registra y consulta lo que hacen tus empleados día a día.</p>
-          </div>
-          <!-- Action Buttons -->
-          <div class="flex flex-col sm:flex-row gap-3">
-            <button
-              @click="toggleView"
-              class="group inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white/80 backdrop-blur-sm hover:bg-white hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-md"
-            >
-              <svg v-if="vistaTabla" class="w-4 h-4 mr-2 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
-              </svg>
-              <svg v-else class="w-4 h-4 mr-2 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
-              </svg>
-              {{ vistaTabla ? 'Vista Tarjetas' : 'Vista Tabla' }}
-            </button>
-            <Link
-              :href="route('bitacora.create')"
-              class="group inline-flex items-center px-6 py-2 bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 text-white text-sm font-medium rounded-lg hover:from-blue-700 hover:via-blue-800 hover:to-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 hover:scale-105"
-            >
-              <svg class="w-4 h-4 mr-2 transition-transform group-hover:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-              </svg>
-              Registrar Actividad
-            </Link>
-          </div>
-        </div>
 
-        <!-- Enhanced Filters with better mobile responsiveness -->
-        <div class="mt-6">
-          <!-- Mobile filter toggle -->
-          <div class="md:hidden mb-4">
-            <button
-              @click="mostrarFiltrosMobile = !mostrarFiltrosMobile"
-              class="w-full flex items-center justify-between px-4 py-2 bg-white/80 backdrop-blur-sm border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-white transition-all duration-200"
-            >
-              <span>Filtros</span>
-              <svg :class="['w-4 h-4 transition-transform', mostrarFiltrosMobile ? 'rotate-180' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-              </svg>
-            </button>
-          </div>
-
-          <Transition
-            enter-active-class="transition-all duration-300 ease-out"
-            enter-from-class="opacity-0 max-h-0"
-            enter-to-class="opacity-100 max-h-screen"
-            leave-active-class="transition-all duration-300 ease-in"
-            leave-from-class="opacity-100 max-h-screen"
-            leave-to-class="opacity-0 max-h-0"
-          >
-            <div v-show="mostrarFiltrosMobile || !isMobile" class="grid grid-cols-1 md:grid-cols-12 gap-4 overflow-hidden">
-              <!-- Search with enhanced styling -->
-              <div class="md:col-span-3 relative group">
-                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                </svg>
-                <input
-                  v-model="form.q"
-                  type="text"
-                  placeholder="Buscar por título, descripción o cliente..."
-                  @input="debounceSearch"
-                  class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:bg-white group-focus-within:shadow-lg"
-                >
-                <div v-if="loading && form.q" class="absolute right-3 top-1/2 -translate-y-1/2">
-                  <div class="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                </div>
-              </div>
-
-              <!-- Enhanced selects with consistent styling -->
-              <select
-                v-model="form.usuario"
-                @change="apply"
-                class="md:col-span-2 px-4 py-2.5 border border-gray-300 rounded-lg bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:bg-white hover:border-gray-400"
-              >
-                <option value="">Todos los empleados</option>
-                <option v-for="u in usuarios" :key="u.id" :value="u.id">{{ u.name }}</option>
-              </select>
-
-              <select
-                v-model="form.cliente"
-                @change="apply"
-                class="md:col-span-3 px-4 py-2.5 border border-gray-300 rounded-lg bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:bg-white hover:border-gray-400"
-              >
-                <option value="">Todos los clientes</option>
-                <option v-for="c in clientes" :key="c.id" :value="c.id">{{ c.nombre_razon_social }}</option>
-              </select>
-
-              <select
-                v-model="form.tipo"
-                @change="apply"
-                class="md:col-span-2 px-4 py-2.5 border border-gray-300 rounded-lg bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:bg-white hover:border-gray-400"
-              >
-                <option value="">Todos los tipos</option>
-                <option v-for="t in tipos" :key="t" :value="t">{{ t }}</option>
-              </select>
-
-              <select
-                v-model="form.estado"
-                @change="apply"
-                class="md:col-span-2 px-4 py-2.5 border border-gray-300 rounded-lg bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:bg-white hover:border-gray-400"
-              >
-                <option value="">Por defecto (pendientes + en proceso)</option>
-                <option value="todos">Ver todos los estados</option>
-                <option value="pendiente">Solo pendientes</option>
-                <option value="en_proceso">Solo en proceso</option>
-                <option value="completado">Solo completados</option>
-                <option value="cancelado">Solo cancelados</option>
-              </select>
-
-              <input
-                type="date"
-                v-model="form.desde"
-                @change="apply"
-                class="md:col-span-2 px-4 py-2.5 border border-gray-300 rounded-lg bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:bg-white hover:border-gray-400"
-              >
-
-              <input
-                type="date"
-                v-model="form.hasta"
-                @change="apply"
-                class="md:col-span-2 px-4 py-2.5 border border-gray-300 rounded-lg bg-white/80 backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:bg-white hover:border-gray-400"
-              >
-
-              <div class="md:col-span-2 flex gap-2">
-                <button
-                  @click="apply"
-                  :disabled="loading"
-                  class="flex-1 px-4 py-2.5 rounded-lg bg-gradient-to-r from-gray-900 to-gray-800 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:from-gray-800 hover:to-gray-700 transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-lg"
-                >
-                  <div v-if="loading" class="flex items-center justify-center">
-                    <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                    Filtrando...
-                  </div>
-                  <span v-else>Filtrar</span>
-                </button>
-                <button
-                  @click="limpiarFiltros"
-                  class="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 bg-white/80 backdrop-blur-sm text-gray-700 font-medium hover:bg-white hover:border-gray-400 transition-all duration-200 transform hover:-translate-y-0.5"
-                >
-                  Limpiar
-                </button>
-              </div>
-            </div>
-          </Transition>
-
-          <!-- Active filters display -->
-          <div v-if="tieneFiltros" class="mt-4 flex flex-wrap gap-2">
-            <span class="text-xs text-gray-500 mr-2">Filtros activos:</span>
-            <span v-if="form.q" class="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-md">
-              Búsqueda: "{{ form.q }}"
-              <button @click="form.q = ''; apply()" class="ml-1 hover:text-blue-900">×</button>
-            </span>
-            <span v-if="form.usuario" class="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 text-xs rounded-md">
-              Empleado: {{ usuarios.find(u => u.id == form.usuario)?.name }}
-              <button @click="form.usuario = ''; apply()" class="ml-1 hover:text-green-900">×</button>
-            </span>
-            <span v-if="form.cliente" class="inline-flex items-center px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-md">
-              Cliente: {{ clientes.find(c => c.id == form.cliente)?.nombre_razon_social }}
-              <button @click="form.cliente = ''; apply()" class="ml-1 hover:text-purple-900">×</button>
-            </span>
-            <!-- Add more filter chips as needed -->
-          </div>
-        </div>
-      </div>
-
-      <!-- Enhanced Stats Cards with animations -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div class="group bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-gray-200/50 p-6 hover:shadow-lg hover:bg-white transition-all duration-300 transform hover:-translate-y-1">
-          <div class="flex items-center">
-            <div class="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-              <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-            </div>
-            <div class="ml-4">
-              <p class="text-sm font-medium text-gray-600">Actividades (página)</p>
-              <p class="text-2xl font-bold text-gray-900 tabular-nums">{{ actividadesPagina }}</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="group bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-gray-200/50 p-6 hover:shadow-lg hover:bg-white transition-all duration-300 transform hover:-translate-y-1">
-          <div class="flex items-center">
-            <div class="w-12 h-12 bg-gradient-to-br from-green-100 to-green-200 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-              <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-            </div>
-            <div class="ml-4">
-              <p class="text-sm font-medium text-gray-600">Completadas</p>
-              <p class="text-2xl font-bold text-gray-900 tabular-nums">{{ completadasPagina }}</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="group bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-gray-200/50 p-6 hover:shadow-lg hover:bg-white transition-all duration-300 transform hover:-translate-y-1">
-          <div class="flex items-center">
-            <div class="w-12 h-12 bg-gradient-to-br from-purple-100 to-purple-200 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-              <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3"/></svg>
-            </div>
-            <div class="ml-4">
-              <p class="text-sm font-medium text-gray-600">Horas registradas</p>
-              <p class="text-2xl font-bold text-gray-900 tabular-nums">{{ horasRegistradasPagina }}</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="group bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-gray-200/50 p-6 hover:shadow-lg hover:bg-white transition-all duration-300 transform hover:-translate-y-1">
-          <div class="flex items-center">
-            <div class="w-12 h-12 bg-gradient-to-br from-orange-100 to-orange-200 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-              <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M9 20H4v-2a3 3 0 015.356-1.857M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-            </div>
-            <div class="ml-4">
-              <p class="text-sm font-medium text-gray-600">Clientes únicos</p>
-              <p class="text-2xl font-bold text-gray-900 tabular-nums">{{ clientesUnicosPagina }}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Content Area with enhanced transitions -->
-      <Transition
-        mode="out-in"
-        enter-active-class="transition-all duration-300 ease-out"
-        enter-from-class="opacity-0 translate-y-4"
-        enter-to-class="opacity-100 translate-y-0"
-        leave-active-class="transition-all duration-150 ease-in"
-        leave-from-class="opacity-100 translate-y-0"
-        leave-to-class="opacity-0 translate-y-4"
-      >
-        <div v-if="actividadesData.length > 0" class="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-gray-200/50 overflow-hidden hover:shadow-lg transition-all duration-300">
-          <!-- Enhanced Table View -->
-          <div v-if="vistaTabla" class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gradient-to-r from-gray-50 to-gray-100">
-                <tr>
-                  <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Fecha</th>
-                  <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Empleado</th>
-                  <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Cliente</th>
-                  <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Actividad</th>
-                  <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Tipo</th>
-                  <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Estado</th>
-                  <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Duración</th>
-                  <th class="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">Acciones</th>
-                </tr>
-              </thead>
-              <tbody class="bg-white divide-y divide-gray-100">
-                <tr
-                  v-for="(a, index) in actividadesData"
-                  :key="a.id"
-                  class="group hover:bg-blue-50/50 transition-all duration-200 hover:shadow-sm"
-                  :style="{ animationDelay: `${index * 50}ms` }"
-                >
-                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ formatDate(a.fecha) }}</td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ a.usuario?.name }}</td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ a.cliente?.nombre_razon_social || '—' }}</td>
-                  <td class="px-6 py-4 text-sm text-gray-900 font-medium">{{ a.titulo }}</td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 capitalize">{{ a.tipo }}</td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <span :class="['inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold', claseEstado(a.estado)]">
-                      {{ a.estado.replace('_', ' ') }}
-                    </span>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 tabular-nums">{{ formatearDuracion(a.inicio_at, a.fin_at) }}</td>
-                  <td class="px-6 py-4 whitespace-nowrap text-center">
-                    <div class="flex justify-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-                      <button
-                        @click="abrirModal(a)"
-                        class="inline-flex items-center p-2 text-blue-600 hover:text-blue-900 hover:bg-blue-100 rounded-lg transition-all duration-200 transform hover:scale-110"
-                        title="Ver detalles"
-                      >
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                        </svg>
-                      </button>
-                      <Link
-                        :href="route('bitacora.edit', a.id)"
-                        class="inline-flex items-center p-2 text-amber-600 hover:text-amber-900 hover:bg-amber-100 rounded-lg transition-all duration-200 transform hover:scale-110"
-                        title="Editar"
-                      >
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                        </svg>
-                      </Link>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Enhanced Card View with better animations -->
-          <div v-else class="p-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              <div
-                v-for="(a, index) in actividadesData"
-                :key="a.id"
-                class="group bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 hover:rotate-1 overflow-hidden"
-                :style="{ animationDelay: `${index * 100}ms` }"
-              >
-                <div class="p-5 relative">
-                  <!-- Subtle gradient overlay -->
-                  <div class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-blue-50/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
-
-                  <div class="relative z-10">
-                    <div class="flex items-start justify-between mb-3">
-                      <div class="flex-1 mr-3">
-                        <h3 class="text-lg font-semibold text-gray-900 group-hover:text-blue-900 transition-colors line-clamp-2">{{ a.titulo }}</h3>
-                        <p class="text-sm text-gray-600 mt-1">{{ formatDate(a.fecha) }} — {{ a.usuario?.name }}</p>
-                      </div>
-                      <span :class="['inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold capitalize transition-all duration-200 group-hover:scale-105', claseEstado(a.estado)]">
-                        {{ a.estado.replace('_', ' ') }}
-                      </span>
-                    </div>
-
-                    <div class="space-y-2 mb-4 text-sm">
-                      <div class="flex justify-between items-center">
-                        <span class="text-gray-600">Cliente:</span>
-                        <span class="font-medium text-gray-900 text-right flex-1 ml-2 truncate">{{ a.cliente?.nombre_razon_social || '—' }}</span>
-                      </div>
-                      <div class="flex justify-between">
-                        <span class="text-gray-600">Tipo:</span>
-                        <span class="font-medium text-gray-900 capitalize">{{ a.tipo }}</span>
-                      </div>
-                      <div class="flex justify-between">
-                        <span class="text-gray-600">Duración:</span>
-                        <span class="font-medium text-gray-900 tabular-nums">{{ formatearDuracion(a.inicio_at, a.fin_at) }}</span>
-                      </div>
-                    </div>
-
-                    <div class="flex gap-2">
-                      <button
-                        @click="abrirModal(a)"
-                        class="flex-1 bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 px-3 py-2 rounded-lg text-sm font-medium hover:from-blue-100 hover:to-blue-200 transition-all duration-200 transform hover:-translate-y-0.5"
-                      >
-                        Ver
-                      </button>
-                      <Link
-                        :href="route('bitacora.edit', a.id)"
-                        class="flex-1 bg-gradient-to-r from-amber-50 to-amber-100 text-amber-700 px-3 py-2 rounded-lg text-sm font-medium hover:from-amber-100 hover:to-amber-200 transition-all duration-200 transform hover:-translate-y-0.5 text-center"
-                      >
-                        Editar
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Enhanced Pagination -->
-          <div class="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-t border-gray-200 flex items-center justify-between text-sm">
-            <div class="text-gray-700">
-              Mostrando <span class="font-semibold">{{ actividades.from }}</span>-<span class="font-semibold">{{ actividades.to }}</span> de <span class="font-semibold">{{ actividades.total }}</span>
-            </div>
-            <div class="flex gap-1">
-              <Link
-                v-for="link in actividades.links"
-                :key="(link.url || '') + '-' + link.label"
-                :href="link.url || '#'"
-                v-html="link.label"
-                :class="[
-                  'px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 transform hover:-translate-y-0.5',
-                  link.active
-                    ? 'bg-gradient-to-r from-gray-900 to-gray-800 text-white shadow-md'
-                    : 'border border-gray-300 bg-white/80 text-gray-700 hover:bg-white hover:border-gray-400 hover:shadow-md'
-                ]"
-              />
-            </div>
-          </div>
-        </div>
-
-        <!-- Enhanced Empty State -->
-        <div v-else class="text-center py-16">
-          <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-gray-200/50 p-16 max-w-2xl mx-auto">
-            <div class="relative">
-              <div class="absolute inset-0 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 rounded-2xl transform rotate-1"></div>
-              <div class="relative bg-white rounded-2xl p-12">
-                <div class="mx-auto w-24 h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mb-6">
-                  <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                  </svg>
-                </div>
-                <h3 class="text-xl font-bold text-gray-900 mb-3">
-                  {{ tieneFiltros ? 'No se encontraron resultados' : 'No hay actividades registradas' }}
-                </h3>
-                <p class="text-gray-600 mb-8 max-w-md mx-auto leading-relaxed">
-                  {{ tieneFiltros
-                    ? 'No se encontraron actividades con los filtros aplicados. Intenta ajustar los criterios de búsqueda.'
-                    : 'Comienza registrando tu primera actividad para llevar un control detallado del trabajo diario.'
-                  }}
-                </p>
-                <div class="flex flex-col sm:flex-row gap-3 justify-center">
-                  <Link
-                    v-if="!tieneFiltros"
-                    :href="route('bitacora.create')"
-                    class="group inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 text-white text-sm font-semibold rounded-xl hover:from-blue-700 hover:via-blue-800 hover:to-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 hover:scale-105"
-                  >
-                    <svg class="w-5 h-5 mr-3 transition-transform group-hover:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                    </svg>
-                    Registrar Primera Actividad
-                  </Link>
-                  <button
-                    v-else
-                    @click="limpiarFiltros"
-                    class="inline-flex items-center px-8 py-4 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:from-gray-200 hover:to-gray-300 transition-all duration-300 transform hover:-translate-y-1 hover:scale-105"
-                  >
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                    </svg>
-                    Limpiar Filtros
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Transition>
-
-      <!-- Enhanced Modal with better animations and design -->
-      <Teleport to="body">
-        <Transition name="modal" appear>
-          <div
-            v-if="mostrarModalDetalles"
-            class="fixed inset-0 bg-black/60 backdrop-blur-md flex justify-center items-center z-50 p-4"
-            @click.self="cerrarModal"
-          >
-            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl transform transition-all duration-300 max-h-[90vh] overflow-hidden">
-              <!-- Modal Header -->
-              <div class="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 px-8 py-6 border-b border-gray-200">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <h3 class="text-2xl font-bold bg-gradient-to-r from-gray-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent">
-                      Detalle de Actividad
-                    </h3>
-                    <p class="text-sm text-gray-600 mt-1">{{ actividadSeleccionada?.titulo }}</p>
-                  </div>
-                  <button
-                    @click="cerrarModal"
-                    class="p-2 hover:bg-white/50 rounded-xl transition-all duration-200 transform hover:scale-110"
-                  >
-                    <svg class="w-6 h-6 text-gray-400 hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-
-              <!-- Modal Body -->
-              <div class="p-8 overflow-y-auto max-h-[calc(90vh-200px)]">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
-                  <!-- Left Column -->
-                  <div class="space-y-4">
-                    <div class="bg-gray-50 rounded-xl p-4">
-                      <span class="text-gray-500 text-xs uppercase tracking-wide font-semibold">Información Básica</span>
-                      <div class="mt-3 space-y-3">
-                        <div class="flex justify-between">
-                          <span class="text-gray-600">Fecha:</span>
-                          <span class="font-semibold text-gray-900">{{ formatDate(actividadSeleccionada?.fecha) }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                          <span class="text-gray-600">Hora:</span>
-                          <span class="font-semibold text-gray-900">{{ actividadSeleccionada?.hora || '—' }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                          <span class="text-gray-600">Empleado:</span>
-                          <span class="font-semibold text-gray-900">{{ actividadSeleccionada?.usuario?.name }}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div class="bg-blue-50 rounded-xl p-4">
-                      <span class="text-blue-600 text-xs uppercase tracking-wide font-semibold">Cliente y Proyecto</span>
-                      <div class="mt-3 space-y-3">
-                        <div class="flex justify-between">
-                          <span class="text-blue-700">Cliente:</span>
-                          <span class="font-semibold text-blue-900 text-right flex-1 ml-4">{{ actividadSeleccionada?.cliente?.nombre_razon_social || '—' }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                          <span class="text-blue-700">Tipo:</span>
-                          <span class="font-semibold text-blue-900 capitalize">{{ actividadSeleccionada?.tipo }}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Right Column -->
-                  <div class="space-y-4">
-                    <div class="bg-green-50 rounded-xl p-4">
-                      <span class="text-green-600 text-xs uppercase tracking-wide font-semibold">Estado y Progreso</span>
-                      <div class="mt-3 space-y-3">
-                        <div class="flex justify-between items-center">
-                          <span class="text-green-700">Estado:</span>
-                          <span :class="['font-semibold capitalize px-3 py-1 rounded-full text-xs', claseEstado(actividadSeleccionada?.estado)]">
-                            {{ actividadSeleccionada?.estado?.replace('_', ' ') }}
-                          </span>
-                        </div>
-                        <div class="flex justify-between">
-                          <span class="text-green-700">Duración:</span>
-                          <span class="font-bold text-green-900 tabular-nums text-lg">{{ formatearDuracion(actividadSeleccionada?.inicio_at, actividadSeleccionada?.fin_at) }}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div class="bg-purple-50 rounded-xl p-4">
-                      <span class="text-purple-600 text-xs uppercase tracking-wide font-semibold">Ubicación</span>
-                      <div class="mt-3">
-                        <p class="text-purple-900 font-medium">{{ actividadSeleccionada?.ubicacion || 'No especificada' }}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Full Width Description -->
-                  <div class="md:col-span-2 bg-gray-50 rounded-xl p-4">
-                    <span class="text-gray-600 text-xs uppercase tracking-wide font-semibold">Descripción de la Actividad</span>
-                    <div class="mt-3">
-                      <p class="text-gray-900 leading-relaxed whitespace-pre-line">
-                        {{ actividadSeleccionada?.descripcion || 'Sin descripción proporcionada.' }}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Modal Footer -->
-              <div class="bg-gray-50 px-8 py-6 border-t border-gray-200 flex justify-end gap-3">
-                <button
-                  @click="cerrarModal"
-                  class="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 transform hover:-translate-y-0.5 font-medium"
-                >
-                  Cerrar
-                </button>
-                <Link
-                  :href="route('bitacora.edit', actividadSeleccionada?.id)"
-                  class="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 transform hover:-translate-y-0.5 font-medium shadow-lg hover:shadow-xl"
-                >
-                  Editar Actividad
-                </Link>
-              </div>
-            </div>
-          </div>
-        </Transition>
-      </Teleport>
-    </div>
-  </div>
-</template>
-
+<!-- /resources/js/Pages/Bitacora/IndexNew.vue -->
 <script setup>
-import { Head, Link, router } from '@inertiajs/vue3'
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { Head, router, usePage, Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import { Notyf } from 'notyf'
+import 'notyf/notyf.min.css'
+
 defineOptions({ layout: AppLayout })
 
+// Notificaciones
+const notyf = new Notyf({
+  duration: 4000,
+  position: { x: 'right', y: 'top' },
+  types: [
+    { type: 'success', background: '#10b981', icon: false },
+    { type: 'error', background: '#ef4444', icon: false },
+    { type: 'warning', background: '#f59e0b', icon: false }
+  ]
+})
+
+const page = usePage()
+onMounted(() => {
+  const flash = page.props.flash
+  if (flash?.success) notyf.success(flash.success)
+  if (flash?.error) notyf.error(flash.error)
+})
+
+// Props
 const props = defineProps({
-  actividades: { type: Object, required: true },
+  actividades: { type: [Object, Array], required: true },
+  stats: { type: Object, default: () => ({}) },
   filters: { type: Object, default: () => ({}) },
+  sorting: { type: Object, default: () => ({ sort_by: 'fecha', sort_direction: 'desc' }) },
   usuarios: { type: Array, default: () => [] },
   clientes: { type: Array, default: () => [] },
   tipos: { type: Array, default: () => [] },
   estados: { type: Array, default: () => [] },
 })
 
-// Responsive utilities
-const isMobile = ref(false)
-const mostrarFiltrosMobile = ref(false)
+// Estado UI
+const showModal = ref(false)
+const modalMode = ref('details')
+const selectedActividad = ref(null)
+const selectedId = ref(null)
 
-const checkMobile = () => {
-  isMobile.value = window.innerWidth < 768
-  if (!isMobile.value) mostrarFiltrosMobile.value = false
+// Filtros
+const searchTerm = ref(props.filters?.q ?? '')
+const sortBy = ref('fecha-desc')
+const filtroEstado = ref(props.filters?.estado ?? '')
+const filtroTipo = ref(props.filters?.tipo ?? '')
+const filtroUsuario = ref(props.filters?.usuario ?? '')
+const filtroCliente = ref(props.filters?.cliente ?? '')
+const filtroDesde = ref(props.filters?.desde ?? '')
+const filtroHasta = ref(props.filters?.hasta ?? '')
+
+// Paginación
+const perPage = ref(15)
+
+// Header config
+const headerConfig = {
+  module: 'bitacora',
+  createButtonText: 'Nueva Actividad',
+  searchPlaceholder: 'Buscar por título, descripción o cliente...'
 }
 
-onMounted(() => {
-  checkMobile()
-  window.addEventListener('resize', checkMobile)
+// Datos
+const actividadesPaginator = computed(() => props.actividades)
+const actividadesData = computed(() => actividadesPaginator.value?.data || [])
+
+// Estadísticas
+const estadisticas = computed(() => ({
+  total: props.stats?.total ?? 0,
+  pendientes: props.stats?.pendientes ?? 0,
+  en_proceso: props.stats?.en_proceso ?? 0,
+  completados: props.stats?.completados ?? 0,
+  cancelados: props.stats?.cancelados ?? 0,
+  costo_total_mes: props.stats?.costo_total_mes ?? 0,
+  actividades_mes: props.stats?.actividades_mes ?? 0,
+  pendientesPorcentaje: props.stats?.pendientes > 0 ? Math.round((props.stats.pendientes / props.stats.total) * 100) : 0,
+  enProcesoPorcentaje: props.stats?.en_proceso > 0 ? Math.round((props.stats.en_proceso / props.stats.total) * 100) : 0,
+  completadosPorcentaje: props.stats?.completados > 0 ? Math.round((props.stats.completados / props.stats.total) * 100) : 0,
+  canceladosPorcentaje: props.stats?.cancelados > 0 ? Math.round((props.stats.cancelados / props.stats.total) * 100) : 0
+}))
+
+// Transformación de datos
+const actividadesDocumentos = computed(() => {
+  return actividadesData.value.map(a => ({
+    id: a.id,
+    titulo: a.titulo || 'Sin título',
+    subtitulo: a.descripcion ? a.descripcion.substring(0, 50) + (a.descripcion.length > 50 ? '...' : '') : 'Sin descripción',
+    estado: a.estado || 'pendiente',
+    extra: `Cliente: ${a.cliente ? a.cliente.nombre_razon_social : 'N/A'} | Usuario: ${a.usuario ? a.usuario.name : 'N/A'} | Tipo: ${a.tipo || 'N/A'}`,
+    fecha: a.fecha,
+    raw: a
+  }))
 })
 
-onUnmounted(() => {
-  window.removeEventListener('resize', checkMobile)
-})
-
-// Date formatting with better error handling
-function formatDate(dateString) {
-  if (!dateString) return '—'
-  try {
-    const date = new Date(dateString)
-    if (isNaN(date.getTime())) return '—'
-    return date.toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      weekday: 'short'
-    })
-  } catch (error) {
-    return '—'
-  }
-}
-
-const vistaTabla = ref(true)
-const form = ref({
-  q: props.filters?.q ?? '',
-  usuario: props.filters?.usuario ?? '',
-  cliente: props.filters?.cliente ?? '',
-  desde: props.filters?.desde ?? '',
-  hasta: props.filters?.hasta ?? '',
-  tipo: props.filters?.tipo ?? '',
-  estado: props.filters?.estado ?? '',
-})
-
-const loading = ref(false)
-
-// Enhanced debounce with loading state
-let timeoutId = null
-function debounceSearch() {
-  loading.value = true
-  clearTimeout(timeoutId)
-  timeoutId = setTimeout(() => {
-    apply()
-  }, 300) // Reduced delay for better UX
-}
-
-// Watcher for programmatic filter changes
-watch(() => form.value, (newValue, oldValue) => {
-  if (oldValue && JSON.stringify(newValue) !== JSON.stringify(oldValue)) {
-    const hasTextSearchChanged = newValue.q !== oldValue.q
-    if (!hasTextSearchChanged) {
-      apply()
-    }
-  }
-}, { deep: true })
-
-// Computed properties with memoization
-const actividadesData = computed(() => props.actividades?.data ?? [])
-const actividadesPagina = computed(() => actividadesData.value.length)
-const completadasPagina = computed(() => actividadesData.value.filter(a => a.estado === 'completado').length)
-const clientesUnicosPagina = computed(() => new Set(actividadesData.value.map(a => a.cliente?.id).filter(Boolean)).size)
-const horasRegistradasPagina = computed(() => {
-  const mins = actividadesData.value.reduce((acc, a) => acc + diffMinutos(a.inicio_at, a.fin_at), 0)
-  const horas = (mins / 60)
-  return horas.toFixed(1)
-})
-
-const tieneFiltros = computed(() => {
-  const { q, usuario, cliente, desde, hasta, tipo, estado } = form.value
-  return !!(q || usuario || cliente || desde || hasta || tipo || estado)
-})
-
-function toggleView() {
-  vistaTabla.value = !vistaTabla.value
-  // Close mobile filters when switching views
-  if (isMobile.value) mostrarFiltrosMobile.value = false
-}
-
-function apply() {
-  loading.value = true
+// Handlers
+function handleSearchChange(newSearch) {
+  searchTerm.value = newSearch
   router.get(route('bitacora.index'), {
-    ...form.value,
+    q: newSearch,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc',
+    estado: filtroEstado.value,
+    tipo: filtroTipo.value,
+    usuario: filtroUsuario.value,
+    cliente: filtroCliente.value,
+    desde: filtroDesde.value,
+    hasta: filtroHasta.value,
+    per_page: perPage.value,
     page: 1
-  }, {
-    preserveState: true,
-    replace: true,
-    onFinish: () => {
-      loading.value = false
+  }, { preserveState: true, preserveScroll: true })
+}
+
+function handleEstadoChange(newEstado) {
+  filtroEstado.value = newEstado
+  router.get(route('bitacora.index'), {
+    q: searchTerm.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc',
+    estado: newEstado,
+    tipo: filtroTipo.value,
+    usuario: filtroUsuario.value,
+    cliente: filtroCliente.value,
+    desde: filtroDesde.value,
+    hasta: filtroHasta.value,
+    per_page: perPage.value,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+function handleTipoChange(newTipo) {
+  filtroTipo.value = newTipo
+  router.get(route('bitacora.index'), {
+    q: searchTerm.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc',
+    estado: filtroEstado.value,
+    tipo: newTipo,
+    usuario: filtroUsuario.value,
+    cliente: filtroCliente.value,
+    desde: filtroDesde.value,
+    hasta: filtroHasta.value,
+    per_page: perPage.value,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+function handleUsuarioChange(newUsuario) {
+  filtroUsuario.value = newUsuario
+  router.get(route('bitacora.index'), {
+    q: searchTerm.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc',
+    estado: filtroEstado.value,
+    tipo: filtroTipo.value,
+    usuario: newUsuario,
+    cliente: filtroCliente.value,
+    desde: filtroDesde.value,
+    hasta: filtroHasta.value,
+    per_page: perPage.value,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+function handleClienteChange(newCliente) {
+  filtroCliente.value = newCliente
+  router.get(route('bitacora.index'), {
+    q: searchTerm.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc',
+    estado: filtroEstado.value,
+    tipo: filtroTipo.value,
+    usuario: filtroUsuario.value,
+    cliente: newCliente,
+    desde: filtroDesde.value,
+    hasta: filtroHasta.value,
+    per_page: perPage.value,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+function handleDesdeChange(newDesde) {
+  filtroDesde.value = newDesde
+  router.get(route('bitacora.index'), {
+    q: searchTerm.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc',
+    estado: filtroEstado.value,
+    tipo: filtroTipo.value,
+    usuario: filtroUsuario.value,
+    cliente: filtroCliente.value,
+    desde: newDesde,
+    hasta: filtroHasta.value,
+    per_page: perPage.value,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+function handleHastaChange(newHasta) {
+  filtroHasta.value = newHasta
+  router.get(route('bitacora.index'), {
+    q: searchTerm.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc',
+    estado: filtroEstado.value,
+    tipo: filtroTipo.value,
+    usuario: filtroUsuario.value,
+    cliente: filtroCliente.value,
+    desde: filtroDesde.value,
+    hasta: newHasta,
+    per_page: perPage.value,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+function handleSortChange(newSort) {
+  sortBy.value = newSort
+  router.get(route('bitacora.index'), {
+    q: searchTerm.value,
+    sort_by: newSort.split('-')[0],
+    sort_direction: newSort.split('-')[1] || 'desc',
+    estado: filtroEstado.value,
+    tipo: filtroTipo.value,
+    usuario: filtroUsuario.value,
+    cliente: filtroCliente.value,
+    desde: filtroDesde.value,
+    hasta: filtroHasta.value,
+    per_page: perPage.value,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+const verDetalles = (doc) => {
+  selectedActividad.value = doc.raw
+  modalMode.value = 'details'
+  showModal.value = true
+}
+
+const editarActividad = (id) => {
+  router.visit(route('bitacora.edit', id))
+}
+
+const confirmarEliminacion = (id) => {
+  selectedId.value = id
+  modalMode.value = 'confirm'
+  showModal.value = true
+}
+
+const eliminarActividad = () => {
+  router.delete(route('bitacora.destroy', selectedId.value), {
+    preserveScroll: true,
+    onSuccess: () => {
+      notyf.success('Actividad eliminada correctamente')
+      showModal.value = false
+      selectedId.value = null
+      router.reload()
+    },
+    onError: (errors) => {
+      notyf.error('No se pudo eliminar la actividad')
     }
   })
 }
 
-function limpiarFiltros() {
-  form.value = { q: '', usuario: '', cliente: '', desde: '', hasta: '', tipo: '', estado: '' }
-  mostrarFiltrosMobile.value = false
-  apply()
+const exportActividades = () => {
+  const params = new URLSearchParams()
+  if (searchTerm.value) params.append('q', searchTerm.value)
+  if (filtroEstado.value) params.append('estado', filtroEstado.value)
+  if (filtroTipo.value) params.append('tipo', filtroTipo.value)
+  if (filtroUsuario.value) params.append('usuario', filtroUsuario.value)
+  if (filtroCliente.value) params.append('cliente', filtroCliente.value)
+  if (filtroDesde.value) params.append('desde', filtroDesde.value)
+  if (filtroHasta.value) params.append('hasta', filtroHasta.value)
+  const queryString = params.toString()
+  const url = route('bitacora.export') + (queryString ? `?${queryString}` : '')
+  window.location.href = url
 }
 
-// Enhanced status styling
-function claseEstado(est) {
-  const statusClasses = {
-    'completado': 'bg-gradient-to-r from-green-100 to-green-200 text-green-800 border border-green-200',
-    'en_proceso': 'bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 border border-blue-200',
-    'pendiente': 'bg-gradient-to-r from-yellow-100 to-amber-200 text-yellow-800 border border-yellow-200',
-    'cancelado': 'bg-gradient-to-r from-red-100 to-red-200 text-red-800 border border-red-200'
-  }
-  return statusClasses[est] || 'bg-gray-100 text-gray-800 border border-gray-200'
+// Paginación
+const paginationData = computed(() => ({
+  current_page: actividadesPaginator.value?.current_page || 1,
+  last_page: actividadesPaginator.value?.last_page || 1,
+  per_page: actividadesPaginator.value?.per_page || 15,
+  from: actividadesPaginator.value?.from || 0,
+  to: actividadesPaginator.value?.to || 0,
+  total: actividadesPaginator.value?.total || 0,
+  prev_page_url: actividadesPaginator.value?.prev_page_url,
+  next_page_url: actividadesPaginator.value?.next_page_url,
+  links: actividadesPaginator.value?.links || []
+}))
+
+const handlePerPageChange = (newPerPage) => {
+  router.get(route('bitacora.index'), {
+    ...props.filters,
+    ...props.sorting,
+    per_page: newPerPage,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
 }
 
-// Time utilities with better error handling
-function diffMinutos(inicio, fin) {
-  if (!inicio || !fin) return 0
+const handlePageChange = (newPage) => {
+  router.get(route('bitacora.index'), {
+    ...props.filters,
+    ...props.sorting,
+    page: newPage
+  }, { preserveState: true, preserveScroll: true })
+}
+
+// Helpers
+const formatNumber = (num) => new Intl.NumberFormat('es-ES').format(num)
+const formatearFecha = (date) => {
+  if (!date) return 'Fecha no disponible'
   try {
-    const i = new Date(inicio)
-    const f = new Date(fin)
-    const ms = f - i
-    if (isNaN(ms) || ms < 0) return 0
-    return Math.round(ms / 60000)
-  } catch (error) {
-    return 0
+    const d = new Date(date)
+    return d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  } catch {
+    return 'Fecha inválida'
   }
 }
 
-function formatearDuracion(inicio, fin) {
-  const m = diffMinutos(inicio, fin)
-  if (!m) return '—'
-  const h = Math.floor(m / 60)
-  const mm = m % 60
-  if (h === 0) return `${mm}min`
-  if (mm === 0) return `${h}h`
-  return `${h}h ${mm}min`
-}
-
-// Enhanced modal functionality
-const mostrarModalDetalles = ref(false)
-const actividadSeleccionada = ref(null)
-
-function abrirModal(a) {
-  actividadSeleccionada.value = a
-  mostrarModalDetalles.value = true
-  // Prevent body scroll when modal is open
-  document.body.style.overflow = 'hidden'
-}
-
-function cerrarModal() {
-  actividadSeleccionada.value = null
-  mostrarModalDetalles.value = false
-  // Restore body scroll
-  document.body.style.overflow = 'auto'
-}
-
-// Keyboard navigation for modal
-onMounted(() => {
-  const handleKeydown = (e) => {
-    if (e.key === 'Escape' && mostrarModalDetalles.value) {
-      cerrarModal()
-    }
+const obtenerClasesEstado = (estado) => {
+  const clases = {
+    'pendiente': 'bg-yellow-100 text-yellow-700',
+    'en_proceso': 'bg-blue-100 text-blue-700',
+    'completado': 'bg-green-100 text-green-700',
+    'cancelado': 'bg-red-100 text-red-700'
   }
-  document.addEventListener('keydown', handleKeydown)
+  return clases[estado] || 'bg-gray-100 text-gray-700'
+}
 
-  onUnmounted(() => {
-    document.removeEventListener('keydown', handleKeydown)
-    document.body.style.overflow = 'auto' // Ensure cleanup
-  })
-})
+const obtenerLabelEstado = (estado) => {
+  const labels = {
+    'pendiente': 'Pendiente',
+    'en_proceso': 'En Proceso',
+    'completado': 'Completado',
+    'cancelado': 'Cancelado'
+  }
+  return labels[estado] || 'Pendiente'
+}
 </script>
 
-<style scoped>
-/* Enhanced transitions for modals */
-.modal-enter-active, .modal-leave-active {
-  transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-}
-.modal-enter-from, .modal-leave-to {
-  opacity: 0;
-  transform: scale(0.9) translateY(-20px);
-}
+<template>
+  <Head title="Bitácora de Actividades" />
+  <div class="bitacora-index min-h-screen bg-gray-50">
+    <div class="max-w-8xl mx-auto px-6 py-8">
+      <!-- Header -->
+      <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-8 mb-6">
+        <div class="flex flex-col lg:flex-row gap-8 items-start lg:items-center justify-between">
+          <!-- Izquierda -->
+          <div class="flex flex-col gap-6 w-full lg:w-auto">
+            <div class="flex items-center gap-3">
+              <h1 class="text-2xl font-bold text-slate-900">Bitácora de Actividades</h1>
+            </div>
 
-/* Improved scrollbar styling */
-.overflow-x-auto::-webkit-scrollbar {
-  height: 6px;
-}
-.overflow-x-auto::-webkit-scrollbar-track {
-  background: #f8fafc;
-  border-radius: 3px;
-}
-.overflow-x-auto::-webkit-scrollbar-thumb {
-  background: linear-gradient(90deg, #cbd5e1, #94a3b8);
-  border-radius: 3px;
-}
-.overflow-x-auto::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(90deg, #94a3b8, #64748b);
-}
+            <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+              <Link
+                :href="route('bitacora.create')"
+                class="inline-flex items-center gap-2.5 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>{{ headerConfig.createButtonText }}</span>
+              </Link>
 
-/* Subtle animations for cards */
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+              <button
+                @click="exportActividades"
+                class="inline-flex items-center gap-2 px-4 py-3 bg-green-50 text-green-700 rounded-xl hover:bg-green-100 transition-all duration-200 border border-green-200"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                </svg>
+                <span class="text-sm font-medium">Exportar</span>
+              </button>
+            </div>
 
-.group:hover .group-hover\:animate-pulse {
-  animation: pulse 2s infinite;
-}
+            <!-- Estadísticas con barras de progreso -->
+            <div class="flex flex-wrap items-center gap-4 text-sm">
+              <div class="flex items-center gap-2 px-4 py-3 bg-slate-50 rounded-xl border border-slate-200">
+                <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span class="font-medium text-slate-700">Total:</span>
+                <span class="font-bold text-slate-900 text-lg">{{ formatNumber(estadisticas.total) }}</span>
+              </div>
 
-/* Line clamp utility */
-.line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
+              <div class="flex items-center gap-2 px-4 py-3 bg-yellow-50 rounded-xl border border-yellow-200">
+                <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span class="font-medium text-slate-700">Pendientes:</span>
+                <span class="font-bold text-yellow-700 text-lg">{{ formatNumber(estadisticas.pendientes) }}</span>
+                <div class="ml-2 flex items-center gap-2">
+                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      class="h-full bg-yellow-500 transition-all duration-300"
+                      :style="{ width: estadisticas.pendientesPorcentaje + '%' }"
+                    ></div>
+                  </div>
+                  <span class="text-xs text-yellow-600 font-medium">{{ estadisticas.pendientesPorcentaje }}%</span>
+                </div>
+              </div>
 
-/* Smooth focus transitions */
-input:focus, select:focus, button:focus {
-  outline: none;
-  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
-}
+              <div class="flex items-center gap-2 px-4 py-3 bg-blue-50 rounded-xl border border-blue-200">
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                <span class="font-medium text-slate-700">En Proceso:</span>
+                <span class="font-bold text-blue-700 text-lg">{{ formatNumber(estadisticas.en_proceso) }}</span>
+                <div class="ml-2 flex items-center gap-2">
+                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      class="h-full bg-blue-500 transition-all duration-300"
+                      :style="{ width: estadisticas.enProcesoPorcentaje + '%' }"
+                    ></div>
+                  </div>
+                  <span class="text-xs text-blue-600 font-medium">{{ estadisticas.enProcesoPorcentaje }}%</span>
+                </div>
+              </div>
 
-/* Enhanced backdrop blur support */
-@supports (backdrop-filter: blur(12px)) {
-  .backdrop-blur-sm {
-    backdrop-filter: blur(12px);
-  }
-  .backdrop-blur-md {
-    backdrop-filter: blur(16px);
-  }
-}
+              <div class="flex items-center gap-2 px-4 py-3 bg-green-50 rounded-xl border border-green-200">
+                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span class="font-medium text-slate-700">Completados:</span>
+                <span class="font-bold text-green-700 text-lg">{{ formatNumber(estadisticas.completados) }}</span>
+                <div class="ml-2 flex items-center gap-2">
+                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      class="h-full bg-green-500 transition-all duration-300"
+                      :style="{ width: estadisticas.completadosPorcentaje + '%' }"
+                    ></div>
+                  </div>
+                  <span class="text-xs text-green-600 font-medium">{{ estadisticas.completadosPorcentaje }}%</span>
+                </div>
+              </div>
+            </div>
+          </div>
 
-/* Tabular numbers for consistent alignment */
-.tabular-nums {
-  font-feature-settings: "tnum";
-  font-variant-numeric: tabular-nums;
-}
-</style>
+          <!-- Derecha: Filtros -->
+          <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto lg:flex-shrink-0">
+            <!-- Búsqueda -->
+            <div class="relative">
+              <input
+                v-model="searchTerm"
+                @input="handleSearchChange($event.target.value)"
+                type="text"
+                :placeholder="headerConfig.searchPlaceholder"
+                class="w-full sm:w-64 lg:w-80 pl-4 pr-10 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+              />
+              <svg class="absolute right-3 top-3.5 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+
+            <!-- Estado -->
+            <select
+              v-model="filtroEstado"
+              @change="handleEstadoChange($event.target.value)"
+              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+            >
+              <option value="">Todos los Estados</option>
+              <option value="pendiente">Pendiente</option>
+              <option value="en_proceso">En Proceso</option>
+              <option value="completado">Completado</option>
+              <option value="cancelado">Cancelado</option>
+            </select>
+
+            <!-- Tipo -->
+            <select
+              v-model="filtroTipo"
+              @change="handleTipoChange($event.target.value)"
+              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+            >
+              <option value="">Todos los Tipos</option>
+              <option v-for="tipo in tipos" :key="tipo" :value="tipo">{{ tipo }}</option>
+            </select>
+
+            <!-- Usuario -->
+            <select
+              v-model="filtroUsuario"
+              @change="handleUsuarioChange($event.target.value)"
+              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+            >
+              <option value="">Todos los Usuarios</option>
+              <option v-for="usuario in usuarios" :key="usuario.id" :value="usuario.id">{{ usuario.name }}</option>
+            </select>
+
+            <!-- Cliente -->
+            <select
+              v-model="filtroCliente"
+              @change="handleClienteChange($event.target.value)"
+              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+            >
+              <option value="">Todos los Clientes</option>
+              <option v-for="cliente in clientes" :key="cliente.id" :value="cliente.id">{{ cliente.nombre_razon_social }}</option>
+            </select>
+
+            <!-- Desde -->
+            <input
+              v-model="filtroDesde"
+              @change="handleDesdeChange($event.target.value)"
+              type="date"
+              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+              placeholder="Desde"
+            />
+
+            <!-- Hasta -->
+            <input
+              v-model="filtroHasta"
+              @change="handleHastaChange($event.target.value)"
+              type="date"
+              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+              placeholder="Hasta"
+            />
+
+            <!-- Orden -->
+            <select
+              v-model="sortBy"
+              @change="handleSortChange($event.target.value)"
+              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+            >
+              <option value="fecha-desc">Fecha Más Reciente</option>
+              <option value="fecha-asc">Fecha Más Antigua</option>
+              <option value="titulo-asc">Título A-Z</option>
+              <option value="titulo-desc">Título Z-A</option>
+              <option value="estado-asc">Estado A-Z</option>
+              <option value="estado-desc">Estado Z-A</option>
+              <option value="created_at-desc">Creado Más Reciente</option>
+              <option value="created_at-asc">Creado Más Antiguo</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabla -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Fecha</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Título</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Cliente</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Usuario</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Tipo</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Estado</th>
+                <th class="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Acciones</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <tr v-for="actividad in actividadesDocumentos" :key="actividad.id" class="hover:bg-gray-50 transition-colors duration-150">
+                <td class="px-6 py-4">
+                  <div class="text-sm text-gray-900">{{ formatearFecha(actividad.fecha) }}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="text-sm font-medium text-gray-900">{{ actividad.titulo }}</div>
+                  <div class="text-sm text-gray-500 max-w-xs truncate">{{ actividad.subtitulo }}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="text-sm text-gray-700">{{ actividad.raw.cliente?.nombre_razon_social || 'N/A' }}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="text-sm text-gray-700">{{ actividad.raw.usuario?.name || 'N/A' }}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="text-sm text-gray-700">{{ actividad.raw.tipo || 'N/A' }}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <span :class="obtenerClasesEstado(actividad.estado)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                    {{ obtenerLabelEstado(actividad.estado) }}
+                  </span>
+                </td>
+                <td class="px-6 py-4 text-right">
+                  <div class="flex items-center justify-end space-x-1">
+                    <button @click="verDetalles(actividad)" class="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors duration-150" title="Ver detalles">
+                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    </button>
+                    <button @click="editarActividad(actividad.id)" class="w-8 h-8 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-colors duration-150" title="Editar">
+                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button @click="confirmarEliminacion(actividad.id)" class="w-8 h-8 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors duration-150" title="Eliminar">
+                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="actividadesDocumentos.length === 0">
+                <td colspan="7" class="px-6 py-16 text-center">
+                  <div class="flex flex-col items-center space-y-4">
+                    <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                      <svg class="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <div class="space-y-1">
+                      <p class="text-gray-700 font-medium">No hay actividades</p>
+                      <p class="text-sm text-gray-500">Las actividades aparecerán aquí cuando se creen</p>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Paginación -->
+        <div v-if="paginationData.lastPage > 1" class="bg-white border-t border-gray-200 px-4 py-3 sm:px-6">
+          <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+              <p class="text-sm text-gray-700">
+                Mostrando {{ paginationData.from }} - {{ paginationData.to }} de {{ paginationData.total }} resultados
+              </p>
+              <select
+                :value="paginationData.perPage"
+                @change="handlePerPageChange(parseInt($event.target.value))"
+                class="border border-gray-300 rounded-md text-sm py-1 px-2 bg-white"
+              >
+                <option value="10">10</option>
+                <option value="15">15</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+              </select>
+            </div>
+
+            <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+              <button
+                v-if="paginationData.prevPageUrl"
+                @click="handlePageChange(paginationData.currentPage - 1)"
+                class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+              >
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+              </button>
+
+              <span v-else class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-gray-100 text-sm font-medium text-gray-400">
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+              </span>
+
+              <button
+                v-for="page in [paginationData.currentPage - 1, paginationData.currentPage, paginationData.currentPage + 1].filter(p => p > 0 && p <= paginationData.lastPage)"
+                :key="page"
+                @click="handlePageChange(page)"
+                :class="page === paginationData.currentPage ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'"
+                class="relative inline-flex items-center px-4 py-2 border text-sm font-medium"
+              >
+                {{ page }}
+              </button>
+
+              <button
+                v-if="paginationData.nextPageUrl"
+                @click="handlePageChange(paginationData.currentPage + 1)"
+                class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+              >
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                </svg>
+              </button>
+
+              <span v-else class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-gray-100 text-sm font-medium text-gray-400">
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                </svg>
+              </span>
+            </nav>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal mejorado -->
+      <div v-if="showModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="showModal = false">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <!-- Header del modal -->
+          <div class="flex items-center justify-between p-6 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">
+              {{ modalMode === 'details' ? 'Detalles de la Actividad' : 'Confirmar Eliminación' }}
+            </h3>
+            <button @click="showModal = false" class="text-gray-400 hover:text-gray-600 transition-colors">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="p-6">
+            <div v-if="modalMode === 'details' && selectedActividad">
+              <div class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div class="space-y-3">
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Título</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedActividad.titulo }}</p>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Tipo</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedActividad.tipo }}</p>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Fecha</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ formatearFecha(selectedActividad.fecha) }}</p>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Estado</label>
+                      <span :class="obtenerClasesEstado(selectedActividad.estado)" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium mt-1">
+                        {{ obtenerLabelEstado(selectedActividad.estado) }}
+                      </span>
+                    </div>
+                  </div>
+                  <div class="space-y-3">
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Cliente</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedActividad.cliente?.nombre_razon_social || 'N/A' }}</p>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Usuario</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedActividad.usuario?.name || 'N/A' }}</p>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Ubicación</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedActividad.ubicacion || 'N/A' }}</p>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Costo</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">${{ formatNumber(selectedActividad.costo_mxn || 0) }}</p>
+                    </div>
+                  </div>
+                </div>
+                <div v-if="selectedActividad.descripcion">
+                  <label class="block text-sm font-medium text-gray-700">Descripción</label>
+                  <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md whitespace-pre-wrap">{{ selectedActividad.descripcion }}</p>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="modalMode === 'confirm'">
+              <div class="text-center">
+                <div class="w-12 h-12 mx-auto bg-red-100 rounded-full flex items-center justify-center mb-4">
+                  <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                  </svg>
+                </div>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">¿Eliminar Actividad?</h3>
+                <p class="text-sm text-gray-500 mb-4">
+                  ¿Estás seguro de que deseas eliminar la actividad <strong>{{ selectedActividad?.titulo }}</strong>?
+                  Esta acción no se puede deshacer.
+                </p>

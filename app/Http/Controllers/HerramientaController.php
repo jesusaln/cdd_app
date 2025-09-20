@@ -43,8 +43,9 @@ class HerramientaController extends Controller
             }
         }
 
-        // Para paginación del lado del cliente, enviamos TODAS las herramientas
-        $herramientas = $query->orderBy('created_at', 'desc')->get();
+        // Paginación del lado del servidor
+        $perPage = min((int) $request->input('per_page', 10), 50);
+        $herramientas = $query->orderBy('created_at', 'desc')->paginate($perPage)->appends($request->query());
 
         // Estadísticas
         $totalHerramientas = Herramienta::count();
@@ -54,20 +55,11 @@ class HerramientaController extends Controller
         $tecnicos = Tecnico::select('id', 'nombre', 'apellido')->get();
 
         return Inertia::render('Herramientas/Index', [
-            'titulo' => 'Herramientas',
             'herramientas' => $herramientas,
             'stats' => [
                 'total' => $totalHerramientas,
                 'asignadas' => $herramientasAsignadas,
                 'sin_asignar' => $herramientasSinAsignar,
-            ],
-            'catalogs' => [
-                'tecnicos' => $tecnicos->map(function ($tecnico) {
-                    return [
-                        'value' => $tecnico->id,
-                        'label' => $tecnico->nombre . ' ' . $tecnico->apellido,
-                    ];
-                }),
             ],
             'filters' => $request->only(['search', 'filtro_estado']),
             'sorting' => ['sort_by' => 'created_at', 'sort_direction' => 'desc'],

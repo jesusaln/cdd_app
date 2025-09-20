@@ -1,601 +1,648 @@
-<template>
-    <Head title="Gestión de Carros" />
-
-    <div class="min-h-screen bg-gray-50 py-8">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <!-- Header Section -->
-            <div class="mb-8">
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                    <div class="mb-4 sm:mb-0">
-                        <h1 class="text-3xl font-bold text-gray-900 tracking-tight">
-                            Gestión de Carros
-                        </h1>
-                        <p class="mt-2 text-sm text-gray-600">
-                            Administra tu inventario de vehículos de manera eficiente
-                        </p>
-                    </div>
-
-                    <!-- Action Buttons -->
-                    <div class="flex flex-col sm:flex-row gap-3">
-                        <button
-                            @click="toggleView"
-                            class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
-                        >
-                            <svg v-if="vistaTabla" class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
-                            </svg>
-                            <svg v-else class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
-                            </svg>
-                            {{ vistaTabla ? 'Vista Tarjetas' : 'Vista Tabla' }}
-                        </button>
-
-                        <Link
-                            :href="route('carros.create')"
-                            class="inline-flex items-center px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-sm font-medium rounded-lg hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
-                        >
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                            </svg>
-                            Agregar Carro
-                        </Link>
-                    </div>
-                </div>
-
-                <!-- Search and Filter Bar -->
-                <div class="mt-6 flex flex-col sm:flex-row gap-4">
-                    <div class="flex-1">
-                        <div class="relative">
-                            <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                            </svg>
-                            <input
-                                v-model="busqueda"
-                                type="text"
-                                placeholder="Buscar por marca, modelo o color..."
-                                class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                            >
-                        </div>
-                    </div>
-                    <select
-                        v-model="filtroAnio"
-                        class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                    >
-                        <option value="">Todos los años</option>
-                        <option v-for="anio in aniosUnicos" :key="anio" :value="anio">{{ anio }}</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Stats Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0">
-                            <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                                </svg>
-                            </div>
-                        </div>
-                        <div class="ml-4">
-                            <p class="text-sm font-medium text-gray-600">Total Carros</p>
-                            <p class="text-2xl font-semibold text-gray-900">{{ carrosFiltrados.length }}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0">
-                            <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
-                                </svg>
-                            </div>
-                        </div>
-                        <div class="ml-4">
-                            <p class="text-sm font-medium text-gray-600">Año Promedio</p>
-                            <p class="text-2xl font-semibold text-gray-900">{{ anioPromedio }}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0">
-                            <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                                <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
-                                </svg>
-                            </div>
-                        </div>
-                        <div class="ml-4">
-                            <p class="text-sm font-medium text-gray-600">Marcas Únicas</p>
-                            <p class="text-2xl font-semibold text-gray-900">{{ marcasUnicas.length }}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0">
-                            <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                                <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.031 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
-                                </svg>
-                            </div>
-                        </div>
-                        <div class="ml-4">
-                            <p class="text-sm font-medium text-gray-600">Km Promedio</p>
-                            <p class="text-2xl font-semibold text-gray-900">{{ kilometrajePromedio }}k</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Content Area -->
-            <div v-if="carrosFiltrados.length > 0" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <!-- Table View -->
-                <div v-if="vistaTabla" class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Vehículo</th>
-                                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Detalles</th>
-                                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Kilometraje</th>
-                                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Estado</th>
-                                <th class="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            <tr v-for="carro in carrosFiltrados" :key="carro.id" class="hover:bg-gray-50 transition-colors duration-200">
-                                <!-- Columna de vehículo con foto -->
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex items-center">
-                                        <div class="flex-shrink-0 h-16 w-16">
-                                            <img v-if="carro.foto"
-                                                :src="carro.foto"
-                                                :alt="`${carro.marca} ${carro.modelo}`"
-                                                class="h-16 w-16 rounded-xl object-cover shadow-sm border border-gray-200">
-                                            <div v-else class="h-16 w-16 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center border border-gray-200">
-                                                <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 011-1h1m2 2V5a2 2 0 011-1h1m2 2V5a2 2 0 011-1h1"/>
-                                                </svg>
-                                            </div>
-                                        </div>
-                                        <div class="ml-4">
-                                            <div class="text-sm font-semibold text-gray-900">{{ carro.marca }}</div>
-                                            <div class="text-sm text-gray-600">{{ carro.modelo }}</div>
-                                        </div>
-                                    </div>
-                                </td>
-
-                                <!-- Detalles -->
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm text-gray-900">{{ carro.anio }}</div>
-                                    <div class="text-sm text-gray-600 capitalize">{{ carro.color }}</div>
-                                </td>
-
-                                <!-- Kilometraje -->
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm font-medium text-gray-900">
-                                        {{ formatearKilometraje(carro.kilometraje) }} km
-                                    </div>
-                                    <div class="text-xs text-gray-500">
-                                        {{ obtenerEstadoKilometraje(carro.kilometraje) }}
-                                    </div>
-                                </td>
-
-                                <!-- Estado -->
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <span :class="[
-                                        'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
-                                        obtenerClaseEstado(carro.anio)
-                                    ]">
-                                        {{ obtenerEstadoVehiculo(carro.anio) }}
-                                    </span>
-                                </td>
-
-                                <!-- Acciones -->
-                                <td class="px-6 py-4 whitespace-nowrap text-center">
-                                    <div class="flex justify-center space-x-2">
-                                        <button @click="abrirModal(carro)"
-                                            class="inline-flex items-center p-2 text-sm text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded-lg transition-all duration-200"
-                                            title="Ver detalles">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                                            </svg>
-                                        </button>
-
-                                        <Link :href="route('carros.edit', carro.id)"
-                                            class="inline-flex items-center p-2 text-sm text-amber-600 hover:text-amber-900 hover:bg-amber-50 rounded-lg transition-all duration-200"
-                                            title="Editar">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                            </svg>
-                                        </Link>
-
-                                        <button @click="abrirModalEliminar(carro.id)"
-                                            class="inline-flex items-center p-2 text-sm text-red-600 hover:text-red-900 hover:bg-red-50 rounded-lg transition-all duration-200"
-                                            title="Eliminar">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                            </svg>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Card View -->
-                <div v-else class="p-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        <div v-for="carro in carrosFiltrados" :key="carro.id"
-                            class="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 overflow-hidden">
-
-                            <!-- Imagen del carro -->
-                            <div class="aspect-w-16 aspect-h-9 bg-gradient-to-br from-gray-100 to-gray-200">
-                                <img v-if="carro.foto"
-                                    :src="carro.foto"
-                                    :alt="`${carro.marca} ${carro.modelo}`"
-                                    class="w-full h-48 object-cover">
-                                <div v-else class="w-full h-48 flex items-center justify-center">
-                                    <svg class="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 011-1h1m2 2V5a2 2 0 011-1h1m2 2V5a2 2 0 011-1h1"/>
-                                    </svg>
-                                </div>
-                            </div>
-
-                            <!-- Contenido de la tarjeta -->
-                            <div class="p-5">
-                                <div class="flex items-start justify-between mb-3">
-                                    <div>
-                                        <h3 class="text-lg font-semibold text-gray-900">{{ carro.marca }}</h3>
-                                        <p class="text-sm text-gray-600">{{ carro.modelo }}</p>
-                                    </div>
-                                    <span :class="[
-                                        'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium',
-                                        obtenerClaseEstado(carro.anio)
-                                    ]">
-                                        {{ obtenerEstadoVehiculo(carro.anio) }}
-                                    </span>
-                                </div>
-
-                                <div class="space-y-2 mb-4">
-                                    <div class="flex justify-between text-sm">
-                                        <span class="text-gray-600">Año:</span>
-                                        <span class="font-medium text-gray-900">{{ carro.anio }}</span>
-                                    </div>
-                                    <div class="flex justify-between text-sm">
-                                        <span class="text-gray-600">Color:</span>
-                                        <span class="font-medium text-gray-900 capitalize">{{ carro.color }}</span>
-                                    </div>
-                                    <div class="flex justify-between text-sm">
-                                        <span class="text-gray-600">Kilometraje:</span>
-                                        <span class="font-medium text-gray-900">{{ formatearKilometraje(carro.kilometraje) }} km</span>
-                                    </div>
-                                </div>
-
-                                <!-- Acciones de la tarjeta -->
-                                <div class="flex space-x-2">
-                                    <button @click="abrirModal(carro)"
-                                        class="flex-1 bg-blue-50 text-blue-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors duration-200">
-                                        Ver
-                                    </button>
-                                    <Link :href="route('carros.edit', carro.id)"
-                                        class="flex-1 bg-amber-50 text-amber-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-amber-100 transition-colors duration-200 text-center">
-                                        Editar
-                                    </Link>
-                                    <button @click="abrirModalEliminar(carro.id)"
-                                        class="px-3 py-2 bg-red-50 text-red-700 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors duration-200">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Empty State -->
-            <div v-else class="text-center py-12">
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-12">
-                    <svg class="mx-auto h-24 w-24 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 011-1h1m2 2V5a2 2 0 011-1h1m2 2V5a2 2 0 011-1h1"/>
-                    </svg>
-                    <h3 class="mt-6 text-lg font-medium text-gray-900">No hay carros registrados</h3>
-                    <p class="mt-2 text-sm text-gray-500 max-w-sm mx-auto">
-                        {{ busqueda || filtroAnio ? 'No se encontraron carros con los filtros aplicados' : 'Comienza agregando tu primer vehículo al inventario' }}
-                    </p>
-                    <div class="mt-6">
-                        <Link v-if="!busqueda && !filtroAnio"
-                            :href="route('carros.create')"
-                            class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-sm font-medium rounded-lg hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-lg hover:shadow-xl transition-all duration-200">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                            </svg>
-                            Agregar Primer Carro
-                        </Link>
-                        <button v-else
-                            @click="limpiarFiltros"
-                            class="inline-flex items-center px-6 py-3 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-all duration-200">
-                            Limpiar Filtros
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Modal de Detalles -->
-        <ModalCarro :mostrar-modal="mostrarModalDetalles" :carro="carroSeleccionado" @cerrar="cerrarModalDetalles" />
-
-        <!-- Modal de Confirmación de Eliminación Mejorado -->
-        <Transition name="modal" appear>
-            <div v-if="mostrarModalEliminar" class="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-                <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md transform transition-all duration-300">
-                    <div class="p-6">
-                        <!-- Icono de advertencia -->
-                        <div class="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full">
-                            <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z"/>
-                            </svg>
-                        </div>
-
-                        <h3 class="text-xl font-semibold text-gray-900 text-center mb-2">Confirmar Eliminación</h3>
-                        <p class="text-gray-600 text-center mb-6">
-                            ¿Estás seguro de que deseas eliminar este carro? Esta acción no se puede deshacer.
-                        </p>
-
-                        <div class="flex space-x-3">
-                            <button @click="cerrarModalEliminar"
-                                class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium transition-colors duration-200">
-                                Cancelar
-                            </button>
-                            <button @click="eliminarCarro"
-                                class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors duration-200">
-                                Eliminar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </Transition>
-    </div>
-</template>
-
+<!-- /resources/js/Pages/Carros/Index.vue -->
 <script setup>
-import { Head, Link, router } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
-import { Notyf } from 'notyf';
-import 'notyf/notyf.min.css';
-import AppLayout from '@/Layouts/AppLayout.vue';
-import ModalCarro from '@/Components/Modals/ModalCarro.vue';
+import { ref, computed, onMounted } from 'vue'
+import { Head, router, usePage, Link } from '@inertiajs/vue3'
+import AppLayout from '@/Layouts/AppLayout.vue'
+import { Notyf } from 'notyf'
+import 'notyf/notyf.min.css'
 
-// Define el layout del dashboard
-defineOptions({ layout: AppLayout });
+defineOptions({ layout: AppLayout })
 
-// Recibe los carros como prop
-const props = defineProps({ carros: Array });
-
-// Configuración personalizada de Notyf
+// Notificaciones
 const notyf = new Notyf({
-    duration: 4000,
-    position: { x: 'right', y: 'top' },
-    ripple: true,
-    types: [
-        {
-            type: 'success',
-            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-            icon: { className: 'fas fa-check-circle', tagName: 'i', color: '#fff' }
-        },
-        {
-            type: 'error',
-            background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-            icon: { className: 'fas fa-times-circle', tagName: 'i', color: '#fff' }
-        },
-    ],
-});
+  duration: 4000,
+  position: { x: 'right', y: 'top' },
+  types: [
+    { type: 'success', background: '#10b981', icon: false },
+    { type: 'error', background: '#ef4444', icon: false },
+    { type: 'warning', background: '#f59e0b', icon: false }
+  ]
+})
 
-// Estado reactivo para búsqueda y filtros
-const busqueda = ref('');
-const filtroAnio = ref('');
-const vistaTabla = ref(true);
+const page = usePage()
+onMounted(() => {
+  const flash = page.props.flash
+  if (flash?.success) notyf.success(flash.success)
+  if (flash?.error) notyf.error(flash.error)
+})
 
-// Estado reactivo para modales
-const mostrarModalDetalles = ref(false);
-const carroSeleccionado = ref(null);
-const mostrarModalEliminar = ref(false);
-const idCarroAEliminar = ref(null);
+// Props
+const props = defineProps({
+  carros: { type: [Object, Array], required: true },
+  stats: { type: Object, default: () => ({}) },
+  filters: { type: Object, default: () => ({}) },
+  sorting: { type: Object, default: () => ({ sort_by: 'marca', sort_direction: 'asc' }) },
+})
 
-// Computed properties para estadísticas y filtros
-const carrosFiltrados = computed(() => {
-    let resultado = props.carros;
+// Estado UI
+const showModal = ref(false)
+const modalMode = ref('details')
+const selectedCarro = ref(null)
+const selectedId = ref(null)
 
-    if (busqueda.value) {
-        const termino = busqueda.value.toLowerCase();
-        resultado = resultado.filter(carro =>
-            carro.marca.toLowerCase().includes(termino) ||
-            carro.modelo.toLowerCase().includes(termino) ||
-            carro.color.toLowerCase().includes(termino)
-        );
+// Filtros
+const searchTerm = ref(props.filters?.search ?? '')
+const sortBy = ref('marca-asc')
+const filtroCombustible = ref('')
+
+// Paginación
+const perPage = ref(10)
+
+// Header config
+const headerConfig = {
+  module: 'carros',
+  createButtonText: 'Nuevo Carro',
+  searchPlaceholder: 'Buscar por marca, modelo, placa o serie...'
+}
+
+// Datos
+const carrosPaginator = computed(() => props.carros)
+const carrosData = computed(() => carrosPaginator.value?.data || [])
+
+// Estadísticas
+const estadisticas = computed(() => ({
+  total: props.stats?.total ?? 0,
+  gasolina: props.stats?.gasolina ?? 0,
+  diesel: props.stats?.diesel ?? 0,
+  electrico: props.stats?.electrico ?? 0,
+  hibrido: props.stats?.hibrido ?? 0,
+  gasolinaPorcentaje: props.stats?.gasolina > 0 ? Math.round((props.stats.gasolina / props.stats.total) * 100) : 0,
+  dieselPorcentaje: props.stats?.diesel > 0 ? Math.round((props.stats.diesel / props.stats.total) * 100) : 0,
+  electricoPorcentaje: props.stats?.electrico > 0 ? Math.round((props.stats.electrico / props.stats.total) * 100) : 0,
+  hibridoPorcentaje: props.stats?.hibrido > 0 ? Math.round((props.stats.hibrido / props.stats.total) * 100) : 0
+}))
+
+// Transformación de datos
+const carrosDocumentos = computed(() => {
+  return carrosData.value.map(c => ({
+    id: c.id,
+    titulo: `${c.marca} ${c.modelo}`,
+    subtitulo: `Año: ${c.anio} | Color: ${c.color}`,
+    estado: c.combustible || 'Sin combustible',
+    extra: `Precio: $${c.precio} | Km: ${c.kilometraje} | Placa: ${c.placa || 'N/A'}`,
+    fecha: c.created_at,
+    raw: c
+  }))
+})
+
+// Handlers
+function handleSearchChange(newSearch) {
+  searchTerm.value = newSearch
+  router.get(route('carros.index'), {
+    search: newSearch,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'asc',
+    combustible: filtroCombustible.value,
+    per_page: perPage.value,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+function handleCombustibleChange(newCombustible) {
+  filtroCombustible.value = newCombustible
+  router.get(route('carros.index'), {
+    search: searchTerm.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'asc',
+    combustible: newCombustible,
+    per_page: perPage.value,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+function handleSortChange(newSort) {
+  sortBy.value = newSort
+  router.get(route('carros.index'), {
+    search: searchTerm.value,
+    sort_by: newSort.split('-')[0],
+    sort_direction: newSort.split('-')[1] || 'asc',
+    combustible: filtroCombustible.value,
+    per_page: perPage.value,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+const verDetalles = (doc) => {
+  selectedCarro.value = doc.raw
+  modalMode.value = 'details'
+  showModal.value = true
+}
+
+const editarCarro = (id) => {
+  router.visit(route('carros.edit', id))
+}
+
+const confirmarEliminacion = (id) => {
+  selectedId.value = id
+  modalMode.value = 'confirm'
+  showModal.value = true
+}
+
+const eliminarCarro = () => {
+  router.delete(route('carros.destroy', selectedId.value), {
+    preserveScroll: true,
+    onSuccess: () => {
+      notyf.success('Carro eliminado correctamente')
+      showModal.value = false
+      selectedId.value = null
+      router.reload()
+    },
+    onError: (errors) => {
+      notyf.error('No se pudo eliminar el carro')
     }
+  })
+}
 
-    if (filtroAnio.value) {
-        resultado = resultado.filter(carro => carro.anio.toString() === filtroAnio.value);
-    }
+const exportCarros = () => {
+  const params = new URLSearchParams()
+  if (searchTerm.value) params.append('search', searchTerm.value)
+  if (filtroCombustible.value) params.append('combustible', filtroCombustible.value)
+  const queryString = params.toString()
+  const url = route('carros.export') + (queryString ? `?${queryString}` : '')
+  window.location.href = url
+}
 
-    return resultado;
-});
+// Paginación
+const paginationData = computed(() => ({
+  current_page: carrosPaginator.value?.current_page || 1,
+  last_page: carrosPaginator.value?.last_page || 1,
+  per_page: carrosPaginator.value?.per_page || 10,
+  from: carrosPaginator.value?.from || 0,
+  to: carrosPaginator.value?.to || 0,
+  total: carrosPaginator.value?.total || 0,
+  prev_page_url: carrosPaginator.value?.prev_page_url,
+  next_page_url: carrosPaginator.value?.next_page_url,
+  links: carrosPaginator.value?.links || []
+}))
 
-const aniosUnicos = computed(() => {
-    const anios = [...new Set(props.carros.map(carro => carro.anio))];
-    return anios.sort((a, b) => b - a);
-});
+const handlePerPageChange = (newPerPage) => {
+  router.get(route('carros.index'), {
+    ...props.filters,
+    ...props.sorting,
+    per_page: newPerPage,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
 
-const marcasUnicas = computed(() => {
-    return [...new Set(props.carros.map(carro => carro.marca))];
-});
+const handlePageChange = (newPage) => {
+  router.get(route('carros.index'), {
+    ...props.filters,
+    ...props.sorting,
+    page: newPage
+  }, { preserveState: true, preserveScroll: true })
+}
 
-const anioPromedio = computed(() => {
-    if (props.carros.length === 0) return 0;
-    const suma = props.carros.reduce((acc, carro) => acc + parseInt(carro.anio), 0);
-    return Math.round(suma / props.carros.length);
-});
+// Helpers
+const formatNumber = (num) => new Intl.NumberFormat('es-ES').format(num)
+const formatearFecha = (date) => {
+  if (!date) return 'Fecha no disponible'
+  try {
+    const d = new Date(date)
+    return d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  } catch {
+    return 'Fecha inválida'
+  }
+}
 
-const kilometrajePromedio = computed(() => {
-    if (props.carros.length === 0) return 0;
-    const suma = props.carros.reduce((acc, carro) => acc + parseInt(carro.kilometraje || 0), 0);
-    return Math.round(suma / props.carros.length / 1000);
-});
+const obtenerClasesCombustible = (combustible) => {
+  const clases = {
+    'Gasolina': 'bg-blue-100 text-blue-700',
+    'Diésel': 'bg-green-100 text-green-700',
+    'Eléctrico': 'bg-yellow-100 text-yellow-700',
+    'Híbrido': 'bg-purple-100 text-purple-700'
+  }
+  return clases[combustible] || 'bg-gray-100 text-gray-700'
+}
 
-// Funciones de utilidad
-const formatearKilometraje = (km) => {
-    return new Intl.NumberFormat('es-ES').format(km);
-};
-
-const obtenerEstadoKilometraje = (km) => {
-    if (km < 50000) return 'Bajo kilometraje';
-    if (km < 100000) return 'Kilometraje medio';
-    return 'Alto kilometraje';
-};
-
-const obtenerEstadoVehiculo = (anio) => {
-    const anioActual = new Date().getFullYear();
-    const antiguedad = anioActual - parseInt(anio);
-
-    if (antiguedad <= 3) return 'Nuevo';
-    if (antiguedad <= 7) return 'Semi-nuevo';
-    if (antiguedad <= 15) return 'Usado';
-    return 'Clásico';
-};
-
-const obtenerClaseEstado = (anio) => {
-    const anioActual = new Date().getFullYear();
-    const antiguedad = anioActual - parseInt(anio);
-
-    if (antiguedad <= 3) return 'bg-green-100 text-green-800';
-    if (antiguedad <= 7) return 'bg-blue-100 text-blue-800';
-    if (antiguedad <= 15) return 'bg-yellow-100 text-yellow-800';
-    return 'bg-purple-100 text-purple-800';
-};
-
-// Funciones de control
-const toggleView = () => {
-    vistaTabla.value = !vistaTabla.value;
-};
-
-const limpiarFiltros = () => {
-    busqueda.value = '';
-    filtroAnio.value = '';
-};
-
-// Funciones de modal de detalles
-const abrirModal = (carro) => {
-    carroSeleccionado.value = carro;
-    mostrarModalDetalles.value = true;
-};
-
-const cerrarModalDetalles = () => {
-    mostrarModalDetalles.value = false;
-    carroSeleccionado.value = null;
-};
-
-// Funciones de modal de eliminación
-const abrirModalEliminar = (id) => {
-    idCarroAEliminar.value = id;
-    mostrarModalEliminar.value = true;
-};
-
-const cerrarModalEliminar = () => {
-    mostrarModalEliminar.value = false;
-    idCarroAEliminar.value = null;
-};
-
-// Función para eliminar el carro
-const eliminarCarro = async () => {
-    try {
-        await router.delete(route('carros.destroy', idCarroAEliminar.value), {
-            onStart: () => {
-                // Opcional: mostrar loading
-            },
-            onSuccess: () => {
-                notyf.success('¡Carro eliminado exitosamente!');
-                cerrarModalEliminar();
-            },
-            onError: (errors) => {
-                console.error('Error al eliminar el carro:', errors);
-                notyf.error('Error al eliminar el carro. Inténtalo de nuevo.');
-                cerrarModalEliminar();
-            },
-        });
-    } catch (error) {
-        console.error('Error inesperado:', error);
-        notyf.error('Ocurrió un error inesperado. Inténtalo más tarde.');
-        cerrarModalEliminar();
-    }
-};
+const obtenerLabelCombustible = (combustible) => {
+  const labels = {
+    'Gasolina': 'Gasolina',
+    'Diésel': 'Diésel',
+    'Eléctrico': 'Eléctrico',
+    'Híbrido': 'Híbrido'
+  }
+  return labels[combustible] || 'Sin combustible'
+}
 </script>
 
+<template>
+  <Head title="Carros" />
+  <div class="carros-index min-h-screen bg-gray-50">
+    <div class="max-w-8xl mx-auto px-6 py-8">
+      <!-- Header -->
+      <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-8 mb-6">
+        <div class="flex flex-col lg:flex-row gap-8 items-start lg:items-center justify-between">
+          <!-- Izquierda -->
+          <div class="flex flex-col gap-6 w-full lg:w-auto">
+            <div class="flex items-center gap-3">
+              <h1 class="text-2xl font-bold text-slate-900">Carros</h1>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+              <Link
+                :href="route('carros.create')"
+                class="inline-flex items-center gap-2.5 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>{{ headerConfig.createButtonText }}</span>
+              </Link>
+
+              <button
+                @click="exportCarros"
+                class="inline-flex items-center gap-2 px-4 py-3 bg-green-50 text-green-700 rounded-xl hover:bg-green-100 transition-all duration-200 border border-green-200"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                </svg>
+                <span class="text-sm font-medium">Exportar</span>
+              </button>
+            </div>
+
+            <!-- Estadísticas con barras de progreso -->
+            <div class="flex flex-wrap items-center gap-4 text-sm">
+              <div class="flex items-center gap-2 px-4 py-3 bg-slate-50 rounded-xl border border-slate-200">
+                <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span class="font-medium text-slate-700">Total:</span>
+                <span class="font-bold text-slate-900 text-lg">{{ formatNumber(estadisticas.total) }}</span>
+              </div>
+
+              <div class="flex items-center gap-2 px-4 py-3 bg-blue-50 rounded-xl border border-blue-200">
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5a2 2 0 012-2h4a2 2 0 012 2v2H8V5z" />
+                </svg>
+                <span class="font-medium text-slate-700">Gasolina:</span>
+                <span class="font-bold text-blue-700 text-lg">{{ formatNumber(estadisticas.gasolina) }}</span>
+                <div class="ml-2 flex items-center gap-2">
+                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      class="h-full bg-blue-500 transition-all duration-300"
+                      :style="{ width: estadisticas.gasolinaPorcentaje + '%' }"
+                    ></div>
+                  </div>
+                  <span class="text-xs text-blue-600 font-medium">{{ estadisticas.gasolinaPorcentaje }}%</span>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2 px-4 py-3 bg-green-50 rounded-xl border border-green-200">
+                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                <span class="font-medium text-slate-700">Diésel:</span>
+                <span class="font-bold text-green-700 text-lg">{{ formatNumber(estadisticas.diesel) }}</span>
+                <div class="ml-2 flex items-center gap-2">
+                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      class="h-full bg-green-500 transition-all duration-300"
+                      :style="{ width: estadisticas.dieselPorcentaje + '%' }"
+                    ></div>
+                  </div>
+                  <span class="text-xs text-green-600 font-medium">{{ estadisticas.dieselPorcentaje }}%</span>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2 px-4 py-3 bg-yellow-50 rounded-xl border border-yellow-200">
+                <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                <span class="font-medium text-slate-700">Eléctrico:</span>
+                <span class="font-bold text-yellow-700 text-lg">{{ formatNumber(estadisticas.electrico) }}</span>
+                <div class="ml-2 flex items-center gap-2">
+                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      class="h-full bg-yellow-500 transition-all duration-300"
+                      :style="{ width: estadisticas.electricoPorcentaje + '%' }"
+                    ></div>
+                  </div>
+                  <span class="text-xs text-yellow-600 font-medium">{{ estadisticas.electricoPorcentaje }}%</span>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2 px-4 py-3 bg-purple-50 rounded-xl border border-purple-200">
+                <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                <span class="font-medium text-slate-700">Híbrido:</span>
+                <span class="font-bold text-purple-700 text-lg">{{ formatNumber(estadisticas.hibrido) }}</span>
+                <div class="ml-2 flex items-center gap-2">
+                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      class="h-full bg-purple-500 transition-all duration-300"
+                      :style="{ width: estadisticas.hibridoPorcentaje + '%' }"
+                    ></div>
+                  </div>
+                  <span class="text-xs text-purple-600 font-medium">{{ estadisticas.hibridoPorcentaje }}%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Derecha: Filtros -->
+          <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto lg:flex-shrink-0">
+            <!-- Búsqueda -->
+            <div class="relative">
+              <input
+                v-model="searchTerm"
+                @input="handleSearchChange($event.target.value)"
+                type="text"
+                :placeholder="headerConfig.searchPlaceholder"
+                class="w-full sm:w-64 lg:w-80 pl-4 pr-10 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+              />
+              <svg class="absolute right-3 top-3.5 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+
+            <!-- Combustible -->
+            <select
+              v-model="filtroCombustible"
+              @change="handleCombustibleChange($event.target.value)"
+              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+            >
+              <option value="">Todos los Combustibles</option>
+              <option value="Gasolina">Gasolina</option>
+              <option value="Diésel">Diésel</option>
+              <option value="Eléctrico">Eléctrico</option>
+              <option value="Híbrido">Híbrido</option>
+            </select>
+
+            <!-- Orden -->
+            <select
+              v-model="sortBy"
+              @change="handleSortChange($event.target.value)"
+              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+            >
+              <option value="marca-asc">Marca A-Z</option>
+              <option value="marca-desc">Marca Z-A</option>
+              <option value="modelo-asc">Modelo A-Z</option>
+              <option value="modelo-desc">Modelo Z-A</option>
+              <option value="anio-desc">Año Más Reciente</option>
+              <option value="anio-asc">Año Más Antiguo</option>
+              <option value="precio-desc">Precio Mayor</option>
+              <option value="precio-asc">Precio Menor</option>
+              <option value="created_at-desc">Más Recientes</option>
+              <option value="created_at-asc">Más Antiguos</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabla -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Fecha</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Vehículo</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Año</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Precio</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Kilometraje</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Combustible</th>
+                <th class="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Acciones</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <tr v-for="carro in carrosDocumentos" :key="carro.id" class="hover:bg-gray-50 transition-colors duration-150">
+                <td class="px-6 py-4">
+                  <div class="text-sm text-gray-900">{{ formatearFecha(carro.fecha) }}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="text-sm font-medium text-gray-900">{{ carro.titulo }}</div>
+                  <div class="text-sm text-gray-500">{{ carro.subtitulo }}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="text-sm text-gray-700">{{ carro.raw.anio }}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="text-sm text-gray-700">${{ formatNumber(carro.raw.precio) }}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="text-sm text-gray-700">{{ formatNumber(carro.raw.kilometraje) }} km</div>
+                </td>
+                <td class="px-6 py-4">
+                  <span :class="obtenerClasesCombustible(carro.estado)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                    {{ obtenerLabelCombustible(carro.estado) }}
+                  </span>
+                </td>
+                <td class="px-6 py-4 text-right">
+                  <div class="flex items-center justify-end space-x-1">
+                    <button @click="verDetalles(carro)" class="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors duration-150" title="Ver detalles">
+                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    </button>
+                    <button @click="editarCarro(carro.id)" class="w-8 h-8 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-colors duration-150" title="Editar">
+                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button @click="confirmarEliminacion(carro.id)" class="w-8 h-8 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors duration-150" title="Eliminar">
+                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="carrosDocumentos.length === 0">
+                <td colspan="7" class="px-6 py-16 text-center">
+                  <div class="flex flex-col items-center space-y-4">
+                    <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                      <svg class="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <div class="space-y-1">
+                      <p class="text-gray-700 font-medium">No hay carros</p>
+                      <p class="text-sm text-gray-500">Los carros aparecerán aquí cuando se creen</p>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Paginación -->
+        <div v-if="paginationData.lastPage > 1" class="bg-white border-t border-gray-200 px-4 py-3 sm:px-6">
+          <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+              <p class="text-sm text-gray-700">
+                Mostrando {{ paginationData.from }} - {{ paginationData.to }} de {{ paginationData.total }} resultados
+              </p>
+              <select
+                :value="paginationData.perPage"
+                @change="handlePerPageChange(parseInt($event.target.value))"
+                class="border border-gray-300 rounded-md text-sm py-1 px-2 bg-white"
+              >
+                <option value="10">10</option>
+                <option value="15">15</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+              </select>
+            </div>
+
+            <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+              <button
+                v-if="paginationData.prevPageUrl"
+                @click="handlePageChange(paginationData.currentPage - 1)"
+                class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+              >
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+              </button>
+
+              <span v-else class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-gray-100 text-sm font-medium text-gray-400">
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+              </span>
+
+              <button
+                v-for="page in [paginationData.currentPage - 1, paginationData.currentPage, paginationData.currentPage + 1].filter(p => p > 0 && p <= paginationData.lastPage)"
+                :key="page"
+                @click="handlePageChange(page)"
+                :class="page === paginationData.currentPage ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'"
+                class="relative inline-flex items-center px-4 py-2 border text-sm font-medium"
+              >
+                {{ page }}
+              </button>
+
+              <button
+                v-if="paginationData.nextPageUrl"
+                @click="handlePageChange(paginationData.currentPage + 1)"
+                class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+              >
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                </svg>
+              </button>
+
+              <span v-else class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-gray-100 text-sm font-medium text-gray-400">
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                </svg>
+              </span>
+            </nav>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal mejorado -->
+      <div v-if="showModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="showModal = false">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <!-- Header del modal -->
+          <div class="flex items-center justify-between p-6 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">
+              {{ modalMode === 'details' ? 'Detalles del Carro' : 'Confirmar Eliminación' }}
+            </h3>
+            <button @click="showModal = false" class="text-gray-400 hover:text-gray-600 transition-colors">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="p-6">
+            <div v-if="modalMode === 'details' && selectedCarro">
+              <div class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div class="space-y-3">
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Marca</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedCarro.marca }}</p>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Modelo</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedCarro.modelo }}</p>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Año</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedCarro.anio }}</p>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Color</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedCarro.color }}</p>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Combustible</label>
+                      <span :class="obtenerClasesCombustible(selectedCarro.combustible)" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium mt-1">
+                        {{ obtenerLabelCombustible(selectedCarro.combustible) }}
+                      </span>
+                    </div>
+                  </div>
+                  <div class="space-y-3">
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Precio</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">${{ formatNumber(selectedCarro.precio) }}</p>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Número de Serie</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedCarro.numero_serie }}</p>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Kilometraje</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ formatNumber(selectedCarro.kilometraje) }} km</p>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Placa</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedCarro.placa || 'N/A' }}</p>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Fecha de Creación</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ formatearFecha(selectedCarro.created_at) }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="modalMode === 'confirm'">
+              <div class="text-center">
+                <div class="w-12 h-12 mx-auto bg-red-100 rounded-full flex items-center justify-center mb-4">
+                  <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                  </svg>
+                </div>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">¿Eliminar Carro?</h3>
+                <p class="text-sm text-gray-500 mb-4">
+                  ¿Estás seguro de que deseas eliminar el carro <strong>{{ selectedCarro?.marca }} {{ selectedCarro?.modelo }}</strong>?
+                  Esta acción no se puede deshacer.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer del modal -->
+          <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+            <button @click="showModal = false" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+              {{ modalMode === 'details' ? 'Cerrar' : 'Cancelar' }}
+            </button>
+            <div v-if="modalMode === 'details'" class="flex gap-2">
+              <button @click="editarCarro(selectedCarro.id)" class="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors">
+                Editar
+              </button>
+            </div>
+            <button v-if="modalMode === 'confirm'" @click="eliminarCarro" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+              Eliminar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
 <style scoped>
-/* Transiciones para modales */
-.modal-enter-active, .modal-leave-active {
-    transition: all 0.3s ease;
-}
-
-.modal-enter-from, .modal-leave-to {
-    opacity: 0;
-    transform: scale(0.9);
-}
-
-/* Animaciones adicionales */
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.animate-fade-in-up {
-    animation: fadeInUp 0.5s ease-out;
-}
-
-/* Scrollbar personalizado para la tabla */
-.overflow-x-auto::-webkit-scrollbar {
-    height: 8px;
-}
-
-.overflow-x-auto::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 4px;
-}
-
-.overflow-x-auto::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-    border-radius: 4px;
-}
-
-.overflow-x-auto::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
-}
-
-/* Hover effects mejorados */
-.hover-scale:hover {
-    transform: scale(1.02);
-}
-
-/* Estados de carga */
-.loading {
-    opacity: 0.6;
-    pointer-events: none;
+.carros-index {
+  min-height: 100vh;
+  background-color: #f9fafb;
 }
 </style>

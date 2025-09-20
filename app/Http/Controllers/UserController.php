@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Routing\Controller as BaseController;
 use Inertia\Inertia;
@@ -27,11 +28,53 @@ class UserController extends BaseController
         return Inertia::render('Usuarios/Profile', ['usuario' => $user]);
     }
 
-    public function index()
+    public function index(Request $request)
     {
         $this->authorize('viewAny', User::class);
-        $users = User::with('roles')->get();
-        return Inertia::render('Usuarios/Index', ['usuarios' => $users]);
+
+        try {
+            $query = User::with('roles');
+
+            // Filtros
+            if ($search = trim($request->input('search', ''))) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%");
+                });
+            }
+
+            // Ordenamiento
+            $sortBy = $request->input('sort_by', 'name');
+            $sortDirection = $request->input('sort_direction', 'asc');
+
+            $validSortFields = ['name', 'email', 'created_at'];
+            if (!in_array($sortBy, $validSortFields)) {
+                $sortBy = 'name';
+            }
+
+            $query->orderBy($sortBy, $sortDirection);
+
+            // Paginación
+            $perPage = min((int) $request->input('per_page', 10), 50);
+            $users = $query->paginate($perPage)->appends($request->query());
+
+            // Estadísticas
+            $total = User::count();
+
+            $stats = [
+                'total' => $total,
+            ];
+
+            return Inertia::render('Usuarios/Index', [
+                'usuarios' => $users,
+                'stats' => $stats,
+                'filters' => $request->only(['search']),
+                'sorting' => ['sort_by' => $sortBy, 'sort_direction' => $sortDirection],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error en UserController@index: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al cargar los usuarios.');
+        }
     }
 
     public function create()
