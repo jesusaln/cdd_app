@@ -177,31 +177,40 @@ const exportServicios = () => {
 }
 
 // Paginación
-const paginationData = computed(() => ({
-  current_page: serviciosPaginator.value?.current_page || 1,
-  last_page: serviciosPaginator.value?.last_page || 1,
-  per_page: serviciosPaginator.value?.per_page || 10,
-  from: serviciosPaginator.value?.from || 0,
-  to: serviciosPaginator.value?.to || 0,
-  total: serviciosPaginator.value?.total || 0,
-  prev_page_url: serviciosPaginator.value?.prev_page_url,
-  next_page_url: serviciosPaginator.value?.next_page_url,
-  links: serviciosPaginator.value?.links || []
-}))
+const paginationData = computed(() => {
+  const p = serviciosPaginator.value || {}
+  return {
+    currentPage: p.current_page ?? 1,
+    lastPage:    p.last_page ?? 1,
+    perPage:     p.per_page ?? 10,
+    from:        p.from ?? 0,
+    to:          p.to ?? 0,
+    total:       p.total ?? 0,
+    prevPageUrl: p.prev_page_url ?? null,
+    nextPageUrl: p.next_page_url ?? null,
+    links:       p.links ?? []
+  }
+})
 
 const handlePerPageChange = (newPerPage) => {
+  perPage.value = newPerPage
   router.get(route('servicios.index'), {
-    ...props.filters,
-    ...props.sorting,
-    per_page: newPerPage,
+    search: searchTerm.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'asc',
+    estado: filtroEstado.value,
+    per_page: perPage.value,
     page: 1
   }, { preserveState: true, preserveScroll: true })
 }
 
 const handlePageChange = (newPage) => {
   router.get(route('servicios.index'), {
-    ...props.filters,
-    ...props.sorting,
+    search: searchTerm.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'asc',
+    estado: filtroEstado.value,
+    per_page: perPage.value,
     page: newPage
   }, { preserveState: true, preserveScroll: true })
 }
