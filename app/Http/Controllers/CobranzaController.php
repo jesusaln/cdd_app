@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Cobranza;
 use App\Models\Renta;
 use App\Models\Reporte;
+use App\Models\Venta;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -18,49 +19,79 @@ class CobranzaController extends Controller
      */
     public function index()
     {
-        $query = Cobranza::with(['renta.cliente:id,nombre_razon_social,email']);
+        // Obtener ventas pendientes de pago
+        $ventasQuery = Venta::with(['cliente:id,nombre_razon_social,email'])
+            ->where('pagado', false)
+            ->where('estado', '!=', 'cancelada');
 
         // Aplicar filtros
         if (request('search')) {
             $search = request('search');
-            $query->where(function($q) use ($search) {
-                $q->whereHas('renta.cliente', function($clienteQuery) use ($search) {
+            $ventasQuery->where(function($q) use ($search) {
+                $q->whereHas('cliente', function($clienteQuery) use ($search) {
                     $clienteQuery->where('nombre_razon_social', 'like', '%' . $search . '%');
                 })
-                ->orWhereHas('renta', function($rentaQuery) use ($search) {
-                    $rentaQuery->where('numero_contrato', 'like', '%' . $search . '%');
-                })
-                ->orWhere('concepto', 'like', '%' . $search . '%');
+                ->orWhere('numero_venta', 'like', '%' . $search . '%');
             });
         }
 
         if (request('estado')) {
-            $query->where('estado', request('estado'));
-        }
-
-        if (request('mes') && request('anio')) {
-            $query->delMes(request('mes'), request('anio'));
+            // Para ventas, mapear 'pendiente' a false en pagado
+            if (request('estado') === 'pendiente') {
+                $ventasQuery->where('pagado', false);
+            } elseif (request('estado') === 'pagado') {
+                $ventasQuery->where('pagado', true);
+            }
         }
 
         // Aplicar ordenamiento
-        $sortBy = request('sort_by', 'fecha_cobro');
+        $sortBy = request('sort_by', 'fecha');
         $sortDirection = request('sort_direction', 'desc');
-        $query->orderBy($sortBy, $sortDirection);
+        $ventasQuery->orderBy($sortBy, $sortDirection);
 
-        $cobranzas = $query->paginate(request('per_page', 10));
+        $ventasCollection = $ventasQuery->get();
 
-        // Calcular estadísticas
+        // Transformar ventas para que tengan estructura similar a cobranzas
+        $ventasTransformadas = $ventasCollection->map(function ($venta) {
+            return [
+                'id' => $venta->id,
+                'tipo' => 'venta',
+                'numero_venta' => $venta->numero_venta,
+                'cliente' => $venta->cliente,
+                'fecha_cobro' => $venta->fecha ? $venta->fecha->format('Y-m-d') : $venta->created_at->format('Y-m-d'),
+                'monto_cobrado' => $venta->total,
+                'concepto' => 'Venta pendiente de pago',
+                'estado' => $venta->pagado ? 'pagado' : 'pendiente',
+                'notas' => $venta->notas,
+                'created_at' => $venta->created_at,
+                'updated_at' => $venta->updated_at,
+            ];
+        });
+
+        // Crear paginación manual
+        $perPage = request('per_page', 10);
+        $currentPage = \Illuminate\Pagination\Paginator::resolveCurrentPage('page');
+        $paginatedItems = $ventasTransformadas->forPage($currentPage, $perPage);
+        $ventas = new \Illuminate\Pagination\LengthAwarePaginator(
+            $paginatedItems,
+            $ventasTransformadas->count(),
+            $perPage,
+            $currentPage,
+            ['path' => request()->url(), 'pageName' => 'page']
+        );
+
+        // Calcular estadísticas de ventas pendientes
         $stats = [
-            'total' => Cobranza::count(),
-            'pendientes' => Cobranza::where('estado', 'pendiente')->count(),
-            'pagadas' => Cobranza::where('estado', 'pagado')->count(),
-            'vencidas' => Cobranza::where('estado', 'vencido')->count(),
-            'total_pendiente' => Cobranza::where('estado', 'pendiente')->sum('monto_cobrado'),
-            'total_pagado' => Cobranza::where('estado', 'pagado')->sum('monto_pagado'),
+            'total' => Venta::where('pagado', false)->where('estado', '!=', 'cancelada')->count(),
+            'pendientes' => Venta::where('pagado', false)->where('estado', '!=', 'cancelada')->count(),
+            'pagadas' => Venta::where('pagado', true)->count(),
+            'vencidas' => 0, // No aplicable para ventas
+            'total_pendiente' => Venta::where('pagado', false)->where('estado', '!=', 'cancelada')->sum('total'),
+            'total_pagado' => Venta::where('pagado', true)->sum('total'),
         ];
 
         return inertia('Cobranza/Index', [
-            'cobranzas' => $cobranzas,
+            'cobranzas' => $ventas,
             'stats' => $stats,
             'filters' => request()->only(['search', 'estado', 'mes', 'anio']),
             'sorting' => [
@@ -186,6 +217,78 @@ class CobranzaController extends Controller
     {
         $cobranza->delete();
         return redirect()->route('cobranza.index')->with('success', 'Cobranza eliminada correctamente.');
+    }
+
+    /**
+     * Marca una venta como pagada desde cobranza.
+     */
+    public function marcarVentaPagada(Request $request, $id)
+    {
+        $venta = Venta::findOrFail($id);
+
+        // Verificar que la venta no esté ya pagada
+        if ($venta->pagado) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Esta venta ya está marcada como pagada'
+            ], 400);
+        }
+
+        // Verificar que la venta no esté cancelada
+        if ($venta->estado === 'cancelada') {
+            return response()->json([
+                'success' => false,
+                'error' => 'No se puede marcar como pagada una venta cancelada'
+            ], 400);
+        }
+
+        $request->validate([
+            'fecha_pago' => 'required|date',
+            'monto_pagado' => 'required|numeric|min:0',
+            'metodo_pago' => 'required|in:efectivo,transferencia,cheque,tarjeta,otros',
+            'referencia_pago' => 'nullable|string|max:255',
+            'notas_pago' => 'nullable|string|max:500'
+        ]);
+
+        DB::beginTransaction();
+        try {
+            // Actualizar la venta con la información de pago
+            $venta->update([
+                'pagado' => true,
+                'metodo_pago' => $request->metodo_pago,
+                'fecha_pago' => $request->fecha_pago,
+                'notas_pago' => $request->notas_pago,
+                'pagado_por' => $request->user()->id,
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Venta marcada como pagada exitosamente',
+                'venta' => [
+                    'id' => $venta->id,
+                    'pagado' => true,
+                    'metodo_pago' => $venta->metodo_pago,
+                    'fecha_pago' => $venta->fecha_pago->format('Y-m-d'),
+                    'notas_pago' => $venta->notas_pago,
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al marcar venta como pagada desde cobranza: ' . $e->getMessage(), [
+                'venta_id' => $id,
+                'user_id' => $request->user()->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error interno al procesar el pago',
+                'details' => app()->environment('local') ? $e->getMessage() : null
+            ], 500);
+        }
     }
 
     /**

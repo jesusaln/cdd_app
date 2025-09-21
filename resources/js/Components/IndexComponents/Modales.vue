@@ -488,11 +488,18 @@
                 @click="confirmarEnvioPedido"
                 class="px-4 py-2 text-white rounded-lg transition-colors"
                 :class="{
-                  'bg-green-600 hover:bg-green-700': !yaEnviado,
+                  'bg-indigo-600 hover:bg-indigo-700': !yaEnviado,
                   'bg-blue-600 hover:bg-blue-700': yaEnviado
                 }"
               >
                 {{ yaEnviado ? 'Reenviar a Pedido' : 'Enviar a Pedido' }}
+              </button>
+              <button
+                v-if="config.acciones.imprimir && selected?.estado !== 'cancelado'"
+                @click="onImprimir"
+                class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                Imprimir
               </button>
             </template>
 
@@ -503,11 +510,18 @@
                 @click="confirmarEnvioAVenta"
                 class="px-4 py-2 text-white rounded-lg transition-colors"
                 :class="{
-                  'bg-emerald-600 hover:bg-emerald-700': !yaConvertidoAVenta,
+                  'bg-indigo-600 hover:bg-indigo-700': !yaConvertidoAVenta,
                   'bg-blue-600 hover:bg-blue-700': yaConvertidoAVenta
                 }"
               >
                 {{ yaConvertidoAVenta ? 'Reenviar a Venta' : 'Enviar a Venta' }}
+              </button>
+              <button
+                v-if="config.acciones.imprimir && selected?.estado !== 'cancelado'"
+                @click="onImprimir"
+                class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                Imprimir
               </button>
             </template>
 
@@ -612,9 +626,20 @@
               </button>
             </template>
 
+            <!-- Ventas -->
+            <template v-if="isVentas">
+              <button
+                v-if="config.acciones.imprimir && selected?.estado !== 'cancelado'"
+                @click="onImprimir"
+                class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                Imprimir
+              </button>
+            </template>
+
             <!-- Comunes -->
             <button
-              v-if="!isClientes && config.acciones.imprimir && selected?.estado !== 'cancelado'"
+              v-if="!isClientes && !isCotizaciones && !isPedidos && !isVentas && config.acciones.imprimir && selected?.estado !== 'cancelado'"
               @click="onImprimir"
               class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
             >
@@ -757,6 +782,7 @@ const emit = defineEmits([
 
 const isCotizaciones = computed(() => props.tipo === 'cotizaciones')
 const isPedidos      = computed(() => props.tipo === 'pedidos')
+const isVentas       = computed(() => props.tipo === 'ventas')
 const isCompras      = computed(() => props.tipo === 'compras')
 const isOrdenesCompra= computed(() => props.tipo === 'ordenescompra')
 const isRentas       = computed(() => props.tipo === 'rentas')
@@ -993,6 +1019,7 @@ const onConfirmDuplicate = () => emit('confirm-duplicate')
 const onClose   = () => emit('close')
 const onImprimir= () => emit('imprimir', props.selected)
 const onEditar  = () => emit('editar', props.selected?.id)
+const onDuplicar= () => emit('confirm-duplicate')
 </script>
 
 <style scoped>

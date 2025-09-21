@@ -628,8 +628,6 @@ const confirmarPago = async () => {
           :filtro-estado="filtroEstado"
           @ver-detalles="verDetalles"
           @editar="editarVenta"
-          @duplicar="duplicarVenta"
-          @imprimir="imprimirVenta"
           @eliminar="confirmarEliminacion"
           @marcar-pagado="marcarComoPagado"
           @sort="updateSort"
@@ -654,7 +652,6 @@ const confirmarPago = async () => {
       :auditoria="auditoriaForModal"
       @close="cerrarModal"
       @confirm-delete="eliminarVenta"
-      @imprimir="imprimirFila"
       @editar="editarFila"
     />
 

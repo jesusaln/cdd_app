@@ -204,7 +204,7 @@
               @click="onSort('estado')"
             >
               <div class="flex items-center space-x-1">
-                <span>Estado</span>
+                <span>{{ props.tipo === 'ventas' ? 'Estado de Pago' : 'Estado' }}</span>
                 <svg
                   v-if="sortBy.startsWith('estado')"
                   :class="['w-4 h-4 transition-transform duration-200', sortBy === 'estado-desc' ? 'rotate-180' : '']"
@@ -217,13 +217,6 @@
               </div>
             </th>
 
-            <!-- Estado de Pago (solo ventas) -->
-            <th
-              v-if="config.mostrarEstadoPago"
-              class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider"
-            >
-              Pago
-            </th>
 
             <!-- Acciones -->
             <th class="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
@@ -434,41 +427,43 @@
 
               <!-- Estado -->
               <td class="px-6 py-4">
-                <span
-                  :class="obtenerClasesEstado(doc.estado)"
-                  class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150 hover:shadow-sm"
-                >
+                <template v-if="props.tipo === 'ventas'">
+                  <!-- Estado de Pago para ventas -->
+                  <div class="flex items-center">
+                    <span
+                      :class="doc.pagado ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'"
+                      class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
+                    >
+                      <svg
+                        :class="doc.pagado ? 'text-green-500' : 'text-yellow-500'"
+                        class="w-3 h-3 mr-1"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path v-if="doc.pagado" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                        <path v-else fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+                      </svg>
+                      {{ doc.pagado ? 'Pagado' : 'Pendiente de Pago' }}
+                    </span>
+                    <span v-if="doc.pagado && doc.metodo_pago" class="ml-2 text-xs text-gray-500">
+                      ({{ obtenerLabelMetodoPago(doc.metodo_pago) }})
+                    </span>
+                  </div>
+                </template>
+                <template v-else>
                   <span
-                    class="w-2 h-2 rounded-full mr-2 transition-all duration-150"
-                    :class="obtenerColorPuntoEstado(doc.estado)"
-                  ></span>
-                  {{ obtenerLabelEstado(doc.estado) }}
-                </span>
+                    :class="obtenerClasesEstado(doc.estado)"
+                    class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150 hover:shadow-sm"
+                  >
+                    <span
+                      class="w-2 h-2 rounded-full mr-2 transition-all duration-150"
+                      :class="obtenerColorPuntoEstado(doc.estado)"
+                    ></span>
+                    {{ obtenerLabelEstado(doc.estado) }}
+                  </span>
+                </template>
               </td>
 
-              <!-- Estado de Pago (solo ventas) -->
-              <td v-if="config.mostrarEstadoPago" class="px-6 py-4">
-                <div class="flex items-center">
-                  <span
-                    :class="doc.pagado ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'"
-                    class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
-                  >
-                    <svg
-                      :class="doc.pagado ? 'text-green-500' : 'text-yellow-500'"
-                      class="w-3 h-3 mr-1"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path v-if="doc.pagado" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                      <path v-else fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
-                    </svg>
-                    {{ doc.pagado ? 'Pagado' : 'Pendiente' }}
-                  </span>
-                  <span v-if="doc.pagado && doc.metodo_pago" class="ml-2 text-xs text-gray-500">
-                    ({{ obtenerLabelMetodoPago(doc.metodo_pago) }})
-                  </span>
-                </div>
-              </td>
 
               <!-- Acciones -->
               <td class="px-6 py-4">
@@ -490,13 +485,15 @@
                     <font-awesome-icon icon="edit" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
                   </button>
 
+
+                  <!-- Enviar a Pedido (solo cotizaciones no enviadas a pedido) -->
                   <button
-                    v-if="config.acciones.duplicar && (tipo === 'cotizaciones' || tipo === 'pedidos' || tipo === 'ventas') && doc.estado !== 'cancelado'"
-                    @click="onDuplicar(doc)"
-                    class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-1"
-                    title="Duplicar"
+                    v-if="tipo === 'cotizaciones' && doc.estado !== 'cancelado' && doc.estado !== 'enviado_pedido'"
+                    @click="onEnviarPedido(doc)"
+                    class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:ring-offset-1"
+                    title="Enviar a Pedido"
                   >
-                    <font-awesome-icon icon="copy" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
+                    <font-awesome-icon icon="paper-plane" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
                   </button>
 
                   <!-- Enviar a Venta (solo pedidos) -->
@@ -510,7 +507,7 @@
                   </button>
 
                   <button
-                    v-if="config.acciones.imprimir && doc.estado !== 'cancelado'"
+                    v-if="config.acciones.imprimir && doc.estado !== 'cancelado' && tipo !== 'cotizaciones' && tipo !== 'pedidos' && tipo !== 'ventas'"
                     @click="onImprimir(doc)"
                     class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 hover:text-purple-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:ring-offset-1"
                     title="Imprimir"
@@ -643,7 +640,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits([
-  'ver-detalles','editar','eliminar','duplicar','imprimir','sort','renovar','suspender','reactivar','enviar-venta','marcar-pagado','open-image-modal'
+  'ver-detalles','editar','eliminar','duplicar','imprimir','sort','renovar','suspender','reactivar','enviar-venta','enviar-pedido','marcar-pagado','open-image-modal'
 ]);
 
 // Flags
@@ -754,7 +751,6 @@ const config = computed(() => {
       mostrarCampoExtra: true,
       campoExtra: { key: 'numero_venta', label: 'N° Venta' },
       acciones: { editar: true, duplicar: true, imprimir: true, eliminar: true, marcar_pagado: true },
-      mostrarEstadoPago: true,
       estados: {
         'borrador': { label: 'Borrador', classes: 'bg-gray-100 text-gray-700', color: 'bg-gray-400' },
         'pendiente': { label: 'Pendiente', classes: 'bg-yellow-100 text-yellow-700', color: 'bg-yellow-400' },
@@ -1170,6 +1166,7 @@ const onRenovar = (doc) => emit('renovar', doc);
 const onSuspender = (doc) => emit('suspender', doc);
 const onReactivar = (doc) => emit('reactivar', doc);
 const onEnviarVenta = (doc) => emit('enviar-venta', doc);
+const onEnviarPedido = (doc) => emit('enviar-pedido', doc);
 const onMarcarPagado = (doc) => emit('marcar-pagado', doc);
 
 const onSort = (field) => {
@@ -1187,7 +1184,6 @@ const getColspan = () => {
   if (config.value.mostrarPrecio) count++;
   if (config.value.mostrarTotal !== false) count++;
   if (config.value.mostrarProductos !== false) count++;
-  if (config.value.mostrarEstadoPago) count++;
 
   return count;
 };

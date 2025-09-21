@@ -556,9 +556,8 @@ const crearNuevaCotizacion = () => {
           :filtro-estado="filtroEstado"
           @ver-detalles="verDetalles"
           @editar="editarCotizacion"
-          @duplicar="duplicarCotizacion"
-          @imprimir="imprimirCotizacion"
           @eliminar="confirmarEliminacion"
+          @enviar-pedido="enviarAPedido"
           @sort="updateSort"
         />
 

@@ -326,6 +326,7 @@ class EntregaDineroController extends Controller
             $montoTotal = $registro->monto_pagado;
             $concepto   = $registro->concepto;
             $fecha      = $registro->fecha_pago;
+            $usuarioEntrega = $registro->responsable_cobro; // Usuario que cobró
         } elseif ($tipo_origen === 'venta') {
             $q = Venta::query()
                 ->where('id', $id_origen)
@@ -339,6 +340,7 @@ class EntregaDineroController extends Controller
             $montoTotal = $registro->total;
             $concepto   = 'Venta #' . $registro->numero_venta;
             $fecha      = $registro->fecha_pago;
+            $usuarioEntrega = $registro->pagado_por; // Usuario que cobró
         } else {
             return response()->json(['error' => 'Tipo de registro no válido'], 422);
         }
@@ -359,7 +361,7 @@ class EntregaDineroController extends Controller
         }
 
         EntregaDinero::create([
-            'user_id'         => $userId,
+            'user_id'         => $usuarioEntrega, // Usuario que cobró (no el admin)
             'fecha_entrega'   => $fecha?->format('Y-m-d') ?? now()->toDateString(),
             'monto_efectivo'  => $request->monto_recibido,
             'monto_cheques'   => 0,
@@ -369,7 +371,7 @@ class EntregaDineroController extends Controller
             'notas'           => "Entrega automática - {$concepto}",
             'tipo_origen'     => $tipo_origen,
             'id_origen'       => $id_origen,
-            'recibido_por'    => $userId,
+            'recibido_por'    => $userId, // Admin que recibió
             'fecha_recibido'  => now(),
             'notas_recibido'  => $request->notas_recibido,
         ]);

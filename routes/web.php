@@ -184,7 +184,8 @@ Route::get('/reportes/export', [ReporteController::class, 'exportarCorteDiario']
     Route::post('/rentas/{renta}/renovar', [RentasController::class, 'renovar'])->name('rentas.renovar');
 
     Route::resource('cobranza', CobranzaController::class);
-    Route::post('/cobranza/{cobranza}/marcar-pagada', [CobranzaController::class, 'marcarPagada'])->name('cobranza.marcar-pagada');
+    Route::post('/cobranza/{id}/marcar-pagada', [CobranzaController::class, 'marcarPagada'])->name('cobranza.marcar-pagada');
+    Route::post('/cobranza/venta/{id}/marcar-pagada', [CobranzaController::class, 'marcarVentaPagada'])->name('cobranza.venta.marcar-pagada');
     Route::post('/cobranza/generar-automaticas', [CobranzaController::class, 'generarCobranzas'])->name('cobranza.generar-automaticas');
 
     Route::get('/entregas-dinero/pendientes-por-usuario', [EntregaDineroController::class, 'pendientesPorUsuario'])->name('entregas-dinero.pendientes-por-usuario');
