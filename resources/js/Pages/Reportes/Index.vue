@@ -5,8 +5,21 @@
         <div class="bg-white shadow-sm rounded-lg overflow-hidden">
             <!-- Header -->
             <div class="border-b border-gray-200 px-6 py-4">
-                <h1 class="text-2xl font-semibold text-gray-900">Todos los Reportes</h1>
-                <p class="text-sm text-gray-600 mt-1">Vista completa de ventas, compras, inventario y cortes diarios</p>
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl font-semibold text-gray-900">Todos los Reportes</h1>
+                        <p class="text-sm text-gray-600 mt-1">Vista completa de ventas, compras, inventario y cortes diarios</p>
+                    </div>
+                    <Link
+                        href="/reportes"
+                        class="inline-flex items-center px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors"
+                    >
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                        </svg>
+                        Volver al Dashboard
+                    </Link>
+                </div>
             </div>
 
             <!-- Filtros de Fecha -->
@@ -117,7 +130,7 @@
                             <tbody class="bg-white divide-y divide-gray-200">
                                 <tr v-for="venta in ventasFiltradas" :key="venta.id">
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ formatDate(venta.created_at) }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ venta.cliente || 'N/A' }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ venta.cliente?.nombre_razon_social || 'N/A' }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ formatCurrency(venta.total) }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ formatCurrency(venta.costo_total) }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-green-600">{{ formatCurrency(calculateProfit(venta)) }}</td>
@@ -156,7 +169,7 @@
                             <tbody class="bg-white divide-y divide-gray-200">
                                 <tr v-for="compra in comprasFiltradas" :key="compra.id">
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ formatDate(compra.created_at) }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ compra.proveedor || 'N/A' }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ compra.proveedor?.nombre_razon_social || 'N/A' }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ formatCurrency(compra.total) }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <span :class="compra.estado === 'completada' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
@@ -207,7 +220,7 @@
                             <tbody class="bg-white divide-y divide-gray-200">
                                 <tr v-for="producto in inventarioFiltrado" :key="producto.id">
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ producto.nombre }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ producto.categoria || 'N/A' }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ producto.categoria?.nombre || 'N/A' }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ producto.stock }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ formatCurrency(producto.precio) }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap">
@@ -249,7 +262,7 @@
 
 <script setup>
 import { ref, computed } from 'vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import { format, isWithinInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
 import AppLayout from '@/Layouts/AppLayout.vue';

@@ -1,5 +1,5 @@
 <template>
-    <Head title="Reporte de Clientes" />
+    <Head title="Reporte de Empleados" />
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="bg-white shadow-sm rounded-lg overflow-hidden">
@@ -7,8 +7,8 @@
             <div class="border-b border-gray-200 px-6 py-4">
                 <div class="flex items-center justify-between">
                     <div>
-                        <h1 class="text-2xl font-semibold text-gray-900">Reporte de Clientes</h1>
-                        <p class="text-sm text-gray-600 mt-1">Estadísticas y análisis de la base de clientes</p>
+                        <h1 class="text-2xl font-semibold text-gray-900">Reporte de Empleados</h1>
+                        <p class="text-sm text-gray-600 mt-1">Información y rendimiento del personal</p>
                     </div>
                     <Link
                         href="/reportes"
@@ -24,7 +24,7 @@
 
             <!-- Filtros -->
             <div class="border-b border-gray-200 px-6 py-4 bg-gray-50">
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Fecha Inicio</label>
                         <input
@@ -51,18 +51,8 @@
                             @change="filtrar"
                         >
                             <option value="todos">Todos</option>
-                            <option value="activos">Activos</option>
-                            <option value="deudores">Deudores</option>
-                            <option value="nuevos">Nuevos</option>
+                            <option value="tecnicos">Solo Técnicos</option>
                         </select>
-                    </div>
-                    <div class="flex items-end">
-                        <button
-                            @click="exportar"
-                            class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-                        >
-                            Exportar Excel
-                        </button>
                     </div>
                 </div>
             </div>
@@ -71,20 +61,20 @@
             <div class="p-6">
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                     <div class="bg-blue-50 p-4 rounded-lg">
-                        <div class="text-2xl font-bold text-blue-600">{{ estadisticas.total_clientes }}</div>
-                        <div class="text-sm text-blue-600">Total Clientes</div>
+                        <div class="text-2xl font-bold text-blue-600">{{ estadisticas.total_empleados }}</div>
+                        <div class="text-sm text-blue-600">Total Empleados</div>
                     </div>
                     <div class="bg-green-50 p-4 rounded-lg">
-                        <div class="text-2xl font-bold text-green-600">{{ estadisticas.clientes_activos }}</div>
-                        <div class="text-sm text-green-600">Clientes Activos</div>
+                        <div class="text-2xl font-bold text-green-600">{{ estadisticas.empleados_activos }}</div>
+                        <div class="text-sm text-green-600">Empleados Activos</div>
                     </div>
                     <div class="bg-yellow-50 p-4 rounded-lg">
-                        <div class="text-2xl font-bold text-yellow-600">{{ estadisticas.clientes_deudores }}</div>
-                        <div class="text-sm text-yellow-600">Clientes Deudores</div>
+                        <div class="text-2xl font-bold text-yellow-600">{{ estadisticas.tecnicos_activos }}</div>
+                        <div class="text-sm text-yellow-600">Técnicos Activos</div>
                     </div>
                     <div class="bg-purple-50 p-4 rounded-lg">
-                        <div class="text-2xl font-bold text-purple-600">{{ formatCurrency(estadisticas.total_deuda) }}</div>
-                        <div class="text-sm text-purple-600">Total Deuda</div>
+                        <div class="text-2xl font-bold text-purple-600">{{ estadisticas.total_ventas }}</div>
+                        <div class="text-sm text-purple-600">Total Ventas</div>
                     </div>
                 </div>
 
@@ -93,33 +83,48 @@
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Empleado</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Registro</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ventas</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Ventas</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deuda</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Citas</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mantenimientos</th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
-                            <tr v-for="cliente in clientes" :key="cliente.id">
+                            <tr v-for="empleado in empleados" :key="empleado.id">
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    {{ cliente.nombre_razon_social }}
+                                    {{ empleado.name }}
+                                    <div v-if="empleado.tecnico_nombre" class="text-xs text-gray-500">
+                                        {{ empleado.tecnico_nombre }}
+                                    </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ cliente.email }}
+                                    {{ empleado.email }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span :class="empleado.es_tecnico ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                                        {{ empleado.es_tecnico ? 'Técnico' : 'Usuario' }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span :class="empleado.activo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                                        {{ empleado.activo ? 'Activo' : 'Inactivo' }}
+                                    </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ formatDate(cliente.fecha_registro) }}
+                                    {{ formatDate(empleado.fecha_registro) }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ cliente.numero_ventas }}
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600">
+                                    {{ empleado.ventas_count }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ formatCurrency(cliente.total_ventas) }}
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-green-600">
+                                    {{ empleado.citas_count }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-red-600">
-                                    {{ formatCurrency(cliente.deuda_pendiente) }}
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-purple-600">
+                                    {{ empleado.mantenimientos_count }}
                                 </td>
                             </tr>
                         </tbody>
@@ -131,26 +136,19 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
 defineOptions({ layout: AppLayout });
 
 const props = defineProps({
-    clientes: Array,
+    empleados: Array,
     estadisticas: Object,
     filtros: Object,
 });
 
 const filtros = ref({ ...props.filtros });
-
-const formatCurrency = (value) => {
-    return new Intl.NumberFormat('es-MX', {
-        style: 'currency',
-        currency: 'MXN'
-    }).format(value || 0);
-};
 
 const formatDate = (date) => {
     if (!date) return 'N/A';
@@ -158,13 +156,9 @@ const formatDate = (date) => {
 };
 
 const filtrar = () => {
-    router.get(route('reportes.clientes'), filtros.value, {
+    router.get(route('reportes.empleados'), filtros.value, {
         preserveState: true,
         replace: true,
     });
-};
-
-const exportar = () => {
-    window.open(route('reportes.clientes.export', filtros.value), '_blank');
 };
 </script>

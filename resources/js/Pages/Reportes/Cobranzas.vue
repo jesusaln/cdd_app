@@ -1,5 +1,5 @@
 <template>
-    <Head title="Reporte de Clientes" />
+    <Head title="Reporte de Cobranzas" />
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="bg-white shadow-sm rounded-lg overflow-hidden">
@@ -7,8 +7,8 @@
             <div class="border-b border-gray-200 px-6 py-4">
                 <div class="flex items-center justify-between">
                     <div>
-                        <h1 class="text-2xl font-semibold text-gray-900">Reporte de Clientes</h1>
-                        <p class="text-sm text-gray-600 mt-1">Estadísticas y análisis de la base de clientes</p>
+                        <h1 class="text-2xl font-semibold text-gray-900">Reporte de Cobranzas</h1>
+                        <p class="text-sm text-gray-600 mt-1">Pagos y cobranzas detalladas</p>
                     </div>
                     <Link
                         href="/reportes"
@@ -44,25 +44,32 @@
                         />
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Estado</label>
                         <select
-                            v-model="filtros.tipo"
+                            v-model="filtros.estado"
                             class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                             @change="filtrar"
                         >
                             <option value="todos">Todos</option>
-                            <option value="activos">Activos</option>
-                            <option value="deudores">Deudores</option>
-                            <option value="nuevos">Nuevos</option>
+                            <option value="pagado">Pagado</option>
+                            <option value="parcial">Parcial</option>
+                            <option value="pendiente">Pendiente</option>
                         </select>
                     </div>
-                    <div class="flex items-end">
-                        <button
-                            @click="exportar"
-                            class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Método Pago</label>
+                        <select
+                            v-model="filtros.metodo_pago"
+                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            @change="filtrar"
                         >
-                            Exportar Excel
-                        </button>
+                            <option value="">Todos</option>
+                            <option value="efectivo">Efectivo</option>
+                            <option value="transferencia">Transferencia</option>
+                            <option value="cheque">Cheque</option>
+                            <option value="tarjeta">Tarjeta</option>
+                            <option value="otros">Otros</option>
+                        </select>
                     </div>
                 </div>
             </div>
@@ -71,20 +78,20 @@
             <div class="p-6">
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                     <div class="bg-blue-50 p-4 rounded-lg">
-                        <div class="text-2xl font-bold text-blue-600">{{ estadisticas.total_clientes }}</div>
-                        <div class="text-sm text-blue-600">Total Clientes</div>
+                        <div class="text-2xl font-bold text-blue-600">{{ estadisticas.total_cobranzas }}</div>
+                        <div class="text-sm text-blue-600">Total Cobranzas</div>
                     </div>
                     <div class="bg-green-50 p-4 rounded-lg">
-                        <div class="text-2xl font-bold text-green-600">{{ estadisticas.clientes_activos }}</div>
-                        <div class="text-sm text-green-600">Clientes Activos</div>
+                        <div class="text-2xl font-bold text-green-600">{{ estadisticas.cobranzas_pagadas }}</div>
+                        <div class="text-sm text-green-600">Pagadas</div>
                     </div>
                     <div class="bg-yellow-50 p-4 rounded-lg">
-                        <div class="text-2xl font-bold text-yellow-600">{{ estadisticas.clientes_deudores }}</div>
-                        <div class="text-sm text-yellow-600">Clientes Deudores</div>
+                        <div class="text-2xl font-bold text-yellow-600">{{ estadisticas.cobranzas_parciales }}</div>
+                        <div class="text-sm text-yellow-600">Parciales</div>
                     </div>
                     <div class="bg-purple-50 p-4 rounded-lg">
-                        <div class="text-2xl font-bold text-purple-600">{{ formatCurrency(estadisticas.total_deuda) }}</div>
-                        <div class="text-sm text-purple-600">Total Deuda</div>
+                        <div class="text-2xl font-bold text-purple-600">{{ formatCurrency(estadisticas.total_cobrado) }}</div>
+                        <div class="text-sm text-purple-600">Total Cobrado</div>
                     </div>
                 </div>
 
@@ -93,33 +100,39 @@
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contrato</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Registro</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ventas</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Ventas</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deuda</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Concepto</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Método</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Pago</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monto</th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
-                            <tr v-for="cliente in clientes" :key="cliente.id">
+                            <tr v-for="cobranza in cobranzas" :key="cobranza.id">
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    {{ cliente.nombre_razon_social }}
+                                    {{ cobranza.numero_contrato }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {{ cobranza.cliente }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ cliente.email }}
+                                    {{ cobranza.concepto }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ formatDate(cliente.fecha_registro) }}
+                                    {{ cobranza.metodo_pago }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ cliente.numero_ventas }}
+                                    {{ formatDate(cobranza.fecha_pago) }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ formatCurrency(cliente.total_ventas) }}
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span :class="getEstadoClass(cobranza.estado)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                                        {{ cobranza.estado }}
+                                    </span>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-red-600">
-                                    {{ formatCurrency(cliente.deuda_pendiente) }}
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-green-600">
+                                    {{ formatCurrency(cobranza.monto_pagado) }}
                                 </td>
                             </tr>
                         </tbody>
@@ -131,14 +144,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
 defineOptions({ layout: AppLayout });
 
 const props = defineProps({
-    clientes: Array,
+    cobranzas: Array,
     estadisticas: Object,
     filtros: Object,
 });
@@ -157,14 +170,23 @@ const formatDate = (date) => {
     return new Date(date).toLocaleDateString('es-MX');
 };
 
+const getEstadoClass = (estado) => {
+    switch (estado) {
+        case 'pagado':
+            return 'bg-green-100 text-green-800';
+        case 'parcial':
+            return 'bg-yellow-100 text-yellow-800';
+        case 'pendiente':
+            return 'bg-red-100 text-red-800';
+        default:
+            return 'bg-gray-100 text-gray-800';
+    }
+};
+
 const filtrar = () => {
-    router.get(route('reportes.clientes'), filtros.value, {
+    router.get(route('reportes.cobranzas'), filtros.value, {
         preserveState: true,
         replace: true,
     });
-};
-
-const exportar = () => {
-    window.open(route('reportes.clientes.export', filtros.value), '_blank');
 };
 </script>

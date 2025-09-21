@@ -5,8 +5,21 @@
         <div class="bg-white shadow-sm rounded-lg overflow-hidden">
             <!-- Header -->
             <div class="border-b border-gray-200 px-6 py-4">
-                <h1 class="text-2xl font-semibold text-gray-900">Reporte de Inventario</h1>
-                <p class="text-sm text-gray-600 mt-1">Control de stock y productos</p>
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl font-semibold text-gray-900">Reporte de Inventario</h1>
+                        <p class="text-sm text-gray-600 mt-1">Control de stock y productos</p>
+                    </div>
+                    <Link
+                        href="/reportes"
+                        class="inline-flex items-center px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors"
+                    >
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                        </svg>
+                        Volver al Dashboard
+                    </Link>
+                </div>
             </div>
 
             <!-- Filtros -->
@@ -132,7 +145,7 @@
 
 <script setup>
 import { ref } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
 defineOptions({ layout: AppLayout });
