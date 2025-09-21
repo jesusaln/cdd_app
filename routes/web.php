@@ -184,6 +184,12 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::put('/clientes/{cliente}/toggle', [ClienteController::class, 'toggle'])->name('clientes.toggle');
 
     // =====================================================
+    // RUTAS ESPECÍFICAS DE PROVEEDORES
+    // =====================================================
+    Route::get('/proveedores/export', [ProveedorController::class, 'export'])->name('proveedores.export');
+    Route::put('/proveedores/{proveedor}/toggle', [ProveedorController::class, 'toggle'])->name('proveedores.toggle');
+
+    // =====================================================
     // RUTAS ESPECÍFICAS DE PRODUCTOS
     // =====================================================
     Route::post('/productos/validate-stock', [ProductoController::class, 'validateStock'])->name('productos.validateStock');

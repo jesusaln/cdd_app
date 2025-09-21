@@ -26,7 +26,8 @@ class ProveedorSeeder extends Seeder
                 'codigo_postal' => '00000',
                 'municipio' => 'CIUDAD DE MÉXICO',
                 'estado' => 'CIUDAD DE MÉXICO',
-                'pais' => 'MÉXICO'
+                'pais' => 'MÉXICO',
+                'activo' => true
             ]
         );
 
@@ -104,7 +105,8 @@ class ProveedorSeeder extends Seeder
                     'codigo_postal' => $faker->postcode(),
                     'municipio' => $faker->city(),
                     'estado' => $faker->randomElement($estadosMexicanos),
-                    'pais' => 'MÉXICO'
+                    'pais' => 'MÉXICO',
+                    'activo' => true
                 ]);
             }
         }
