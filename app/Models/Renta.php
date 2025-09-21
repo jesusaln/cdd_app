@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use App\Models\Pago;
 
 class Renta extends Model
 {
@@ -102,7 +103,15 @@ class Renta extends Model
      */
     public function pagos(): HasMany
     {
-        return $this->hasMany(\App\Models\Pago::class, 'renta_id');
+        return $this->hasMany(Pago::class, 'renta_id');
+    }
+
+    /**
+     * Relación con Cobranzas.
+     */
+    public function cobranzas(): HasMany
+    {
+        return $this->hasMany(\App\Models\Cobranza::class, 'renta_id');
     }
 
     /**

@@ -1,12 +1,10 @@
-<!-- /resources/js/Pages/Rentas/Index.vue -->
+<!-- /resources/js/Pages/Cobranza/Index.vue -->
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { Head, router, usePage, Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { Notyf } from 'notyf'
 import 'notyf/notyf.min.css'
-import { generarPDF } from '@/Utils/pdfGenerator'
-import axios from 'axios'
 
 defineOptions({ layout: AppLayout })
 
@@ -30,59 +28,67 @@ onMounted(() => {
 
 // Props
 const props = defineProps({
-  rentas: { type: [Object, Array], required: true },
+  cobranzas: { type: [Object, Array], required: true },
   stats: { type: Object, default: () => ({}) },
   filters: { type: Object, default: () => ({}) },
-  sorting: { type: Object, default: () => ({ sort_by: 'created_at', sort_direction: 'desc' }) },
+  sorting: { type: Object, default: () => ({ sort_by: 'fecha_cobro', sort_direction: 'desc' }) },
 })
 
 // Estado UI
 const showModal = ref(false)
 const modalMode = ref('details')
-const selectedRenta = ref(null)
+const selectedCobranza = ref(null)
 const selectedId = ref(null)
+const showGenerarModal = ref(false)
 
 // Filtros
 const searchTerm = ref(props.filters?.search ?? '')
-const sortBy = ref('created_at-desc')
+const sortBy = ref('fecha_cobro-desc')
 const filtroEstado = ref('')
+const filtroMes = ref('')
+const filtroAnio = ref(new Date().getFullYear().toString())
 
 // Paginación
 const perPage = ref(10)
 
 // Header config
 const headerConfig = {
-  module: 'rentas',
-  createButtonText: 'Nueva Renta',
-  searchPlaceholder: 'Buscar por cliente, equipo, número de contrato...'
+  module: 'cobranza',
+  createButtonText: 'Nueva Cobranza',
+  searchPlaceholder: 'Buscar por cliente, contrato, concepto...'
 }
 
 // Datos
-const rentasPaginator = computed(() => props.rentas)
-const rentasData = computed(() => rentasPaginator.value?.data || [])
+const cobranzasPaginator = computed(() => props.cobranzas)
+const cobranzasData = computed(() => cobranzasPaginator.value?.data || [])
 
 // Estadísticas
 const estadisticas = computed(() => ({
   total: props.stats?.total ?? 0,
-  activas: props.stats?.activas ?? 0,
+  pendientes: props.stats?.pendientes ?? 0,
+  pagadas: props.stats?.pagadas ?? 0,
   vencidas: props.stats?.vencidas ?? 0,
-  activasPorcentaje: props.stats?.activas > 0 ? Math.round((props.stats.activas / props.stats.total) * 100) : 0,
-  vencidasPorcentaje: props.stats?.vencidas > 0 ? Math.round((props.stats.vencidas / props.stats.total) * 100) : 0
+  totalPendiente: props.stats?.total_pendiente ?? 0,
+  totalPagado: props.stats?.total_pagado ?? 0,
+  pendientesPorcentaje: props.stats?.total > 0 ? Math.round((props.stats.pendientes / props.stats.total) * 100) : 0,
+  pagadasPorcentaje: props.stats?.total > 0 ? Math.round((props.stats.pagadas / props.stats.total) * 100) : 0
 }))
 
 // Transformación de datos
-const rentasDocumentos = computed(() => {
-  return rentasData.value.map(r => {
+const cobranzasDocumentos = computed(() => {
+  return cobranzasData.value.map(c => {
     return {
-      id: r.id,
-      titulo: r.numero_contrato || `Contrato #${r.id}`,
-      subtitulo: r.cliente?.nombre_razon_social || 'Sin cliente',
-      estado: r.estado,
-      pago: r.monto_mensual || 0,
-      anticipoPagado: (r.deposito_garantia && r.deposito_garantia > 0) ? 'Pagado' : 'No pagado',
-      extra: `Equipos: ${r.equipos?.length || 0} | Inicio: ${r.fecha_inicio ? new Date(r.fecha_inicio).toLocaleDateString('es-MX') : 'N/A'}`,
-      fecha: r.created_at,
-      raw: r
+      id: c.id,
+      titulo: c.concepto || 'Cobranza',
+      subtitulo: c.renta?.cliente?.nombre_razon_social || 'Sin cliente',
+      contrato: c.renta?.numero_contrato || 'N/A',
+      estado: c.estado,
+      monto: c.monto_cobrado || 0,
+      montoPagado: c.monto_pagado || 0,
+      fechaCobro: c.fecha_cobro,
+      fechaPago: c.fecha_pago,
+      metodoPago: c.metodo_pago,
+      raw: c
     }
   })
 })
@@ -90,11 +96,13 @@ const rentasDocumentos = computed(() => {
 // Handlers
 function handleSearchChange(newSearch) {
   searchTerm.value = newSearch
-  router.get(route('rentas.index'), {
+  router.get(route('cobranza.index'), {
     search: newSearch,
     sort_by: sortBy.value.split('-')[0],
     sort_direction: sortBy.value.split('-')[1] || 'desc',
     estado: filtroEstado.value,
+    mes: filtroMes.value,
+    anio: filtroAnio.value,
     per_page: perPage.value,
     page: 1
   }, { preserveState: true, preserveScroll: true })
@@ -102,11 +110,41 @@ function handleSearchChange(newSearch) {
 
 function handleEstadoChange(newEstado) {
   filtroEstado.value = newEstado
-  router.get(route('rentas.index'), {
+  router.get(route('cobranza.index'), {
     search: searchTerm.value,
     sort_by: sortBy.value.split('-')[0],
     sort_direction: sortBy.value.split('-')[1] || 'desc',
     estado: newEstado,
+    mes: filtroMes.value,
+    anio: filtroAnio.value,
+    per_page: perPage.value,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+function handleMesChange(newMes) {
+  filtroMes.value = newMes
+  router.get(route('cobranza.index'), {
+    search: searchTerm.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc',
+    estado: filtroEstado.value,
+    mes: newMes,
+    anio: filtroAnio.value,
+    per_page: perPage.value,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+function handleAnioChange(newAnio) {
+  filtroAnio.value = newAnio
+  router.get(route('cobranza.index'), {
+    search: searchTerm.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc',
+    estado: filtroEstado.value,
+    mes: filtroMes.value,
+    anio: newAnio,
     per_page: perPage.value,
     page: 1
   }, { preserveState: true, preserveScroll: true })
@@ -114,24 +152,26 @@ function handleEstadoChange(newEstado) {
 
 function handleSortChange(newSort) {
   sortBy.value = newSort
-  router.get(route('rentas.index'), {
+  router.get(route('cobranza.index'), {
     search: searchTerm.value,
     sort_by: newSort.split('-')[0],
     sort_direction: newSort.split('-')[1] || 'desc',
     estado: filtroEstado.value,
+    mes: filtroMes.value,
+    anio: filtroAnio.value,
     per_page: perPage.value,
     page: 1
   }, { preserveState: true, preserveScroll: true })
 }
 
 const verDetalles = (doc) => {
-  selectedRenta.value = doc.raw
+  selectedCobranza.value = doc.raw
   modalMode.value = 'details'
   showModal.value = true
 }
 
-const editarRenta = (id) => {
-  router.visit(route('rentas.edit', id))
+const editarCobranza = (id) => {
+  router.visit(route('cobranza.edit', id))
 }
 
 const confirmarEliminacion = (id) => {
@@ -140,116 +180,72 @@ const confirmarEliminacion = (id) => {
   showModal.value = true
 }
 
-const eliminarRenta = () => {
-  router.delete(route('rentas.destroy', selectedId.value), {
+const eliminarCobranza = () => {
+  router.delete(route('cobranza.destroy', selectedId.value), {
     preserveScroll: true,
     onSuccess: () => {
-      notyf.success('Renta eliminada correctamente')
+      notyf.success('Cobranza eliminada correctamente')
       showModal.value = false
       selectedId.value = null
       router.reload()
     },
     onError: (errors) => {
-      notyf.error('No se pudo eliminar la renta')
+      notyf.error('No se pudo eliminar la cobranza')
     }
   })
 }
 
+const marcarPagada = (cobranza) => {
+  const fechaPago = prompt('Fecha de pago:', new Date().toISOString().split('T')[0])
+  if (!fechaPago) return
 
-const imprimirRenta = async (renta) => {
-  const rentaConFecha = {
-    ...renta,
-    fecha: renta.fecha_inicio || renta.created_at || new Date().toISOString()
-  }
-  const validaciones = [
-    [rentaConFecha.id, 'ID del documento no encontrado'],
-    [rentaConFecha.cliente?.nombre, 'Datos del cliente no encontrados'],
-    [Array.isArray(rentaConFecha.equipos) && rentaConFecha.equipos.length > 0, 'Lista de equipos no válida'],
-    [rentaConFecha.fecha, 'Fecha no especificada']
-  ]
-  for (const [cond, msg] of validaciones) {
-    if (!cond) return notyf.error(`Error: ${msg}`)
-  }
-  try {
-    notyf.success('Generando PDF...')
-    await generarPDF('Contrato de Renta', rentaConFecha)
-    notyf.success('PDF generado correctamente')
-  } catch (error) {
-    notyf.error(`Error al generar PDF: ${error.message}`)
-  }
+  const montoPagado = prompt('Monto pagado:', cobranza.monto_cobrado.toString())
+  if (!montoPagado || isNaN(montoPagado)) return
+
+  const metodoPago = prompt('Método de pago (efectivo, transferencia, tarjeta, cheque):', 'transferencia')
+  if (!metodoPago) return
+
+  const referenciaPago = prompt('Referencia de pago (opcional):', '')
+
+  router.post(route('cobranza.marcar-pagada', cobranza.id), {
+    fecha_pago: fechaPago,
+    monto_pagado: parseFloat(montoPagado),
+    metodo_pago: metodoPago,
+    referencia_pago: referenciaPago,
+  }, {
+    onSuccess: () => {
+      notyf.success('Cobranza marcada como pagada')
+      router.reload()
+    },
+    onError: (errors) => {
+      notyf.error('Error al marcar como pagada')
+    }
+  })
 }
 
-const suspenderRenta = async (renta) => {
-  if (!confirm(`¿Suspender la renta #${renta.numero_contrato}? Esto liberará los equipos.`)) return
-  try {
-    const response = await axios.post(route('rentas.suspender', renta.id))
-    if (response.data.success) {
-      notyf.success(response.data.message || 'Renta suspendida correctamente')
-      router.reload()
-    } else {
-      notyf.error(response.data.error || 'Error al suspender la renta')
-    }
-  } catch (error) {
-    const msg = error.response?.data?.error || 'Error al suspender la renta'
-    notyf.error(msg)
-  }
-}
+const generarAutomaticas = () => {
+  const mes = prompt('Mes (1-12):', new Date().getMonth() + 1)
+  const anio = prompt('Año:', new Date().getFullYear())
 
-const reactivarRenta = async (renta) => {
-  if (!confirm(`¿Reactivar la renta #${renta.numero_contrato}? Esto marcará los equipos como rentados.`)) return
-  try {
-    const response = await axios.post(route('rentas.reactivar', renta.id))
-    if (response.data.success) {
-      notyf.success(response.data.message || 'Renta reactivada correctamente')
-      router.reload()
-    } else {
-      notyf.error(response.data.error || 'Error al reactivar la renta')
-    }
-  } catch (error) {
-    const msg = error.response?.data?.error || 'Error al reactivar la renta'
-    notyf.error(msg)
-  }
-}
+  if (!mes || !anio || isNaN(mes) || isNaN(anio)) return
 
-const finalizarRenta = async (renta) => {
-  if (!confirm(`¿Finalizar la renta #${renta.numero_contrato}? Esto liberará permanentemente los equipos.`)) return
-  try {
-    const response = await axios.post(route('rentas.finalizar', renta.id))
-    if (response.data.success) {
-      notyf.success(response.data.message || 'Renta finalizada correctamente')
+  router.post(route('cobranza.generar-automaticas'), {
+    mes: parseInt(mes),
+    anio: parseInt(anio),
+  }, {
+    onSuccess: () => {
+      notyf.success('Cobranzas generadas automáticamente')
       router.reload()
-    } else {
-      notyf.error(response.data.error || 'Error al finalizar la renta')
+    },
+    onError: (errors) => {
+      notyf.error('Error al generar cobranzas')
     }
-  } catch (error) {
-    const msg = error.response?.data?.error || 'Error al finalizar la renta'
-    notyf.error(msg)
-  }
-}
-
-const renovarRenta = async (renta) => {
-  const meses = prompt('¿Cuántos meses deseas renovar?', '12')
-  if (!meses || isNaN(meses) || meses <= 0) return
-
-  try {
-    const response = await axios.post(route('rentas.renovar', renta.id), {
-      meses_renovacion: parseInt(meses)
-    })
-    if (response.data.success) {
-      notyf.success(response.data.message || 'Renta renovada correctamente')
-      router.reload()
-    } else {
-      notyf.error(response.data.error || 'Error al renovar la renta')
-    }
-  } catch (error) {
-    const msg = error.response?.data?.error || 'Error al renovar la renta'
-    notyf.error(msg)
-  }
+  })
 }
 
 // Paginación
 const paginationData = computed(() => {
-  const p = rentasPaginator.value || {}
+  const p = cobranzasPaginator.value || {}
   return {
     currentPage: p.current_page ?? 1,
     lastPage:    p.last_page ?? 1,
@@ -264,7 +260,7 @@ const paginationData = computed(() => {
 })
 
 const handlePerPageChange = (newPerPage) => {
-  router.get(route('rentas.index'), {
+  router.get(route('cobranza.index'), {
     ...props.filters,
     ...props.sorting,
     per_page: newPerPage,
@@ -273,7 +269,7 @@ const handlePerPageChange = (newPerPage) => {
 }
 
 const handlePageChange = (newPage) => {
-  router.get(route('rentas.index'), {
+  router.get(route('cobranza.index'), {
     ...props.filters,
     ...props.sorting,
     page: newPage
@@ -294,34 +290,30 @@ const formatearFecha = (date) => {
 
 const obtenerClasesEstado = (estado) => {
   const clases = {
-    'activo': 'bg-green-100 text-green-700',
-    'proximo_vencimiento': 'bg-orange-100 text-orange-700',
+    'pendiente': 'bg-yellow-100 text-yellow-700',
+    'pagado': 'bg-green-100 text-green-700',
+    'parcial': 'bg-blue-100 text-blue-700',
     'vencido': 'bg-red-100 text-red-700',
-    'moroso': 'bg-red-200 text-red-800',
-    'suspendido': 'bg-yellow-100 text-yellow-700',
-    'finalizado': 'bg-gray-100 text-gray-600',
-    'anulado': 'bg-gray-100 text-gray-500'
+    'cancelado': 'bg-gray-100 text-gray-600'
   }
   return clases[estado] || 'bg-gray-100 text-gray-700'
 }
 
 const obtenerLabelEstado = (estado) => {
   const labels = {
-    'activo': 'Activo',
-    'proximo_vencimiento': 'Próximo Vencimiento',
+    'pendiente': 'Pendiente',
+    'pagado': 'Pagado',
+    'parcial': 'Parcial',
     'vencido': 'Vencido',
-    'moroso': 'Moroso',
-    'suspendido': 'Suspendido',
-    'finalizado': 'Finalizado',
-    'anulado': 'Anulado'
+    'cancelado': 'Cancelado'
   }
   return labels[estado] || 'Pendiente'
 }
 </script>
 
 <template>
-  <Head title="Rentas" />
-  <div class="rentas-index min-h-screen bg-gray-50">
+  <Head title="Cobranza" />
+  <div class="cobranza-index min-h-screen bg-gray-50">
     <div class="max-w-8xl mx-auto px-6 py-8">
       <!-- Header -->
       <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-8 mb-6">
@@ -329,12 +321,12 @@ const obtenerLabelEstado = (estado) => {
           <!-- Izquierda -->
           <div class="flex flex-col gap-6 w-full lg:w-auto">
             <div class="flex items-center gap-3">
-              <h1 class="text-2xl font-bold text-slate-900">Rentas</h1>
+              <h1 class="text-2xl font-bold text-slate-900">Cobranza</h1>
             </div>
 
             <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
               <Link
-                :href="route('rentas.create')"
+                :href="route('cobranza.create')"
                 class="inline-flex items-center gap-2.5 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg"
               >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -342,6 +334,16 @@ const obtenerLabelEstado = (estado) => {
                 </svg>
                 <span>{{ headerConfig.createButtonText }}</span>
               </Link>
+
+              <button
+                @click="generarAutomaticas"
+                class="inline-flex items-center gap-2 px-4 py-3 bg-green-50 text-green-700 rounded-xl hover:bg-green-100 transition-all duration-200 border border-green-200"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+                <span class="text-sm font-medium">Generar Automáticas</span>
+              </button>
             </div>
 
             <!-- Estadísticas con barras de progreso -->
@@ -354,20 +356,37 @@ const obtenerLabelEstado = (estado) => {
                 <span class="font-bold text-slate-900 text-lg">{{ formatNumber(estadisticas.total) }}</span>
               </div>
 
+              <div class="flex items-center gap-2 px-4 py-3 bg-yellow-50 rounded-xl border border-yellow-200">
+                <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span class="font-medium text-slate-700">Pendientes:</span>
+                <span class="font-bold text-yellow-700 text-lg">{{ formatNumber(estadisticas.pendientes) }}</span>
+                <div class="ml-2 flex items-center gap-2">
+                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      class="h-full bg-yellow-500 transition-all duration-300"
+                      :style="{ width: estadisticas.pendientesPorcentaje + '%' }"
+                    ></div>
+                  </div>
+                  <span class="text-xs text-yellow-600 font-medium">{{ estadisticas.pendientesPorcentaje }}%</span>
+                </div>
+              </div>
+
               <div class="flex items-center gap-2 px-4 py-3 bg-green-50 rounded-xl border border-green-200">
                 <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <span class="font-medium text-slate-700">Activas:</span>
-                <span class="font-bold text-green-700 text-lg">{{ formatNumber(estadisticas.activas) }}</span>
+                <span class="font-medium text-slate-700">Pagadas:</span>
+                <span class="font-bold text-green-700 text-lg">{{ formatNumber(estadisticas.pagadas) }}</span>
                 <div class="ml-2 flex items-center gap-2">
                   <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
                     <div
                       class="h-full bg-green-500 transition-all duration-300"
-                      :style="{ width: estadisticas.activasPorcentaje + '%' }"
+                      :style="{ width: estadisticas.pagadasPorcentaje + '%' }"
                     ></div>
                   </div>
-                  <span class="text-xs text-green-600 font-medium">{{ estadisticas.activasPorcentaje }}%</span>
+                  <span class="text-xs text-green-600 font-medium">{{ estadisticas.pagadasPorcentaje }}%</span>
                 </div>
               </div>
 
@@ -377,15 +396,6 @@ const obtenerLabelEstado = (estado) => {
                 </svg>
                 <span class="font-medium text-slate-700">Vencidas:</span>
                 <span class="font-bold text-red-700 text-lg">{{ formatNumber(estadisticas.vencidas) }}</span>
-                <div class="ml-2 flex items-center gap-2">
-                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      class="h-full bg-red-500 transition-all duration-300"
-                      :style="{ width: estadisticas.vencidasPorcentaje + '%' }"
-                    ></div>
-                  </div>
-                  <span class="text-xs text-red-600 font-medium">{{ estadisticas.vencidasPorcentaje }}%</span>
-                </div>
               </div>
             </div>
           </div>
@@ -406,6 +416,38 @@ const obtenerLabelEstado = (estado) => {
               </svg>
             </div>
 
+            <!-- Mes -->
+            <select
+              v-model="filtroMes"
+              @change="handleMesChange($event.target.value)"
+              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+            >
+              <option value="">Todos los Meses</option>
+              <option value="1">Enero</option>
+              <option value="2">Febrero</option>
+              <option value="3">Marzo</option>
+              <option value="4">Abril</option>
+              <option value="5">Mayo</option>
+              <option value="6">Junio</option>
+              <option value="7">Julio</option>
+              <option value="8">Agosto</option>
+              <option value="9">Septiembre</option>
+              <option value="10">Octubre</option>
+              <option value="11">Noviembre</option>
+              <option value="12">Diciembre</option>
+            </select>
+
+            <!-- Año -->
+            <select
+              v-model="filtroAnio"
+              @change="handleAnioChange($event.target.value)"
+              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+            >
+              <option v-for="anio in 5" :key="anio" :value="(new Date().getFullYear() - 5 + anio)">
+                {{ new Date().getFullYear() - 5 + anio }}
+              </option>
+            </select>
+
             <!-- Estado -->
             <select
               v-model="filtroEstado"
@@ -413,13 +455,11 @@ const obtenerLabelEstado = (estado) => {
               class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
             >
               <option value="">Todos los Estados</option>
-              <option value="activo">Activas</option>
-              <option value="proximo_vencimiento">Próximo Vencimiento</option>
+              <option value="pendiente">Pendientes</option>
+              <option value="pagado">Pagadas</option>
+              <option value="parcial">Parciales</option>
               <option value="vencido">Vencidas</option>
-              <option value="moroso">Morosas</option>
-              <option value="suspendido">Suspendidas</option>
-              <option value="finalizado">Finalizadas</option>
-              <option value="anulado">Anuladas</option>
+              <option value="cancelado">Canceladas</option>
             </select>
 
             <!-- Orden -->
@@ -428,10 +468,10 @@ const obtenerLabelEstado = (estado) => {
               @change="handleSortChange($event.target.value)"
               class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
             >
-              <option value="created_at-desc">Más Recientes</option>
-              <option value="created_at-asc">Más Antiguos</option>
-              <option value="numero_contrato-asc">Contrato A-Z</option>
-              <option value="numero_contrato-desc">Contrato Z-A</option>
+              <option value="fecha_cobro-desc">Fecha Cobro ↓</option>
+              <option value="fecha_cobro-asc">Fecha Cobro ↑</option>
+              <option value="monto_cobrado-desc">Monto ↓</option>
+              <option value="monto_cobrado-asc">Monto ↑</option>
             </select>
           </div>
         </div>
@@ -443,88 +483,64 @@ const obtenerLabelEstado = (estado) => {
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
               <tr>
-                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Fecha</th>
-                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Contrato</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Fecha Cobro</th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Cliente</th>
-                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Mensualidad</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Contrato</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Concepto</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Monto</th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Estado</th>
                 <th class="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Acciones</th>
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-              <tr v-for="renta in rentasDocumentos" :key="renta.id" class="hover:bg-gray-50 transition-colors duration-150">
+              <tr v-for="cobranza in cobranzasDocumentos" :key="cobranza.id" class="hover:bg-gray-50 transition-colors duration-150">
                 <td class="px-6 py-4">
-                  <div class="text-sm text-gray-900">{{ formatearFecha(renta.fecha) }}</div>
+                  <div class="text-sm text-gray-900">{{ formatearFecha(cobranza.fechaCobro) }}</div>
                 </td>
                 <td class="px-6 py-4">
-                  <div class="text-sm font-medium text-gray-900">{{ renta.titulo }}</div>
+                  <div class="text-sm font-medium text-gray-900">{{ cobranza.subtitulo }}</div>
                 </td>
                 <td class="px-6 py-4">
-                  <div class="text-sm text-gray-700">{{ renta.subtitulo }}</div>
+                  <div class="text-sm text-gray-700">{{ cobranza.contrato }}</div>
                 </td>
                 <td class="px-6 py-4">
-                  <div class="text-sm text-gray-700">${{ formatNumber(renta.pago) }}</div>
+                  <div class="text-sm text-gray-700">{{ cobranza.titulo }}</div>
                 </td>
                 <td class="px-6 py-4">
-                  <span :class="obtenerClasesEstado(renta.estado)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
-                    {{ obtenerLabelEstado(renta.estado) }}
+                  <div class="text-sm font-medium text-gray-900">${{ formatNumber(cobranza.monto) }}</div>
+                  <div v-if="cobranza.montoPagado > 0 && cobranza.montoPagado < cobranza.monto" class="text-xs text-blue-600">
+                    Pagado: ${{ formatNumber(cobranza.montoPagado) }}
+                  </div>
+                </td>
+                <td class="px-6 py-4">
+                  <span :class="obtenerClasesEstado(cobranza.estado)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                    {{ obtenerLabelEstado(cobranza.estado) }}
                   </span>
                 </td>
                 <td class="px-6 py-4 text-right">
                   <div class="flex items-center justify-end space-x-1">
-                    <button @click="verDetalles(renta)" class="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors duration-150" title="Ver detalles">
+                    <button @click="verDetalles(cobranza)" class="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors duration-150" title="Ver detalles">
                       <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                       </svg>
                     </button>
-                    <button @click="editarRenta(renta.id)" class="w-8 h-8 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-colors duration-150" title="Editar">
+                    <button @click="editarCobranza(cobranza.id)" class="w-8 h-8 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-colors duration-150" title="Editar">
                       <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
                     </button>
-                    <!-- Botones condicionales según estado -->
                     <button
-                      v-if="renta.raw.estado === 'activo'"
-                      @click="suspenderRenta(renta.raw)"
-                      class="w-8 h-8 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition-colors duration-150"
-                      title="Suspender"
+                      v-if="cobranza.estado === 'pendiente' || cobranza.estado === 'parcial'"
+                      @click="marcarPagada(cobranza.raw)"
+                      class="w-8 h-8 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors duration-150"
+                      title="Marcar como pagada"
                     >
                       <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </button>
-                    <button
-                      v-if="renta.raw.estado === 'suspendido'"
-                      @click="reactivarRenta(renta.raw)"
-                      class="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors duration-150"
-                      title="Reactivar"
-                    >
-                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1.586a1 1 0 01.707.293l.707.707A1 1 0 0012.414 11H15m-3 7.5A9.5 9.5 0 1121.5 12 9.5 9.5 0 0112 2.5"/>
-                      </svg>
-                    </button>
-                    <button
-                      v-if="['activo', 'proximo_vencimiento', 'vencido'].includes(renta.raw.estado)"
-                      @click="renovarRenta(renta.raw)"
-                      class="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors duration-150"
-                      title="Renovar"
-                    >
-                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                      </svg>
-                    </button>
-                    <button
-                      v-if="['activo', 'proximo_vencimiento', 'vencido'].includes(renta.raw.estado)"
-                      @click="finalizarRenta(renta.raw)"
-                      class="w-8 h-8 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 transition-colors duration-150"
-                      title="Finalizar"
-                    >
-                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                      </svg>
-                    </button>
-                    <button @click="confirmarEliminacion(renta.id)" class="w-8 h-8 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors duration-150" title="Eliminar">
+                    <button @click="confirmarEliminacion(cobranza.id)" class="w-8 h-8 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors duration-150" title="Eliminar">
                       <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
@@ -532,7 +548,7 @@ const obtenerLabelEstado = (estado) => {
                   </div>
                 </td>
               </tr>
-              <tr v-if="rentasDocumentos.length === 0">
+              <tr v-if="cobranzasDocumentos.length === 0">
                 <td colspan="7" class="px-6 py-16 text-center">
                   <div class="flex flex-col items-center space-y-4">
                     <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
@@ -541,8 +557,8 @@ const obtenerLabelEstado = (estado) => {
                       </svg>
                     </div>
                     <div class="space-y-1">
-                      <p class="text-gray-700 font-medium">No hay rentas</p>
-                      <p class="text-sm text-gray-500">Las rentas aparecerán aquí cuando se creen</p>
+                      <p class="text-gray-700 font-medium">No hay cobranzas</p>
+                      <p class="text-sm text-gray-500">Las cobranzas aparecerán aquí cuando se creen</p>
                     </div>
                   </div>
                 </td>
@@ -623,7 +639,7 @@ const obtenerLabelEstado = (estado) => {
           <!-- Header del modal -->
           <div class="flex items-center justify-between p-6 border-b border-gray-200">
             <h3 class="text-lg font-medium text-gray-900">
-              {{ modalMode === 'details' ? 'Detalles de la Renta' : 'Confirmar Eliminación' }}
+              {{ modalMode === 'details' ? 'Detalles de la Cobranza' : 'Confirmar Eliminación' }}
             </h3>
             <button @click="showModal = false" class="text-gray-400 hover:text-gray-600 transition-colors">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -633,47 +649,59 @@ const obtenerLabelEstado = (estado) => {
           </div>
 
           <div class="p-6">
-            <div v-if="modalMode === 'details' && selectedRenta">
+            <div v-if="modalMode === 'details' && selectedCobranza">
               <div class="space-y-4">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div class="space-y-3">
                     <div>
-                      <label class="block text-sm font-medium text-gray-700">Número de Contrato</label>
-                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedRenta.numero_contrato || 'N/A' }}</p>
+                      <label class="block text-sm font-medium text-gray-700">Concepto</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedCobranza.concepto || 'N/A' }}</p>
                     </div>
                     <div>
                       <label class="block text-sm font-medium text-gray-700">Cliente</label>
-                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedRenta.cliente?.nombre || 'Sin cliente' }}</p>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedCobranza.renta?.cliente?.nombre_razon_social || 'Sin cliente' }}</p>
                     </div>
                     <div>
-                      <label class="block text-sm font-medium text-gray-700">Fecha de Inicio</label>
-                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ formatearFecha(selectedRenta.fecha_inicio) }}</p>
+                      <label class="block text-sm font-medium text-gray-700">Contrato</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedCobranza.renta?.numero_contrato || 'N/A' }}</p>
                     </div>
                     <div>
-                      <label class="block text-sm font-medium text-gray-700">Fecha de Fin</label>
-                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ formatearFecha(selectedRenta.fecha_fin) }}</p>
+                      <label class="block text-sm font-medium text-gray-700">Fecha de Cobro</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ formatearFecha(selectedCobranza.fecha_cobro) }}</p>
                     </div>
                     <div>
                       <label class="block text-sm font-medium text-gray-700">Estado</label>
-                      <span :class="obtenerClasesEstado(selectedRenta.estado)" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium mt-1">
-                        {{ obtenerLabelEstado(selectedRenta.estado) }}
+                      <span :class="obtenerClasesEstado(selectedCobranza.estado)" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium mt-1">
+                        {{ obtenerLabelEstado(selectedCobranza.estado) }}
                       </span>
                     </div>
                   </div>
                   <div class="space-y-3">
                     <div>
-                      <label class="block text-sm font-medium text-gray-700">Equipos Rentados</label>
-                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedRenta.equipos?.length || 0 }} equipos</p>
+                      <label class="block text-sm font-medium text-gray-700">Monto Cobrado</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">${{ formatNumber(selectedCobranza.monto_cobrado) }}</p>
                     </div>
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700">Fecha de Creación</label>
-                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ formatearFecha(selectedRenta.created_at) }}</p>
+                    <div v-if="selectedCobranza.fecha_pago">
+                      <label class="block text-sm font-medium text-gray-700">Fecha de Pago</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ formatearFecha(selectedCobranza.fecha_pago) }}</p>
                     </div>
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700">Última Actualización</label>
-                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ formatearFecha(selectedRenta.updated_at) }}</p>
+                    <div v-if="selectedCobranza.monto_pagado">
+                      <label class="block text-sm font-medium text-gray-700">Monto Pagado</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">${{ formatNumber(selectedCobranza.monto_pagado) }}</p>
+                    </div>
+                    <div v-if="selectedCobranza.metodo_pago">
+                      <label class="block text-sm font-medium text-gray-700">Método de Pago</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedCobranza.metodo_pago }}</p>
+                    </div>
+                    <div v-if="selectedCobranza.referencia_pago">
+                      <label class="block text-sm font-medium text-gray-700">Referencia</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedCobranza.referencia_pago }}</p>
                     </div>
                   </div>
+                </div>
+                <div v-if="selectedCobranza.notas">
+                  <label class="block text-sm font-medium text-gray-700">Notas</label>
+                  <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedCobranza.notas }}</p>
                 </div>
               </div>
             </div>
@@ -685,9 +713,9 @@ const obtenerLabelEstado = (estado) => {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
                   </svg>
                 </div>
-                <h3 class="text-lg font-medium text-gray-900 mb-2">¿Eliminar Renta?</h3>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">¿Eliminar Cobranza?</h3>
                 <p class="text-sm text-gray-500 mb-4">
-                  ¿Estás seguro de que deseas eliminar la renta <strong>{{ selectedRenta?.numero_contrato }}</strong>?
+                  ¿Estás seguro de que deseas eliminar esta cobranza?
                   Esta acción no se puede deshacer.
                 </p>
               </div>
@@ -700,11 +728,18 @@ const obtenerLabelEstado = (estado) => {
               {{ modalMode === 'details' ? 'Cerrar' : 'Cancelar' }}
             </button>
             <div v-if="modalMode === 'details'" class="flex gap-2">
-              <button @click="editarRenta(selectedRenta.id)" class="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors">
+              <button
+                v-if="selectedCobranza.estado === 'pendiente' || selectedCobranza.estado === 'parcial'"
+                @click="marcarPagada(selectedCobranza)"
+                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Marcar Pagada
+              </button>
+              <button @click="editarCobranza(selectedCobranza.id)" class="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors">
                 Editar
               </button>
             </div>
-            <button v-if="modalMode === 'confirm'" @click="eliminarRenta" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+            <button v-if="modalMode === 'confirm'" @click="eliminarCobranza" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
               Eliminar
             </button>
           </div>
@@ -715,7 +750,7 @@ const obtenerLabelEstado = (estado) => {
 </template>
 
 <style scoped>
-.rentas-index {
+.cobranza-index {
   min-height: 100vh;
   background-color: #f9fafb;
 }

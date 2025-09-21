@@ -150,6 +150,11 @@
             <NavLink href="/rentas" icon="file-contract" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Rentas' : null">
               Rentas
             </NavLink>
+
+            <!-- NUEVO: Cobranza -->
+            <NavLink href="/cobranza" icon="dollar-sign" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Cobranza' : null">
+              Cobranza
+            </NavLink>
           </ul>
         </div>
 

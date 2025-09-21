@@ -30,6 +30,7 @@ use App\Http\Controllers\OrdenCompraController;
 use App\Http\Controllers\DatabaseBackupController;
 use App\Http\Controllers\EquipoController;
 use App\Http\Controllers\RentasController;
+use App\Http\Controllers\CobranzaController;
 use App\Http\Controllers\BitacoraActividadController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\CfdiController;
@@ -180,6 +181,10 @@ Route::get('/reportes/export', [ReporteController::class, 'exportarCorteDiario']
     Route::post('/rentas/{renta}/reactivar', [RentasController::class, 'reactivar'])->name('rentas.reactivar');
     Route::post('/rentas/{renta}/finalizar', [RentasController::class, 'finalizar'])->name('rentas.finalizar');
     Route::post('/rentas/{renta}/renovar', [RentasController::class, 'renovar'])->name('rentas.renovar');
+
+    Route::resource('cobranza', CobranzaController::class);
+    Route::post('/cobranza/{cobranza}/marcar-pagada', [CobranzaController::class, 'marcarPagada'])->name('cobranza.marcar-pagada');
+    Route::post('/cobranza/generar-automaticas', [CobranzaController::class, 'generarCobranzas'])->name('cobranza.generar-automaticas');
     Route::resource('bitacora-actividades', BitacoraActividadController::class)->names('bitacora-actividades');
 
 

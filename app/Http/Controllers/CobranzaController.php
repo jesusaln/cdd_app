@@ -1,0 +1,252 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Cobranza;
+use App\Models\Renta;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
+use Inertia\Inertia;
+
+class CobranzaController extends Controller
+{
+    /**
+     * Muestra una lista de cobranzas.
+     */
+    public function index()
+    {
+        $query = Cobranza::with(['renta.cliente:id,nombre_razon_social,email']);
+
+        // Aplicar filtros
+        if (request('search')) {
+            $search = request('search');
+            $query->where(function($q) use ($search) {
+                $q->whereHas('renta.cliente', function($clienteQuery) use ($search) {
+                    $clienteQuery->where('nombre_razon_social', 'like', '%' . $search . '%');
+                })
+                ->orWhereHas('renta', function($rentaQuery) use ($search) {
+                    $rentaQuery->where('numero_contrato', 'like', '%' . $search . '%');
+                })
+                ->orWhere('concepto', 'like', '%' . $search . '%');
+            });
+        }
+
+        if (request('estado')) {
+            $query->where('estado', request('estado'));
+        }
+
+        if (request('mes') && request('anio')) {
+            $query->delMes(request('mes'), request('anio'));
+        }
+
+        // Aplicar ordenamiento
+        $sortBy = request('sort_by', 'fecha_cobro');
+        $sortDirection = request('sort_direction', 'desc');
+        $query->orderBy($sortBy, $sortDirection);
+
+        $cobranzas = $query->paginate(request('per_page', 10));
+
+        // Calcular estadísticas
+        $stats = [
+            'total' => Cobranza::count(),
+            'pendientes' => Cobranza::where('estado', 'pendiente')->count(),
+            'pagadas' => Cobranza::where('estado', 'pagado')->count(),
+            'vencidas' => Cobranza::where('estado', 'vencido')->count(),
+            'total_pendiente' => Cobranza::where('estado', 'pendiente')->sum('monto_cobrado'),
+            'total_pagado' => Cobranza::where('estado', 'pagado')->sum('monto_pagado'),
+        ];
+
+        return inertia('Cobranza/Index', [
+            'cobranzas' => $cobranzas,
+            'stats' => $stats,
+            'filters' => request()->only(['search', 'estado', 'mes', 'anio']),
+            'sorting' => [
+                'sort_by' => $sortBy,
+                'sort_direction' => $sortDirection
+            ]
+        ]);
+    }
+
+    /**
+     * Muestra el formulario para crear una nueva cobranza.
+     */
+    public function create()
+    {
+        $rentas = Renta::with('cliente:id,nombre_razon_social,email')
+            ->where('estado', 'activo')
+            ->select('id', 'numero_contrato', 'cliente_id', 'monto_mensual', 'estado')
+            ->get();
+
+        return Inertia::render('Cobranza/Create', [
+            'rentas' => $rentas,
+        ]);
+    }
+
+    /**
+     * Almacena una nueva cobranza.
+     */
+    public function store(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'renta_id' => 'required|exists:rentas,id',
+            'fecha_cobro' => 'required|date',
+            'monto_cobrado' => 'required|numeric|min:0',
+            'concepto' => 'required|string|max:255',
+            'notas' => 'nullable|string'
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+
+        Cobranza::create([
+            'renta_id' => $request->renta_id,
+            'fecha_cobro' => $request->fecha_cobro,
+            'monto_cobrado' => $request->monto_cobrado,
+            'concepto' => $request->concepto,
+            'estado' => 'pendiente',
+            'notas' => $request->notas,
+            'responsable_cobro' => auth()->user()->name ?? 'Sistema',
+        ]);
+
+        return redirect()->route('cobranza.index')->with('success', 'Cobranza creada exitosamente.');
+    }
+
+    /**
+     * Muestra los detalles de una cobranza.
+     */
+    public function show(Cobranza $cobranza)
+    {
+        $cobranza->load('renta.cliente');
+        return inertia('Cobranza/Show', compact('cobranza'));
+    }
+
+    /**
+     * Muestra el formulario para editar una cobranza.
+     */
+    public function edit(Cobranza $cobranza)
+    {
+        $cobranza->load('renta.cliente');
+        $rentas = Renta::with('cliente:id,nombre_razon_social,email')
+            ->where('estado', 'activo')
+            ->select('id', 'numero_contrato', 'cliente_id', 'monto_mensual', 'estado')
+            ->get();
+
+        return Inertia::render('Cobranza/Edit', [
+            'cobranza' => $cobranza,
+            'rentas' => $rentas,
+        ]);
+    }
+
+    /**
+     * Actualiza una cobranza existente.
+     */
+    public function update(Request $request, Cobranza $cobranza)
+    {
+        $validator = Validator::make($request->all(), [
+            'renta_id' => 'required|exists:rentas,id',
+            'fecha_cobro' => 'required|date',
+            'monto_cobrado' => 'required|numeric|min:0',
+            'concepto' => 'required|string|max:255',
+            'estado' => 'required|in:pendiente,pagado,parcial,vencido,cancelado',
+            'fecha_pago' => 'nullable|date',
+            'monto_pagado' => 'nullable|numeric|min:0',
+            'metodo_pago' => 'nullable|string|max:255',
+            'referencia_pago' => 'nullable|string|max:255',
+            'notas' => 'nullable|string'
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+
+        $cobranza->update($request->only([
+            'renta_id',
+            'fecha_cobro',
+            'monto_cobrado',
+            'concepto',
+            'estado',
+            'fecha_pago',
+            'monto_pagado',
+            'metodo_pago',
+            'referencia_pago',
+            'notas',
+        ]));
+
+        return redirect()->route('cobranza.index')->with('success', 'Cobranza actualizada correctamente.');
+    }
+
+    /**
+     * Elimina una cobranza.
+     */
+    public function destroy(Cobranza $cobranza)
+    {
+        $cobranza->delete();
+        return redirect()->route('cobranza.index')->with('success', 'Cobranza eliminada correctamente.');
+    }
+
+    /**
+     * Marca una cobranza como pagada.
+     */
+    public function marcarPagada(Request $request, Cobranza $cobranza)
+    {
+        $request->validate([
+            'fecha_pago' => 'required|date',
+            'monto_pagado' => 'required|numeric|min:0',
+            'metodo_pago' => 'required|string|max:255',
+            'referencia_pago' => 'nullable|string|max:255',
+        ]);
+
+        $cobranza->update([
+            'estado' => 'pagado',
+            'fecha_pago' => $request->fecha_pago,
+            'monto_pagado' => $request->monto_pagado,
+            'metodo_pago' => $request->metodo_pago,
+            'referencia_pago' => $request->referencia_pago,
+        ]);
+
+        return redirect()->back()->with('success', 'Cobranza marcada como pagada.');
+    }
+
+    /**
+     * Genera cobranzas automáticas para rentas activas.
+     */
+    public function generarCobranzas(Request $request)
+    {
+        $request->validate([
+            'mes' => 'required|integer|min:1|max:12',
+            'anio' => 'required|integer|min:2020|max:' . (date('Y') + 1),
+        ]);
+
+        $mes = $request->mes;
+        $anio = $request->anio;
+
+        // Obtener rentas activas
+        $rentas = Renta::where('estado', 'activo')->get();
+
+        $creadas = 0;
+        foreach ($rentas as $renta) {
+            // Verificar si ya existe cobranza para este mes
+            $existe = Cobranza::where('renta_id', $renta->id)
+                ->whereYear('fecha_cobro', $anio)
+                ->whereMonth('fecha_cobro', $mes)
+                ->where('concepto', 'mensualidad')
+                ->exists();
+
+            if (!$existe) {
+                Cobranza::create([
+                    'renta_id' => $renta->id,
+                    'fecha_cobro' => \Carbon\Carbon::create($anio, $mes, $renta->dia_pago ?? 1),
+                    'monto_cobrado' => $renta->monto_mensual,
+                    'concepto' => 'mensualidad',
+                    'estado' => 'pendiente',
+                    'notas' => "Cobranza automática generada para {$mes}/{$anio}",
+                    'responsable_cobro' => auth()->user()->name ?? 'Sistema',
+                ]);
+                $creadas++;
+            }
+        }
+
+        return redirect()->back()->with('success', "Se generaron {$creadas} cobranzas automáticas.");
+    }
+}
