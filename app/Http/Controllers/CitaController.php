@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
+use Exception;
 
 class CitaController extends Controller
 {
@@ -20,71 +21,116 @@ class CitaController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Cita::with('tecnico', 'cliente');
+        try {
+            $query = Cita::with('tecnico', 'cliente');
 
-        // Filtros
-        if ($request->filled('estado')) {
-            $query->where('estado', $request->estado);
+            // Filtros de búsqueda
+            if ($s = trim((string) $request->input('search', ''))) {
+                $query->where(function ($w) use ($s) {
+                    $w->where('tipo_servicio', 'like', "%{$s}%")
+                        ->orWhere('descripcion', 'like', "%{$s}%")
+                        ->orWhere('problema_reportado', 'like', "%{$s}%")
+                        ->orWhereHas('cliente', function($clienteQuery) use ($s) {
+                            $clienteQuery->where('nombre_razon_social', 'like', "%{$s}%");
+                        })
+                        ->orWhereHas('tecnico', function($tecnicoQuery) use ($s) {
+                            $tecnicoQuery->where('nombre', 'like', "%{$s}%");
+                        });
+                });
+            }
+
+            // Filtros adicionales
+            if ($request->filled('estado')) {
+                $query->where('estado', $request->estado);
+            }
+
+            if ($request->filled('tecnico_id')) {
+                $query->where('tecnico_id', $request->tecnico_id);
+            }
+
+            if ($request->filled('cliente_id')) {
+                $query->where('cliente_id', $request->cliente_id);
+            }
+
+            if ($request->filled('fecha_desde')) {
+                $query->whereDate('fecha_hora', '>=', $request->fecha_desde);
+            }
+
+            if ($request->filled('fecha_hasta')) {
+                $query->whereDate('fecha_hora', '<=', $request->fecha_hasta);
+            }
+
+
+            // Ordenamiento por estado primero, luego por fecha
+            $query->orderByRaw("
+                CASE
+                    WHEN estado = 'en_proceso' THEN 1
+                    WHEN estado = 'pendiente' THEN 2
+                    WHEN estado = 'completado' THEN 3
+                    WHEN estado = 'cancelado' THEN 4
+                    ELSE 999
+                END ASC
+            ")->orderBy('fecha_hora', 'asc');
+
+            // Paginación
+            $citas = $query->paginate(10)->appends($request->query());
+
+            // Estadísticas por estado de cita
+            $citasCount = Cita::count();
+            $citasPendientes = Cita::where('estado', Cita::ESTADO_PENDIENTE)->count();
+            $citasEnProceso = Cita::where('estado', Cita::ESTADO_EN_PROCESO)->count();
+            $citasCompletadas = Cita::where('estado', Cita::ESTADO_COMPLETADO)->count();
+            $citasCanceladas = Cita::where('estado', Cita::ESTADO_CANCELADO)->count();
+
+            // Datos adicionales para filtros
+            $tecnicos = Tecnico::select('id', 'nombre')->get();
+            $clientes = Cliente::select('id', 'nombre_razon_social')->get();
+            $estados = [
+                Cita::ESTADO_PENDIENTE => 'Pendiente',
+                Cita::ESTADO_EN_PROCESO => 'En Proceso',
+                Cita::ESTADO_COMPLETADO => 'Completado',
+                Cita::ESTADO_CANCELADO => 'Cancelado',
+            ];
+
+            // Citas finalizadas (completadas y canceladas) para la segunda tabla
+            $queryFinalizadas = Cita::with('tecnico', 'cliente')
+                ->whereIn('estado', ['completado', 'cancelado'])
+                ->orderByRaw("
+                    CASE
+                        WHEN estado = 'completado' THEN 1
+                        WHEN estado = 'cancelado' THEN 2
+                        ELSE 999
+                    END ASC
+                ")
+                ->orderBy('fecha_hora', 'desc');
+
+            $citasFinalizadas = $queryFinalizadas->paginate(
+                $request->get('per_page_finalizadas', 10),
+                ['*'],
+                'page_finalizadas',
+                $request->get('page_finalizadas', 1)
+            )->appends($request->query());
+
+            return Inertia::render('Citas/Index', [
+                'citas' => $citas,
+                'citasFinalizadas' => $citasFinalizadas,
+                'stats' => [
+                    'total' => $citasCount,
+                    'pendientes' => $citasPendientes,
+                    'en_proceso' => $citasEnProceso,
+                    'completadas' => $citasCompletadas,
+                    'canceladas' => $citasCanceladas,
+                ],
+                'tecnicos' => $tecnicos,
+                'clientes' => $clientes,
+                'estados' => $estados,
+                'filters' => $request->only(['search', 'estado', 'tecnico_id', 'cliente_id', 'fecha_desde', 'fecha_hasta']),
+                'sorting' => ['sort_by' => 'estado', 'sort_direction' => 'asc'],
+            ]);
+        } catch (Exception $e) {
+            Log::error('Error en CitaController@index: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al cargar la lista de citas.');
         }
-
-        if ($request->filled('tecnico_id')) {
-            $query->where('tecnico_id', $request->tecnico_id);
-        }
-
-        if ($request->filled('cliente_id')) {
-            $query->where('cliente_id', $request->cliente_id);
-        }
-
-        if ($request->filled('fecha_desde')) {
-            $query->whereDate('fecha_hora', '>=', $request->fecha_desde);
-        }
-
-        if ($request->filled('fecha_hasta')) {
-            $query->whereDate('fecha_hora', '<=', $request->fecha_hasta);
-        }
-
-        if ($request->filled('busqueda')) {
-            $search = $request->busqueda;
-            $query->where(function($q) use ($search) {
-                $q->where('tipo_servicio', 'like', "%{$search}%")
-                  ->orWhere('descripcion', 'like', "%{$search}%")
-                  ->orWhere('problema_reportado', 'like', "%{$search}%")
-                  ->orWhereHas('cliente', function($clienteQuery) use ($search) {
-                      $clienteQuery->where('nombre_razon_social', 'like', "%{$search}%");
-                  })
-                  ->orWhereHas('tecnico', function($tecnicoQuery) use ($search) {
-                      $tecnicoQuery->where('nombre', 'like', "%{$search}%");
-                  });
-            });
-        }
-
-        $citas = $query->orderBy('fecha_hora', 'desc')->paginate(15);
-
-        // Datos adicionales para filtros
-        $tecnicos = Tecnico::select('id', 'nombre')->get();
-        $clientes = Cliente::select('id', 'nombre_razon_social')->get();
-        $estados = [
-            Cita::ESTADO_PENDIENTE => 'Pendiente',
-            Cita::ESTADO_EN_PROCESO => 'En Proceso',
-            Cita::ESTADO_COMPLETADO => 'Completado',
-            Cita::ESTADO_CANCELADO => 'Cancelado',
-        ];
-
-        return Inertia::render('Citas/Index', [
-            'citas' => $citas->items(), // Solo los items del array
-            'pagination' => [
-                'current_page' => $citas->currentPage(),
-                'last_page' => $citas->lastPage(),
-                'per_page' => $citas->perPage(),
-                'total' => $citas->total(),
-                'from' => $citas->firstItem(),
-                'to' => $citas->lastItem(),
-            ],
-            'tecnicos' => $tecnicos,
-            'clientes' => $clientes,
-            'estados' => $estados,
-            'filtros' => $request->only(['estado', 'tecnico_id', 'cliente_id', 'fecha_desde', 'fecha_hasta', 'busqueda'])
-        ]);
     }
 
     /**
@@ -363,4 +409,97 @@ class CitaController extends Controller
         ]);
     }
 
+
+    public function export(Request $request)
+    {
+        try {
+            $query = Cita::with('tecnico', 'cliente');
+
+            // Aplicar los mismos filtros que en index
+            if ($s = trim((string) $request->input('search', ''))) {
+                $query->where(function ($w) use ($s) {
+                    $w->where('tipo_servicio', 'like', "%{$s}%")
+                        ->orWhere('descripcion', 'like', "%{$s}%")
+                        ->orWhere('problema_reportado', 'like', "%{$s}%")
+                        ->orWhereHas('cliente', function($clienteQuery) use ($s) {
+                            $clienteQuery->where('nombre_razon_social', 'like', "%{$s}%");
+                        })
+                        ->orWhereHas('tecnico', function($tecnicoQuery) use ($s) {
+                            $tecnicoQuery->where('nombre', 'like', "%{$s}%");
+                        });
+                });
+            }
+
+            if ($request->filled('estado')) {
+                $query->where('estado', $request->estado);
+            }
+
+            if ($request->filled('tecnico_id')) {
+                $query->where('tecnico_id', $request->tecnico_id);
+            }
+
+            if ($request->filled('cliente_id')) {
+                $query->where('cliente_id', $request->cliente_id);
+            }
+
+            if ($request->filled('fecha_desde')) {
+                $query->whereDate('fecha_hora', '>=', $request->fecha_desde);
+            }
+
+            if ($request->filled('fecha_hasta')) {
+                $query->whereDate('fecha_hora', '<=', $request->fecha_hasta);
+            }
+
+
+            $citas = $query->get();
+
+            $filename = 'citas_' . date('Y-m-d_H-i-s') . '.csv';
+
+            $headers = [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            ];
+
+            $callback = function () use ($citas) {
+                $file = fopen('php://output', 'w');
+                fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+                fputcsv($file, [
+                    'ID',
+                    'Cliente',
+                    'Técnico',
+                    'Tipo Servicio',
+                    'Fecha y Hora',
+                    'Estado',
+                    'Prioridad',
+                    'Tipo Equipo',
+                    'Marca',
+                    'Modelo',
+                    'Fecha Creación'
+                ]);
+
+                foreach ($citas as $cita) {
+                    fputcsv($file, [
+                        $cita->id,
+                        $cita->cliente?->nombre_razon_social ?? 'N/A',
+                        $cita->tecnico?->nombre ?? 'N/A',
+                        $cita->tipo_servicio,
+                        $cita->fecha_hora?->format('d/m/Y H:i:s'),
+                        $cita->estado,
+                        $cita->prioridad ?? 'N/A',
+                        $cita->tipo_equipo,
+                        $cita->marca_equipo,
+                        $cita->modelo_equipo,
+                        $cita->created_at?->format('d/m/Y H:i:s')
+                    ]);
+                }
+                fclose($file);
+            };
+
+            return response()->stream($callback, 200, $headers);
+        } catch (Exception $e) {
+            Log::error('Error en exportación de citas: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al exportar las citas.');
+        }
+    }
 }

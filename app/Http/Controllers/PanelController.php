@@ -61,10 +61,18 @@ class PanelController extends Controller
             ];
         })->toArray();
 
-        // Citas para Hoy
+        // Citas para Hoy (solo en proceso y pendientes)
         $citasHoy = Cita::with(['cliente', 'tecnico'])
-            ->select('id', 'tipo_servicio', 'fecha_hora', 'cliente_id', 'tecnico_id')
+            ->select('id', 'tipo_servicio', 'fecha_hora', 'cliente_id', 'tecnico_id', 'estado')
             ->whereDate('fecha_hora', $now->toDateString())
+            ->whereIn('estado', ['en_proceso', 'pendiente'])
+            ->orderByRaw("
+                CASE
+                    WHEN estado = 'en_proceso' THEN 1
+                    WHEN estado = 'pendiente' THEN 2
+                    ELSE 999
+                END ASC
+            ")
             ->orderBy('fecha_hora')
             ->get();
 
@@ -76,6 +84,8 @@ class PanelController extends Controller
                 'tecnico' => $cita->tecnico ? $cita->tecnico->nombre : 'Sin técnico asignado',
                 'titulo' => $cita->tipo_servicio,
                 'hora' => Carbon::parse($cita->fecha_hora)->format('H:i'),
+                'estado' => $cita->estado,
+                'estado_label' => $cita->estado === 'en_proceso' ? 'En Proceso' : 'Pendiente',
             ];
         })->toArray();
 

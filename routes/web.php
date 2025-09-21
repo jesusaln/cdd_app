@@ -202,6 +202,11 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::put('/usuarios/{user}/toggle', [UserController::class, 'toggle'])->name('usuarios.toggle');
 
     // =====================================================
+    // RUTAS ESPECÍFICAS DE CITAS
+    // =====================================================
+    Route::get('/citas/export', [CitaController::class, 'export'])->name('citas.export');
+
+    // =====================================================
     // RUTAS ESPECÍFICAS DE PRODUCTOS
     // =====================================================
     Route::post('/productos/validate-stock', [ProductoController::class, 'validateStock'])->name('productos.validateStock');

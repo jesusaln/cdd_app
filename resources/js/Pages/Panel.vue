@@ -150,33 +150,51 @@
       </div>
     </div>
 
-    <!-- Citas del día de hoy -->
+    <!-- Citas activas del día de hoy -->
     <div
       v-if="citasHoyDetallesSafe.length > 0"
       class="mt-8 bg-white p-6 rounded-2xl shadow-lg border-l-8 border-blue-500"
     >
       <div class="flex items-center mb-4">
         <FontAwesomeIcon :icon="['fas', 'calendar-alt']" class="h-8 w-8 text-blue-600 mr-3" />
-        <h3 class="text-2xl font-extrabold text-gray-900">Citas del día de hoy</h3>
+        <h3 class="text-2xl font-extrabold text-gray-900">Citas activas del día de hoy</h3>
       </div>
       <p class="text-base text-gray-700 mb-4">
-        Tienes <strong>{{ n(citasHoyDetallesSafe.length) }} cita(s)</strong> programadas para hoy.
+        Tienes <strong>{{ n(citasHoyDetallesSafe.length) }} cita(s) activa(s)</strong> programadas para hoy (en proceso y pendientes).
       </p>
       <ul class="space-y-2">
         <li
           v-for="cita in citasHoyDetallesSafe"
           :key="`cita-${cita.id ?? cita.titulo ?? Math.random()}`"
-          class="flex items-center justify-between text-gray-800 bg-gray-50 p-3 rounded-md shadow-sm"
+          class="flex items-center justify-between text-gray-800 bg-gray-50 p-4 rounded-md shadow-sm border-l-4"
+          :class="cita.estado === 'en_proceso' ? 'border-l-blue-500' : 'border-l-yellow-500'"
         >
-          <div class="flex flex-col text-left">
-            <div class="font-semibold text-lg text-gray-900">
-              Solicitud de Trabajo: {{ cita.titulo ?? 'Sin título' }}
+          <div class="flex flex-col text-left flex-1">
+            <div class="font-semibold text-lg text-gray-900 mb-1">
+              {{ cita.titulo ?? 'Sin título' }}
             </div>
             <div class="text-sm text-gray-700">Cliente: {{ cita.cliente ?? 'N/D' }}</div>
             <div class="text-sm text-gray-700">Técnico: {{ cita.tecnico ?? 'N/D' }}</div>
+            <div class="mt-2">
+              <span
+                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                :class="cita.estado === 'en_proceso' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'"
+              >
+                <FontAwesomeIcon
+                  :icon="cita.estado === 'en_proceso' ? ['fas', 'cog'] : ['fas', 'clock']"
+                  class="w-3 h-3 mr-1"
+                />
+                {{ cita.estado_label ?? cita.estado }}
+              </span>
+            </div>
           </div>
-          <div class="text-base font-medium text-blue-600">
-            Hora {{ cita.hora ?? '—' }}
+          <div class="text-right">
+            <div class="text-base font-medium text-blue-600 mb-1">
+              {{ cita.hora ?? '—' }}
+            </div>
+            <div class="text-xs text-gray-500">
+              Hoy
+            </div>
           </div>
         </li>
       </ul>

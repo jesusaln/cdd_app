@@ -22,7 +22,7 @@ class DatabaseBackupController extends Controller
     /**
      * Mostrar la página principal de gestión de respaldos
      */
-    public function index()
+    public function index(Request $request)
     {
         try {
             $backups = $this->backupService->listBackups();
@@ -38,17 +38,81 @@ class DatabaseBackupController extends Controller
                 ];
             })->values()->toArray();
 
+            // Estadísticas
+            $totalBackups = count($formattedBackups);
+            $totalSize = $this->calculateTotalSize($formattedBackups);
+
+            // Estadísticas adicionales
+            $compressedCount = collect($formattedBackups)->where('compressed', true)->count();
+            $uncompressedCount = $totalBackups - $compressedCount;
+
+            // Filtros y búsqueda
+            $search = $request->get('search', '');
+            if ($search) {
+                $formattedBackups = collect($formattedBackups)->filter(function ($backup) use ($search) {
+                    return stripos($backup['name'], $search) !== false;
+                })->values()->toArray();
+            }
+
+            // Ordenamiento
+            $sortBy = $request->get('sort_by', 'created_at');
+            $sortDirection = $request->get('sort_direction', 'desc');
+
+            $formattedBackups = collect($formattedBackups)->sortBy($sortBy, SORT_REGULAR, $sortDirection === 'desc')->values()->toArray();
+
+            // Paginación
+            $perPage = $request->get('per_page', 10);
+            $currentPage = $request->get('page', 1);
+            $paginatedBackups = collect($formattedBackups)->forPage($currentPage, $perPage);
+
             return Inertia::render('DatabaseBackup/Index', [
-                'backups' => $formattedBackups,
+                'backups' => $paginatedBackups->values()->toArray(),
+                'stats' => [
+                    'total' => $totalBackups,
+                    'total_size' => $totalSize,
+                    'compressed' => $compressedCount,
+                    'uncompressed' => $uncompressedCount,
+                ],
+                'filters' => [
+                    'search' => $search,
+                ],
+                'sorting' => [
+                    'sort_by' => $sortBy,
+                    'sort_direction' => $sortDirection,
+                ],
+                'pagination' => [
+                    'current_page' => $currentPage,
+                    'last_page' => ceil(count($formattedBackups) / $perPage),
+                    'per_page' => $perPage,
+                    'from' => (($currentPage - 1) * $perPage) + 1,
+                    'to' => min($currentPage * $perPage, count($formattedBackups)),
+                    'total' => count($formattedBackups),
+                ],
                 'mysqldump_available' => $this->backupService->isMysqldumpAvailable(),
-                'total_backups' => count($formattedBackups),
-                'total_size' => $this->calculateTotalSize($formattedBackups)
+                'total_backups' => $totalBackups,
+                'total_size' => $totalSize
             ]);
         } catch (Exception $e) {
             Log::error('Error loading backup index: ' . $e->getMessage());
 
             return Inertia::render('DatabaseBackup/Index', [
                 'backups' => [],
+                'stats' => [
+                    'total' => 0,
+                    'total_size' => 0,
+                    'compressed' => 0,
+                    'uncompressed' => 0,
+                ],
+                'filters' => ['search' => ''],
+                'sorting' => ['sort_by' => 'created_at', 'sort_direction' => 'desc'],
+                'pagination' => [
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'per_page' => 10,
+                    'from' => 0,
+                    'to' => 0,
+                    'total' => 0,
+                ],
                 'mysqldump_available' => false,
                 'total_backups' => 0,
                 'total_size' => 0

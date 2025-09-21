@@ -1,639 +1,651 @@
 <template>
-    <AppLayout title="Respaldo de Base de Datos">
-        <template #header>
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                Respaldo de Base de Datos
-            </h2>
-        </template>
-
-        <div class="py-12">
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
-                <!-- Alertas mejoradas -->
-                <Transition name="fade" appear>
-                    <div v-if="$page.props.flash?.success"
-                         class="bg-green-50 border-l-4 border-green-400 p-4 rounded-md shadow-sm">
-                        <div class="flex">
-                            <div class="flex-shrink-0">
-                                <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                                </svg>
-                            </div>
-                            <div class="ml-3">
-                                <p class="text-sm text-green-700">{{ $page.props.flash.success }}</p>
-                            </div>
-                        </div>
-                    </div>
-                </Transition>
-
-                <Transition name="fade" appear>
-                    <div v-if="$page.props.flash?.error"
-                         class="bg-red-50 border-l-4 border-red-400 p-4 rounded-md shadow-sm">
-                        <div class="flex">
-                            <div class="flex-shrink-0">
-                                <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-                                </svg>
-                            </div>
-                            <div class="ml-3">
-                                <p class="text-sm text-red-700">{{ $page.props.flash.error }}</p>
-                            </div>
-                        </div>
-                    </div>
-                </Transition>
-
-                <!-- Estadísticas del sistema -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div class="bg-white overflow-hidden shadow rounded-lg">
-                        <div class="p-5">
-                            <div class="flex items-center">
-                                <div class="flex-shrink-0">
-                                    <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                                        <span class="text-white text-sm font-bold">{{ backups.length }}</span>
-                                    </div>
-                                </div>
-                                <div class="ml-5 w-0 flex-1">
-                                    <dl>
-                                        <dt class="text-sm font-medium text-gray-500 truncate">Total de Respaldos</dt>
-                                        <dd class="text-lg font-medium text-gray-900">{{ backups.length }} archivos</dd>
-                                    </dl>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-white overflow-hidden shadow rounded-lg">
-                        <div class="p-5">
-                            <div class="flex items-center">
-                                <div class="flex-shrink-0">
-                                    <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                        </svg>
-                                    </div>
-                                </div>
-                                <div class="ml-5 w-0 flex-1">
-                                    <dl>
-                                        <dt class="text-sm font-medium text-gray-500 truncate">Estado del Sistema</dt>
-                                        <dd class="text-lg font-medium text-gray-900">
-                                            {{ mysqldump_available ? 'mysqldump' : 'PHP nativo' }}
-                                        </dd>
-                                    </dl>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-white overflow-hidden shadow rounded-lg">
-                        <div class="p-5">
-                            <div class="flex items-center">
-                                <div class="flex-shrink-0">
-                                    <div class="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center">
-                                        <span class="text-white text-xs">{{ totalSizeFormatted }}</span>
-                                    </div>
-                                </div>
-                                <div class="ml-5 w-0 flex-1">
-                                    <dl>
-                                        <dt class="text-sm font-medium text-gray-500 truncate">Espacio Total</dt>
-                                        <dd class="text-lg font-medium text-gray-900">{{ totalSizeFormatted }}</dd>
-                                    </dl>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Panel de Creación de Respaldo -->
-                <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg">
-                    <div class="p-6">
-                        <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                            <svg class="w-5 h-5 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                            </svg>
-                            Crear Nuevo Respaldo
-                        </h3>
-
-                        <form @submit.prevent="createBackup" class="space-y-4">
-                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                                <div class="lg:col-span-2">
-                                    <label for="backupName" class="block text-sm font-medium text-gray-700 mb-1">
-                                        Nombre del Respaldo
-                                    </label>
-                                    <input
-                                        id="backupName"
-                                        v-model="backupForm.name"
-                                        type="text"
-                                        :placeholder="defaultBackupName"
-                                        class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition duration-200" />
-                                    <p class="mt-1 text-xs text-gray-500">Si se deja vacío, se usará: {{ defaultBackupName }}</p>
-                                </div>
-
-                                <div class="space-y-3">
-                                    <label class="flex items-center">
-                                        <input
-                                            v-model="backupForm.compress"
-                                            type="checkbox"
-                                            class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" />
-                                        <span class="ml-2 text-sm text-gray-600">Comprimir (ZIP)</span>
-                                    </label>
-
-                                    <label class="flex items-center">
-                                        <input
-                                            v-model="backupForm.include_structure_only"
-                                            type="checkbox"
-                                            class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" />
-                                        <span class="ml-2 text-sm text-gray-600">Solo estructura</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div class="flex items-center justify-between pt-4 border-t border-gray-200">
-                                <div class="flex items-center text-sm">
-                                    <div class="flex items-center">
-                                        <div :class="mysqldump_available ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'"
-                                             class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
-                                            <span v-if="mysqldump_available" class="mr-1">✓</span>
-                                            <span v-else class="mr-1">⚠</span>
-                                            {{ mysqldump_available ? 'mysqldump disponible' : 'Usando método PHP' }}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <button
-                                    type="submit"
-                                    :disabled="creating"
-                                    class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 active:bg-indigo-900 focus:outline-none focus:border-indigo-900 focus:ring ring-indigo-300 disabled:opacity-25 transition ease-in-out duration-150">
-                                    <LoadingSpinner v-if="creating" class="mr-2" />
-                                    {{ creating ? 'Creando...' : 'Crear Respaldo' }}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
-                <!-- Panel de Gestión -->
-                <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg">
-                    <div class="px-6 py-4 border-b border-gray-200">
-                        <div class="flex items-center justify-between">
-                            <h3 class="text-lg font-medium text-gray-900 flex items-center">
-                                <svg class="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
-                                </svg>
-                                Gestión de Respaldos
-                            </h3>
-
-                            <div class="flex space-x-2">
-                                <button
-                                    @click="showCleanDialog = true"
-                                    class="inline-flex items-center px-3 py-2 bg-yellow-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-yellow-700 focus:outline-none focus:border-yellow-700 focus:ring ring-yellow-300 transition ease-in-out duration-150">
-                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                    </svg>
-                                    Limpiar
-                                </button>
-
-                                <button
-                                    @click="refreshBackups"
-                                    :disabled="refreshing"
-                                    class="inline-flex items-center px-3 py-2 bg-gray-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 focus:outline-none focus:border-gray-700 focus:ring ring-gray-300 disabled:opacity-50 transition ease-in-out duration-150">
-                                    <svg :class="{ 'animate-spin': refreshing }" class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                                    </svg>
-                                    {{ refreshing ? 'Actualizando...' : 'Actualizar' }}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Lista de Respaldos -->
-                    <div v-if="backups.length === 0" class="text-center py-12">
-                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
-                        </svg>
-                        <h3 class="mt-2 text-sm font-medium text-gray-900">No hay respaldos</h3>
-                        <p class="mt-1 text-sm text-gray-500">Comienza creando tu primer respaldo de la base de datos.</p>
-                    </div>
-
-                    <div v-else class="divide-y divide-gray-200">
-                        <TransitionGroup name="list" tag="div">
-                            <div v-for="backup in sortedBackups" :key="backup.path"
-                                 class="p-6 hover:bg-gray-50 transition-colors duration-200">
-                                <div class="flex items-center justify-between">
-                                    <div class="flex-1 min-w-0">
-                                        <div class="flex items-center space-x-3">
-                                            <div class="flex-shrink-0">
-                                                <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
-                                                    <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
-                                                    </svg>
-                                                </div>
-                                            </div>
-                                            <div class="flex-1 min-w-0">
-                                                <p class="text-sm font-medium text-gray-900 truncate">
-                                                    {{ backup.name }}
-                                                </p>
-                                                <div class="flex items-center mt-1 space-x-4 text-xs text-gray-500">
-                                                    <span class="flex items-center">
-                                                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                                        </svg>
-                                                        {{ formatDate(backup.created_at) }}
-                                                    </span>
-                                                    <span class="flex items-center">
-                                                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
-                                                        </svg>
-                                                        {{ formatFileSize(backup.size) }}
-                                                    </span>
-                                                    <span v-if="backup.compressed" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                                        ZIP
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="flex items-center space-x-2 ml-4">
-                                        <button
-                                            @click="downloadBackup(backup)"
-                                            class="inline-flex items-center p-2 border border-gray-300 rounded-md shadow-sm text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                                            </svg>
-                                        </button>
-
-                                        <button
-                                            @click="confirmRestore(backup)"
-                                            class="inline-flex items-center p-2 border border-transparent rounded-md shadow-sm text-xs font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                                            </svg>
-                                        </button>
-
-                                        <button
-                                            @click="confirmDelete(backup)"
-                                            class="inline-flex items-center p-2 border border-transparent rounded-md shadow-sm text-xs font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-200">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                            </svg>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </TransitionGroup>
-                    </div>
-                </div>
+  <Head title="Copias de Seguridad" />
+  <div class="database-backup-index min-h-screen bg-gray-50">
+    <div class="max-w-8xl mx-auto px-6 py-8">
+      <!-- Header -->
+      <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-8 mb-6">
+        <div class="flex flex-col lg:flex-row gap-8 items-start lg:items-center justify-between">
+          <!-- Izquierda -->
+          <div class="flex flex-col gap-6 w-full lg:w-auto">
+            <div class="flex items-center gap-3">
+              <h1 class="text-2xl font-bold text-slate-900">Copias de Seguridad</h1>
             </div>
+
+            <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+              <Link
+                :href="route('backup.create')"
+                class="inline-flex items-center gap-2.5 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Nueva Copia</span>
+              </Link>
+
+              <button
+                @click="showCleanDialog = true"
+                class="inline-flex items-center gap-2 px-4 py-3 bg-red-50 text-red-700 rounded-xl hover:bg-red-100 transition-all duration-200 border border-red-200"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                <span class="text-sm font-medium">Limpiar Antiguos</span>
+              </button>
+            </div>
+
+            <!-- Estadísticas -->
+            <div class="flex flex-wrap items-center gap-4 text-sm">
+              <div class="flex items-center gap-2 px-4 py-3 bg-slate-50 rounded-xl border border-slate-200">
+                <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                </svg>
+                <span class="font-medium text-slate-700">Total:</span>
+                <span class="font-bold text-slate-900 text-lg">{{ formatNumber(stats.total) }}</span>
+              </div>
+
+              <div class="flex items-center gap-2 px-4 py-3 bg-green-50 rounded-xl border border-green-200">
+                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                <span class="font-medium text-slate-700">Comprimidos:</span>
+                <span class="font-bold text-green-700 text-lg">{{ formatNumber(stats.compressed) }}</span>
+              </div>
+
+              <div class="flex items-center gap-2 px-4 py-3 bg-blue-50 rounded-xl border border-blue-200">
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span class="font-medium text-slate-700">Sin Comprimir:</span>
+                <span class="font-bold text-blue-700 text-lg">{{ formatNumber(stats.uncompressed) }}</span>
+              </div>
+
+              <div class="flex items-center gap-2 px-4 py-3 bg-yellow-50 rounded-xl border border-yellow-200">
+                <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                <span class="font-medium text-slate-700">Tamaño Total:</span>
+                <span class="font-bold text-yellow-700 text-lg">{{ formatFileSize(stats.total_size) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Derecha: Filtros -->
+          <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto lg:flex-shrink-0">
+            <!-- Búsqueda -->
+            <div class="relative">
+              <input
+                v-model="searchTerm"
+                @input="handleSearchChange($event.target.value)"
+                type="text"
+                :placeholder="'Buscar por nombre...'"
+                class="w-full sm:w-64 lg:w-80 pl-4 pr-10 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+              />
+              <svg class="absolute right-3 top-3.5 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+
+            <!-- Orden -->
+            <select
+              v-model="sortBy"
+              @change="handleSortChange($event.target.value)"
+              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+            >
+              <option value="created_at-desc">Más Recientes</option>
+              <option value="created_at-asc">Más Antiguos</option>
+              <option value="name-asc">Nombre A-Z</option>
+              <option value="name-desc">Nombre Z-A</option>
+              <option value="size-desc">Tamaño Mayor</option>
+              <option value="size-asc">Tamaño Menor</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabla -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Nombre</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Fecha de Creación</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Tamaño</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Tipo</th>
+                <th class="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Acciones</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <tr v-for="backup in backups" :key="backup.path" class="hover:bg-gray-50 transition-colors duration-150">
+                <td class="px-6 py-4">
+                  <div class="text-sm font-medium text-gray-900">{{ backup.name }}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="text-sm text-gray-900">{{ formatearFecha(backup.created_at) }}</div>
+                  <div class="text-xs text-gray-500">{{ formatearHora(backup.created_at) }}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="text-sm text-gray-700">{{ formatFileSize(backup.size) }}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <span :class="backup.compressed ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                    {{ backup.compressed ? 'Comprimido' : 'Sin Comprimir' }}
+                  </span>
+                </td>
+                <td class="px-6 py-4 text-right">
+                  <div class="flex items-center justify-end space-x-1">
+                    <button @click="downloadBackup(backup)" class="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors duration-150" title="Descargar">
+                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                    </button>
+                    <button @click="confirmRestore(backup)" class="w-8 h-8 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors duration-150" title="Restaurar">
+                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    </button>
+                    <button @click="confirmDelete(backup)" class="w-8 h-8 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors duration-150" title="Eliminar">
+                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="backups.length === 0">
+                <td colspan="5" class="px-6 py-16 text-center">
+                  <div class="flex flex-col items-center space-y-4">
+                    <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                      <svg class="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                      </svg>
+                    </div>
+                    <div class="space-y-1">
+                      <p class="text-gray-700 font-medium">No hay copias de seguridad</p>
+                      <p class="text-sm text-gray-500">Las copias de seguridad aparecerán aquí cuando se creen</p>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
-        <!-- Modal de Confirmación de Restauración -->
-        <Modal v-if="restoreDialog.show" @close="restoreDialog.show = false">
-            <div class="sm:flex sm:items-start">
-                <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100 sm:mx-0 sm:h-10 sm:w-10">
-                    <svg class="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                    </svg>
-                </div>
-                <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                    <h3 class="text-lg leading-6 font-medium text-gray-900">
-                        Limpiar Respaldos Antiguos
-                    </h3>
-                    <div class="mt-2">
-                        <p class="text-sm text-gray-500 mb-4">
-                            Eliminar respaldos más antiguos que:
-                        </p>
-                        <select
-                            v-model="cleanForm.daysOld"
-                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-                            <option value="7">7 días</option>
-                            <option value="15">15 días</option>
-                            <option value="30">30 días</option>
-                            <option value="60">60 días</option>
-                            <option value="90">90 días</option>
-                        </select>
-                        <p class="text-xs text-gray-500 mt-2">
-                            Se eliminarán {{ oldBackupsCount }} respaldos aproximadamente.
-                        </p>
-                    </div>
-                </div>
+        <!-- Paginación -->
+        <div v-if="pagination.lastPage > 1" class="bg-white border-t border-gray-200 px-4 py-3 sm:px-6">
+          <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+              <p class="text-sm text-gray-700">
+                Mostrando {{ pagination.from }} - {{ pagination.to }} de {{ pagination.total }} resultados
+              </p>
+              <select
+                :value="pagination.perPage"
+                @change="handlePerPageChange(parseInt($event.target.value))"
+                class="border border-gray-300 rounded-md text-sm py-1 px-2 bg-white"
+              >
+                <option value="10">10</option>
+                <option value="15">15</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+              </select>
             </div>
-            <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-                <button
-                    @click="executeClean"
-                    :disabled="cleaning"
-                    class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-yellow-600 text-base font-medium text-white hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50">
-                    <LoadingSpinner v-if="cleaning" class="mr-2" />
-                    {{ cleaning ? 'Limpiando...' : 'Limpiar' }}
-                </button>
-                <button
-                    @click="showCleanDialog = false"
-                    class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm">
-                    Cancelar
-                </button>
+
+            <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+              <button
+                v-if="pagination.prevPageUrl"
+                @click="handlePageChange(pagination.currentPage - 1)"
+                class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+              >
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+              </button>
+
+              <span v-else class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-gray-100 text-sm font-medium text-gray-400">
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+              </span>
+
+              <button
+                v-for="page in [pagination.currentPage - 1, pagination.currentPage, pagination.currentPage + 1].filter(p => p > 0 && p <= pagination.lastPage)"
+                :key="page"
+                @click="handlePageChange(page)"
+                :class="page === pagination.currentPage ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'"
+                class="relative inline-flex items-center px-4 py-2 border text-sm font-medium"
+              >
+                {{ page }}
+              </button>
+
+              <button
+                v-if="pagination.nextPageUrl"
+                @click="handlePageChange(pagination.currentPage + 1)"
+                class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+              >
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                </svg>
+              </button>
+
+              <span v-else class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-gray-100 text-sm font-medium text-gray-400">
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                </svg>
+              </span>
+            </nav>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal de Confirmación de Restauración -->
+      <div v-if="restoreDialog.show" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="restoreDialog.show = false">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <!-- Header del modal -->
+          <div class="flex items-center justify-between p-6 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">
+              Confirmar Restauración
+            </h3>
+            <button @click="restoreDialog.show = false" class="text-gray-400 hover:text-gray-600 transition-colors">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="p-6">
+            <div class="text-center">
+              <div class="w-12 h-12 mx-auto bg-yellow-100 rounded-full flex items-center justify-center mb-4">
+                <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                </svg>
+              </div>
+              <h3 class="text-lg font-medium text-gray-900 mb-2">¿Restaurar Base de Datos?</h3>
+              <p class="text-sm text-gray-500 mb-4">
+                ¿Estás seguro de que deseas restaurar la base de datos desde el respaldo <strong>{{ restoreDialog.backup?.name }}</strong>?
+                Esta acción reemplazará todos los datos actuales.
+              </p>
             </div>
-        </Modal>
-    </AppLayout>
+          </div>
+
+          <!-- Footer del modal -->
+          <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+            <button @click="restoreDialog.show = false" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+              Cancelar
+            </button>
+            <button @click="executeRestore" class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors">
+              Restaurar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal de Confirmación de Eliminación -->
+      <div v-if="deleteDialog.show" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="deleteDialog.show = false">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <!-- Header del modal -->
+          <div class="flex items-center justify-between p-6 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">
+              Confirmar Eliminación
+            </h3>
+            <button @click="deleteDialog.show = false" class="text-gray-400 hover:text-gray-600 transition-colors">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="p-6">
+            <div class="text-center">
+              <div class="w-12 h-12 mx-auto bg-red-100 rounded-full flex items-center justify-center mb-4">
+                <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              <h3 class="text-lg font-medium text-gray-900 mb-2">¿Eliminar Copia de Seguridad?</h3>
+              <p class="text-sm text-gray-500 mb-4">
+                ¿Estás seguro de que deseas eliminar la copia de seguridad <strong>{{ deleteDialog.backup?.name }}</strong>?
+                Esta acción no se puede deshacer.
+              </p>
+            </div>
+          </div>
+
+          <!-- Footer del modal -->
+          <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+            <button @click="deleteDialog.show = false" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+              Cancelar
+            </button>
+            <button @click="executeDelete" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+              Eliminar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal de Limpieza -->
+      <div v-if="showCleanDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="showCleanDialog = false">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <!-- Header del modal -->
+          <div class="flex items-center justify-between p-6 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">
+              Limpiar Copias Antiguas
+            </h3>
+            <button @click="showCleanDialog = false" class="text-gray-400 hover:text-gray-600 transition-colors">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="p-6">
+            <div class="text-center">
+              <div class="w-12 h-12 mx-auto bg-orange-100 rounded-full flex items-center justify-center mb-4">
+                <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              <h3 class="text-lg font-medium text-gray-900 mb-2">¿Limpiar Copias Antiguas?</h3>
+              <p class="text-sm text-gray-500 mb-4">
+                Se eliminarán las copias de seguridad más antiguas que:
+              </p>
+              <select
+                v-model="cleanForm.daysOld"
+                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
+              >
+                <option value="7">7 días</option>
+                <option value="15">15 días</option>
+                <option value="30">30 días</option>
+                <option value="60">60 días</option>
+                <option value="90">90 días</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Footer del modal -->
+          <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+            <button @click="showCleanDialog = false" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+              Cancelar
+            </button>
+            <button @click="executeClean" class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors">
+              Limpiar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
-import { router } from '@inertiajs/vue3'
+import { ref, computed, onMounted } from 'vue'
+import { Head, router, usePage, Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import { Notyf } from 'notyf'
+import 'notyf/notyf.min.css'
 
-// Componentes auxiliares
-const LoadingSpinner = {
-    template: `
-        <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-    `
-}
+defineOptions({ layout: AppLayout })
 
-const Modal = {
-    emits: ['close'],
-    template: `
-        <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" @click="$emit('close')">
-            <div class="relative top-20 mx-auto p-5 border max-w-md shadow-lg rounded-md bg-white" @click.stop>
-                <slot />
-            </div>
-        </div>
-    `
-}
+// Notificaciones
+const notyf = new Notyf({
+  duration: 4000,
+  position: { x: 'right', y: 'top' },
+  types: [
+    { type: 'success', background: '#10b981', icon: false },
+    { type: 'error', background: '#ef4444', icon: false },
+    { type: 'warning', background: '#f59e0b', icon: false }
+  ]
+})
 
-const Transition = {
-    name: 'fade',
-    template: '<transition name="fade" appear><slot /></transition>'
-}
-
-const TransitionGroup = {
-    name: 'list',
-    tag: 'div',
-    template: '<transition-group name="list" tag="div"><slot /></transition-group>'
-}
+const page = usePage()
+onMounted(() => {
+  const flash = page.props.flash
+  if (flash?.success) notyf.success(flash.success)
+  if (flash?.error) notyf.error(flash.error)
+})
 
 // Props
 const props = defineProps({
-    backups: {
-        type: Array,
-        default: () => []
-    },
-    mysqldump_available: {
-        type: Boolean,
-        default: false
-    }
+  backups: { type: Array, default: () => [] },
+  stats: { type: Object, default: () => ({}) },
+  filters: { type: Object, default: () => ({}) },
+  sorting: { type: Object, default: () => ({ sort_by: 'created_at', sort_direction: 'desc' }) },
+  pagination: { type: Object, default: () => ({}) },
+  mysqldump_available: { type: Boolean, default: false },
+  total_backups: { type: Number, default: 0 },
+  total_size: { type: Number, default: 0 }
 })
 
-// Estado reactivo
+// Estado UI
+const showCleanDialog = ref(false)
 const creating = ref(false)
 const restoring = ref(false)
 const deleting = ref(false)
-const cleaning = ref(false)
-const refreshing = ref(false)
-const showCleanDialog = ref(false)
+
+// Filtros
+const searchTerm = ref(props.filters?.search ?? '')
+const sortBy = ref('created_at-desc')
 
 // Formularios
-const backupForm = reactive({
-    name: '',
-    compress: true,
-    include_structure_only: false
+const backupForm = ref({
+  name: '',
+  compress: true,
+  include_structure_only: false
 })
 
-const cleanForm = reactive({
-    daysOld: 30
+const cleanForm = ref({
+  daysOld: 30
 })
 
 // Diálogos
-const restoreDialog = reactive({
-    show: false,
-    backup: null
+const restoreDialog = ref({
+  show: false,
+  backup: null
 })
 
-const deleteDialog = reactive({
-    show: false,
-    backup: null
+const deleteDialog = ref({
+  show: false,
+  backup: null
 })
 
-// Computed properties
-const defaultBackupName = computed(() => {
-    const now = new Date()
-    const timestamp = now.toISOString().slice(0, 19).replace(/[:-]/g, '').replace('T', '_')
-    return `backup_${timestamp}`
-})
+// Handlers
+function handleSearchChange(newSearch) {
+  searchTerm.value = newSearch
+  router.get(route('backup.index'), {
+    search: newSearch,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc',
+    per_page: props.pagination?.per_page || 10,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
 
-const sortedBackups = computed(() => {
-    return [...props.backups].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-})
+function handleSortChange(newSort) {
+  sortBy.value = newSort
+  router.get(route('backup.index'), {
+    search: searchTerm.value,
+    sort_by: newSort.split('-')[0],
+    sort_direction: newSort.split('-')[1] || 'desc',
+    per_page: props.pagination?.per_page || 10,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
 
-const totalSizeFormatted = computed(() => {
-    const totalSize = props.backups.reduce((sum, backup) => sum + (backup.size || 0), 0)
-    return formatFileSize(totalSize)
-})
+const handlePerPageChange = (newPerPage) => {
+  router.get(route('backup.index'), {
+    ...props.filters,
+    ...props.sorting,
+    per_page: newPerPage,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
 
-const oldBackupsCount = computed(() => {
-    if (!cleanForm.daysOld) return 0
-    const cutoffDate = new Date()
-    cutoffDate.setDate(cutoffDate.getDate() - parseInt(cleanForm.daysOld))
-
-    return props.backups.filter(backup =>
-        new Date(backup.created_at) < cutoffDate
-    ).length
-})
+const handlePageChange = (newPage) => {
+  router.get(route('backup.index'), {
+    ...props.filters,
+    ...props.sorting,
+    page: newPage
+  }, { preserveState: true, preserveScroll: true })
+}
 
 // Métodos principales
 const createBackup = async () => {
-    if (creating.value) return
+  if (creating.value) return
 
-    creating.value = true
+  creating.value = true
 
-    try {
-        await router.post(route('backup.create'), {
-            name: backupForm.name || defaultBackupName.value,
-            compress: backupForm.compress,
-            include_structure_only: backupForm.include_structure_only
-        }, {
-            onSuccess: () => {
-                // Resetear formulario
-                backupForm.name = ''
-                backupForm.compress = true
-                backupForm.include_structure_only = false
+  try {
+    const formData = new FormData()
+    formData.append('name', backupForm.value.name || '')
+    formData.append('compress', backupForm.value.compress ? '1' : '0')
+    formData.append('include_structure_only', backupForm.value.include_structure_only ? '1' : '0')
 
-                // Mostrar notificación de éxito
-                showNotification('Respaldo creado exitosamente', 'success')
-            },
-            onError: (errors) => {
-                console.error('Error creating backup:', errors)
-                showNotification('Error al crear el respaldo', 'error')
-            },
-            onFinish: () => {
-                creating.value = false
-            }
-        })
-    } catch (error) {
-        console.error('Unexpected error:', error)
+    await router.post(route('backup.create'), formData, {
+      onSuccess: () => {
+        backupForm.value = {
+          name: '',
+          compress: true,
+          include_structure_only: false
+        }
+        notyf.success('Copia de seguridad creada exitosamente')
+      },
+      onError: (errors) => {
+        console.error('Error creating backup:', errors)
+        notyf.error('Error al crear la copia de seguridad')
+      },
+      onFinish: () => {
         creating.value = false
-    }
+      }
+    })
+  } catch (error) {
+    console.error('Unexpected error:', error)
+    creating.value = false
+  }
 }
 
 const confirmRestore = (backup) => {
-    restoreDialog.backup = backup
-    restoreDialog.show = true
+  restoreDialog.value.backup = backup
+  restoreDialog.value.show = true
 }
 
 const executeRestore = async () => {
-    if (restoring.value || !restoreDialog.backup) return
+  if (restoring.value || !restoreDialog.value.backup) return
 
-    restoring.value = true
+  restoring.value = true
 
-    try {
-        await router.post(route('backup.restore', restoreDialog.backup.path), {}, {
-            onSuccess: () => {
-                restoreDialog.show = false
-                restoreDialog.backup = null
-                showNotification('Base de datos restaurada exitosamente', 'success')
-            },
-            onError: (errors) => {
-                console.error('Error restoring backup:', errors)
-                showNotification('Error al restaurar la base de datos', 'error')
-            },
-            onFinish: () => {
-                restoring.value = false
-            }
-        })
-    } catch (error) {
-        console.error('Unexpected error:', error)
+  try {
+    await router.post(route('backup.restore', restoreDialog.value.backup.path), {}, {
+      onSuccess: () => {
+        restoreDialog.value.show = false
+        restoreDialog.value.backup = null
+        notyf.success('Base de datos restaurada exitosamente')
+      },
+      onError: (errors) => {
+        console.error('Error restoring backup:', errors)
+        notyf.error('Error al restaurar la base de datos')
+      },
+      onFinish: () => {
         restoring.value = false
-    }
+      }
+    })
+  } catch (error) {
+    console.error('Unexpected error:', error)
+    restoring.value = false
+  }
 }
 
 const confirmDelete = (backup) => {
-    deleteDialog.backup = backup
-    deleteDialog.show = true
+  deleteDialog.value.backup = backup
+  deleteDialog.value.show = true
 }
 
 const executeDelete = async () => {
-    if (deleting.value || !deleteDialog.backup) return
+  if (deleting.value || !deleteDialog.value.backup) return
 
-    deleting.value = true
+  deleting.value = true
 
-    try {
-        await router.delete(route('backup.delete', deleteDialog.backup.path), {
-            onSuccess: () => {
-                deleteDialog.show = false
-                deleteDialog.backup = null
-                showNotification('Respaldo eliminado exitosamente', 'success')
-            },
-            onError: (errors) => {
-                console.error('Error deleting backup:', errors)
-                showNotification('Error al eliminar el respaldo', 'error')
-            },
-            onFinish: () => {
-                deleting.value = false
-            }
-        })
-    } catch (error) {
-        console.error('Unexpected error:', error)
+  try {
+    await router.delete(route('backup.delete', deleteDialog.value.backup.path), {
+      onSuccess: () => {
+        deleteDialog.value.show = false
+        deleteDialog.value.backup = null
+        notyf.success('Copia de seguridad eliminada exitosamente')
+      },
+      onError: (errors) => {
+        console.error('Error deleting backup:', errors)
+        notyf.error('Error al eliminar la copia de seguridad')
+      },
+      onFinish: () => {
         deleting.value = false
-    }
+      }
+    })
+  } catch (error) {
+    console.error('Unexpected error:', error)
+    deleting.value = false
+  }
 }
 
 const executeClean = async () => {
-    if (cleaning.value) return
+  if (!showCleanDialog.value) return
 
-    cleaning.value = true
+  try {
+    const formData = new FormData()
+    formData.append('days_old', cleanForm.value.daysOld.toString())
 
-    try {
-        await router.post(route('backup.clean'), {
-            days_old: cleanForm.daysOld
-        }, {
-            onSuccess: () => {
-                showCleanDialog.value = false
-                showNotification('Respaldos antiguos eliminados exitosamente', 'success')
-            },
-            onError: (errors) => {
-                console.error('Error cleaning backups:', errors)
-                showNotification('Error al limpiar los respaldos', 'error')
-            },
-            onFinish: () => {
-                cleaning.value = false
-            }
-        })
-    } catch (error) {
-        console.error('Unexpected error:', error)
-        cleaning.value = false
-    }
-}
-
-const refreshBackups = async () => {
-    if (refreshing.value) return
-
-    refreshing.value = true
-
-    try {
-        await router.reload({
-            only: ['backups'],
-            onFinish: () => {
-                refreshing.value = false
-                showNotification('Lista de respaldos actualizada', 'success')
-            }
-        })
-    } catch (error) {
-        console.error('Error refreshing backups:', error)
-        refreshing.value = false
-    }
+    await router.post(route('backup.clean'), formData, {
+      onSuccess: () => {
+        showCleanDialog.value = false
+        notyf.success('Copias antiguas eliminadas exitosamente')
+      },
+      onError: (errors) => {
+        console.error('Error cleaning backups:', errors)
+        notyf.error('Error al limpiar las copias antiguas')
+      }
+    })
+  } catch (error) {
+    console.error('Unexpected error:', error)
+  }
 }
 
 const downloadBackup = (backup) => {
-    // Crear enlace temporal para descarga
-    const link = document.createElement('a')
-    link.href = route('backup.download', backup.path)
-    link.download = backup.name
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-
-    showNotification('Descarga iniciada', 'success')
+  const link = document.createElement('a')
+  link.href = route('backup.download', backup.path)
+  link.download = backup.name
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  notyf.success('Descarga iniciada')
 }
 
-// Métodos utilitarios
-const formatDate = (dateString) => {
-    const date = new Date(dateString)
-    return date.toLocaleString('es-ES', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-    })
+// Helpers
+const formatNumber = (num) => new Intl.NumberFormat('es-ES').format(num)
+const formatearFecha = (date) => {
+  if (!date) return 'Fecha no disponible'
+  try {
+    const d = new Date(date)
+    return d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  } catch {
+    return 'Fecha inválida'
+  }
+}
+
+const formatearHora = (date) => {
+  if (!date) return 'Hora no disponible'
+  try {
+    const d = new Date(date)
+    return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
+  } catch {
+    return 'Hora inválida'
+  }
 }
 
 const formatFileSize = (bytes) => {
-    if (!bytes || bytes === 0) return '0 B'
+  if (!bytes || bytes === 0) return '0 B'
 
-    const k = 1024
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
 
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
-
-const showNotification = (message, type = 'info') => {
-    // Aquí puedes integrar con tu sistema de notificaciones preferido
-    // Por ejemplo, usando toast, sweetalert2, etc.
-    console.log(`${type.toUpperCase()}: ${message}`)
-}
-
-// Lifecycle hooks
-onMounted(() => {
-    // Inicialización si es necesaria
-    console.log('Database Backup Manager initialized')
-})
-
-// Manejo de errores global
-window.addEventListener('unhandledrejection', (event) => {
-    console.error('Unhandled promise rejection:', event.reason)
-    showNotification('Ha ocurrido un error inesperado', 'error')
-})
 </script>
 
 <style scoped>
