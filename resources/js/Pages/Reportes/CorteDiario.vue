@@ -21,7 +21,7 @@ const notyf = new Notyf({
 
 // Props
 const props = defineProps({
-  ventasPagadas: { type: Array, default: () => [] },
+  pagos: { type: Array, default: () => [] },
   totalesPorMetodo: { type: Object, default: () => ({}) },
   totalGeneral: { type: Number, default: 0 },
   periodo: { type: String, default: 'diario' },
@@ -271,14 +271,16 @@ const exportarCorte = () => {
         </div>
       </div>
 
-      <!-- Tabla de ventas pagadas -->
+      <!-- Tabla de pagos -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
               <tr>
-                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">N° Venta</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Tipo</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">N° Documento</th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Cliente</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Concepto</th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Método de Pago</th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Fecha de Pago</th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Total</th>
@@ -286,31 +288,39 @@ const exportarCorte = () => {
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-              <tr v-for="venta in ventasPagadas" :key="venta.id" class="hover:bg-gray-50 transition-colors duration-150">
+              <tr v-for="pago in pagos" :key="pago.id" class="hover:bg-gray-50 transition-colors duration-150">
                 <td class="px-6 py-4">
-                  <div class="text-sm font-medium text-gray-900">{{ venta.numero_venta }}</div>
-                </td>
-                <td class="px-6 py-4">
-                  <div class="text-sm text-gray-900">{{ venta.cliente }}</div>
-                </td>
-                <td class="px-6 py-4">
-                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    {{ obtenerLabelMetodoPago(venta.metodo_pago) }}
+                  <span :class="pago.tipo === 'venta' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                    {{ pago.tipo === 'venta' ? 'Venta' : 'Cobranza' }}
                   </span>
                 </td>
                 <td class="px-6 py-4">
-                  <div class="text-sm text-gray-900">{{ formatearFecha(venta.fecha_pago) }}</div>
+                  <div class="text-sm font-medium text-gray-900">{{ pago.numero }}</div>
                 </td>
                 <td class="px-6 py-4">
-                  <div class="text-sm font-semibold text-gray-900">${{ formatNumber(venta.total) }}</div>
+                  <div class="text-sm text-gray-900">{{ pago.cliente }}</div>
                 </td>
                 <td class="px-6 py-4">
-                  <div class="text-sm text-gray-900">{{ venta.pagado_por }}</div>
-                  <div v-if="venta.notas_pago" class="text-xs text-gray-500 mt-1">{{ venta.notas_pago }}</div>
+                  <div class="text-sm text-gray-900">{{ pago.concepto }}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    {{ obtenerLabelMetodoPago(pago.metodo_pago) }}
+                  </span>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="text-sm text-gray-900">{{ formatearFecha(pago.fecha_pago) }}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="text-sm font-semibold text-gray-900">${{ formatNumber(pago.total) }}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="text-sm text-gray-900">{{ pago.pagado_por }}</div>
+                  <div v-if="pago.notas_pago" class="text-xs text-gray-500 mt-1">{{ pago.notas_pago }}</div>
                 </td>
               </tr>
-              <tr v-if="ventasPagadas.length === 0">
-                <td colspan="6" class="px-6 py-16 text-center">
+              <tr v-if="pagos.length === 0">
+                <td colspan="8" class="px-6 py-16 text-center">
                   <div class="flex flex-col items-center space-y-4">
                     <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                       <svg class="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -319,7 +329,7 @@ const exportarCorte = () => {
                     </div>
                     <div class="space-y-1">
                       <p class="text-gray-700 font-medium">No hay pagos registrados</p>
-                      <p class="text-sm text-gray-500">No se encontraron ventas pagadas para esta fecha</p>
+                      <p class="text-sm text-gray-500">No se encontraron pagos para esta fecha</p>
                     </div>
                   </div>
                 </td>
@@ -329,13 +339,13 @@ const exportarCorte = () => {
         </div>
 
         <!-- Resumen final -->
-        <div v-if="ventasPagadas.length > 0" class="bg-gray-50 border-t border-gray-200 px-6 py-4">
+        <div v-if="pagos.length > 0" class="bg-gray-50 border-t border-gray-200 px-6 py-4">
           <div class="flex justify-between items-center">
             <span class="text-sm font-medium text-gray-700">Total de pagos del {{ periodoLabel.toLowerCase() }}:</span>
             <span class="text-xl font-bold text-gray-900">${{ formatNumber(totalGeneral) }}</span>
           </div>
           <div class="mt-2 text-xs text-gray-500">
-            {{ ventasPagadas.length }} venta{{ ventasPagadas.length !== 1 ? 's' : '' }} pagada{{ ventasPagadas.length !== 1 ? 's' : '' }}
+            {{ pagos.length }} pago{{ pagos.length !== 1 ? 's' : '' }} registrado{{ pagos.length !== 1 ? 's' : '' }}
           </div>
         </div>
       </div>

@@ -194,7 +194,11 @@ class CobranzaController extends Controller
     public function marcarPagada(Request $request, $id)
     {
         $request->validate([
+            'fecha_pago' => 'required|date',
+            'monto_pagado' => 'required|numeric|min:0',
             'metodo_pago' => 'required|in:efectivo,transferencia,cheque,tarjeta,otros',
+            'referencia_pago' => 'nullable|string|max:255',
+            'recibido_por' => 'nullable|string|max:255',
             'notas_pago' => 'nullable|string|max:500'
         ]);
 
@@ -218,14 +222,19 @@ class CobranzaController extends Controller
 
         DB::beginTransaction();
         try {
+            // Determinar el estado basado en el monto pagado
+            $estado = $request->monto_pagado >= $cobranza->monto_cobrado ? 'pagado' : 'parcial';
+
             // Actualizar la cobranza con la información de pago
             $cobranza->update([
-                'estado' => 'pagado',
-                'fecha_pago' => now(),
-                'monto_pagado' => $cobranza->monto_cobrado,
+                'estado' => $estado,
+                'fecha_pago' => $request->fecha_pago,
+                'monto_pagado' => $request->monto_pagado,
                 'metodo_pago' => $request->metodo_pago,
-                'referencia_pago' => $request->notas_pago,
-                'responsable_cobro' => $request->user()->id, // Usar ID del usuario como en ventas
+                'referencia_pago' => $request->referencia_pago,
+                'recibido_por' => $request->recibido_por,
+                'notas_pago' => $request->notas_pago,
+                'responsable_cobro' => $request->user()->id,
             ]);
 
             // Agregar al reporte del corte diario
@@ -260,10 +269,13 @@ class CobranzaController extends Controller
                 'message' => 'Cobranza marcada como pagada exitosamente',
                 'cobranza' => [
                     'id' => $cobranza->id,
-                    'estado' => 'pagado',
-                    'metodo_pago' => $cobranza->metodo_pago,
+                    'estado' => $estado,
                     'fecha_pago' => $cobranza->fecha_pago->format('Y-m-d'),
+                    'monto_pagado' => $cobranza->monto_pagado,
+                    'metodo_pago' => $cobranza->metodo_pago,
                     'referencia_pago' => $cobranza->referencia_pago,
+                    'recibido_por' => $cobranza->recibido_por,
+                    'notas_pago' => $cobranza->notas_pago,
                 ]
             ]);
 

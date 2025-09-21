@@ -41,6 +41,16 @@ const selectedCobranza = ref(null)
 const selectedId = ref(null)
 const showGenerarModal = ref(false)
 
+// Modal de pago
+const showPaymentModal = ref(false)
+const selectedCobranzaPago = ref(null)
+const fechaPago = ref('')
+const montoPagado = ref('')
+const metodoPago = ref('')
+const referenciaPago = ref('')
+const notasPago = ref('')
+const recibidoPor = ref('')
+
 // Filtros
 const searchTerm = ref(props.filters?.search ?? '')
 const sortBy = ref('fecha_cobro-desc')
@@ -196,25 +206,52 @@ const eliminarCobranza = () => {
 }
 
 const marcarPagada = (cobranza) => {
-  const fechaPago = prompt('Fecha de pago:', new Date().toISOString().split('T')[0])
-  if (!fechaPago) return
+  selectedCobranzaPago.value = cobranza
+  fechaPago.value = new Date().toISOString().split('T')[0]
+  montoPagado.value = cobranza.monto_cobrado.toString()
+  metodoPago.value = ''
+  referenciaPago.value = ''
+  notasPago.value = ''
+  recibidoPor.value = ''
+  showPaymentModal.value = true
+}
 
-  const montoPagado = prompt('Monto pagado:', cobranza.monto_cobrado.toString())
-  if (!montoPagado || isNaN(montoPagado)) return
+const cerrarPaymentModal = () => {
+  showPaymentModal.value = false
+  selectedCobranzaPago.value = null
+  fechaPago.value = ''
+  montoPagado.value = ''
+  metodoPago.value = ''
+  referenciaPago.value = ''
+  notasPago.value = ''
+  recibidoPor.value = ''
+}
 
-  const metodoPago = prompt('Método de pago (efectivo, transferencia, tarjeta, cheque):', 'transferencia')
-  if (!metodoPago) return
+const confirmarPago = () => {
+  if (!fechaPago.value) {
+    notyf.error('Debe seleccionar una fecha de pago')
+    return
+  }
+  if (!montoPagado.value || isNaN(montoPagado.value) || parseFloat(montoPagado.value) <= 0) {
+    notyf.error('Debe ingresar un monto válido')
+    return
+  }
+  if (!metodoPago.value) {
+    notyf.error('Debe seleccionar un método de pago')
+    return
+  }
 
-  const referenciaPago = prompt('Referencia de pago (opcional):', '')
-
-  router.post(route('cobranza.marcar-pagada', cobranza.id), {
-    fecha_pago: fechaPago,
-    monto_pagado: parseFloat(montoPagado),
-    metodo_pago: metodoPago,
-    referencia_pago: referenciaPago,
+  router.post(route('cobranza.marcar-pagada', selectedCobranzaPago.value.id), {
+    fecha_pago: fechaPago.value,
+    monto_pagado: parseFloat(montoPagado.value),
+    metodo_pago: metodoPago.value,
+    referencia_pago: referenciaPago.value,
+    notas_pago: notasPago.value,
+    recibido_por: recibidoPor.value,
   }, {
     onSuccess: () => {
       notyf.success('Cobranza marcada como pagada')
+      cerrarPaymentModal()
       router.reload()
     },
     onError: (errors) => {
@@ -697,11 +734,19 @@ const obtenerLabelEstado = (estado) => {
                       <label class="block text-sm font-medium text-gray-700">Referencia</label>
                       <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedCobranza.referencia_pago }}</p>
                     </div>
+                    <div v-if="selectedCobranza.recibido_por">
+                      <label class="block text-sm font-medium text-gray-700">Recibido Por</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedCobranza.recibido_por }}</p>
+                    </div>
                   </div>
                 </div>
                 <div v-if="selectedCobranza.notas">
                   <label class="block text-sm font-medium text-gray-700">Notas</label>
                   <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedCobranza.notas }}</p>
+                </div>
+                <div v-if="selectedCobranza.notas_pago">
+                  <label class="block text-sm font-medium text-gray-700">Notas de Pago</label>
+                  <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedCobranza.notas_pago }}</p>
                 </div>
               </div>
             </div>
@@ -741,6 +786,123 @@ const obtenerLabelEstado = (estado) => {
             </div>
             <button v-if="modalMode === 'confirm'" @click="eliminarCobranza" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
               Eliminar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal de Pago -->
+      <div v-if="showPaymentModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="cerrarPaymentModal">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+          <!-- Header del modal -->
+          <div class="flex items-center justify-between p-6 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">Marcar Cobranza como Pagada</h3>
+            <button @click="cerrarPaymentModal" class="text-gray-400 hover:text-gray-600 transition-colors">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="p-6">
+            <div v-if="selectedCobranzaPago" class="space-y-4">
+              <!-- Información de la cobranza -->
+              <div class="bg-gray-50 p-4 rounded-lg">
+                <div class="flex justify-between items-center">
+                  <span class="text-sm font-medium text-gray-700">Concepto:</span>
+                  <span class="text-sm text-gray-900">{{ selectedCobranzaPago.concepto || 'Cobranza' }}</span>
+                </div>
+                <div class="flex justify-between items-center mt-2">
+                  <span class="text-sm font-medium text-gray-700">Monto Total:</span>
+                  <span class="text-lg font-bold text-gray-900">${{ formatNumber(selectedCobranzaPago.monto_cobrado) }}</span>
+                </div>
+              </div>
+
+              <!-- Fecha de pago -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Fecha de Pago *</label>
+                <input
+                  v-model="fechaPago"
+                  type="date"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <!-- Monto pagado -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Monto Pagado *</label>
+                <input
+                  v-model="montoPagado"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="0.00"
+                />
+              </div>
+
+              <!-- Método de pago -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Método de Pago *</label>
+                <select
+                  v-model="metodoPago"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Seleccionar método...</option>
+                  <option value="efectivo">Efectivo</option>
+                  <option value="transferencia">Transferencia</option>
+                  <option value="cheque">Cheque</option>
+                  <option value="tarjeta">Tarjeta</option>
+                  <option value="otros">Otros</option>
+                </select>
+              </div>
+
+              <!-- Referencia -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Referencia (opcional)</label>
+                <input
+                  v-model="referenciaPago"
+                  type="text"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Número de referencia, folio, etc."
+                />
+              </div>
+
+              <!-- Recibido por -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Recibido Por (opcional)</label>
+                <input
+                  v-model="recibidoPor"
+                  type="text"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Nombre de quien recibió el pago"
+                />
+              </div>
+
+              <!-- Notas del pago -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Notas de Pago (opcional)</label>
+                <textarea
+                  v-model="notasPago"
+                  rows="3"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Agregar notas sobre el pago..."
+                ></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer del modal -->
+          <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+            <button @click="cerrarPaymentModal" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+              Cancelar
+            </button>
+            <button
+              @click="confirmarPago"
+              :disabled="!fechaPago || !montoPagado || !metodoPago"
+              class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Confirmar Pago
             </button>
           </div>
         </div>

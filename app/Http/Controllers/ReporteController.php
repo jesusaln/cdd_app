@@ -10,6 +10,7 @@ use Inertia\Inertia;
 use App\Models\Venta;
 use App\Models\Compra;
 use App\Models\Producto;
+use App\Models\Cobranza;
 
 class ReporteController extends Controller
 {
@@ -161,6 +162,14 @@ class ReporteController extends Controller
             ->orderBy('fecha_pago', 'desc')
             ->get();
 
+        // Obtener cobranzas pagadas en el período especificado
+        $cobranzasPagadas = Cobranza::with(['renta.cliente', 'responsableCobro'])
+            ->whereIn('estado', ['pagado', 'parcial'])
+            ->where('fecha_pago', '>=', $fecha_inicio . ' 00:00:00')
+            ->where('fecha_pago', '<=', $fecha_fin . ' 23:59:59')
+            ->orderBy('fecha_pago', 'desc')
+            ->get();
+
         // Calcular totales por método de pago
         $totalesPorMetodo = [
             'efectivo' => 0,
@@ -172,6 +181,7 @@ class ReporteController extends Controller
 
         $totalGeneral = 0;
 
+        // Procesar ventas
         foreach ($ventasPagadas as $venta) {
             $metodo = $venta->metodo_pago ?? 'otros';
             if (isset($totalesPorMetodo[$metodo])) {
@@ -182,12 +192,25 @@ class ReporteController extends Controller
             $totalGeneral += $venta->total;
         }
 
+        // Procesar cobranzas
+        foreach ($cobranzasPagadas as $cobranza) {
+            $metodo = $cobranza->metodo_pago ?? 'otros';
+            if (isset($totalesPorMetodo[$metodo])) {
+                $totalesPorMetodo[$metodo] += $cobranza->monto_pagado;
+            } else {
+                $totalesPorMetodo['otros'] += $cobranza->monto_pagado;
+            }
+            $totalGeneral += $cobranza->monto_pagado;
+        }
+
         // Formatear datos para la vista
         $ventasFormateadas = $ventasPagadas->map(function ($venta) {
             return [
                 'id' => $venta->id,
-                'numero_venta' => $venta->numero_venta,
+                'tipo' => 'venta',
+                'numero' => $venta->numero_venta,
                 'cliente' => $venta->cliente->nombre_razon_social ?? 'Sin cliente',
+                'concepto' => 'Venta',
                 'total' => $venta->total,
                 'metodo_pago' => $venta->metodo_pago,
                 'fecha_pago' => $venta->fecha_pago ? $venta->fecha_pago->format('Y-m-d H:i') : null,
@@ -196,8 +219,28 @@ class ReporteController extends Controller
             ];
         });
 
+        $cobranzasFormateadas = $cobranzasPagadas->map(function ($cobranza) {
+            return [
+                'id' => $cobranza->id,
+                'tipo' => 'cobranza',
+                'numero' => $cobranza->renta->numero_contrato ?? 'N/A',
+                'cliente' => $cobranza->renta->cliente->nombre_razon_social ?? 'Sin cliente',
+                'concepto' => $cobranza->concepto ?? 'Cobranza',
+                'total' => $cobranza->monto_pagado,
+                'metodo_pago' => $cobranza->metodo_pago,
+                'fecha_pago' => $cobranza->fecha_pago ? $cobranza->fecha_pago->format('Y-m-d H:i') : null,
+                'notas_pago' => $cobranza->notas_pago,
+                'pagado_por' => $cobranza->responsableCobro?->name ?? 'Sistema',
+            ];
+        });
+
+        // Combinar y ordenar por fecha de pago
+        $pagosFormateados = collect([...$ventasFormateadas, ...$cobranzasFormateadas])
+            ->sortByDesc('fecha_pago')
+            ->values();
+
         return Inertia::render('Reportes/CorteDiario', [
-            'ventasPagadas' => $ventasFormateadas,
+            'pagos' => $pagosFormateados,
             'totalesPorMetodo' => $totalesPorMetodo,
             'totalGeneral' => $totalGeneral,
             'periodo' => $periodo,
@@ -250,6 +293,14 @@ class ReporteController extends Controller
             ->orderBy('fecha_pago', 'desc')
             ->get();
 
+        // Obtener cobranzas pagadas en el período
+        $cobranzasPagadas = Cobranza::with(['renta.cliente', 'responsableCobro'])
+            ->whereIn('estado', ['pagado', 'parcial'])
+            ->where('fecha_pago', '>=', $fecha_inicio . ' 00:00:00')
+            ->where('fecha_pago', '<=', $fecha_fin . ' 23:59:59')
+            ->orderBy('fecha_pago', 'desc')
+            ->get();
+
         // Calcular totales por método de pago
         $totalesPorMetodo = [
             'efectivo' => 0,
@@ -261,6 +312,7 @@ class ReporteController extends Controller
 
         $totalGeneral = 0;
 
+        // Procesar ventas
         foreach ($ventasPagadas as $venta) {
             $metodo = $venta->metodo_pago ?? 'otros';
             if (isset($totalesPorMetodo[$metodo])) {
@@ -271,8 +323,52 @@ class ReporteController extends Controller
             $totalGeneral += $venta->total;
         }
 
+        // Procesar cobranzas
+        foreach ($cobranzasPagadas as $cobranza) {
+            $metodo = $cobranza->metodo_pago ?? 'otros';
+            if (isset($totalesPorMetodo[$metodo])) {
+                $totalesPorMetodo[$metodo] += $cobranza->monto_pagado;
+            } else {
+                $totalesPorMetodo['otros'] += $cobranza->monto_pagado;
+            }
+            $totalGeneral += $cobranza->monto_pagado;
+        }
+
         // Para este ejemplo, devolveremos JSON que puede ser usado por JavaScript para generar Excel
         // En un entorno real, usaríamos librerías como Laravel Excel o Maatwebsite Excel
+
+        // Combinar ventas y cobranzas para exportación
+        $ventasFormateadas = $ventasPagadas->map(function ($venta) {
+            return [
+                'tipo' => 'venta',
+                'numero' => $venta->numero_venta,
+                'cliente' => $venta->cliente->nombre_razon_social ?? 'Sin cliente',
+                'concepto' => 'Venta',
+                'metodo_pago' => $venta->metodo_pago,
+                'total' => $venta->total,
+                'fecha_pago' => $venta->fecha_pago ? $venta->fecha_pago->format('Y-m-d H:i:s') : null,
+                'notas_pago' => $venta->notas_pago,
+                'pagado_por' => $venta->pagadoPor?->name ?? 'Sistema',
+            ];
+        });
+
+        $cobranzasFormateadas = $cobranzasPagadas->map(function ($cobranza) {
+            return [
+                'tipo' => 'cobranza',
+                'numero' => $cobranza->renta->numero_contrato ?? 'N/A',
+                'cliente' => $cobranza->renta->cliente->nombre_razon_social ?? 'Sin cliente',
+                'concepto' => $cobranza->concepto ?? 'Cobranza',
+                'metodo_pago' => $cobranza->metodo_pago,
+                'total' => $cobranza->monto_pagado,
+                'fecha_pago' => $cobranza->fecha_pago ? $cobranza->fecha_pago->format('Y-m-d H:i:s') : null,
+                'notas_pago' => $cobranza->notas_pago,
+                'pagado_por' => $cobranza->responsableCobro?->name ?? 'Sistema',
+            ];
+        });
+
+        $pagosCombinados = collect([...$ventasFormateadas, ...$cobranzasFormateadas])
+            ->sortByDesc('fecha_pago')
+            ->values();
 
         $data = [
             'periodo' => $periodo,
@@ -281,17 +377,7 @@ class ReporteController extends Controller
             'fecha_fin' => $fecha_fin,
             'total_general' => $totalGeneral,
             'totales_por_metodo' => $totalesPorMetodo,
-            'ventas' => $ventasPagadas->map(function ($venta) {
-                return [
-                    'numero_venta' => $venta->numero_venta,
-                    'cliente' => $venta->cliente->nombre_razon_social ?? 'Sin cliente',
-                    'metodo_pago' => $venta->metodo_pago,
-                    'total' => $venta->total,
-                    'fecha_pago' => $venta->fecha_pago ? $venta->fecha_pago->format('Y-m-d H:i:s') : null,
-                    'notas_pago' => $venta->notas_pago,
-                    'pagado_por' => $venta->pagadoPor?->name ?? 'Sistema',
-                ];
-            })->toArray()
+            'pagos' => $pagosCombinados->toArray()
         ];
 
         return response()->json($data);

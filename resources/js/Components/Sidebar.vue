@@ -155,6 +155,11 @@
             <NavLink href="/cobranza" icon="dollar-sign" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Cobranza' : null">
               Cobranza
             </NavLink>
+
+            <!-- NUEVO: Entregas de Dinero -->
+            <NavLink href="/entregas-dinero" icon="hand-holding-usd" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Entregas de Dinero' : null">
+              Entregas de Dinero
+            </NavLink>
           </ul>
         </div>
 

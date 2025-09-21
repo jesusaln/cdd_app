@@ -28,6 +28,8 @@ class Cobranza extends Model
         'monto_pagado',
         'metodo_pago',
         'referencia_pago',
+        'recibido_por',
+        'notas_pago',
         'notas',
         'responsable_cobro',
     ];
@@ -73,6 +75,14 @@ class Cobranza extends Model
     {
         return $query->where('estado', 'vencido')
             ->where('fecha_cobro', '<', now());
+    }
+
+    /**
+     * Relación con el usuario que registró el pago.
+     */
+    public function responsableCobro()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'responsable_cobro');
     }
 
     /**

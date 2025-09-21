@@ -6,6 +6,16 @@ use Illuminate\Database\Eloquent\Model;
 
 class Reporte extends Model
 {
+    protected $fillable = [
+        'nombre',
+        'descripcion',
+        'fecha',
+    ];
+
+    protected $casts = [
+        'fecha' => 'date',
+    ];
+
     // Relación con Venta (uno a muchos inversa)
     public function venta()
     {
