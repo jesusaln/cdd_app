@@ -13,6 +13,9 @@ use App\Enums\EstadoPedido;
 use App\Enums\EstadoVenta;
 use App\Enums\EstadoCotizacion;
 use App\Services\MarginService;
+use App\Models\SatEstado;
+use App\Models\SatRegimenFiscal;
+use App\Models\SatUsoCfdi;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -121,6 +124,33 @@ class PedidoController extends Controller
             'clientes' => Cliente::select('id', 'nombre_razon_social', 'email', 'telefono')->get(),
             'productos' => Producto::select('id', 'nombre', 'precio_venta', 'descripcion')->get(),
             'servicios' => Servicio::select('id', 'nombre', 'precio', 'descripcion')->get(),
+            'catalogs' => [
+                'tiposPersona' => [
+                    ['value' => 'fisica', 'text' => 'Persona Física'],
+                    ['value' => 'moral', 'text' => 'Persona Moral'],
+                ],
+                'estados' => SatEstado::orderBy('nombre')
+                    ->get(['clave', 'nombre'])
+                    ->map(function ($estado) {
+                        return [
+                            'value' => $estado->clave,
+                            'text' => $estado->clave . ' — ' . $estado->nombre
+                        ];
+                    })
+                    ->toArray(),
+                'regimenesFiscales' => SatRegimenFiscal::orderBy('clave')
+                    ->get(['clave', 'descripcion', 'persona_fisica', 'persona_moral'])
+                    ->toArray(),
+                'usosCFDI' => SatUsoCfdi::orderBy('clave')
+                    ->get(['clave', 'descripcion', 'persona_fisica', 'persona_moral'])
+                    ->map(function ($uso) {
+                        return [
+                            'value' => $uso->clave,
+                            'text' => $uso->clave . ' — ' . $uso->descripcion
+                        ];
+                    })
+                    ->toArray(),
+            ],
             'defaults' => [
                 'fecha' => now()->format('Y-m-d'),
                 'moneda' => 'MXN'

@@ -164,6 +164,15 @@
     @close="mostrarVistaPrevia = false"
     @print="() => window.print()"
   />
+
+  <!-- Modal Crear Cliente -->
+  <CrearClienteModal
+    :show="mostrarModalCliente"
+    :catalogs="catalogs"
+    :nombre-inicial="nombreClienteBuscado"
+    @close="mostrarModalCliente = false"
+    @cliente-creado="onClienteCreado"
+  />
 </template>
 
 <script setup>
@@ -179,6 +188,7 @@ import PySSeleccionados from '@/Components/CreateComponents/PySSeleccionados.vue
 import Totales from '@/Components/CreateComponents/Totales.vue';
 import BotonesAccion from '@/Components/CreateComponents/BotonesAccion.vue';
 import VistaPreviaModal from '@/Components/Modals/VistaPreviaModal.vue';
+import CrearClienteModal from '@/Components/Modals/CrearClienteModal.vue';
 
 // Inicializar notificaciones
 const notyf = new Notyf({
@@ -203,10 +213,14 @@ const props = defineProps({
   clientes: Array,
   productos: { type: Array, default: () => [] },
   servicios: { type: Array, default: () => [] },
+  catalogs: { type: Object, default: () => ({}) },
 });
 
 // Copia reactiva de clientes para evitar mutación de props
 const clientesList = ref([...props.clientes]);
+
+// Catalogs para el modal
+const catalogs = computed(() => props.catalogs);
 
 // Formulario
 const form = useForm({
@@ -233,6 +247,8 @@ const mostrarVistaPrevia = ref(false);
 const mostrarAtajos = ref(true);
 const requiereConfirmacionMargen = ref(false);
 const mensajeAdvertenciaMargen = ref('');
+const mostrarModalCliente = ref(false);
+const nombreClienteBuscado = ref('');
 
 // Función para manejar localStorage de forma segura
 const saveToLocalStorage = (key, data) => {
@@ -292,22 +308,18 @@ const onClienteSeleccionado = (cliente) => {
   showNotification(`Cliente seleccionado: ${cliente.nombre_razon_social}`);
 };
 
-const crearNuevoCliente = async (nombreBuscado) => {
-  try {
-    const response = await axios.post(route('clientes.store'), { nombre_razon_social: nombreBuscado });
-    const nuevoCliente = response.data;
+const crearNuevoCliente = (nombreBuscado) => {
+  nombreClienteBuscado.value = nombreBuscado;
+  mostrarModalCliente.value = true;
+};
 
-    // Actualizar la copia reactiva en lugar de mutar props
-    if (!clientesList.value.some(c => c.id === nuevoCliente.id)) {
-      clientesList.value.push(nuevoCliente);
-    }
-
-    onClienteSeleccionado(nuevoCliente);
-    showNotification(`Cliente creado: ${nuevoCliente.nombre_razon_social}`);
-  } catch (error) {
-    console.error('Error al crear cliente:', error);
-    showNotification('No se pudo crear el cliente', 'error');
+const onClienteCreado = (nuevoCliente) => {
+  // Actualizar la copia reactiva en lugar de mutar props
+  if (!clientesList.value.some(c => c.id === nuevoCliente.id)) {
+    clientesList.value.push(nuevoCliente);
   }
+
+  onClienteSeleccionado(nuevoCliente);
 };
 
 // Productos
@@ -453,7 +465,6 @@ const calcularTotal = () => {
 // Validar datos antes de crear venta
 const validarDatos = () => {
   if (!form.cliente_id) {
-    showNotification('Selecciona un cliente', 'error');
     return false;
   }
 

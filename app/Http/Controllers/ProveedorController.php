@@ -81,23 +81,60 @@ class ProveedorController extends Controller
 
     public function store(Request $request)
     {
-        // Valida los datos del formulario
-        $request->validate([
-            'nombre_razon_social' => 'required|string|max:255',
-            'rfc' => 'nullable|string|max:20',
-            'contacto' => 'nullable|string|max:255',
-            'telefono' => 'nullable|string|max:20',
-            'email' => 'nullable|email|max:255|unique:proveedores,email',
-            'direccion' => 'nullable|string|max:255',
-            'codigo_postal' => 'nullable|string|max:10',
-            'municipio' => 'nullable|string|max:255',
-            'estado' => 'nullable|string|max:255',
-            'pais' => 'nullable|string|max:255',
-        ]);
+        // Determinar si es una petición AJAX/modal (campos limitados)
+        $isAjax = $request->expectsJson() || $request->ajax();
 
-        // Crea un nuevo proveedor
-        Proveedor::create($request->all());
+        if ($isAjax) {
+            // Validación simplificada para modal
+            $validated = $request->validate([
+                'nombre_razon_social' => 'required|string|max:255',
+                'rfc' => 'nullable|string|max:13',
+                'telefono' => 'nullable|string|max:20',
+                'email' => 'required|email|max:255|unique:proveedores,email',
+            ]);
 
+            // Agregar valores por defecto para campos requeridos en BD
+            $validated = array_merge($validated, [
+                'tipo_persona' => 'fisica',
+                'regimen_fiscal' => '601', // Régimen general
+                'uso_cfdi' => 'G01', // Adquisición de mercancías
+                'calle' => 'Por definir',
+                'numero_exterior' => 'S/N',
+                'colonia' => 'Por definir',
+                'codigo_postal' => '00000',
+                'municipio' => 'Por definir',
+                'estado' => 'Por definir',
+                'pais' => 'México',
+            ]);
+        } else {
+            // Validación completa para formulario normal
+            $validated = $request->validate([
+                'nombre_razon_social' => 'required|string|max:255',
+                'rfc' => 'nullable|string|max:20',
+                'contacto' => 'nullable|string|max:255',
+                'telefono' => 'nullable|string|max:20',
+                'email' => 'nullable|email|max:255|unique:proveedores,email',
+                'direccion' => 'nullable|string|max:255',
+                'codigo_postal' => 'nullable|string|max:10',
+                'municipio' => 'nullable|string|max:255',
+                'estado' => 'nullable|string|max:255',
+                'pais' => 'nullable|string|max:255',
+            ]);
+        }
+
+        // Crear el proveedor
+        $proveedor = Proveedor::create($validated);
+
+        // Si es AJAX, devolver JSON
+        if ($isAjax) {
+            return response()->json([
+                'success' => true,
+                'proveedor' => $proveedor,
+                'message' => 'Proveedor creado correctamente.'
+            ]);
+        }
+
+        // Si no es AJAX, redirigir normalmente
         return redirect()->route('proveedores.index')->with('success', 'Proveedor creado correctamente.');
     }
 

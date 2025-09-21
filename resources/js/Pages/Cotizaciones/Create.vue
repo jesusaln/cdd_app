@@ -139,6 +139,15 @@
     @close="cerrarAlertaMargen"
     @ajustar-automaticamente="ajustarPreciosAutomaticamente"
   />
+
+  <!-- Modal Crear Cliente -->
+  <CrearClienteModal
+    :show="mostrarModalCliente"
+    :catalogs="catalogs"
+    :nombre-inicial="nombreClienteBuscado"
+    @close="mostrarModalCliente = false"
+    @cliente-creado="onClienteCreado"
+  />
 </template>
 
 <script setup>
@@ -155,6 +164,7 @@ import Totales from '@/Components/CreateComponents/Totales.vue';
 import BotonesAccion from '@/Components/CreateComponents/BotonesAccion.vue';
 import VistaPreviaModal from '@/Components/Modals/VistaPreviaModal.vue';
 import MarginAlertModal from '@/Components/MarginAlertModal.vue';
+import CrearClienteModal from '@/Components/Modals/CrearClienteModal.vue';
 
 // Inicializar notificaciones
 const notyf = new Notyf({
@@ -179,6 +189,7 @@ const props = defineProps({
   clientes: Array,
   productos: { type: Array, default: () => [] },
   servicios: { type: Array, default: () => [] },
+  catalogs: { type: Object, default: () => ({}) },
 });
 
 // Filtrar solo clientes activos
@@ -200,6 +211,9 @@ const clientesActivos = computed(() => {
     return true;
   });
 });
+
+// Catalogs para el modal
+const catalogs = computed(() => props.catalogs);
 
 // Copia reactiva de clientes activos para evitar mutación de props
 const clientesList = ref([]);
@@ -230,6 +244,8 @@ const mostrarAtajos = ref(true);
 const mostrarAlertaMargen = ref(false);
 const productosBajoMargen = ref([]);
 const procesandoAjusteMargen = ref(false);
+const mostrarModalCliente = ref(false);
+const nombreClienteBuscado = ref('');
 
 // Función para manejar localStorage de forma segura
 const saveToLocalStorage = (key, data) => {
@@ -289,29 +305,22 @@ const onClienteSeleccionado = (cliente) => {
   showNotification(`Cliente seleccionado: ${cliente.nombre_razon_social}`);
 };
 
-const crearNuevoCliente = async (nombreBuscado) => {
-  try {
-    const response = await axios.post(route('clientes.store'), {
-      nombre_razon_social: nombreBuscado,
-      estado: 'activo' // Asegurar que el nuevo cliente sea activo
-    });
-    const nuevoCliente = response.data;
+const crearNuevoCliente = (nombreBuscado) => {
+  nombreClienteBuscado.value = nombreBuscado;
+  mostrarModalCliente.value = true;
+};
 
-    // Verificar que el nuevo cliente esté activo antes de agregarlo
-    if (nuevoCliente.estado === 'activo' || nuevoCliente.estado === 'Activo' || nuevoCliente.estado === true || nuevoCliente.estado === 1) {
-      // Actualizar la copia reactiva solo con clientes activos
-      if (!clientesList.value.some(c => c.id === nuevoCliente.id)) {
-        clientesList.value.push(nuevoCliente);
-      }
-
-      onClienteSeleccionado(nuevoCliente);
-      showNotification(`Cliente creado: ${nuevoCliente.nombre_razon_social}`);
-    } else {
-      showNotification('No se puede seleccionar un cliente inactivo', 'error');
+const onClienteCreado = (nuevoCliente) => {
+  // Verificar que el nuevo cliente esté activo antes de agregarlo
+  if (nuevoCliente.estado === 'activo' || nuevoCliente.estado === 'Activo' || nuevoCliente.estado === true || nuevoCliente.estado === 1) {
+    // Actualizar la copia reactiva solo con clientes activos
+    if (!clientesList.value.some(c => c.id === nuevoCliente.id)) {
+      clientesList.value.push(nuevoCliente);
     }
-  } catch (error) {
-    console.error('Error al crear cliente:', error);
-    showNotification('No se pudo crear el cliente', 'error');
+
+    onClienteSeleccionado(nuevoCliente);
+  } else {
+    showNotification('No se puede seleccionar un cliente inactivo', 'error');
   }
 };
 
@@ -453,7 +462,6 @@ const calcularTotal = () => {
 // Validar datos antes de crear cotización
 const validarDatos = () => {
   if (!form.cliente_id) {
-    showNotification('Selecciona un cliente', 'error');
     return false;
   }
 

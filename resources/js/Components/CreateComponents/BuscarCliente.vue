@@ -245,7 +245,7 @@
       <p class="text-gray-400 text-sm mt-1">{{ submensajeVacio }}</p>
 
       <!-- Botón de acción rápida -->
-      <div v-if="mostrarAccionRapida" class="mt-4">
+      <div v-if="mostrarAccionRapida && busquedaCliente" class="mt-4">
         <button
           @click="crearNuevoCliente"
           class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200"

@@ -245,7 +245,7 @@
       <!-- Botón de acción rápida -->
       <div v-if="mostrarAccionRapida" class="mt-4">
         <button
-          @click="crearNuevoProveedor"
+          @click.stop="crearNuevoProveedor"
           class="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors duration-200"
         >
           <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -319,7 +319,7 @@
         <!-- Opción para crear nuevo proveedor -->
         <div v-if="busquedaProveedor && mostrarOpcionNuevoProveedor" class="border-t border-gray-200 p-3 bg-gray-50">
           <button
-            @click="crearNuevoProveedor"
+            @click.stop="crearNuevoProveedor"
             class="w-full text-left px-3 py-2 text-sm text-green-600 hover:text-green-800 hover:bg-green-50 rounded-md transition-colors duration-150 flex items-center"
           >
             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -345,7 +345,7 @@
           <p class="text-sm font-medium mb-1">No se encontraron proveedores</p>
           <p class="text-xs text-gray-400 mb-3">Intenta con otro término de búsqueda</p>
           <button
-            @click="crearNuevoProveedor"
+            @click.stop="crearNuevoProveedor"
             class="inline-flex items-center px-3 py-2 text-sm text-green-600 hover:text-green-800 hover:bg-green-50 rounded-md transition-colors duration-150"
           >
             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -356,11 +356,125 @@
         </div>
       </div>
     </Teleport>
+
+    <!-- Modal para crear nuevo proveedor -->
+    <div v-if="mostrarModalCrearProveedor" class="fixed inset-0 z-[1000] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+      <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <!-- Background overlay -->
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="cerrarModalCrearProveedor"></div>
+
+        <!-- Modal panel -->
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+          <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+            <div class="sm:flex sm:items-start">
+              <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-green-100 sm:mx-0 sm:h-10 sm:w-10">
+                <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                </svg>
+              </div>
+              <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left flex-1">
+                <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                  Crear Nuevo Proveedor
+                </h3>
+                <div class="mt-4">
+                  <form @submit.prevent="guardarNuevoProveedor" class="space-y-4">
+                    <div>
+                      <label for="nombre_razon_social" class="block text-sm font-medium text-gray-700">
+                        Nombre/Razón Social *
+                      </label>
+                      <input
+                        id="nombre_razon_social"
+                        v-model="nuevoProveedor.nombre_razon_social"
+                        type="text"
+                        required
+                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500"
+                        :class="{ 'border-red-300': errores.nombre_razon_social }"
+                      />
+                      <p v-if="errores.nombre_razon_social" class="mt-1 text-sm text-red-600">
+                        {{ errores.nombre_razon_social[0] }}
+                      </p>
+                    </div>
+
+                    <div>
+                      <label for="rfc" class="block text-sm font-medium text-gray-700">
+                        RFC
+                      </label>
+                      <input
+                        id="rfc"
+                        v-model="nuevoProveedor.rfc"
+                        type="text"
+                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500"
+                        :class="{ 'border-red-300': errores.rfc }"
+                      />
+                      <p v-if="errores.rfc" class="mt-1 text-sm text-red-600">
+                        {{ errores.rfc[0] }}
+                      </p>
+                    </div>
+
+                    <div>
+                      <label for="email" class="block text-sm font-medium text-gray-700">
+                        Email *
+                      </label>
+                      <input
+                        id="email"
+                        v-model="nuevoProveedor.email"
+                        type="email"
+                        required
+                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500"
+                        :class="{ 'border-red-300': errores.email }"
+                      />
+                      <p v-if="errores.email" class="mt-1 text-sm text-red-600">
+                        {{ errores.email[0] }}
+                      </p>
+                    </div>
+
+                    <div>
+                      <label for="telefono" class="block text-sm font-medium text-gray-700">
+                        Teléfono
+                      </label>
+                      <input
+                        id="telefono"
+                        v-model="nuevoProveedor.telefono"
+                        type="tel"
+                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500"
+                        :class="{ 'border-red-300': errores.telefono }"
+                      />
+                      <p v-if="errores.telefono" class="mt-1 text-sm text-red-600">
+                        {{ errores.telefono[0] }}
+                      </p>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+            <button
+              type="button"
+              @click="guardarNuevoProveedor"
+              :disabled="guardandoProveedor"
+              class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
+            >
+              <span v-if="guardandoProveedor">Guardando...</span>
+              <span v-else>Guardar Proveedor</span>
+            </button>
+            <button
+              type="button"
+              @click="cerrarModalCrearProveedor"
+              class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
+import { router } from '@inertiajs/vue3';
 
 // Props del componente
 const props = defineProps({
@@ -495,6 +609,17 @@ const inputWidth = ref(0);
 const inputPosition = ref({ top: 0, left: 0, height: 0 });
 const filtroActivo = ref(null);
 const tiempoRespuesta = ref(null);
+
+// Variables para el modal de crear proveedor
+const mostrarModalCrearProveedor = ref(false);
+const guardandoProveedor = ref(false);
+const nuevoProveedor = ref({
+  nombre_razon_social: '',
+  rfc: '',
+  email: '',
+  telefono: ''
+});
+const errores = ref({});
 
 // Función para normalizar texto (quitar acentos y caracteres especiales)
 const normalizarTexto = (texto) => {
@@ -740,9 +865,67 @@ const formatearMoneda = (valor) => {
 // Función para crear nuevo proveedor
 const crearNuevoProveedor = () => {
   mostrarListaProveedores.value = false;
-  emit('crear-nuevo-proveedor', {
-    nombre_sugerido: busquedaProveedor.value
-  });
+  emit('crear-nuevo-proveedor', busquedaProveedor.value);
+};
+
+// Función para cerrar el modal de crear proveedor
+const cerrarModalCrearProveedor = () => {
+  mostrarModalCrearProveedor.value = false;
+  nuevoProveedor.value = {
+    nombre_razon_social: '',
+    rfc: '',
+    email: '',
+    telefono: ''
+  };
+  errores.value = {};
+};
+
+// Función para guardar el nuevo proveedor
+const guardarNuevoProveedor = async () => {
+  guardandoProveedor.value = true;
+  errores.value = {};
+
+  try {
+    const response = await fetch(route('proveedores.store'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+      },
+      body: JSON.stringify(nuevoProveedor.value)
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      // Agregar el nuevo proveedor a la lista
+      proveedoresList.value.push(data.proveedor || data);
+
+      // Seleccionar automáticamente el nuevo proveedor
+      seleccionarProveedor(data.proveedor || data);
+
+      // Cerrar modal
+      cerrarModalCrearProveedor();
+
+      // Mostrar notificación de éxito
+      if (window.notyf) {
+        window.notyf.success('Proveedor creado exitosamente');
+      }
+    } else {
+      // Mostrar errores de validación
+      errores.value = data.errors || {};
+      if (window.notyf) {
+        window.notyf.error('Error al crear el proveedor');
+      }
+    }
+  } catch (error) {
+    console.error('Error al crear proveedor:', error);
+    if (window.notyf) {
+      window.notyf.error('Error al crear el proveedor');
+    }
+  } finally {
+    guardandoProveedor.value = false;
+  }
 };
 
 // Función para ver historial
