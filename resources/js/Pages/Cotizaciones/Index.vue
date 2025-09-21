@@ -93,11 +93,13 @@ const cotizacionesFiltradasYOrdenadas = computed(() => {
     const search = searchTerm.value.toLowerCase().trim()
     result = result.filter(cotizacion => {
       const cliente = cotizacion.cliente?.nombre?.toLowerCase() || ''
-      const numero = String(cotizacion.numero_cotizacion || cotizacion.id || '').toLowerCase()
+      const numeroOriginal = String(cotizacion.numero_cotizacion || cotizacion.id || '').toLowerCase()
+      const numeroFormateado = formatearNumeroCotizacion(cotizacion.numero_cotizacion).toLowerCase()
       const estado = cotizacion.estado?.toLowerCase() || ''
 
       return cliente.includes(search) ||
-             numero.includes(search) ||
+             numeroOriginal.includes(search) ||
+             numeroFormateado.includes(search) ||
              estado.includes(search)
     })
   }
@@ -152,11 +154,26 @@ const cotizacionesFiltradasYOrdenadas = computed(() => {
 const currentPage = ref(1)
 const perPage = ref(10)
 
+// Función para formatear el número de cotización
+const formatearNumeroCotizacion = (numero) => {
+  if (!numero) return numero
+  // Remover prefijos de fecha/año como "2025-", "20250920-", etc.
+  const match = numero.match(/COT-(\d{4}-)?(\d{8}-)?(\d+)$/)
+  if (match) {
+    const numeroFinal = match[3] // El último grupo captura el número final
+    return `COT-${numeroFinal.padStart(5, '0')}`
+  }
+  return numero
+}
+
 // Documentos para mostrar (con paginación del lado del cliente)
 const documentosCotizaciones = computed(() => {
   const startIndex = (currentPage.value - 1) * perPage.value
   const endIndex = startIndex + perPage.value
-  return cotizacionesFiltradasYOrdenadas.value.slice(startIndex, endIndex)
+  return cotizacionesFiltradasYOrdenadas.value.slice(startIndex, endIndex).map(cotizacion => ({
+    ...cotizacion,
+    numero_cotizacion_display: formatearNumeroCotizacion(cotizacion.numero_cotizacion)
+  }))
 })
 
 // Información de paginación

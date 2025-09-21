@@ -649,15 +649,27 @@ class CotizacionController extends Controller
 
 
     /**
-     * Genera un numero_cotizacion único (amigable) evitando colisiones.
+     * Genera un numero_cotizacion único secuencial evitando colisiones.
      */
     private function generarNumeroCotizacionUnico(): string
     {
-        // Partimos de un contador basado en el id máximo (solo para “bonito”)
-        $seq = (int) ((Cotizacion::max('id') ?? 0) + 1);
+        // Buscar el número secuencial más alto existente
+        $ultimoNumero = Cotizacion::where('numero_cotizacion', 'LIKE', 'COT-%')
+            ->get()
+            ->map(function ($cotizacion) {
+                // Extraer el número secuencial del formato COT-XXXXX
+                $matches = [];
+                if (preg_match('/COT-(\d+)$/', $cotizacion->numero_cotizacion, $matches)) {
+                    return (int) $matches[1];
+                }
+                return 0;
+            })
+            ->max() ?? 0;
+
+        $seq = $ultimoNumero + 1;
 
         do {
-            $numero = 'COT-' . date('Ymd') . '-' . str_pad($seq, 5, '0', STR_PAD_LEFT);
+            $numero = 'COT-' . str_pad($seq, 5, '0', STR_PAD_LEFT);
             $seq++;
         } while (Cotizacion::where('numero_cotizacion', $numero)->exists());
 

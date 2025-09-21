@@ -353,6 +353,11 @@
                   {{ doc.numero_orden || doc.id || 'N/A' }}
                 </div>
 
+                <!-- Cotizaciones: Usar número formateado -->
+                <div v-else-if="props.tipo === 'cotizaciones'" class="text-sm font-mono font-medium text-gray-700 bg-gray-100/60 px-2 py-1 rounded-md inline-block">
+                  {{ doc.numero_cotizacion_display || doc.numero_cotizacion || doc.id || 'N/A' }}
+                </div>
+
                 <!-- Otros tipos -->
                 <div v-else class="text-sm font-mono font-medium text-gray-700 bg-gray-100/60 px-2 py-1 rounded-md inline-block">
                   {{ isClientes ? (doc.extra || 'N/A') : (doc[config.campoExtra.key] || doc.codigo_barras || 'N/A') }}
@@ -671,7 +676,7 @@ const config = computed(() => {
     cotizaciones: {
       titulo: 'Cotizaciones',
       mostrarCampoExtra: true,
-      campoExtra: { key: 'id', label: 'N° Cotización' },
+      campoExtra: { key: 'numero_cotizacion', label: 'N° Cotización' },
       acciones: { editar: true, duplicar: true, imprimir: true, eliminar: true },
       estados: {
         'borrador': { label: 'Borrador', classes: 'bg-yellow-100 text-yellow-700', color: 'bg-yellow-400' },
