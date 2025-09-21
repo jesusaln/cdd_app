@@ -19,6 +19,7 @@ const form = useForm({
   numero_serie: '',
   descripcion: '',
   especificaciones: {},     // JSON
+  imagen: null,
   precio_renta_mensual: '',
   precio_compra: '',
   fecha_adquisicion: '',
@@ -72,6 +73,12 @@ const submit = () => {
           <label class="block text-sm font-medium">Número de serie</label>
           <input v-model="form.numero_serie" type="text" class="mt-1 input" />
           <div v-if="form.errors.numero_serie" class="text-red-600 text-sm">{{ form.errors.numero_serie }}</div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium">Imagen</label>
+          <input @input="form.imagen = $event.target.files[0]" type="file" accept="image/*" class="mt-1 input" />
+          <div v-if="form.errors.imagen" class="text-red-600 text-sm">{{ form.errors.imagen }}</div>
         </div>
 
         <div>

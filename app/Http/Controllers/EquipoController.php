@@ -7,6 +7,7 @@ use App\Models\Equipo;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class EquipoController extends Controller
 {
@@ -97,6 +98,7 @@ class EquipoController extends Controller
             'numero_serie' => ['nullable', 'string', 'max:255', 'unique:equipos,numero_serie'],
             'descripcion' => ['nullable', 'string'],
             'especificaciones' => ['nullable', 'array'],
+            'imagen' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
             'precio_renta_mensual' => ['required', 'numeric', 'min:0'],
             'precio_compra' => ['nullable', 'numeric', 'min:0'],
             'fecha_adquisicion' => ['nullable', 'date'],
@@ -112,6 +114,12 @@ class EquipoController extends Controller
         // Si llegan arrays/objetos para JSON:
         $data['especificaciones'] = $data['especificaciones'] ?? null;
         $data['accesorios'] = $data['accesorios'] ?? null;
+
+        // Manejar imagen
+        if ($request->hasFile('imagen')) {
+            $imagenPath = $request->file('imagen')->store('equipos', 'public');
+            $data['imagen'] = $imagenPath;
+        }
 
         $equipo = Equipo::create($data);
 
@@ -159,6 +167,7 @@ class EquipoController extends Controller
             'numero_serie' => ['nullable', 'string', 'max:255', Rule::unique('equipos', 'numero_serie')->ignore($equipo->id)],
             'descripcion' => ['nullable', 'string'],
             'especificaciones' => ['nullable', 'array'],
+            'imagen' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
             'precio_renta_mensual' => ['required', 'numeric', 'min:0'],
             'precio_compra' => ['nullable', 'numeric', 'min:0'],
             'fecha_adquisicion' => ['nullable', 'date'],
@@ -173,6 +182,16 @@ class EquipoController extends Controller
 
         $data['especificaciones'] = $data['especificaciones'] ?? null;
         $data['accesorios'] = $data['accesorios'] ?? null;
+
+        // Manejar imagen
+        if ($request->hasFile('imagen')) {
+            // Eliminar imagen anterior si existe
+            if ($equipo->imagen) {
+                Storage::disk('public')->delete($equipo->imagen);
+            }
+            $imagenPath = $request->file('imagen')->store('equipos', 'public');
+            $data['imagen'] = $imagenPath;
+        }
 
         $equipo->update($data);
 

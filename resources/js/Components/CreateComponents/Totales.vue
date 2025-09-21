@@ -93,10 +93,14 @@
             <span>IVA (16%):</span>
             <span class="font-semibold">${{ totals.iva.toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}</span>
           </div>
+          <div v-if="depositoGarantia && depositoGarantia > 0" class="flex justify-between items-center text-green-600">
+            <span>Depósito de Garantía:</span>
+            <span class="font-semibold">${{ Number(depositoGarantia).toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}</span>
+          </div>
           <div class="border-t border-gray-300 pt-3">
             <div class="flex justify-between items-center text-lg font-bold text-gray-900">
               <span>Total Final:</span>
-              <span>${{ totals.total.toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}</span>
+              <span>${{ (totals.total + Number(depositoGarantia || 0)).toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}</span>
             </div>
           </div>
         </div>
@@ -137,6 +141,10 @@ const props = defineProps({
   },
   totalQuantity: {
     type: Number,
+    default: 0
+  },
+  depositoGarantia: {
+    type: [Number, String],
     default: 0
   }
 });

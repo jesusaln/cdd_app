@@ -175,6 +175,11 @@ Route::get('/reportes/export', [ReporteController::class, 'exportarCorteDiario']
     Route::put('/equipos/{equipo}/toggle', [EquipoController::class, 'toggle'])->name('equipos.toggle');
     Route::get('/equipos/export', [EquipoController::class, 'export'])->name('equipos.export');
     Route::resource('rentas', RentasController::class);
+    Route::post('/rentas/{renta}/duplicate', [RentasController::class, 'duplicate'])->name('rentas.duplicate');
+    Route::post('/rentas/{renta}/suspender', [RentasController::class, 'suspender'])->name('rentas.suspender');
+    Route::post('/rentas/{renta}/reactivar', [RentasController::class, 'reactivar'])->name('rentas.reactivar');
+    Route::post('/rentas/{renta}/finalizar', [RentasController::class, 'finalizar'])->name('rentas.finalizar');
+    Route::post('/rentas/{renta}/renovar', [RentasController::class, 'renovar'])->name('rentas.renovar');
     Route::resource('bitacora-actividades', BitacoraActividadController::class)->names('bitacora-actividades');
 
 

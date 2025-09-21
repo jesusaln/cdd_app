@@ -98,10 +98,14 @@
               <span>IVA (16%):</span>
               <span class="font-semibold">${{ totals.iva.toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}</span>
             </div>
+            <div v-if="depositoGarantia && depositoGarantia > 0" class="flex justify-between items-center text-green-600">
+              <span>Depósito de Garantía:</span>
+              <span class="font-semibold">${{ Number(depositoGarantia).toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}</span>
+            </div>
             <div class="border-t border-gray-300 pt-3">
               <div class="flex justify-between items-center text-lg font-bold text-gray-900">
                 <span>Total Final:</span>
-                <span>${{ totals.total.toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}</span>
+                <span>${{ (totals.total + Number(depositoGarantia || 0)).toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}</span>
               </div>
             </div>
           </div>
@@ -148,7 +152,7 @@ const props = defineProps({
   type: {
     type: String,
     required: true,
-    validator: (value) => ['cotizacion', 'pedido', 'venta', 'compra', 'ordenescompra'].includes(value)
+    validator: (value) => ['cotizacion', 'pedido', 'venta', 'compra', 'ordenescompra', 'renta'].includes(value)
   },
   cliente: {
     type: Object,
@@ -169,6 +173,10 @@ const props = defineProps({
   notas: {
     type: String,
     default: ''
+  },
+  depositoGarantia: {
+    type: [Number, String],
+    default: 0
   }
 });
 
@@ -182,7 +190,8 @@ const documentTypeLabel = computed(() => {
     pedido: 'Pedido',
     venta: 'Venta',
     compra: 'Compra',
-    ordenescompra: 'Órdenes de Compra'
+    ordenescompra: 'Órdenes de Compra',
+    renta: 'Contrato de Renta'
   };
   return labels[props.type] || 'Documento';
 });

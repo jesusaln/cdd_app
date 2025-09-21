@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Renta extends Model
 {
@@ -89,7 +90,7 @@ class Renta extends Model
      * - equipo_id
      * - precio_mensual (precio individual del equipo en esta renta)
      */
-    public function equipos(): HasMany
+    public function equipos(): BelongsToMany
     {
         return $this->belongsToMany(\App\Models\Equipo::class, 'equipo_renta')
             ->withPivot('precio_mensual')

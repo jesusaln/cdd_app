@@ -22,6 +22,7 @@ const form = useForm({
   numero_serie: props.equipo.numero_serie ?? '',
   descripcion: props.equipo.descripcion ?? '',
   especificaciones: toObj(props.equipo.especificaciones, {}), // objeto
+  imagen: null,
   precio_renta_mensual: props.equipo.precio_renta_mensual ?? '',
   precio_compra: props.equipo.precio_compra ?? '',
   fecha_adquisicion: props.equipo.fecha_adquisicion ?? '',
@@ -75,6 +76,15 @@ const submit = () => {
           <label class="block text-sm font-medium">Número de serie</label>
           <input v-model="form.numero_serie" type="text" class="mt-1 input" />
           <div v-if="form.errors.numero_serie" class="text-red-600 text-sm">{{ form.errors.numero_serie }}</div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium">Imagen</label>
+          <input @input="form.imagen = $event.target.files[0]" type="file" accept="image/*" class="mt-1 input" />
+          <div v-if="form.errors.imagen" class="text-red-600 text-sm">{{ form.errors.imagen }}</div>
+          <div v-if="equipo.imagen" class="mt-2">
+            <img :src="'/storage/' + equipo.imagen" alt="Imagen actual" class="w-20 h-20 object-cover rounded" />
+          </div>
         </div>
 
         <div>

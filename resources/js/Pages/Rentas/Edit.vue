@@ -34,25 +34,26 @@ defineOptions({ layout: AppLayout });
 const props = defineProps({
   clientes: Array,
   equipos: { type: Array, default: () => [] },
+  renta: Object, // La renta a editar
 });
 
 // Copia reactiva de clientes para evitar mutación de props
 const clientesList = ref([...props.clientes]);
 
-// Formulario
+// Formulario con datos de la renta existente
 const form = useForm({
-  cliente_id: '',
+  cliente_id: props.renta?.cliente_id || '',
   subtotal: 0,
   descuento_items: 0,
   iva: 0,
   total: 0,
   equipos: [],
-  fecha_inicio: new Date().toISOString().split('T')[0],
-  duracion_meses: 12,
-  deposito_garantia: '',
-  dia_pago: 1,
-  forma_pago: 'transferencia',
-  observaciones: '',
+  fecha_inicio: props.renta?.fecha_inicio ? new Date(props.renta.fecha_inicio).toISOString().split('T')[0] : '',
+  duracion_meses: props.renta?.meses_duracion || 12,
+  deposito_garantia: props.renta?.deposito_garantia || '',
+  dia_pago: props.renta?.dia_pago || 1,
+  forma_pago: props.renta?.forma_pago || 'transferencia',
+  observaciones: props.renta?.observaciones || '',
 });
 
 // Referencias
@@ -279,7 +280,7 @@ const calcularTotal = () => {
   form.total = totales.value.total;
 };
 
-// Validar datos antes de crear renta
+// Validar datos antes de actualizar renta
 const validarDatos = () => {
   if (!form.cliente_id) {
     showNotification('Selecciona un cliente', 'error');
@@ -323,8 +324,8 @@ const validarDatos = () => {
   return true;
 };
 
-// Crear renta
-const crearVenta = () => {
+// Actualizar renta
+const actualizarRenta = () => {
   if (!validarDatos()) {
     return;
   }
@@ -357,17 +358,11 @@ const crearVenta = () => {
   saving.value = true;
 
   // Enviar formulario
-  router.post(route('rentas.store'), data, {
+  router.put(route('rentas.update', props.renta.id), data, {
     onSuccess: () => {
-      removeFromLocalStorage('rentaEnProgreso');
-      selectedProducts.value = [];
-      quantities.value = {};
-      prices.value = {};
-      discounts.value = {};
-      clienteSeleccionado.value = null;
-      form.reset();
+      removeFromLocalStorage(`renta_edit_${props.renta.id}`);
       saving.value = false;
-      showNotification('Renta creada con éxito');
+      showNotification('Renta actualizada con éxito');
     },
     onError: (errors) => {
       console.error('Errores de validación:', errors);
@@ -380,6 +375,33 @@ const crearVenta = () => {
       saving.value = false;
     },
   });
+};
+
+// Cargar datos de la renta existente
+const cargarDatosRenta = () => {
+  if (!props.renta) return;
+
+  // Cargar cliente
+  if (props.renta.cliente) {
+    clienteSeleccionado.value = props.renta.cliente;
+    form.cliente_id = props.renta.cliente.id;
+  }
+
+  // Cargar equipos existentes
+  if (props.renta.equipos && Array.isArray(props.renta.equipos)) {
+    props.renta.equipos.forEach(equipo => {
+      const itemEntry = { id: equipo.id, tipo: 'equipo' };
+      selectedProducts.value.push(itemEntry);
+
+      const key = `equipo-${equipo.id}`;
+      quantities.value[key] = 1;
+      prices.value[key] = equipo.pivot?.precio_mensual || equipo.precio_renta_mensual || 0;
+      discounts.value[key] = 0;
+    });
+  }
+
+  // Calcular totales después de cargar equipos
+  calcularTotal();
 };
 
 // Manejo de eventos del navegador
@@ -406,30 +428,34 @@ const saveState = () => {
     forma_pago: form.forma_pago,
     observaciones: form.observaciones,
   };
-  saveToLocalStorage('rentaEnProgreso', stateToSave);
+  saveToLocalStorage(`renta_edit_${props.renta?.id}`, stateToSave);
 };
 
 // Lifecycle hooks
 onMounted(() => {
-  const savedData = loadFromLocalStorage('rentaEnProgreso');
+  // Cargar datos de la renta existente
+  cargarDatosRenta();
+
+  // Cargar datos guardados si existen
+  const savedData = loadFromLocalStorage(`renta_edit_${props.renta?.id}`);
   if (savedData && typeof savedData === 'object') {
     try {
-      form.cliente_id = savedData.cliente_id || '';
-      clienteSeleccionado.value = savedData.cliente || null;
-      selectedProducts.value = Array.isArray(savedData.selectedProducts) ? savedData.selectedProducts : [];
-      quantities.value = savedData.quantities || {};
-      prices.value = savedData.prices || {};
-      discounts.value = savedData.discounts || {};
-      form.fecha_inicio = savedData.fecha_inicio || new Date().toISOString().split('T')[0];
-      form.duracion_meses = savedData.duracion_meses || 12;
-      form.deposito_garantia = savedData.deposito_garantia || '';
-      form.dia_pago = savedData.dia_pago || 1;
-      form.forma_pago = savedData.forma_pago || 'transferencia';
-      form.observaciones = savedData.observaciones || '';
+      form.cliente_id = savedData.cliente_id || form.cliente_id;
+      clienteSeleccionado.value = savedData.cliente || clienteSeleccionado.value;
+      selectedProducts.value = Array.isArray(savedData.selectedProducts) ? savedData.selectedProducts : selectedProducts.value;
+      quantities.value = savedData.quantities || quantities.value;
+      prices.value = savedData.prices || prices.value;
+      discounts.value = savedData.discounts || discounts.value;
+      form.fecha_inicio = savedData.fecha_inicio || form.fecha_inicio;
+      form.duracion_meses = savedData.duracion_meses || form.duracion_meses;
+      form.deposito_garantia = savedData.deposito_garantia || form.deposito_garantia;
+      form.dia_pago = savedData.dia_pago || form.dia_pago;
+      form.forma_pago = savedData.forma_pago || form.forma_pago;
+      form.observaciones = savedData.observaciones || form.observaciones;
       calcularTotal();
     } catch (error) {
       console.warn('Error al cargar datos guardados:', error);
-      removeFromLocalStorage('rentaEnProgreso');
+      removeFromLocalStorage(`renta_edit_${props.renta?.id}`);
     }
   }
 
@@ -442,13 +468,13 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <Head title="Crear Renta" />
-  <div class="ventas-create min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+  <Head :title="`Editar Renta ${renta?.numero_contrato || ''}`" />
+  <div class="ventas-edit min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
     <div class="max-w-6xl mx-auto">
       <!-- Header -->
       <Header
-        title="Nueva Renta"
-        description="Crea una nueva renta de equipos para tus clientes"
+        :title="`Editar Renta ${renta?.numero_contrato || ''}`"
+        description="Modifica los equipos, fechas de cobro y otros detalles de la renta"
         :can-preview="clienteSeleccionado && selectedProducts.length > 0"
         :back-url="route('rentas.index')"
         :show-shortcuts="mostrarAtajos"
@@ -456,7 +482,7 @@ onBeforeUnmount(() => {
         @close-shortcuts="closeShortcuts"
       />
 
-      <form @submit.prevent="crearVenta" class="space-y-8">
+      <form @submit.prevent="actualizarRenta" class="space-y-8">
         <!-- Cliente -->
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4">
@@ -485,7 +511,7 @@ onBeforeUnmount(() => {
               <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
               </svg>
-              Equipos para Rentar
+              Equipos Rentados
             </h2>
           </div>
           <div class="p-6">
@@ -612,7 +638,7 @@ onBeforeUnmount(() => {
           :back-url="route('rentas.index')"
           :is-processing="saving"
           :can-submit="form.cliente_id && selectedProducts.length > 0"
-          :button-text="saving ? 'Guardando...' : 'Crear Renta'"
+          :button-text="saving ? 'Actualizando...' : 'Actualizar Renta'"
           @limpiar="limpiarFormulario"
         />
       </form>
@@ -645,7 +671,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.ventas-create {
+.ventas-edit {
   min-height: 100vh;
   background: linear-gradient(to bottom right, #f8fafc, #e0f2fe);
 }
