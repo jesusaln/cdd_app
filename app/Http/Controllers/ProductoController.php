@@ -57,7 +57,7 @@ class ProductoController extends Controller
 
             // Paginación
             $perPage = min((int) $request->input('per_page', 10), 50);
-            $productos = $query->paginate($perPage)->appends($request->query());
+            $productos = $query->paginate($perPage);
 
             // Estadísticas basadas en estado del producto
             $stats = [
