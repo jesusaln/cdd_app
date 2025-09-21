@@ -187,9 +187,9 @@ Route::get('/reportes/export', [ReporteController::class, 'exportarCorteDiario']
     Route::post('/cobranza/{cobranza}/marcar-pagada', [CobranzaController::class, 'marcarPagada'])->name('cobranza.marcar-pagada');
     Route::post('/cobranza/generar-automaticas', [CobranzaController::class, 'generarCobranzas'])->name('cobranza.generar-automaticas');
 
-    Route::resource('entregas-dinero', EntregaDineroController::class);
     Route::get('/entregas-dinero/pendientes-por-usuario', [EntregaDineroController::class, 'pendientesPorUsuario'])->name('entregas-dinero.pendientes-por-usuario');
-    Route::post('/entregas-dinero/marcar-automatico/{tipo}/{id}', [EntregaDineroController::class, 'marcarAutomaticoRecibido'])->name('entregas-dinero.marcar-automatico');
+    Route::post('/entregas-dinero/marcar-automatico/{tipo_origen}/{id_origen}', [EntregaDineroController::class, 'marcarAutomaticoRecibido'])->name('entregas-dinero.marcar-automatico');
+    Route::resource('entregas-dinero', EntregaDineroController::class);
 
     Route::resource('bitacora-actividades', BitacoraActividadController::class)->names('bitacora-actividades');
 

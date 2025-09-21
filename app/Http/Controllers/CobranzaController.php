@@ -109,7 +109,7 @@ class CobranzaController extends Controller
             'concepto' => $request->concepto,
             'estado' => 'pendiente',
             'notas' => $request->notas,
-            'responsable_cobro' => auth()->user()->name ?? 'Sistema',
+            'responsable_cobro' => auth()->id(),
         ]);
 
         return redirect()->route('cobranza.index')->with('success', 'Cobranza creada exitosamente.');
@@ -328,7 +328,7 @@ class CobranzaController extends Controller
                     'concepto' => 'mensualidad',
                     'estado' => 'pendiente',
                     'notas' => "Cobranza automática generada para {$mes}/{$anio}",
-                    'responsable_cobro' => auth()->user()->name ?? 'Sistema',
+                    'responsable_cobro' => auth()->id(),
                 ]);
                 $creadas++;
             }

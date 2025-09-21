@@ -1,7 +1,7 @@
 <!-- /resources/js/Pages/EntregasDinero/Index.vue -->
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Head, router, usePage } from '@inertiajs/vue3'
+import { Head, router, usePage, Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { Notyf } from 'notyf'
 import 'notyf/notyf.min.css'
@@ -32,6 +32,12 @@ const showModal = ref(false)
 const modalMode = ref('details')
 const selectedEntrega = ref(null)
 const selectedId = ref(null)
+
+// Modal de monto recibido para registros automáticos
+const showMontoModal = ref(false)
+const selectedRegistro = ref(null)
+const montoRecibido = ref('')
+const notasRecibido = ref('')
 
 // Filtros
 const filtroEstado = ref(props.filters?.estado ?? '')
@@ -66,6 +72,31 @@ const obtenerLabelEstado = (estado) => {
     'cancelado': 'Cancelado'
   }
   return labels[estado] || 'Pendiente'
+}
+
+const obtenerEstadoEntrega = (registro) => {
+  // Para registros automáticos (cobranzas y ventas) - segunda tabla
+  if (registro.tipo_origen && !registro.estado) {
+    const saldoPendiente = registro.saldo_pendiente || registro.total
+    const yaEntregado = registro.ya_entregado || 0
+    const total = registro.total
+
+    if (yaEntregado === 0) {
+      return { label: 'Sin Entregar', clase: 'bg-red-100 text-red-700' }
+    } else if (saldoPendiente > 0) {
+      return { label: 'Entrega Parcial', clase: 'bg-orange-100 text-orange-700' }
+    } else {
+      return { label: 'Completado', clase: 'bg-green-100 text-green-700' }
+    }
+  }
+
+  // Para entregas automáticas ya creadas (primera tabla) que están "recibido"
+  if (registro.tipo_origen && registro.estado === 'recibido') {
+    return { label: 'Completado', clase: 'bg-green-100 text-green-700' }
+  }
+
+  // Para entregas manuales, no mostrar estado de entrega
+  return null
 }
 
 // Handlers
@@ -137,20 +168,51 @@ const marcarRecibida = (entrega) => {
 }
 
 const marcarAutomaticoRecibido = (registro) => {
-  const notas = prompt('Notas al recibir (opcional):', '')
-  if (notas === null) return // Cancelado
+  selectedRegistro.value = registro
+  montoRecibido.value = (registro.saldo_pendiente || registro.total).toString() // Valor por defecto: el saldo pendiente
+  notasRecibido.value = ''
+  showMontoModal.value = true
+}
 
-  router.post(route('entregas-dinero.marcar-automatico', [registro.tipo_origen, registro.id_origen]), {
-    notas_recibido: notas
+const confirmarMontoRecibido = () => {
+  const monto = parseFloat(montoRecibido.value)
+  if (!montoRecibido.value || isNaN(monto) || monto <= 0) {
+    notyf.error('Debe ingresar un monto válido mayor a cero')
+    return
+  }
+
+  const saldoPendiente = selectedRegistro.value.saldo_pendiente || selectedRegistro.value.total
+  if (monto > saldoPendiente) {
+    notyf.error(`El monto recibido no puede ser mayor al saldo pendiente de $${formatNumber(saldoPendiente)}`)
+    return
+  }
+
+  router.post(route('entregas-dinero.marcar-automatico', {
+    tipo_origen: selectedRegistro.value.tipo_origen,
+    id_origen: selectedRegistro.value.id_origen
+  }), {
+    monto_recibido: parseFloat(montoRecibido.value),
+    notas_recibido: notasRecibido.value
   }, {
     onSuccess: () => {
-      notyf.success('Registro marcado como recibido')
+      notyf.success('Monto registrado correctamente')
+      showMontoModal.value = false
+      selectedRegistro.value = null
+      montoRecibido.value = ''
+      notasRecibido.value = ''
       router.reload()
     },
     onError: (errors) => {
-      notyf.error('Error al marcar como recibido')
+      notyf.error('Error al registrar el monto')
     }
   })
+}
+
+const cerrarMontoModal = () => {
+  showMontoModal.value = false
+  selectedRegistro.value = null
+  montoRecibido.value = ''
+  notasRecibido.value = ''
 }
 
 // Paginación
@@ -253,10 +315,12 @@ const handlePageChange = (newPage) => {
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
               <tr>
-                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Usuario</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Entregado por</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Recibido por</th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Fecha Entrega</th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Total</th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Estado</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Estado Entrega</th>
                 <th class="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Acciones</th>
               </tr>
             </thead>
@@ -264,6 +328,9 @@ const handlePageChange = (newPage) => {
               <tr v-for="entrega in entregas.data" :key="entrega.id" class="hover:bg-gray-50 transition-colors duration-150">
                 <td class="px-6 py-4">
                   <div class="text-sm font-medium text-gray-900">{{ entrega.usuario?.name }}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="text-sm text-gray-900">{{ entrega.recibidoPor?.name || (entrega.estado === 'recibido' ? $page.props.auth.user.name : '-') }}</div>
                 </td>
                 <td class="px-6 py-4">
                   <div class="text-sm text-gray-900">{{ formatearFecha(entrega.fecha_entrega) }}</div>
@@ -280,6 +347,12 @@ const handlePageChange = (newPage) => {
                   <span :class="obtenerClasesEstado(entrega.estado)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
                     {{ obtenerLabelEstado(entrega.estado) }}
                   </span>
+                </td>
+                <td class="px-6 py-4">
+                  <span v-if="obtenerEstadoEntrega(entrega)" :class="obtenerEstadoEntrega(entrega).clase" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                    {{ obtenerEstadoEntrega(entrega).label }}
+                  </span>
+                  <span v-else class="text-gray-400 text-xs">-</span>
                 </td>
                 <td class="px-6 py-4 text-right">
                   <div class="flex items-center justify-end space-x-1">
@@ -313,7 +386,7 @@ const handlePageChange = (newPage) => {
                 </td>
               </tr>
               <tr v-if="entregas.data?.length === 0">
-                <td colspan="5" class="px-6 py-16 text-center">
+                <td colspan="7" class="px-6 py-16 text-center">
                   <div class="flex flex-col items-center space-y-4">
                     <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                       <svg class="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -414,6 +487,7 @@ const handlePageChange = (newPage) => {
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Concepto</th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Cliente</th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Monto</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Estado Entrega</th>
                 <th class="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Acción</th>
               </tr>
             </thead>
@@ -438,7 +512,19 @@ const handlePageChange = (newPage) => {
                   <div class="text-sm text-gray-700">{{ registro.cliente }}</div>
                 </td>
                 <td class="px-6 py-4">
-                  <div class="text-sm font-semibold text-gray-900">${{ formatNumber(registro.total) }}</div>
+                  <div class="text-sm font-semibold text-gray-900">${{ formatNumber(registro.saldo_pendiente || registro.total) }}</div>
+                  <div v-if="registro.ya_entregado > 0" class="text-xs text-blue-600">
+                    Ya entregado: ${{ formatNumber(registro.ya_entregado) }}
+                  </div>
+                  <div v-if="registro.saldo_pendiente && registro.saldo_pendiente < registro.total" class="text-xs text-orange-600">
+                    Total: ${{ formatNumber(registro.total) }}
+                  </div>
+                </td>
+                <td class="px-6 py-4">
+                  <span v-if="obtenerEstadoEntrega(registro)" :class="obtenerEstadoEntrega(registro).clase" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                    {{ obtenerEstadoEntrega(registro).label }}
+                  </span>
+                  <span v-else class="text-gray-400 text-xs">-</span>
                 </td>
                 <td class="px-6 py-4 text-right">
                   <button @click="marcarAutomaticoRecibido(registro)"
@@ -446,7 +532,7 @@ const handlePageChange = (newPage) => {
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    Marcar Recibido
+                    Entregar
                   </button>
                 </td>
               </tr>
@@ -563,6 +649,83 @@ const handlePageChange = (newPage) => {
             </div>
             <button v-if="modalMode === 'confirm'" @click="eliminarEntrega" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
               Eliminar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal de Monto Recibido -->
+      <div v-if="showMontoModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="cerrarMontoModal">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <!-- Header del modal -->
+          <div class="flex items-center justify-between p-6 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">Registrar Monto Recibido</h3>
+            <button @click="cerrarMontoModal" class="text-gray-400 hover:text-gray-600 transition-colors">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="p-6">
+            <div v-if="selectedRegistro" class="space-y-4">
+              <!-- Información del registro -->
+              <div class="bg-gray-50 p-4 rounded-lg">
+                <div class="flex justify-between items-center">
+                  <span class="text-sm font-medium text-gray-700">Concepto:</span>
+                  <span class="text-sm text-gray-900">{{ selectedRegistro.concepto }}</span>
+                </div>
+                <div class="flex justify-between items-center mt-2">
+                  <span class="text-sm font-medium text-gray-700">Saldo Pendiente:</span>
+                  <span class="text-lg font-bold text-gray-900">${{ formatNumber(selectedRegistro.saldo_pendiente || selectedRegistro.total) }}</span>
+                </div>
+                <div v-if="selectedRegistro.ya_entregado > 0" class="flex justify-between items-center mt-1">
+                  <span class="text-sm font-medium text-gray-600">Ya entregado:</span>
+                  <span class="text-sm text-blue-600">${{ formatNumber(selectedRegistro.ya_entregado) }}</span>
+                </div>
+              </div>
+
+              <!-- Monto recibido -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Monto Recibido *</label>
+                <input
+                  v-model="montoRecibido"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  :max="selectedRegistro.saldo_pendiente || selectedRegistro.total"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="0.00"
+                />
+                <p class="text-xs text-gray-500 mt-1">
+                  Máximo: ${{ formatNumber(selectedRegistro.saldo_pendiente || selectedRegistro.total) }}
+                </p>
+              </div>
+
+              <!-- Notas -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Notas (opcional)</label>
+                <textarea
+                  v-model="notasRecibido"
+                  rows="3"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Agregar notas sobre la entrega..."
+                ></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer del modal -->
+          <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+            <button @click="cerrarMontoModal" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+              Cancelar
+            </button>
+            <button
+              @click="confirmarMontoRecibido"
+              :disabled="!montoRecibido || isNaN(parseFloat(montoRecibido)) || parseFloat(montoRecibido) <= 0"
+              class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Registrar Monto
             </button>
           </div>
         </div>

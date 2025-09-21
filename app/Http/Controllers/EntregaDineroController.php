@@ -16,10 +16,20 @@ class EntregaDineroController extends Controller
      */
     public function index()
     {
-        $userId = auth()->id();
+        // Solo administradores pueden acceder a esta funcionalidad
+        if (!auth()->user()->hasRole('admin')) {
+            abort(403, 'No tienes permisos para acceder a esta sección');
+        }
 
-        // Entregas manuales del usuario
+        $userId = auth()->id();
+        $isAdmin = auth()->user()->hasRole('admin');
+
+        // Entregas manuales - admins ven todas, usuarios normales solo las suyas
         $query = EntregaDinero::with(['usuario', 'recibidoPor']);
+
+        if (!$isAdmin) {
+            $query->where('user_id', $userId);
+        }
 
         // Filtros
         if (request('estado')) {
@@ -32,23 +42,29 @@ class EntregaDineroController extends Controller
 
         // Ordenamiento
         $query->orderBy('fecha_entrega', 'desc')
-              ->orderBy('created_at', 'desc');
+            ->orderBy('created_at', 'desc');
 
         $entregas = $query->paginate(request('per_page', 15));
 
-        // Obtener cobranzas pagadas del usuario que no han sido marcadas como entregadas
-        $cobranzasPagadas = Cobranza::with(['renta.cliente', 'responsableCobro'])
+        // Obtener cobranzas pagadas con saldos pendientes
+        $cobranzasQuery = Cobranza::with(['renta.cliente', 'responsableCobro'])
             ->where('estado', 'pagado')
-            ->where('responsable_cobro', $userId)
-            ->whereNotExists(function ($query) {
-                $query->selectRaw(1)
-                      ->from('entregas_dinero')
-                      ->whereColumn('entregas_dinero.id_origen', 'cobranzas.id')
-                      ->where('entregas_dinero.tipo_origen', 'cobranza');
-            })
-            ->orderBy('fecha_pago', 'desc')
+            ->whereRaw('monto_pagado > COALESCE((SELECT SUM(total) FROM entregas_dinero WHERE tipo_origen = "cobranza" AND id_origen = cobranzas.id AND estado = "recibido"), 0)');
+
+        // Si no es admin, filtrar solo por el usuario actual
+        if (!$isAdmin) {
+            $cobranzasQuery->where('responsable_cobro', $userId);
+        }
+
+        $cobranzasPagadas = $cobranzasQuery->orderBy('fecha_pago', 'desc')
             ->get()
             ->map(function ($cobranza) {
+                $montoYaEntregado = EntregaDinero::where('tipo_origen', 'cobranza')
+                    ->where('id_origen', $cobranza->id)
+                    ->where('estado', 'recibido')
+                    ->sum('total');
+                $saldoPendiente = $cobranza->monto_pagado - $montoYaEntregado;
+
                 return [
                     'id' => 'cobranza_' . $cobranza->id,
                     'tipo' => 'cobranza',
@@ -56,6 +72,8 @@ class EntregaDineroController extends Controller
                     'id_origen' => $cobranza->id,
                     'fecha_entrega' => $cobranza->fecha_pago->format('Y-m-d'),
                     'total' => $cobranza->monto_pagado,
+                    'saldo_pendiente' => $saldoPendiente,
+                    'ya_entregado' => $montoYaEntregado,
                     'concepto' => $cobranza->concepto,
                     'cliente' => $cobranza->renta->cliente->nombre_razon_social ?? 'Sin cliente',
                     'estado' => 'por_entregar',
@@ -64,19 +82,25 @@ class EntregaDineroController extends Controller
                 ];
             });
 
-        // Obtener ventas pagadas del usuario que no han sido marcadas como entregadas
-        $ventasPagadas = Venta::with(['cliente', 'pagadoPor'])
+        // Obtener ventas pagadas con saldos pendientes
+        $ventasQuery = Venta::with(['cliente', 'pagadoPor'])
             ->where('pagado', true)
-            ->where('pagado_por', $userId)
-            ->whereNotExists(function ($query) {
-                $query->selectRaw(1)
-                      ->from('entregas_dinero')
-                      ->whereColumn('entregas_dinero.id_origen', 'ventas.id')
-                      ->where('entregas_dinero.tipo_origen', 'venta');
-            })
-            ->orderBy('fecha_pago', 'desc')
+            ->whereRaw('total > COALESCE((SELECT SUM(total) FROM entregas_dinero WHERE tipo_origen = "venta" AND id_origen = ventas.id AND estado = "recibido"), 0)');
+
+        // Si no es admin, filtrar solo por el usuario actual
+        if (!$isAdmin) {
+            $ventasQuery->where('pagado_por', $userId);
+        }
+
+        $ventasPagadas = $ventasQuery->orderBy('fecha_pago', 'desc')
             ->get()
             ->map(function ($venta) {
+                $montoYaEntregado = EntregaDinero::where('tipo_origen', 'venta')
+                    ->where('id_origen', $venta->id)
+                    ->where('estado', 'recibido')
+                    ->sum('total');
+                $saldoPendiente = $venta->total - $montoYaEntregado;
+
                 return [
                     'id' => 'venta_' . $venta->id,
                     'tipo' => 'venta',
@@ -84,6 +108,8 @@ class EntregaDineroController extends Controller
                     'id_origen' => $venta->id,
                     'fecha_entrega' => $venta->fecha_pago->format('Y-m-d'),
                     'total' => $venta->total,
+                    'saldo_pendiente' => $saldoPendiente,
+                    'ya_entregado' => $montoYaEntregado,
                     'concepto' => 'Venta #' . $venta->numero_venta,
                     'cliente' => $venta->cliente->nombre_razon_social ?? 'Sin cliente',
                     'estado' => 'por_entregar',
@@ -275,69 +301,79 @@ class EntregaDineroController extends Controller
     }
 
     /**
-     * Marcar un registro automático (cobranza o venta) como recibido
+     * Marcar un registro automático (cobranza o venta) como recibido (puede ser parcial)
      */
-    public function marcarAutomaticoRecibido(Request $request, $tipo, $id)
+    public function marcarAutomaticoRecibido(Request $request, $tipo_origen, $id_origen)
     {
         $request->validate([
+            'monto_recibido' => 'required|numeric|min:0.01',
             'notas_recibido' => 'nullable|string|max:500',
         ]);
 
-        $userId = auth()->id();
+        $userId  = auth()->id();
+        $isAdmin = auth()->user()->hasRole('admin');
 
-        // Verificar que el registro pertenece al usuario actual
-        if ($tipo === 'cobranza') {
-            $registro = Cobranza::where('id', $id)
-                                ->where('responsable_cobro', $userId)
-                                ->where('estado', 'pagado')
-                                ->firstOrFail();
-            $monto = $registro->monto_pagado;
-            $concepto = $registro->concepto;
-            $fecha = $registro->fecha_pago;
-        } elseif ($tipo === 'venta') {
-            $registro = Venta::where('id', $id)
-                            ->where('pagado_por', $userId)
-                            ->where('pagado', true)
-                            ->firstOrFail();
-            $monto = $registro->total;
-            $concepto = 'Venta #' . $registro->numero_venta;
-            $fecha = $registro->fecha_pago;
+        if ($tipo_origen === 'cobranza') {
+            $q = Cobranza::query()
+                ->where('id', $id_origen)
+                ->where('estado', 'pagado');
+
+            if (!$isAdmin) {
+                $q->where('responsable_cobro', $userId);
+            }
+
+            $registro   = $q->firstOrFail();
+            $montoTotal = $registro->monto_pagado;
+            $concepto   = $registro->concepto;
+            $fecha      = $registro->fecha_pago;
+        } elseif ($tipo_origen === 'venta') {
+            $q = Venta::query()
+                ->where('id', $id_origen)
+                ->where('pagado', true);
+
+            if (!$isAdmin) {
+                $q->where('pagado_por', $userId);
+            }
+
+            $registro   = $q->firstOrFail();
+            $montoTotal = $registro->total;
+            $concepto   = 'Venta #' . $registro->numero_venta;
+            $fecha      = $registro->fecha_pago;
         } else {
-            abort(400, 'Tipo de registro no válido');
+            return response()->json(['error' => 'Tipo de registro no válido'], 422);
         }
 
-        // Verificar que no haya sido marcado como recibido antes
-        $existe = EntregaDinero::where('tipo_origen', $tipo)
-                               ->where('id_origen', $id)
-                               ->exists();
-
-        if ($existe) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Este registro ya ha sido marcado como recibido'
-            ], 400);
+        if ($request->monto_recibido > $montoTotal) {
+            return response()->json(['error' => 'El monto recibido no puede ser mayor al total'], 422);
         }
 
-        // Crear la entrega de dinero con estado "recibido" automáticamente
+        $montoYaEntregado = EntregaDinero::where('tipo_origen', $tipo_origen)
+            ->where('id_origen', $id_origen)
+            ->where('estado', 'recibido')
+            ->sum('total');
+
+        $montoPendiente = $montoTotal - $montoYaEntregado;
+
+        if ($request->monto_recibido > $montoPendiente) {
+            return response()->json(['error' => 'El monto recibido excede el saldo pendiente'], 422);
+        }
+
         EntregaDinero::create([
-            'user_id' => $userId,
-            'fecha_entrega' => $fecha->format('Y-m-d'),
-            'monto_efectivo' => $monto, // Asumimos que todo es efectivo por simplicidad
-            'monto_cheques' => 0,
-            'monto_tarjetas' => 0,
-            'total' => $monto,
-            'estado' => 'recibido',
-            'notas' => "Entrega automática - {$concepto}",
-            'tipo_origen' => $tipo,
-            'id_origen' => $id,
-            'recibido_por' => $userId, // El mismo usuario marca como recibido
-            'fecha_recibido' => now(),
-            'notas_recibido' => $request->notas_recibido,
+            'user_id'         => $userId,
+            'fecha_entrega'   => $fecha?->format('Y-m-d') ?? now()->toDateString(),
+            'monto_efectivo'  => $request->monto_recibido,
+            'monto_cheques'   => 0,
+            'monto_tarjetas'  => 0,
+            'total'           => $request->monto_recibido,
+            'estado'          => 'recibido',
+            'notas'           => "Entrega automática - {$concepto}",
+            'tipo_origen'     => $tipo_origen,
+            'id_origen'       => $id_origen,
+            'recibido_por'    => $userId,
+            'fecha_recibido'  => now(),
+            'notas_recibido'  => $request->notas_recibido,
         ]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Registro marcado como recibido exitosamente'
-        ]);
+        return redirect()->route('entregas-dinero.index')->with('success', 'Monto registrado correctamente');
     }
 }

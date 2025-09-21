@@ -156,8 +156,8 @@
               Cobranza
             </NavLink>
 
-            <!-- NUEVO: Entregas de Dinero -->
-            <NavLink href="/entregas-dinero" icon="hand-holding-usd" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Entregas de Dinero' : null">
+            <!-- NUEVO: Entregas de Dinero (Solo para administradores) -->
+            <NavLink v-if="props.usuario.is_admin || (props.usuario.roles && props.usuario.roles.some(role => role.name === 'admin'))" href="/entregas-dinero" icon="dollar-sign" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Entregas de Dinero' : null">
               Entregas de Dinero
             </NavLink>
           </ul>

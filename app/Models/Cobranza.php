@@ -42,6 +42,7 @@ class Cobranza extends Model
         'fecha_pago' => 'date',
         'monto_cobrado' => 'decimal:2',
         'monto_pagado' => 'decimal:2',
+        'responsable_cobro' => 'integer',
     ];
 
     /**
@@ -78,11 +79,11 @@ class Cobranza extends Model
     }
 
     /**
-     * Relación con el usuario que registró el pago.
+     * Relación con el usuario responsable del cobro.
      */
-    public function responsableCobro()
+    public function responsableCobro(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\User::class, 'responsable_cobro');
+        return $this->belongsTo(User::class, 'responsable_cobro');
     }
 
     /**

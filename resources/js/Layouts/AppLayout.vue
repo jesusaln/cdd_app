@@ -162,7 +162,7 @@ library.add(
 
 // --- Reactive States ---
 const { props } = usePage();
-const usuario = ref(props.auth.user);
+const usuario = ref(props.auth?.user);
 const isProfileDropdownOpen = ref(false);
 const isSidebarCollapsed = ref(false);
 const isMobile = ref(false);
