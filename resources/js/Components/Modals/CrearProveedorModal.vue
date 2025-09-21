@@ -71,12 +71,12 @@
                               autocomplete="off"
                               :class="[
                                 'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
-                                form.errors.nombre_razon_social ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                                errores.nombre_razon_social ? 'border-red-300 bg-red-50' : 'border-gray-300'
                               ]"
                               required
                             />
-                            <div v-if="form.errors.nombre_razon_social" class="mt-1 text-sm text-red-600">
-                              {{ form.errors.nombre_razon_social }}
+                            <div v-if="errores.nombre_razon_social" class="mt-1 text-sm text-red-600">
+                              {{ errores.nombre_razon_social }}
                             </div>
                           </div>
 
@@ -454,7 +454,6 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useForm } from '@inertiajs/vue3'
 import axios from 'axios'
 
 // Props
@@ -478,6 +477,7 @@ const emit = defineEmits(['close', 'proveedor-creado'])
 
 // Estado
 const availableColonias = ref([])
+const errores = ref({})
 
 // Listas predefinidas
 const regimenesFiscales = {
@@ -543,7 +543,7 @@ const initFormData = () => ({
   pais: 'MEXICO'
 })
 
-const form = useForm(initFormData())
+const form = ref(initFormData())
 
 // Computed
 const hasGlobalErrors = computed(() => Object.keys(form.errors).length > 0)
@@ -627,32 +627,36 @@ const close = () => {
   emit('close')
 }
 
-const submit = () => {
+const submit = async () => {
   if (!isFormValid.value) {
     return
   }
 
-  const dataToSend = { ...form.data() }
+  const dataToSend = { ...form.value }
 
-  form.post(route('proveedores.store'), {
-    data: dataToSend,
-    preserveScroll: true,
-    onSuccess: (page) => {
-      const nuevoProveedor = page.props.flash?.proveedor || dataToSend
-      emit('proveedor-creado', nuevoProveedor)
-      close()
-    },
-    onError: (errors) => {
-      console.error('Errores de validación:', errors)
+  try {
+    const response = await axios.post(route('proveedores.store'), dataToSend, {
+      headers: {
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+      }
+    })
+
+    const nuevoProveedor = response.data
+    emit('proveedor-creado', nuevoProveedor)
+    close()
+  } catch (error) {
+    console.error('Error al crear proveedor:', error)
+    if (error.response && error.response.data && error.response.data.errors) {
+      errores.value = error.response.data.errors
     }
-  })
+  }
 }
 
 // Reset form when modal opens
 watch(() => props.show, (newVal) => {
   if (newVal) {
-    form.reset()
-    Object.assign(form, initFormData())
+    form.value = initFormData()
+    errores.value = {}
     availableColonias.value = []
   }
 })

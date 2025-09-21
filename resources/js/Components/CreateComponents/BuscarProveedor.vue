@@ -358,117 +358,453 @@
     </Teleport>
 
     <!-- Modal para crear nuevo proveedor -->
-    <div v-if="mostrarModalCrearProveedor" class="fixed inset-0 z-[1000] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-      <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <!-- Background overlay -->
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="cerrarModalCrearProveedor"></div>
+    <Teleport to="#app">
+      <div v-if="mostrarModalCrearProveedor" class="fixed inset-0 z-[1000] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+          <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="cerrarModalCrearProveedor"></div>
 
-        <!-- Modal panel -->
-        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-          <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-            <div class="sm:flex sm:items-start">
-              <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-green-100 sm:mx-0 sm:h-10 sm:w-10">
-                <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
-                </svg>
-              </div>
-              <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left flex-1">
-                <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
-                  Crear Nuevo Proveedor
-                </h3>
-                <div class="mt-4">
-                  <form @submit.prevent="guardarNuevoProveedor" class="space-y-4">
-                    <div>
-                      <label for="nombre_razon_social" class="block text-sm font-medium text-gray-700">
-                        Nombre/Razón Social *
-                      </label>
-                      <input
-                        id="nombre_razon_social"
-                        v-model="nuevoProveedor.nombre_razon_social"
-                        type="text"
-                        required
-                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500"
-                        :class="{ 'border-red-300': errores.nombre_razon_social }"
-                      />
-                      <p v-if="errores.nombre_razon_social" class="mt-1 text-sm text-red-600">
-                        {{ errores.nombre_razon_social[0] }}
-                      </p>
+          <!-- Modal panel -->
+          <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+              <div class="sm:flex sm:items-start">
+                <div class="mt-3 text-center sm:mt-0 sm:text-left w-full">
+                  <!-- Header -->
+                  <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                      Crear Nuevo Proveedor
+                    </h3>
+                    <button
+                      @click="cerrarModalCrearProveedor"
+                      class="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                    >
+                      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                      </svg>
+                    </button>
+                  </div>
+
+                  <!-- Formulario -->
+                  <form @submit.prevent="guardarNuevoProveedor" class="space-y-6">
+                    <!-- Información General -->
+                    <div class="border-b border-gray-200 pb-4">
+                      <h4 class="text-md font-medium text-gray-900 mb-3">Información General</h4>
+                      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="md:col-span-2">
+                          <label for="modal-nombre_razon_social" class="block text-sm font-medium text-gray-700">
+                            Nombre/Razón Social <span class="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            id="modal-nombre_razon_social"
+                            v-model="nuevoProveedor.nombre_razon_social"
+                            @blur="toUpper('nombre_razon_social')"
+                            autocomplete="off"
+                            :class="[
+                              'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                              errores.nombre_razon_social ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                            ]"
+                            required
+                          />
+                          <div v-if="errores.nombre_razon_social" class="mt-1 text-sm text-red-600">
+                            {{ errores.nombre_razon_social }}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label for="modal-tipo_persona" class="block text-sm font-medium text-gray-700">
+                            Tipo de Persona <span class="text-red-500">*</span>
+                          </label>
+                          <select
+                            id="modal-tipo_persona"
+                            v-model="nuevoProveedor.tipo_persona"
+                            @change="onTipoPersonaChange"
+                            :class="[
+                              'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                              errores.tipo_persona ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                            ]"
+                            required
+                          >
+                            <option value="">Selecciona una opción</option>
+                            <option value="fisica">Persona Física</option>
+                            <option value="moral">Persona Moral</option>
+                          </select>
+                          <div v-if="errores.tipo_persona" class="mt-1 text-sm text-red-600">
+                            {{ errores.tipo_persona }}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label for="modal-rfc" class="block text-sm font-medium text-gray-700">
+                            RFC <span class="text-red-500">*</span>
+                            <span class="text-xs text-gray-500">
+                              ({{ nuevoProveedor.tipo_persona === 'fisica' ? '13 caracteres' : nuevoProveedor.tipo_persona === 'moral' ? '12 caracteres' : 'Selecciona tipo de persona' }})
+                            </span>
+                          </label>
+                          <input
+                            type="text"
+                            id="modal-rfc"
+                            :maxlength="nuevoProveedor.tipo_persona === 'fisica' ? 13 : 12"
+                            :placeholder="nuevoProveedor.tipo_persona === 'fisica' ? 'ABCD123456EFG' : 'ABC123456EFG'"
+                            :value="nuevoProveedor.rfc"
+                            @input="onRfcInput"
+                            :disabled="!nuevoProveedor.tipo_persona"
+                            autocomplete="off"
+                            :class="[
+                              'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                              errores.rfc ? 'border-red-300 bg-red-50' : 'border-gray-300',
+                              !nuevoProveedor.tipo_persona ? 'bg-gray-100 text-gray-400' : ''
+                            ]"
+                            required
+                          />
+                          <div v-if="errores.rfc" class="mt-1 text-sm text-red-600">
+                            {{ errores.rfc }}
+                          </div>
+                          <div v-if="!nuevoProveedor.tipo_persona" class="mt-1 text-xs text-gray-500">
+                            Primero selecciona el tipo de persona
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
-                    <div>
-                      <label for="rfc" class="block text-sm font-medium text-gray-700">
-                        RFC
-                      </label>
-                      <input
-                        id="rfc"
-                        v-model="nuevoProveedor.rfc"
-                        type="text"
-                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500"
-                        :class="{ 'border-red-300': errores.rfc }"
-                      />
-                      <p v-if="errores.rfc" class="mt-1 text-sm text-red-600">
-                        {{ errores.rfc[0] }}
-                      </p>
+                    <!-- Información Fiscal -->
+                    <div class="border-b border-gray-200 pb-4">
+                      <h4 class="text-md font-medium text-gray-900 mb-3">Información Fiscal</h4>
+                      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label for="modal-regimen_fiscal" class="block text-sm font-medium text-gray-700">
+                            Régimen Fiscal <span class="text-red-500">*</span>
+                          </label>
+                          <select
+                            id="modal-regimen_fiscal"
+                            v-model="nuevoProveedor.regimen_fiscal"
+                            :disabled="!nuevoProveedor.tipo_persona"
+                            :class="[
+                              'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                              errores.regimen_fiscal ? 'border-red-300 bg-red-50' : 'border-gray-300',
+                              !nuevoProveedor.tipo_persona ? 'bg-gray-100 text-gray-400' : ''
+                            ]"
+                            required
+                          >
+                            <option value="">Selecciona una opción</option>
+                            <option
+                              v-for="regimen in regimenesFiltrados"
+                              :key="regimen.codigo"
+                              :value="regimen.codigo"
+                            >
+                              {{ regimen.codigo }} - {{ regimen.descripcion }}
+                            </option>
+                          </select>
+                          <div v-if="errores.regimen_fiscal" class="mt-1 text-sm text-red-600">
+                            {{ errores.regimen_fiscal }}
+                          </div>
+                          <div v-if="!nuevoProveedor.tipo_persona" class="mt-1 text-xs text-gray-500">
+                            Primero selecciona el tipo de persona
+                          </div>
+                        </div>
+
+                        <div>
+                          <label for="modal-uso_cfdi" class="block text-sm font-medium text-gray-700">
+                            Uso CFDI <span class="text-red-500">*</span>
+                          </label>
+                          <select
+                            id="modal-uso_cfdi"
+                            v-model="nuevoProveedor.uso_cfdi"
+                            :class="[
+                              'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                              errores.uso_cfdi ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                            ]"
+                            required
+                          >
+                            <option value="">Selecciona una opción</option>
+                            <option
+                              v-for="uso in usosCFDI"
+                              :key="uso.codigo"
+                              :value="uso.codigo"
+                            >
+                              {{ uso.codigo }} - {{ uso.descripcion }}
+                            </option>
+                          </select>
+                          <div v-if="errores.uso_cfdi" class="mt-1 text-sm text-red-600">
+                            {{ errores.uso_cfdi }}
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
-                    <div>
-                      <label for="email" class="block text-sm font-medium text-gray-700">
-                        Email *
-                      </label>
-                      <input
-                        id="email"
-                        v-model="nuevoProveedor.email"
-                        type="email"
-                        required
-                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500"
-                        :class="{ 'border-red-300': errores.email }"
-                      />
-                      <p v-if="errores.email" class="mt-1 text-sm text-red-600">
-                        {{ errores.email[0] }}
-                      </p>
+                    <!-- Información de Contacto -->
+                    <div class="border-b border-gray-200 pb-4">
+                      <h4 class="text-md font-medium text-gray-900 mb-3">Información de Contacto</h4>
+                      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label for="modal-email" class="block text-sm font-medium text-gray-700">
+                            Email <span class="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="email"
+                            id="modal-email"
+                            v-model="nuevoProveedor.email"
+                            autocomplete="new-password"
+                            placeholder="correo@ejemplo.com"
+                            :class="[
+                              'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                              errores.email ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                            ]"
+                            required
+                          />
+                          <div v-if="errores.email" class="mt-1 text-sm text-red-600">
+                            {{ errores.email }}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label for="modal-telefono" class="block text-sm font-medium text-gray-700">
+                            Teléfono
+                          </label>
+                          <input
+                            type="tel"
+                            id="modal-telefono"
+                            autocomplete="new-password"
+                            v-model="nuevoProveedor.telefono"
+                            placeholder="Opcional"
+                            :class="[
+                              'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                              errores.telefono ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                            ]"
+                          />
+                          <div v-if="errores.telefono" class="mt-1 text-sm text-red-600">
+                            {{ errores.telefono }}
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
+                    <!-- Dirección -->
                     <div>
-                      <label for="telefono" class="block text-sm font-medium text-gray-700">
-                        Teléfono
-                      </label>
-                      <input
-                        id="telefono"
-                        v-model="nuevoProveedor.telefono"
-                        type="tel"
-                        class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-green-500 focus:border-green-500"
-                        :class="{ 'border-red-300': errores.telefono }"
-                      />
-                      <p v-if="errores.telefono" class="mt-1 text-sm text-red-600">
-                        {{ errores.telefono[0] }}
-                      </p>
+                      <h4 class="text-md font-medium text-gray-900 mb-3">Dirección</h4>
+                      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div class="md:col-span-2">
+                          <label for="modal-calle" class="block text-sm font-medium text-gray-700">
+                            Calle <span class="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            id="modal-calle"
+                            v-model="nuevoProveedor.calle"
+                            @blur="toUpper('calle')"
+                            autocomplete="new-password"
+                            :class="[
+                              'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                              errores.calle ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                            ]"
+                            required
+                          />
+                          <div v-if="errores.calle" class="mt-1 text-sm text-red-600">
+                            {{ errores.calle }}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label for="modal-numero_exterior" class="block text-sm font-medium text-gray-700">
+                            Número Exterior <span class="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            id="modal-numero_exterior"
+                            v-model="nuevoProveedor.numero_exterior"
+                            @blur="toUpper('numero_exterior')"
+                            autocomplete="new-password"
+                            :class="[
+                              'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                              errores.numero_exterior ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                            ]"
+                            required
+                          />
+                          <div v-if="errores.numero_exterior" class="mt-1 text-sm text-red-600">
+                            {{ errores.numero_exterior }}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label for="modal-numero_interior" class="block text-sm font-medium text-gray-700">
+                            Número Interior
+                          </label>
+                          <input
+                            type="text"
+                            id="modal-numero_interior"
+                            v-model="nuevoProveedor.numero_interior"
+                            @blur="toUpper('numero_interior')"
+                            autocomplete="new-password"
+                            :class="[
+                              'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                              errores.numero_interior ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                            ]"
+                          />
+                          <div v-if="errores.numero_interior" class="mt-1 text-sm text-red-600">
+                            {{ errores.numero_interior }}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label for="modal-colonia" class="block text-sm font-medium text-gray-700">
+                            Colonia <span class="text-red-500">*</span>
+                          </label>
+                          <select
+                            id="modal-colonia"
+                            v-model="nuevoProveedor.colonia"
+                            :disabled="availableColonias.length === 0"
+                            :class="[
+                              'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                              errores.colonia ? 'border-red-300 bg-red-50' : 'border-gray-300',
+                              availableColonias.length === 0 ? 'bg-gray-100 text-gray-400' : ''
+                            ]"
+                            required
+                          >
+                            <option value="">
+                              {{ availableColonias.length === 0 ? 'Ingresa un código postal primero' : 'Selecciona una colonia' }}
+                            </option>
+                            <option
+                              v-for="colonia in availableColonias"
+                              :key="colonia"
+                              :value="colonia"
+                            >
+                              {{ colonia }}
+                            </option>
+                          </select>
+                          <div v-if="errores.colonia" class="mt-1 text-sm text-red-600">
+                            {{ errores.colonia }}
+                          </div>
+                          <div v-if="availableColonias.length === 0" class="mt-1 text-xs text-gray-500">
+                            Primero ingresa un código postal válido para cargar las colonias disponibles
+                          </div>
+                        </div>
+
+                        <div>
+                          <label for="modal-codigo_postal" class="block text-sm font-medium text-gray-700">
+                            Código Postal <span class="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            id="modal-codigo_postal"
+                            maxlength="5"
+                            pattern="[0-9]{5}"
+                            :value="nuevoProveedor.codigo_postal"
+                            @input="onCpInput"
+                            placeholder="12345"
+                            autocomplete="new-password"
+                            :class="[
+                              'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                              errores.codigo_postal ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                            ]"
+                            required
+                          />
+                          <div v-if="errores.codigo_postal" class="mt-1 text-sm text-red-600">
+                            {{ errores.codigo_postal }}
+                          </div>
+                          <div class="mt-1 text-xs text-gray-500">
+                            Al ingresar un código postal válido, se autocompletarán automáticamente el estado y municipio.
+                          </div>
+                        </div>
+
+                        <div>
+                          <label for="modal-municipio" class="block text-sm font-medium text-gray-700">
+                            Municipio <span class="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            id="modal-municipio"
+                            v-model="nuevoProveedor.municipio"
+                            autocomplete="new-password"
+                            :class="[
+                              'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                              errores.municipio ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                            ]"
+                            required
+                          />
+                          <div v-if="errores.municipio" class="mt-1 text-sm text-red-600">
+                            {{ errores.municipio }}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label for="modal-estado" class="block text-sm font-medium text-gray-700">
+                            Estado
+                          </label>
+                          <select
+                            id="modal-estado"
+                            v-model="nuevoProveedor.estado"
+                            class="mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border-gray-300"
+                          >
+                            <option value="">Selecciona una opción</option>
+                            <option
+                              v-for="estado in estados"
+                              :key="estado.value"
+                              :value="estado.value"
+                            >
+                              {{ estado.text || estado.label }}
+                            </option>
+                          </select>
+                          <div v-if="errores.estado" class="mt-1 text-sm text-red-600">
+                            {{ errores.estado }}
+                          </div>
+                          <div class="mt-1 text-xs text-gray-500">
+                            Opcional para proveedores extranjeros
+                          </div>
+                        </div>
+
+                        <div>
+                          <label for="modal-pais" class="block text-sm font-medium text-gray-700">
+                            País
+                          </label>
+                          <input
+                            type="text"
+                            id="modal-pais"
+                            v-model="nuevoProveedor.pais"
+                            @blur="toUpper('pais')"
+                            placeholder="MX (México por defecto)"
+                            autocomplete="new-password"
+                            :class="[
+                              'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                              errores.pais ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                            ]"
+                          />
+                          <div v-if="errores.pais" class="mt-1 text-sm text-red-600">
+                            {{ errores.pais }}
+                          </div>
+                          <div class="mt-1 text-xs text-gray-500">
+                            Código de país (2-3 letras). México por defecto, cambia para proveedores extranjeros.
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </form>
                 </div>
               </div>
             </div>
-          </div>
-          <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-            <button
-              type="button"
-              @click="guardarNuevoProveedor"
-              :disabled="guardandoProveedor"
-              class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
-            >
-              <span v-if="guardandoProveedor">Guardando...</span>
-              <span v-else>Guardar Proveedor</span>
-            </button>
-            <button
-              type="button"
-              @click="cerrarModalCrearProveedor"
-              class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-            >
-              Cancelar
-            </button>
+
+            <!-- Footer -->
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+              <button
+                type="button"
+                @click="guardarNuevoProveedor"
+                :disabled="guardandoProveedor"
+                class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
+              >
+                <span v-if="guardandoProveedor">Creando...</span>
+                <span v-else>Crear Proveedor</span>
+              </button>
+              <button
+                type="button"
+                @click="cerrarModalCrearProveedor"
+                :disabled="guardandoProveedor"
+                class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+              >
+                Cancelar
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </Teleport>
   </div>
 </template>
 
@@ -615,11 +951,23 @@ const mostrarModalCrearProveedor = ref(false);
 const guardandoProveedor = ref(false);
 const nuevoProveedor = ref({
   nombre_razon_social: '',
+  tipo_persona: '',
   rfc: '',
+  regimen_fiscal: '',
+  uso_cfdi: '',
   email: '',
-  telefono: ''
+  telefono: '',
+  calle: '',
+  numero_exterior: '',
+  numero_interior: '',
+  colonia: '',
+  codigo_postal: '',
+  municipio: '',
+  estado: '',
+  pais: 'MX'
 });
 const errores = ref({});
+const availableColonias = ref([]);
 
 // Función para normalizar texto (quitar acentos y caracteres especiales)
 const normalizarTexto = (texto) => {
@@ -865,7 +1213,9 @@ const formatearMoneda = (valor) => {
 // Función para crear nuevo proveedor
 const crearNuevoProveedor = () => {
   mostrarListaProveedores.value = false;
-  emit('crear-nuevo-proveedor', busquedaProveedor.value);
+  nuevoProveedor.value.nombre_razon_social = busquedaProveedor.value || '';
+  errores.value = {};
+  mostrarModalCrearProveedor.value = true;
 };
 
 // Función para cerrar el modal de crear proveedor
@@ -873,12 +1223,219 @@ const cerrarModalCrearProveedor = () => {
   mostrarModalCrearProveedor.value = false;
   nuevoProveedor.value = {
     nombre_razon_social: '',
+    tipo_persona: '',
     rfc: '',
+    regimen_fiscal: '',
+    uso_cfdi: '',
     email: '',
-    telefono: ''
+    telefono: '',
+    calle: '',
+    numero_exterior: '',
+    numero_interior: '',
+    colonia: '',
+    codigo_postal: '',
+    municipio: '',
+    estado: '',
+    pais: 'MX'
   };
   errores.value = {};
+  availableColonias.value = [];
 };
+
+// Mapeo de nombres de estados a claves SAT
+const estadoMapping = {
+  'Aguascalientes': 'AGU',
+  'Baja California': 'BCN',
+  'Baja California Sur': 'BCS',
+  'Campeche': 'CAM',
+  'Chihuahua': 'CHH',
+  'Chiapas': 'CHP',
+  'Ciudad de México': 'CMX',
+  'Coahuila': 'COA',
+  'Colima': 'COL',
+  'Durango': 'DUR',
+  'Guerrero': 'GRO',
+  'Guanajuato': 'GUA',
+  'Hidalgo': 'HID',
+  'Jalisco': 'JAL',
+  'Estado de México': 'MEX',
+  'Michoacán': 'MIC',
+  'Morelos': 'MOR',
+  'Nayarit': 'NAY',
+  'Nuevo León': 'NLE',
+  'Oaxaca': 'OAX',
+  'Puebla': 'PUE',
+  'Querétaro': 'QUE',
+  'Quintana Roo': 'ROO',
+  'Sinaloa': 'SIN',
+  'San Luis Potosí': 'SLP',
+  'Sonora': 'SON',
+  'Tabasco': 'TAB',
+  'Tamaulipas': 'TAM',
+  'Tlaxcala': 'TLA',
+  'Veracruz': 'VER',
+  'Yucatán': 'YUC',
+  'Zacatecas': 'ZAC'
+}
+
+// Estados hardcodeados
+const estados = [
+  { value: 'AGU', text: 'AGU — Aguascalientes' },
+  { value: 'BCN', text: 'BCN — Baja California' },
+  { value: 'BCS', text: 'BCS — Baja California Sur' },
+  { value: 'CAM', text: 'CAM — Campeche' },
+  { value: 'CHH', text: 'CHH — Chihuahua' },
+  { value: 'CHP', text: 'CHP — Chiapas' },
+  { value: 'CMX', text: 'CMX — Ciudad de México' },
+  { value: 'COA', text: 'COA — Coahuila' },
+  { value: 'COL', text: 'COL — Colima' },
+  { value: 'DUR', text: 'DUR — Durango' },
+  { value: 'GRO', text: 'GRO — Guerrero' },
+  { value: 'GUA', text: 'GUA — Guanajuato' },
+  { value: 'HID', text: 'HID — Hidalgo' },
+  { value: 'JAL', text: 'JAL — Jalisco' },
+  { value: 'MEX', text: 'MEX — Estado de México' },
+  { value: 'MIC', text: 'MIC — Michoacán' },
+  { value: 'MOR', text: 'MOR — Morelos' },
+  { value: 'NAY', text: 'NAY — Nayarit' },
+  { value: 'NLE', text: 'NLE — Nuevo León' },
+  { value: 'OAX', text: 'OAX — Oaxaca' },
+  { value: 'PUE', text: 'PUE — Puebla' },
+  { value: 'QUE', text: 'QUE — Querétaro' },
+  { value: 'ROO', text: 'ROO — Quintana Roo' },
+  { value: 'SIN', text: 'SIN — Sinaloa' },
+  { value: 'SLP', text: 'SLP — San Luis Potosí' },
+  { value: 'SON', text: 'SON — Sonora' },
+  { value: 'TAB', text: 'TAB — Tabasco' },
+  { value: 'TAM', text: 'TAM — Tamaulipas' },
+  { value: 'TLA', text: 'TLA — Tlaxcala' },
+  { value: 'VER', text: 'VER — Veracruz' },
+  { value: 'YUC', text: 'YUC — Yucatán' },
+  { value: 'ZAC', text: 'ZAC — Zacatecas' }
+]
+
+// Regímenes fiscales hardcodeados
+const regimenesFiscales = [
+  { codigo: '601', descripcion: 'General de Ley Personas Morales', persona_moral: true, persona_fisica: false },
+  { codigo: '603', descripcion: 'Personas Morales con Fines no Lucrativos', persona_moral: true, persona_fisica: false },
+  { codigo: '605', descripcion: 'Sueldos y Salarios e Ingresos Asimilados a Salarios', persona_moral: false, persona_fisica: true },
+  { codigo: '606', descripcion: 'Arrendamiento', persona_moral: true, persona_fisica: true },
+  { codigo: '607', descripcion: 'Régimen de Enajenación o Adquisición de Bienes', persona_moral: true, persona_fisica: true },
+  { codigo: '608', descripcion: 'Demás ingresos', persona_moral: true, persona_fisica: true },
+  { codigo: '609', descripcion: 'Consolidación', persona_moral: true, persona_fisica: false },
+  { codigo: '610', descripcion: 'Residentes en el Extranjero sin Establecimiento Permanente en México', persona_moral: true, persona_fisica: true },
+  { codigo: '611', descripcion: 'Ingresos por Dividendos (socios y accionistas)', persona_moral: true, persona_fisica: true },
+  { codigo: '612', descripcion: 'Personas Físicas con Actividades Empresariales y Profesionales', persona_moral: false, persona_fisica: true },
+  { codigo: '614', descripcion: 'Ingresos por intereses', persona_moral: true, persona_fisica: true },
+  { codigo: '615', descripcion: 'Régimen de los ingresos por obtención de premios', persona_moral: true, persona_fisica: true },
+  { codigo: '616', descripcion: 'Sin obligaciones fiscales', persona_moral: true, persona_fisica: true },
+  { codigo: '620', descripcion: 'Sociedades Cooperativas de Producción que optan por diferir sus ingresos', persona_moral: true, persona_fisica: false },
+  { codigo: '621', descripcion: 'Incorporación Fiscal', persona_moral: true, persona_fisica: false },
+  { codigo: '622', descripcion: 'Actividades Agrícolas, Ganaderas, Silvícolas y Pesqueras', persona_moral: true, persona_fisica: true },
+  { codigo: '623', descripcion: 'Opcional para Grupos de Sociedades', persona_moral: true, persona_fisica: false },
+  { codigo: '624', descripcion: 'Coordinados', persona_moral: true, persona_fisica: false },
+  { codigo: '625', descripcion: 'Régimen de las Actividades Empresariales con ingresos a través de Plataformas Tecnológicas', persona_moral: false, persona_fisica: true },
+  { codigo: '626', descripcion: 'Régimen Simplificado de Confianza', persona_moral: true, persona_fisica: true }
+]
+
+// Usos CFDI hardcodeados
+const usosCFDI = [
+  { codigo: 'G01', descripcion: 'Adquisición de mercancías' },
+  { codigo: 'G02', descripcion: 'Devoluciones, descuentos o bonificaciones' },
+  { codigo: 'G03', descripcion: 'Gastos en general' },
+  { codigo: 'I01', descripcion: 'Construcciones' },
+  { codigo: 'I02', descripcion: 'Mobiliario y equipo de oficina por inversiones' },
+  { codigo: 'I03', descripcion: 'Equipo de transporte' },
+  { codigo: 'I04', descripcion: 'Equipo de computo y accesorios' },
+  { codigo: 'I05', descripcion: 'Dados, troqueles, moldes, matrices y herramental' },
+  { codigo: 'I06', descripcion: 'Comunicaciones telefónicas' },
+  { codigo: 'I07', descripcion: 'Comunicaciones satelitales' },
+  { codigo: 'I08', descripcion: 'Otra maquinaria y equipo' },
+  { codigo: 'D01', descripcion: 'Honorarios médicos, dentales y gastos hospitalarios' },
+  { codigo: 'D02', descripcion: 'Gastos médicos por incapacidad o discapacidad' },
+  { codigo: 'D03', descripcion: 'Gastos funerales' },
+  { codigo: 'D04', descripcion: 'Donativos' },
+  { codigo: 'D05', descripcion: 'Intereses reales efectivamente pagados por créditos hipotecarios (casa habitación)' },
+  { codigo: 'D06', descripcion: 'Aportaciones voluntarias al SAR' },
+  { codigo: 'D07', descripcion: 'Primas por seguros de gastos médicos' },
+  { codigo: 'D08', descripcion: 'Gastos de transportación escolar obligatoria' },
+  { codigo: 'D09', descripcion: 'Depósitos en cuentas para el ahorro, primas que tengan como base planes de pensiones' },
+  { codigo: 'D10', descripcion: 'Pagos por servicios educativos (colegiaturas)' },
+  { codigo: 'P01', descripcion: 'Por definir' }
+]
+
+// Computed para regimenes filtrados
+const regimenesFiltrados = computed(() => {
+  if (!nuevoProveedor.value.tipo_persona) return []
+  return regimenesFiscales.filter(r =>
+    (nuevoProveedor.value.tipo_persona === 'moral' ? r.persona_moral : r.persona_fisica)
+  )
+})
+
+// Funciones para el modal
+const onTipoPersonaChange = () => {
+  nuevoProveedor.value.rfc = ''
+  nuevoProveedor.value.regimen_fiscal = ''
+  errores.value = { ...errores.value, rfc: '', regimen_fiscal: '' }
+}
+
+const onRfcInput = (event) => {
+  const value = event.target ? event.target.value : event
+  const cleaned = String(value).toUpperCase().replace(/[^A-ZÑ&0-9]/g, '')
+  const maxLen = nuevoProveedor.value.tipo_persona === 'fisica' ? 13 : 12
+  nuevoProveedor.value.rfc = cleaned.slice(0, maxLen)
+  if (errores.value.rfc) errores.value.rfc = ''
+}
+
+const onCpInput = async (event) => {
+  const value = event.target ? event.target.value : event
+  const digits = String(value).replace(/\D/g, '')
+  nuevoProveedor.value.codigo_postal = digits.slice(0, 5)
+  if (errores.value.codigo_postal) errores.value.codigo_postal = ''
+
+  if (nuevoProveedor.value.codigo_postal.length === 5) {
+    try {
+      const response = await fetch(`/api/cp/${nuevoProveedor.value.codigo_postal}`)
+      const data = await response.json()
+
+      if (data.estado) {
+        const estadoClave = estadoMapping[data.estado] || data.estado
+        nuevoProveedor.value.estado = estadoClave
+      }
+
+      if (data.municipio) {
+        nuevoProveedor.value.municipio = data.municipio
+      }
+
+      if (!nuevoProveedor.value.pais || nuevoProveedor.value.pais.trim() === '') {
+        nuevoProveedor.value.pais = data.pais
+      }
+
+      availableColonias.value = data.colonias || []
+
+      if (data.colonias && data.colonias.length === 1) {
+        nuevoProveedor.value.colonia = data.colonias[0]
+      } else if (data.colonias && data.colonias.length > 1) {
+        nuevoProveedor.value.colonia = ''
+      }
+
+      errores.value = { ...errores.value, estado: '', municipio: '', pais: '' }
+    } catch (error) {
+      availableColonias.value = []
+      nuevoProveedor.value.colonia = ''
+    }
+  } else {
+    availableColonias.value = []
+    nuevoProveedor.value.colonia = ''
+  }
+}
+
+const toUpper = (campo) => {
+  if (nuevoProveedor.value[campo] && typeof nuevoProveedor.value[campo] === 'string') {
+    nuevoProveedor.value[campo] = nuevoProveedor.value[campo].toUpperCase().trim()
+    if (errores.value[campo]) errores.value[campo] = ''
+  }
+}
 
 // Función para guardar el nuevo proveedor
 const guardarNuevoProveedor = async () => {
@@ -906,23 +1463,12 @@ const guardarNuevoProveedor = async () => {
 
       // Cerrar modal
       cerrarModalCrearProveedor();
-
-      // Mostrar notificación de éxito
-      if (window.notyf) {
-        window.notyf.success('Proveedor creado exitosamente');
-      }
     } else {
       // Mostrar errores de validación
       errores.value = data.errors || {};
-      if (window.notyf) {
-        window.notyf.error('Error al crear el proveedor');
-      }
     }
   } catch (error) {
     console.error('Error al crear proveedor:', error);
-    if (window.notyf) {
-      window.notyf.error('Error al crear el proveedor');
-    }
   } finally {
     guardandoProveedor.value = false;
   }

@@ -218,7 +218,6 @@
               placeholder-busqueda="Buscar proveedor por nombre, RFC, email..."
               requerido
               @proveedor-seleccionado="onProveedorSeleccionado"
-              @crear-nuevo-proveedor="crearNuevoProveedor"
             />
 
             <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
@@ -398,15 +397,6 @@
         @close="mostrarVistaPrevia = false"
         @print="() => window.print()"
       />
-
-      <!-- Modal Crear Proveedor -->
-      <CrearProveedorModal
-        :show="mostrarModalProveedor"
-        :catalogs="{}"
-        :nombre-inicial="nombreProveedorBuscado"
-        @close="mostrarModalProveedor = false"
-        @proveedor-creado="onProveedorCreado"
-      />
     </div>
   </div>
 </template>
@@ -423,7 +413,6 @@ import ProductosSeleccionados from '@/Components/CreateComponents/ProductosSelec
 import Totales from '@/Components/CreateComponents/Totales.vue';
 import BotonesAccion from '@/Components/CreateComponents/BotonesAccion.vue';
 import VistaPreviaModal from '@/Components/Modals/VistaPreviaModal.vue';
-import CrearProveedorModal from '@/Components/Modals/CrearProveedorModal.vue';
 
 // Inicializar notificaciones
 const notyf = new Notyf({
@@ -498,8 +487,6 @@ const prices = ref({});
 const discounts = ref({});
 const mostrarVistaPrevia = ref(false);
 const mostrarAtajos = ref(true);
-const mostrarModalProveedor = ref(false);
-const nombreProveedorBuscado = ref('');
 
 // Estado para controlar cambios en número de orden
 const numeroOrdenOriginal = ref(generarNumeroOrden());
@@ -637,21 +624,6 @@ const onProveedorSeleccionado = (proveedor) => {
   showNotification(`Proveedor seleccionado: ${proveedor.nombre_razon_social}`);
 };
 
-const crearNuevoProveedor = (nombreBuscado) => {
-  nombreProveedorBuscado.value = nombreBuscado;
-  mostrarModalProveedor.value = true;
-};
-
-const onProveedorCreado = (nuevoProveedor) => {
-  // Agregar el nuevo proveedor a la lista
-  if (!proveedoresList.value.some(p => p.id === nuevoProveedor.id)) {
-    proveedoresList.value.push(nuevoProveedor);
-  }
-
-  // Seleccionar automáticamente el nuevo proveedor
-  onProveedorSeleccionado(nuevoProveedor);
-};
-
 const agregarProducto = (item) => {
   if (!item || typeof item.id === 'undefined') {
     showNotification('Producto inválido', 'error');
@@ -777,7 +749,7 @@ const validarDatos = () => {
   }
 
   if (!form.proveedor_id) {
-    showNotification('Selecciona un proveedor2', 'error');
+    showNotification('Selecciona un proveedor', 'error');
     return false;
   }
 

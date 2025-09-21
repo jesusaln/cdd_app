@@ -33,7 +33,6 @@
               placeholder-busqueda="Buscar proveedor por nombre, RFC, email..."
               requerido
               @proveedor-seleccionado="onProveedorSeleccionado"
-              @crear-nuevo-proveedor="crearNuevoProveedor"
             />
           </div>
         </div>
@@ -131,15 +130,6 @@
         @close="mostrarVistaPrevia = false"
         @print="() => window.print()"
       />
-
-      <!-- Modal Crear Proveedor -->
-      <CrearProveedorModal
-        :show="mostrarModalProveedor"
-        :catalogs="{}"
-        :nombre-inicial="nombreProveedorBuscado"
-        @close="mostrarModalProveedor = false"
-        @proveedor-creado="onProveedorCreado"
-      />
     </div>
   </div>
 </template>
@@ -156,7 +146,6 @@ import ProductosSeleccionados from '@/Components/CreateComponents/ProductosSelec
 import Totales from '@/Components/CreateComponents/Totales.vue';
 import BotonesAccion from '@/Components/CreateComponents/BotonesAccion.vue';
 import VistaPreviaModal from '@/Components/Modals/VistaPreviaModal.vue';
-import CrearProveedorModal from '@/Components/Modals/CrearProveedorModal.vue';
 
 // Inicializar notificaciones
 const notyf = new Notyf({
@@ -207,8 +196,6 @@ const prices = ref({});
 const discounts = ref({});
 const mostrarVistaPrevia = ref(false);
 const mostrarAtajos = ref(true);
-const mostrarModalProveedor = ref(false);
-const nombreProveedorBuscado = ref('');
 
 // Guardar y cargar estado en localStorage
 const saveToLocalStorage = (key, data) => {
@@ -259,21 +246,6 @@ const onProveedorSeleccionado = (proveedor) => {
   form.proveedor_id = proveedor.id;
   saveState();
   showNotification(`Proveedor seleccionado: ${proveedor.nombre_razon_social}`);
-};
-
-const crearNuevoProveedor = (nombreBuscado) => {
-  nombreProveedorBuscado.value = nombreBuscado;
-  mostrarModalProveedor.value = true;
-};
-
-const onProveedorCreado = (nuevoProveedor) => {
-  // Agregar el nuevo proveedor a la lista
-  if (!proveedoresList.value.some(p => p.id === nuevoProveedor.id)) {
-    proveedoresList.value.push(nuevoProveedor);
-  }
-
-  // Seleccionar automáticamente el nuevo proveedor
-  onProveedorSeleccionado(nuevoProveedor);
 };
 
 const agregarProducto = (item) => {
@@ -383,7 +355,7 @@ const calcularTotal = () => {
 
 const validarDatos = () => {
   if (!form.proveedor_id) {
-    showNotification('Selecciona un proveedor1', 'error');
+    showNotification('Selecciona un proveedor', 'error');
     return false;
   }
 
