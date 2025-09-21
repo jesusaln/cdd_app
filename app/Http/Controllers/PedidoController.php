@@ -838,7 +838,7 @@ class PedidoController extends Controller
                 'pedido_id' => $pedido->id,
                 'numero_venta' => $numeroVenta,
                 'fecha' => now(),
-                'estado' => EstadoVenta::Borrador,
+                'estado' => EstadoVenta::Pendiente, // Cambiado a Pendiente (Por Pagar)
                 'subtotal' => $pedido->subtotal,
                 'descuento_general' => $pedido->descuento_general,
                 'iva' => $pedido->iva,

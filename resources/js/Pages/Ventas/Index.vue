@@ -53,6 +53,12 @@ const modalMode = ref('details')
 const selectedId = ref(null)
 const loading = ref(false)
 
+// Modal de pago
+const showPaymentModal = ref(false)
+const selectedVenta = ref(null)
+const metodoPago = ref('')
+const notasPago = ref('')
+
 const abrirDetalles = (row) => {
   fila.value = row || null
   modalMode.value = 'details'
@@ -346,6 +352,15 @@ const updateSort = (newSort) => {
 }
 
 /* =========================
+    Helpers
+========================= */
+const formatearMoneda = (num) => {
+  const value = parseFloat(num)
+  const safe = Number.isFinite(value) ? value : 0
+  return new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(safe)
+}
+
+/* =========================
    Validaciones y utilidades
 ========================= */
 function validarVenta(venta) {
@@ -515,6 +530,68 @@ const eliminarVenta = async () => {
 const crearNuevaVenta = () => {
   router.visit('/ventas/create')
 }
+
+const marcarComoPagado = (venta) => {
+  selectedVenta.value = venta
+  metodoPago.value = ''
+  notasPago.value = ''
+  showPaymentModal.value = true
+}
+
+const cerrarPaymentModal = () => {
+  showPaymentModal.value = false
+  selectedVenta.value = null
+  metodoPago.value = ''
+  notasPago.value = ''
+}
+
+const confirmarPago = async () => {
+  if (!metodoPago.value) {
+    notyf.error('Debe seleccionar un método de pago')
+    return
+  }
+
+  try {
+    loading.value = true
+    notyf.success('Procesando pago...')
+
+    const { data } = await axios.post(`/ventas/${selectedVenta.value.id}/marcar-pagado`, {
+      metodo_pago: metodoPago.value,
+      notas_pago: notasPago.value
+    })
+
+    if (data?.success) {
+      notyf.success(data.message || 'Venta marcada como pagada exitosamente')
+
+      // Actualizar datos locales
+      const index = ventasOriginales.value.findIndex(v => v.id === selectedVenta.value.id)
+      if (index !== -1) {
+        ventasOriginales.value[index] = {
+          ...ventasOriginales.value[index],
+          pagado: true,
+          metodo_pago: metodoPago.value,
+          fecha_pago: new Date().toISOString().split('T')[0],
+          notas_pago: notasPago.value
+        }
+      }
+
+      cerrarPaymentModal()
+    } else {
+      throw new Error(data?.error || 'Error al procesar el pago')
+    }
+
+  } catch (error) {
+    console.error('Error al marcar como pagado:', error)
+    let mensaje = 'Error al procesar el pago'
+    if (error.response?.data?.error) mensaje = error.response.data.error
+    else if (error.response?.data?.message) mensaje = error.response.data.message
+    else if (error.message) mensaje = error.message
+
+    notyf.error(mensaje)
+  } finally {
+    loading.value = false
+  }
+}
 </script>
 
 <template>
@@ -554,6 +631,7 @@ const crearNuevaVenta = () => {
           @duplicar="duplicarVenta"
           @imprimir="imprimirVenta"
           @eliminar="confirmarEliminacion"
+          @marcar-pagado="marcarComoPagado"
           @sort="updateSort"
         />
 
@@ -579,6 +657,85 @@ const crearNuevaVenta = () => {
       @imprimir="imprimirFila"
       @editar="editarFila"
     />
+
+    <!-- Modal de Pago -->
+    <div v-if="showPaymentModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="cerrarPaymentModal">
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <!-- Header del modal -->
+        <div class="flex items-center justify-between p-6 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">Marcar como Pagado</h3>
+          <button @click="cerrarPaymentModal" class="text-gray-400 hover:text-gray-600 transition-colors">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="p-6">
+          <div v-if="selectedVenta" class="space-y-4">
+            <!-- Información de la venta -->
+            <div class="bg-gray-50 p-4 rounded-lg">
+              <div class="flex justify-between items-center">
+                <span class="text-sm font-medium text-gray-700">Venta:</span>
+                <span class="text-sm font-mono text-gray-900">{{ selectedVenta.numero_venta }}</span>
+              </div>
+              <div class="flex justify-between items-center mt-2">
+                <span class="text-sm font-medium text-gray-700">Total:</span>
+                <span class="text-lg font-bold text-gray-900">${{ formatearMoneda(selectedVenta.total) }}</span>
+              </div>
+            </div>
+
+            <!-- Método de pago -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Método de Pago *</label>
+              <select
+                v-model="metodoPago"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Seleccionar método...</option>
+                <option value="efectivo">Efectivo</option>
+                <option value="transferencia">Transferencia</option>
+                <option value="cheque">Cheque</option>
+                <option value="tarjeta">Tarjeta</option>
+                <option value="otros">Otros</option>
+              </select>
+            </div>
+
+            <!-- Notas del pago -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Notas (opcional)</label>
+              <textarea
+                v-model="notasPago"
+                rows="3"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Agregar notas sobre el pago..."
+              ></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer del modal -->
+        <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+          <button @click="cerrarPaymentModal" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+            Cancelar
+          </button>
+          <button
+            @click="confirmarPago"
+            :disabled="!metodoPago || loading"
+            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <span v-if="loading" class="flex items-center">
+              <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Procesando...
+            </span>
+            <span v-else>Confirmar Pago</span>
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- Loading overlay -->
     <div v-if="loading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

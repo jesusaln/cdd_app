@@ -217,6 +217,14 @@
               </div>
             </th>
 
+            <!-- Estado de Pago (solo ventas) -->
+            <th
+              v-if="config.mostrarEstadoPago"
+              class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider"
+            >
+              Pago
+            </th>
+
             <!-- Acciones -->
             <th class="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
               Acciones
@@ -438,6 +446,30 @@
                 </span>
               </td>
 
+              <!-- Estado de Pago (solo ventas) -->
+              <td v-if="config.mostrarEstadoPago" class="px-6 py-4">
+                <div class="flex items-center">
+                  <span
+                    :class="doc.pagado ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'"
+                    class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
+                  >
+                    <svg
+                      :class="doc.pagado ? 'text-green-500' : 'text-yellow-500'"
+                      class="w-3 h-3 mr-1"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path v-if="doc.pagado" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                      <path v-else fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+                    </svg>
+                    {{ doc.pagado ? 'Pagado' : 'Pendiente' }}
+                  </span>
+                  <span v-if="doc.pagado && doc.metodo_pago" class="ml-2 text-xs text-gray-500">
+                    ({{ obtenerLabelMetodoPago(doc.metodo_pago) }})
+                  </span>
+                </div>
+              </td>
+
               <!-- Acciones -->
               <td class="px-6 py-4">
                 <div class="flex items-center justify-end space-x-1">
@@ -512,6 +544,16 @@
                     title="Reactivar contrato"
                   >
                     <font-awesome-icon icon="play" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
+                  </button>
+
+                  <!-- Marcar como Pagado (solo ventas no pagadas) -->
+                  <button
+                    v-if="tipo === 'ventas' && config.acciones.marcar_pagado && !doc.pagado && doc.estado !== 'cancelado'"
+                    @click="onMarcarPagado(doc)"
+                    class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-1"
+                    title="Marcar como Pagado"
+                  >
+                    <font-awesome-icon icon="check-circle" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
                   </button>
 
                   <button
@@ -601,7 +643,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits([
-  'ver-detalles','editar','eliminar','duplicar','imprimir','sort','renovar','suspender','reactivar','enviar-venta','open-image-modal'
+  'ver-detalles','editar','eliminar','duplicar','imprimir','sort','renovar','suspender','reactivar','enviar-venta','marcar-pagado','open-image-modal'
 ]);
 
 // Flags
@@ -711,7 +753,8 @@ const config = computed(() => {
       titulo: 'Ventas',
       mostrarCampoExtra: true,
       campoExtra: { key: 'numero_venta', label: 'N° Venta' },
-      acciones: { editar: true, duplicar: true, imprimir: true, eliminar: true },
+      acciones: { editar: true, duplicar: true, imprimir: true, eliminar: true, marcar_pagado: true },
+      mostrarEstadoPago: true,
       estados: {
         'borrador': { label: 'Borrador', classes: 'bg-gray-100 text-gray-700', color: 'bg-gray-400' },
         'pendiente': { label: 'Pendiente', classes: 'bg-yellow-100 text-yellow-700', color: 'bg-yellow-400' },
@@ -902,6 +945,18 @@ const obtenerPrecio = (doc) => {
 const obtenerClasesEstado = (estado) => config.value.estados[estado]?.classes || 'bg-gray-100 text-gray-700';
 const obtenerColorPuntoEstado = (estado) => config.value.estados[estado]?.color || 'bg-gray-400';
 const obtenerLabelEstado = (estado) => config.value.estados[estado]?.label || 'Pendiente';
+
+// Métodos de pago
+const obtenerLabelMetodoPago = (metodo) => {
+  const labels = {
+    'efectivo': 'Efectivo',
+    'transferencia': 'Transferencia',
+    'cheque': 'Cheque',
+    'tarjeta': 'Tarjeta',
+    'otros': 'Otros'
+  };
+  return labels[metodo] || metodo;
+};
 
 // Items filtrados y ordenados
 const items = computed(() => {
@@ -1115,6 +1170,7 @@ const onRenovar = (doc) => emit('renovar', doc);
 const onSuspender = (doc) => emit('suspender', doc);
 const onReactivar = (doc) => emit('reactivar', doc);
 const onEnviarVenta = (doc) => emit('enviar-venta', doc);
+const onMarcarPagado = (doc) => emit('marcar-pagado', doc);
 
 const onSort = (field) => {
   const current = props.sortBy.startsWith(field) ? props.sortBy : `${field}-desc`;
@@ -1131,6 +1187,7 @@ const getColspan = () => {
   if (config.value.mostrarPrecio) count++;
   if (config.value.mostrarTotal !== false) count++;
   if (config.value.mostrarProductos !== false) count++;
+  if (config.value.mostrarEstadoPago) count++;
 
   return count;
 };

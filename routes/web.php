@@ -81,7 +81,6 @@ Route::get('/', function () {
 })->name('welcome');
 
 Route::get('/empresas', [EmpresasController::class, 'index'])->name('empresas.index');
-Route::get('/empresas', [EmpresasController::class, 'index'])->name('empresas.index');
 
 // =====================================================
 // RUTA PARA PLACEHOLDERS SVG
@@ -159,7 +158,14 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::resource('compras', CompraController::class)->names('compras');
     Route::post('/compras/{compra}/duplicate', [CompraController::class, 'duplicate'])->name('compras.duplicate');
     Route::post('/compras/{id}/cancel', [CompraController::class, 'cancel'])->name('compras.cancel');
-    Route::resource('reportes', ReporteController::class);
+// =====================================================
+// RUTAS ESPECÍFICAS DE REPORTES
+// =====================================================
+Route::get('/reportes', [ReporteController::class, 'index'])->name('reportes.index');
+Route::get('/reportes/corte-diario', [ReporteController::class, 'corteDiario'])->name('reportes.corte-diario');
+Route::get('/reportes/export', [ReporteController::class, 'exportarCorteDiario'])->name('reportes.export');
+
+    Route::resource('reportes', ReporteController::class)->except(['index', 'show']);
     Route::resource('herramientas', HerramientaController::class)->names('herramientas');
     Route::resource('tecnicos', TecnicoController::class)->names('tecnicos');
     Route::resource('citas', CitaController::class)->names('citas');
@@ -237,20 +243,16 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // =====================================================
     Route::post('/ventas/{venta}/duplicate', [VentaController::class, 'duplicate'])->name('ventas.duplicate');
     Route::post('/ventas/{id}/cancel', [VentaController::class, 'cancel'])->name('ventas.cancel');
+    Route::post('/ventas/{id}/marcar-pagado', [VentaController::class, 'marcarPagado'])->name('ventas.marcar-pagado');
     // =====================================================
     // RUTAS ESPECÍFICAS DE USUARIOS
     // =====================================================
     Route::get('/perfil', [UserController::class, 'profile'])->name('perfil');
     // ✅ CONFLICTO RESUELTO: Eliminada ruta duplicada - usa la del resource usuarios.show
 
-    // =====================================================
-    // RUTAS ESPECÍFICAS DE REPORTES
-    // =====================================================
-    Route::get('/reportes', [ReporteController::class, 'index'])->name('reportes.index'); // Nota: Esto podría conflictuar con el resource
-
-    // =====================================================
-    // RUTAS ESPECÍFICAS DE CITAS
-    // =====================================================
+        // =====================================================
+        // RUTAS ESPECÍFICAS DE CITAS
+        // =====================================================
     Route::put('/citas/{id}', [CitaController::class, 'update']); // Nota: Esto duplica el resource update
     Route::patch('/citas/{id}/update-index', [CitaController::class, 'updateIndex'])->name('citas.updateIndex');
 

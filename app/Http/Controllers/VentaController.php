@@ -76,6 +76,10 @@ class VentaController extends Controller
                     'estado' => $venta->estado->value,
                     'numero_venta' => $venta->numero_venta,
                     'pedido_id' => $venta->pedido_id ?? null,
+                    'pagado' => $venta->pagado,
+                    'metodo_pago' => $venta->metodo_pago,
+                    'fecha_pago' => $venta->fecha_pago ? $venta->fecha_pago->format('Y-m-d') : null,
+                    'notas_pago' => $venta->notas_pago,
                 ];
             });
 
@@ -682,6 +686,75 @@ class VentaController extends Controller
             return response()->json([
                 'success' => false,
                 'error' => 'Error al cancelar la venta',
+                'details' => app()->environment('local') ? $e->getMessage() : null
+            ], 500);
+        }
+    }
+
+    /**
+     * Mark a sale as paid.
+     */
+    public function marcarPagado(Request $request, $id)
+    {
+        $request->validate([
+            'metodo_pago' => 'required|in:efectivo,transferencia,cheque,tarjeta,otros',
+            'notas_pago' => 'nullable|string|max:500'
+        ]);
+
+        $venta = Venta::findOrFail($id);
+
+        // Verificar que la venta no esté ya pagada
+        if ($venta->pagado) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Esta venta ya está marcada como pagada'
+            ], 400);
+        }
+
+        // Verificar que la venta no esté cancelada
+        if ($venta->estado === EstadoVenta::Cancelada) {
+            return response()->json([
+                'success' => false,
+                'error' => 'No se puede marcar como pagada una venta cancelada'
+            ], 400);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Actualizar la venta con la información de pago
+            $venta->update([
+                'pagado' => true,
+                'metodo_pago' => $request->metodo_pago,
+                'fecha_pago' => now(),
+                'notas_pago' => $request->notas_pago,
+                'pagado_por' => $request->user()->id,
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Venta marcada como pagada exitosamente',
+                'venta' => [
+                    'id' => $venta->id,
+                    'pagado' => true,
+                    'metodo_pago' => $venta->metodo_pago,
+                    'fecha_pago' => $venta->fecha_pago->format('Y-m-d'),
+                    'notas_pago' => $venta->notas_pago,
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al marcar venta como pagada: ' . $e->getMessage(), [
+                'venta_id' => $id,
+                'user_id' => $request->user()->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error interno al procesar el pago',
                 'details' => app()->environment('local') ? $e->getMessage() : null
             ], 500);
         }

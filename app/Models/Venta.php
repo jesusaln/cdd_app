@@ -19,16 +19,28 @@ class Venta extends Model
         'iva',
         'total',
         'notas',
+        'pagado',
+        'metodo_pago',
+        'fecha_pago',
+        'notas_pago',
+        'pagado_por',
     ];
 
     protected $casts = [
         'estado' => EstadoVenta::class,
         'fecha' => 'date',
+        'fecha_pago' => 'date',
+        'pagado' => 'boolean',
     ];
 
     public function cliente()
     {
         return $this->belongsTo(Cliente::class);
+    }
+
+    public function pagadoPor()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'pagado_por');
     }
 
     // Relación polimórfica para productos
