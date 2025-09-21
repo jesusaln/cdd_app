@@ -29,10 +29,10 @@ onMounted(() => {
 // Props
 const props = defineProps({
   citas: { type: [Object, Array], required: true },
-  citasFinalizadas: { type: [Object, Array], default: () => ({ data: [] }) },
   stats: { type: Object, default: () => ({}) },
   filters: { type: Object, default: () => ({}) },
   sorting: { type: Object, default: () => ({ sort_by: 'created_at', sort_direction: 'desc' }) },
+  pagination: { type: Object, default: () => ({}) },
 })
 
 // Estado UI
@@ -60,46 +60,6 @@ const headerConfig = {
 const citasPaginator = computed(() => props.citas)
 const citasData = computed(() => citasPaginator.value?.data || [])
 
-// Datos para citas finalizadas
-const citasFinalizadasPaginator = computed(() => props.citasFinalizadas)
-const citasFinalizadasData = computed(() => citasFinalizadasPaginator.value?.data || [])
-
-// Computed para citas finalizadas ordenadas (completadas primero, luego canceladas)
-const citasFinalizadas = computed(() => {
-  let citas = [...citasFinalizadasData.value];
-
-  // Ordenar: Completadas primero, luego canceladas
-  const ordenEstados = {
-    'completado': 1,
-    'cancelado': 2
-  };
-
-  citas.sort((a, b) => {
-    const estadoA = ordenEstados[a.estado] || 999;
-    const estadoB = ordenEstados[b.estado] || 999;
-
-    if (estadoA !== estadoB) {
-      return estadoA - estadoB;
-    }
-
-    // Si tienen el mismo estado, ordenar por fecha_hora descendente (más recientes primero)
-    const fechaA = new Date(a.fecha_hora);
-    const fechaB = new Date(b.fecha_hora);
-    return fechaB - fechaA;
-  });
-
-  return citas.map(c => {
-    return {
-      id: c.id,
-      titulo: `Cita #${c.id}`,
-      subtitulo: c.cliente?.nombre_razon_social || 'Cliente no disponible',
-      estado: c.activo ? 'activo' : 'inactivo',
-      extra: `Técnico: ${c.tecnico?.nombre || 'N/A'} | Estado: ${c.estado}`,
-      fecha: c.created_at,
-      raw: c
-    }
-  })
-})
 
 // Estadísticas
 const estadisticas = computed(() => ({
@@ -229,64 +189,45 @@ const exportCitas = () => {
 }
 
 // Paginación
-const paginationData = computed(() => ({
-  current_page: citasPaginator.value?.current_page || 1,
-  last_page: citasPaginator.value?.last_page || 1,
-  per_page: citasPaginator.value?.per_page || 10,
-  from: citasPaginator.value?.from || 0,
-  to: citasPaginator.value?.to || 0,
-  total: citasPaginator.value?.total || 0,
-  prev_page_url: citasPaginator.value?.prev_page_url,
-  next_page_url: citasPaginator.value?.next_page_url,
-  links: citasPaginator.value?.links || []
-}))
+const paginationData = computed(() => {
+  const p = citasPaginator.value || {}
+  return {
+    currentPage: props.pagination?.current_page || p.current_page || 1,
+    lastPage:    props.pagination?.last_page || p.last_page || 1,
+    perPage:     props.pagination?.per_page || p.per_page || 10,
+    from:        props.pagination?.from || p.from || 0,
+    to:          props.pagination?.to || p.to || 0,
+    total:       props.pagination?.total || p.total || 0,
+    prevPageUrl: p.prev_page_url ?? null,
+    nextPageUrl: p.next_page_url ?? null,
+    links:       p.links ?? []
+  }
+})
 
-// Paginación para citas finalizadas
-const paginationDataFinalizadas = computed(() => ({
-  current_page: citasFinalizadasPaginator.value?.current_page || 1,
-  last_page: citasFinalizadasPaginator.value?.last_page || 1,
-  per_page: citasFinalizadasPaginator.value?.per_page || 10,
-  from: citasFinalizadasPaginator.value?.from || 0,
-  to: citasFinalizadasPaginator.value?.to || 0,
-  total: citasFinalizadasPaginator.value?.total || 0,
-  prev_page_url: citasFinalizadasPaginator.value?.prev_page_url,
-  next_page_url: citasFinalizadasPaginator.value?.next_page_url,
-  links: citasFinalizadasPaginator.value?.links || []
-}))
 
 const handlePerPageChange = (newPerPage) => {
+  perPage.value = newPerPage
   router.get(route('citas.index'), {
-    ...props.filters,
-    ...props.sorting,
-    per_page: newPerPage,
+    search: searchTerm.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc',
+    estado: filtroEstadoCita.value,
+    per_page: perPage.value,
     page: 1
   }, { preserveState: true, preserveScroll: true })
 }
 
 const handlePageChange = (newPage) => {
   router.get(route('citas.index'), {
-    ...props.filters,
-    ...props.sorting,
+    search: searchTerm.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc',
+    estado: filtroEstadoCita.value,
+    per_page: perPage.value,
     page: newPage
   }, { preserveState: true, preserveScroll: true })
 }
 
-const handlePerPageChangeFinalizadas = (newPerPage) => {
-  router.get(route('citas.index'), {
-    ...props.filters,
-    ...props.sorting,
-    per_page_finalizadas: newPerPage,
-    page_finalizadas: 1
-  }, { preserveState: true, preserveScroll: true })
-}
-
-const handlePageChangeFinalizadas = (newPage) => {
-  router.get(route('citas.index'), {
-    ...props.filters,
-    ...props.sorting,
-    page_finalizadas: newPage
-  }, { preserveState: true, preserveScroll: true })
-}
 
 // Helpers
 const formatNumber = (num) => new Intl.NumberFormat('es-ES').format(num)
@@ -597,145 +538,6 @@ const obtenerEstadoCitaLabel = (estado) => {
         </div>
       </div>
 
-      <!-- Tabla de Citas Finalizadas -->
-      <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mt-8">
-        <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
-          <h3 class="text-lg font-semibold text-gray-900">Citas Finalizadas</h3>
-          <p class="text-sm text-gray-600">Historial de citas completadas y canceladas</p>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Fecha</th>
-                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Cita</th>
-                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Cliente</th>
-                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Técnico</th>
-                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Estado</th>
-                <th class="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Acciones</th>
-              </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <tr v-for="cita in citasFinalizadas" :key="cita.id" class="hover:bg-gray-50 transition-colors duration-150">
-                <td class="px-6 py-4">
-                  <div class="text-sm text-gray-900">{{ formatearFecha(cita.raw.fecha_hora) }}</div>
-                  <div class="text-xs text-gray-500">{{ formatearHora(cita.raw.fecha_hora) }}</div>
-                </td>
-                <td class="px-6 py-4">
-                  <div class="text-sm font-medium text-gray-900">{{ cita.titulo }}</div>
-                  <div class="text-xs text-gray-500">{{ formatearFecha(cita.raw.fecha_hora) }}</div>
-                </td>
-                <td class="px-6 py-4">
-                  <div class="text-sm text-gray-700">{{ cita.subtitulo }}</div>
-                </td>
-                <td class="px-6 py-4">
-                  <div class="text-sm text-gray-700">{{ cita.raw.tecnico?.nombre || 'N/A' }}</div>
-                </td>
-                <td class="px-6 py-4">
-                  <span :class="obtenerEstadoCitaClase(cita.raw.estado)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
-                    {{ obtenerEstadoCitaLabel(cita.raw.estado) }}
-                  </span>
-                </td>
-                <td class="px-6 py-4 text-right">
-                  <div class="flex items-center justify-end space-x-1">
-                    <button @click="verDetalles(cita)" class="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors duration-150" title="Ver detalles">
-                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                    </button>
-                    <button @click="editarCita(cita.id)" class="w-8 h-8 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-colors duration-150" title="Editar">
-                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-              <tr v-if="citasFinalizadas.length === 0">
-                <td colspan="6" class="px-6 py-16 text-center">
-                  <div class="flex flex-col items-center space-y-4">
-                    <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                      <svg class="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                    </div>
-                    <div class="space-y-1">
-                      <p class="text-gray-700 font-medium">No hay citas finalizadas</p>
-                      <p class="text-sm text-gray-500">Las citas completadas y canceladas aparecerán aquí</p>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Paginación para citas finalizadas -->
-        <div v-if="paginationDataFinalizadas.lastPage > 1" class="bg-white border-t border-gray-200 px-4 py-3 sm:px-6">
-          <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div class="flex items-center gap-4">
-              <p class="text-sm text-gray-700">
-                Mostrando {{ paginationDataFinalizadas.from }} - {{ paginationDataFinalizadas.to }} de {{ paginationDataFinalizadas.total }} resultados
-              </p>
-              <select
-                :value="paginationDataFinalizadas.perPage"
-                @change="handlePerPageChangeFinalizadas(parseInt($event.target.value))"
-                class="border border-gray-300 rounded-md text-sm py-1 px-2 bg-white"
-              >
-                <option value="10">10</option>
-                <option value="15">15</option>
-                <option value="25">25</option>
-                <option value="50">50</option>
-              </select>
-            </div>
-
-            <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-              <button
-                v-if="paginationDataFinalizadas.prevPageUrl"
-                @click="handlePageChangeFinalizadas(paginationDataFinalizadas.currentPage - 1)"
-                class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
-              >
-                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
-                </svg>
-              </button>
-
-              <span v-else class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-gray-100 text-sm font-medium text-gray-400">
-                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
-                </svg>
-              </span>
-
-              <button
-                v-for="page in [paginationDataFinalizadas.currentPage - 1, paginationDataFinalizadas.currentPage, paginationDataFinalizadas.currentPage + 1].filter(p => p > 0 && p <= paginationDataFinalizadas.lastPage)"
-                :key="page"
-                @click="handlePageChangeFinalizadas(page)"
-                :class="page === paginationDataFinalizadas.currentPage ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'"
-                class="relative inline-flex items-center px-4 py-2 border text-sm font-medium"
-              >
-                {{ page }}
-              </button>
-
-              <button
-                v-if="paginationDataFinalizadas.nextPageUrl"
-                @click="handlePageChangeFinalizadas(paginationDataFinalizadas.currentPage + 1)"
-                class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
-              >
-                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                </svg>
-              </button>
-
-              <span v-else class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-gray-100 text-sm font-medium text-gray-400">
-                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                </svg>
-              </span>
-            </nav>
-          </div>
-        </div>
-      </div>
 
       <!-- Modal mejorado -->
       <div v-if="showModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="showModal = false">

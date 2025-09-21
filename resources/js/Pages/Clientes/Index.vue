@@ -198,17 +198,21 @@ const exportClientes = () => {
 }
 
 // Paginación
-const paginationData = computed(() => ({
-  current_page: clientesPaginator.value?.current_page || 1,
-  last_page: clientesPaginator.value?.last_page || 1,
-  per_page: clientesPaginator.value?.per_page || 10,
-  from: clientesPaginator.value?.from || 0,
-  to: clientesPaginator.value?.to || 0,
-  total: clientesPaginator.value?.total || 0,
-  prev_page_url: clientesPaginator.value?.prev_page_url,
-  next_page_url: clientesPaginator.value?.next_page_url,
-  links: clientesPaginator.value?.links || []
-}))
+const paginationData = computed(() => {
+  const p = clientesPaginator.value || {}
+  return {
+    currentPage: p.current_page ?? 1,
+    lastPage:    p.last_page ?? 1,
+    perPage:     p.per_page ?? 10,
+    from:        p.from ?? 0,
+    to:          p.to ?? 0,
+    total:       p.total ?? 0,
+    prevPageUrl: p.prev_page_url ?? null,
+    nextPageUrl: p.next_page_url ?? null,
+    links:       p.links ?? []
+  }
+})
+
 
 const handlePerPageChange = (newPerPage) => {
   router.get(route('clientes.index'), {

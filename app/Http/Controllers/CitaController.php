@@ -61,19 +61,34 @@ class CitaController extends Controller
             }
 
 
-            // Ordenamiento por estado primero, luego por fecha
-            $query->orderByRaw("
-                CASE
-                    WHEN estado = 'en_proceso' THEN 1
-                    WHEN estado = 'pendiente' THEN 2
-                    WHEN estado = 'completado' THEN 3
-                    WHEN estado = 'cancelado' THEN 4
-                    ELSE 999
-                END ASC
-            ")->orderBy('fecha_hora', 'asc');
+            // Ordenamiento dinámico
+            $sortBy = $request->get('sort_by', 'created_at');
+            $sortDirection = $request->get('sort_direction', 'desc');
 
-            // Paginación
-            $citas = $query->paginate(10)->appends($request->query());
+            // Si no hay sort_by específico, mantener el orden por estado
+            if ($sortBy === 'created_at') {
+                $query->orderByRaw("
+                    CASE
+                        WHEN estado = 'en_proceso' THEN 1
+                        WHEN estado = 'pendiente' THEN 2
+                        WHEN estado = 'completado' THEN 3
+                        WHEN estado = 'cancelado' THEN 4
+                        ELSE 999
+                    END ASC
+                ")->orderBy('fecha_hora', 'asc');
+            } else {
+                $query->orderBy($sortBy, $sortDirection);
+            }
+
+            // Paginación - obtener per_page del request o usar default
+            $perPage = $request->get('per_page', 10);
+            $validPerPage = [10, 15, 25, 50]; // Solo estas opciones válidas
+            if (!in_array((int)$perPage, $validPerPage)) {
+                $perPage = 50;
+            }
+
+            // Paginar con el per_page dinámico
+            $citas = $query->paginate((int)$perPage);
 
             // Estadísticas por estado de cita
             $citasCount = Cita::count();
@@ -92,28 +107,8 @@ class CitaController extends Controller
                 Cita::ESTADO_CANCELADO => 'Cancelado',
             ];
 
-            // Citas finalizadas (completadas y canceladas) para la segunda tabla
-            $queryFinalizadas = Cita::with('tecnico', 'cliente')
-                ->whereIn('estado', ['completado', 'cancelado'])
-                ->orderByRaw("
-                    CASE
-                        WHEN estado = 'completado' THEN 1
-                        WHEN estado = 'cancelado' THEN 2
-                        ELSE 999
-                    END ASC
-                ")
-                ->orderBy('fecha_hora', 'desc');
-
-            $citasFinalizadas = $queryFinalizadas->paginate(
-                $request->get('per_page_finalizadas', 10),
-                ['*'],
-                'page_finalizadas',
-                $request->get('page_finalizadas', 1)
-            )->appends($request->query());
-
             return Inertia::render('Citas/Index', [
                 'citas' => $citas,
-                'citasFinalizadas' => $citasFinalizadas,
                 'stats' => [
                     'total' => $citasCount,
                     'pendientes' => $citasPendientes,
@@ -125,7 +120,18 @@ class CitaController extends Controller
                 'clientes' => $clientes,
                 'estados' => $estados,
                 'filters' => $request->only(['search', 'estado', 'tecnico_id', 'cliente_id', 'fecha_desde', 'fecha_hasta']),
-                'sorting' => ['sort_by' => 'estado', 'sort_direction' => 'asc'],
+                'sorting' => [
+                    'sort_by' => $sortBy,
+                    'sort_direction' => $sortDirection
+                ],
+                'pagination' => [
+                    'per_page' => (int)$perPage,
+                    'current_page' => $citas->currentPage(),
+                    'last_page' => $citas->lastPage(),
+                    'total' => $citas->total(),
+                    'from' => $citas->firstItem(),
+                    'to' => $citas->lastItem(),
+                ]
             ]);
         } catch (Exception $e) {
             Log::error('Error en CitaController@index: ' . $e->getMessage());
