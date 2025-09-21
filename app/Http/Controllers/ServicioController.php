@@ -92,6 +92,8 @@ class ServicioController extends Controller
             'precio' => 'required|numeric|min:0',
             'duracion' => 'required|integer|min:0',
             'estado' => 'required|in:activo,inactivo',
+            'es_instalacion' => 'nullable|boolean',
+            'comision_vendedor' => 'nullable|numeric|min:0',
         ]);
 
         Servicio::create($validated);
@@ -123,6 +125,8 @@ class ServicioController extends Controller
             'precio' => 'required|numeric|min:0',
             'duracion' => 'required|integer|min:0',
             'estado' => 'required|in:activo,inactivo',
+            'es_instalacion' => 'nullable|boolean',
+            'comision_vendedor' => 'nullable|numeric|min:0',
         ]);
 
         $servicio->update($validated);

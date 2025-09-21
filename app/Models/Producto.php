@@ -13,6 +13,11 @@ class Producto extends Model
 {
     use HasFactory;
 
+    protected $casts = [
+        'margen_ganancia' => 'decimal:2',
+        'comision_vendedor' => 'decimal:2',
+    ];
+
     protected $fillable = [
         'nombre',
         'descripcion',
@@ -28,6 +33,8 @@ class Producto extends Model
         'stock_minimo',
         'precio_compra',
         'precio_venta',
+        'margen_ganancia',
+        'comision_vendedor',
         'impuesto',
         'unidad_medida',
         'fecha_vencimiento',
@@ -105,6 +112,16 @@ class Producto extends Model
     public function getStockDisponibleAttribute()
     {
         return $this->stock - $this->reservado;
+    }
+
+    public function getGananciaAttribute()
+    {
+        return $this->precio_venta - $this->precio_compra;
+    }
+
+    public function getGananciaMargenAttribute()
+    {
+        return $this->ganancia * ($this->margen_ganancia / 100);
     }
 
     /* =========================

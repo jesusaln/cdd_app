@@ -302,6 +302,30 @@
                             </select>
                             <div v-if="form.errors.unidad_medida" class="error-message">{{ form.errors.unidad_medida }}</div>
                         </div>
+
+                        <!-- Comisión Vendedor -->
+                        <div>
+                            <label for="comision_vendedor" class="block text-sm font-medium text-gray-700 mb-2">
+                                Comisión Vendedor (%)
+                            </label>
+                            <div class="relative">
+                                <input
+                                    v-model="form.comision_vendedor"
+                                    type="number"
+                                    step="0.01"
+                                    id="comision_vendedor"
+                                    placeholder="0.00"
+                                    class="input-field pr-8"
+                                    min="0"
+                                    max="100"
+                                />
+                                <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">%</span>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">
+                                Porcentaje adicional que recibe el vendedor por cada venta de este producto
+                            </p>
+                            <div v-if="form.errors.comision_vendedor" class="error-message">{{ form.errors.comision_vendedor }}</div>
+                        </div>
                     </div>
 
                     <!-- Margen de Ganancia (calculado automáticamente) -->
@@ -464,6 +488,7 @@ const form = useForm({
     tipo_producto: 'fisico',
     imagen: null,
     estado: 'activo',
+    comision_vendedor: '',
 });
 
 // Enviar formulario

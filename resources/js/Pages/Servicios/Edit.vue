@@ -192,6 +192,39 @@
                             </select>
                             <div v-if="form.errors.estado" class="error-message">{{ form.errors.estado }}</div>
                         </div>
+
+                        <!-- Es Instalación -->
+                        <div>
+                            <label for="es_instalacion" class="block text-sm font-medium text-gray-700 mb-2">
+                                ¿Es servicio de instalación?
+                            </label>
+                            <div class="flex items-center space-x-4">
+                                <label class="flex items-center">
+                                    <input
+                                        v-model="form.es_instalacion"
+                                        type="radio"
+                                        name="es_instalacion"
+                                        :value="true"
+                                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                    />
+                                    <span class="ml-2 text-sm text-gray-700">Sí</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input
+                                        v-model="form.es_instalacion"
+                                        type="radio"
+                                        name="es_instalacion"
+                                        :value="false"
+                                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                    />
+                                    <span class="ml-2 text-sm text-gray-700">No</span>
+                                </label>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">
+                                Si es instalación, se aplicará comisión adicional al técnico
+                            </p>
+                            <div v-if="form.errors.es_instalacion" class="error-message">{{ form.errors.es_instalacion }}</div>
+                        </div>
                     </div>
                 </div>
 
@@ -250,6 +283,7 @@ const form = useForm({
     precio: props.servicio.precio || '',
     duracion: props.servicio.duracion || '',
     estado: props.servicio.estado || 'activo',
+    es_instalacion: props.servicio.es_instalacion || false,
 });
 
 // Enviar formulario

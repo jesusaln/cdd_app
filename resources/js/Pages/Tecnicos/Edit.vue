@@ -139,7 +139,7 @@
           </div>
 
           <!-- Dirección -->
-          <div class="pb-6">
+          <div class="border-b border-gray-200 pb-6">
             <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
               <font-awesome-icon :icon="['fas', 'map-marker-alt']" class="w-5 h-5 mr-2 text-purple-600" />
               Dirección
@@ -167,6 +167,133 @@
                   <font-awesome-icon :icon="['fas', 'circle-exclamation']" class="w-4 h-4 mr-1" />
                   {{ form.errors.direccion }}
               </p>
+            </div>
+          </div>
+
+          <!-- Usuario Asignado -->
+          <div class="border-b border-gray-200 pb-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+              <font-awesome-icon :icon="['fas', 'user']" class="w-5 h-5 mr-2 text-orange-600" />
+              Usuario Asignado
+            </h2>
+
+            <div>
+              <label for="user_id" class="block text-sm font-medium text-gray-700 mb-2">
+                Usuario del Sistema
+              </label>
+              <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <font-awesome-icon :icon="['fas', 'user']" class="h-5 w-5 text-gray-400" />
+                </div>
+                <select
+                  v-model="form.user_id"
+                  id="user_id"
+                  class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  :class="{ 'border-red-500 focus:ring-red-500 focus:border-red-500': form.errors.user_id }"
+                >
+                  <option value="">Sin usuario asignado</option>
+                  <option v-for="usuario in $page.props.usuarios" :key="usuario.id" :value="usuario.id">
+                    {{ usuario.name }} ({{ usuario.email }})
+                  </option>
+                </select>
+              </div>
+              <p v-if="form.errors.user_id" class="text-red-500 text-sm mt-2 flex items-center">
+                  <font-awesome-icon :icon="['fas', 'circle-exclamation']" class="w-4 h-4 mr-1" />
+                  {{ form.errors.user_id }}
+              </p>
+              <p class="text-gray-500 text-sm mt-2">
+                Opcional: Asigna un usuario del sistema a este técnico para permitir ventas
+              </p>
+            </div>
+          </div>
+
+          <!-- Márgenes y Comisiones -->
+          <div class="pb-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+              <font-awesome-icon :icon="['fas', 'dollar-sign']" class="w-5 h-5 mr-2 text-green-600" />
+              Márgenes y Comisiones
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <!-- Margen Venta Productos -->
+              <div>
+                <label for="margen_venta_productos" class="block text-sm font-medium text-gray-700 mb-2">
+                  Margen Productos (%)
+                </label>
+                <div class="relative">
+                  <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <font-awesome-icon :icon="['fas', 'calculator']" class="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    v-model="form.margen_venta_productos"
+                    type="number"
+                    id="margen_venta_productos"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    :class="{ 'border-red-500 focus:ring-red-500 focus:border-red-500': form.errors.margen_venta_productos }"
+                    placeholder="0.00"
+                  />
+                </div>
+                <p v-if="form.errors.margen_venta_productos" class="text-red-500 text-sm mt-2 flex items-center">
+                    <font-awesome-icon :icon="['fas', 'circle-exclamation']" class="w-4 h-4 mr-1" />
+                    {{ form.errors.margen_venta_productos }}
+                </p>
+              </div>
+
+              <!-- Margen Venta Servicios -->
+              <div>
+                <label for="margen_venta_servicios" class="block text-sm font-medium text-gray-700 mb-2">
+                  Margen Servicios (%)
+                </label>
+                <div class="relative">
+                  <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <font-awesome-icon :icon="['fas', 'calculator']" class="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    v-model="form.margen_venta_servicios"
+                    type="number"
+                    id="margen_venta_servicios"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    :class="{ 'border-red-500 focus:ring-red-500 focus:border-red-500': form.errors.margen_venta_servicios }"
+                    placeholder="0.00"
+                  />
+                </div>
+                <p v-if="form.errors.margen_venta_servicios" class="text-red-500 text-sm mt-2 flex items-center">
+                    <font-awesome-icon :icon="['fas', 'circle-exclamation']" class="w-4 h-4 mr-1" />
+                    {{ form.errors.margen_venta_servicios }}
+                </p>
+              </div>
+
+              <!-- Comisión Instalación -->
+              <div>
+                <label for="comision_instalacion" class="block text-sm font-medium text-gray-700 mb-2">
+                  Comisión Instalación ($)
+                </label>
+                <div class="relative">
+                  <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <font-awesome-icon :icon="['fas', 'dollar-sign']" class="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    v-model="form.comision_instalacion"
+                    type="number"
+                    id="comision_instalacion"
+                    step="0.01"
+                    min="0"
+                    class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    :class="{ 'border-red-500 focus:ring-red-500 focus:border-red-500': form.errors.comision_instalacion }"
+                    placeholder="0.00"
+                  />
+                </div>
+                <p v-if="form.errors.comision_instalacion" class="text-red-500 text-sm mt-2 flex items-center">
+                    <font-awesome-icon :icon="['fas', 'circle-exclamation']" class="w-4 h-4 mr-1" />
+                    {{ form.errors.comision_instalacion }}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -221,7 +348,11 @@ const form = useForm({
   apellido: props.tecnico.apellido,
   email: props.tecnico.email,
   telefono: props.tecnico.telefono,
-  direccion: props.tecnico.direccion
+  direccion: props.tecnico.direccion,
+  user_id: props.tecnico.user?.id || '',
+  margen_venta_productos: props.tecnico.margen_venta_productos || '',
+  margen_venta_servicios: props.tecnico.margen_venta_servicios || '',
+  comision_instalacion: props.tecnico.comision_instalacion || ''
 });
 
 // Función para enviar el formulario

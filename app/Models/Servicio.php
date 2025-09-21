@@ -9,14 +9,23 @@ class Servicio extends Model
 {
     use HasFactory;
 
+    protected $casts = [
+        'margen_ganancia' => 'decimal:2',
+        'es_instalacion' => 'boolean',
+        'comision_vendedor' => 'decimal:2',
+    ];
+
     protected $fillable = [
         'nombre',
         'descripcion',
         'codigo',
         'categoria_id',
         'precio',
+        'margen_ganancia',
         'duracion',
         'estado',
+        'es_instalacion',
+        'comision_vendedor',
     ];
 
     public function scopeActive($query)
@@ -49,5 +58,10 @@ class Servicio extends Model
     {
         return $this->morphToMany(Venta::class, 'vendible', 'venta_producto')
             ->withPivot('precio', 'cantidad');
+    }
+
+    public function getGananciaAttribute()
+    {
+        return $this->precio * ($this->margen_ganancia / 100);
     }
 }

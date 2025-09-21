@@ -35,6 +35,8 @@ use App\Http\Controllers\EntregaDineroController;
 use App\Http\Controllers\BitacoraActividadController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\CfdiController;
+use App\Http\Controllers\ReporteTecnicoController;
+use App\Http\Controllers\ReportesDashboardController;
 
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -161,13 +163,19 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::post('/compras/{compra}/duplicate', [CompraController::class, 'duplicate'])->name('compras.duplicate');
     Route::post('/compras/{id}/cancel', [CompraController::class, 'cancel'])->name('compras.cancel');
 // =====================================================
-// RUTAS ESPECÍFICAS DE REPORTES
+// RUTAS DE REPORTES ORGANIZADAS
 // =====================================================
-Route::get('/reportes', [ReporteController::class, 'index'])->name('reportes.index');
+Route::get('/reportes', [ReportesDashboardController::class, 'index'])->name('reportes.index');
+
+// Reportes específicos
+Route::get('/reportes/ventas', [ReporteController::class, 'index'])->name('reportes.ventas');
 Route::get('/reportes/corte-diario', [ReporteController::class, 'corteDiario'])->name('reportes.corte-diario');
 Route::get('/reportes/export', [ReporteController::class, 'exportarCorteDiario'])->name('reportes.export');
+Route::get('/reportes/tecnicos', [ReporteTecnicoController::class, 'index'])->name('reportes.tecnicos');
+Route::get('/reportes/tecnicos/datos', [ReporteTecnicoController::class, 'datos'])->name('reportes.tecnicos.datos');
 
-    Route::resource('reportes', ReporteController::class)->except(['index', 'show']);
+// CRUD de reportes personalizados
+Route::resource('reportes', ReporteController::class)->except(['index', 'show']);
     Route::resource('herramientas', HerramientaController::class)->names('herramientas');
     Route::resource('tecnicos', TecnicoController::class)->names('tecnicos');
     Route::resource('citas', CitaController::class)->names('citas');

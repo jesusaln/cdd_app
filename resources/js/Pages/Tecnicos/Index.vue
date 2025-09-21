@@ -370,6 +370,7 @@ const obtenerLabelEstado = (estado) => {
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Técnico</th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Email</th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Teléfono</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Usuario</th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Estado</th>
                 <th class="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Acciones</th>
               </tr>
@@ -387,6 +388,9 @@ const obtenerLabelEstado = (estado) => {
                 </td>
                 <td class="px-6 py-4">
                   <div class="text-sm text-gray-700">{{ tecnico.raw.telefono || 'N/A' }}</div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="text-sm text-gray-700">{{ tecnico.raw.user ? tecnico.raw.user.name : 'Sin asignar' }}</div>
                 </td>
                 <td class="px-6 py-4">
                   <span :class="obtenerClasesEstado(tecnico.estado)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
@@ -420,7 +424,7 @@ const obtenerLabelEstado = (estado) => {
                 </td>
               </tr>
               <tr v-if="tecnicosDocumentos.length === 0">
-                <td colspan="6" class="px-6 py-16 text-center">
+                <td colspan="7" class="px-6 py-16 text-center">
                   <div class="flex flex-col items-center space-y-4">
                     <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                       <svg class="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -537,6 +541,10 @@ const obtenerLabelEstado = (estado) => {
                       <span :class="obtenerClasesEstado(selectedTecnico.activo ? 'activo' : 'inactivo')" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium mt-1">
                         {{ selectedTecnico.activo ? 'Activo' : 'Inactivo' }}
                       </span>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700">Usuario Asignado</label>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedTecnico.user ? selectedTecnico.user.name : 'Sin asignar' }}</p>
                     </div>
                   </div>
                   <div class="space-y-3">

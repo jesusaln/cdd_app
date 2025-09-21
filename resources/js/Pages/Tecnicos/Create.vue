@@ -197,6 +197,133 @@
                 </div>
               </div>
             </div>
+
+            <!-- Usuario Asignado -->
+            <div class="md:col-span-2 space-y-2">
+              <label for="user_id" class="block text-sm font-semibold text-gray-700 flex items-center space-x-2">
+                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span>Usuario Asignado</span>
+              </label>
+              <div class="relative">
+                <select
+                  v-model="form.user_id"
+                  id="user_id"
+                  class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80 backdrop-blur-sm shadow-sm transition-all duration-200 hover:shadow-md"
+                  :class="{ 'border-red-300 focus:ring-red-500': form.errors.user_id }"
+                >
+                  <option value="">Sin usuario asignado</option>
+                  <option v-for="usuario in $page.props.usuarios" :key="usuario.id" :value="usuario.id">
+                    {{ usuario.name }} ({{ usuario.email }})
+                  </option>
+                </select>
+                <div v-if="form.errors.user_id" class="absolute -bottom-6 left-0 flex items-center space-x-1 text-red-500 text-sm">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>{{ form.errors.user_id }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Configuración de Márgenes y Comisiones -->
+          <div class="border-b border-gray-200 pb-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+              <svg class="w-6 h-6 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+              </svg>
+              <span>Márgenes y Comisiones de Venta</span>
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <!-- Margen Venta Productos -->
+              <div class="space-y-2">
+                <label for="margen_venta_productos" class="block text-sm font-semibold text-gray-700 flex items-center space-x-2">
+                  <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                  </svg>
+                  <span>Margen Productos (%)</span>
+                </label>
+                <div class="relative">
+                  <input
+                    v-model="form.margen_venta_productos"
+                    type="number"
+                    id="margen_venta_productos"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80 backdrop-blur-sm shadow-sm transition-all duration-200 hover:shadow-md"
+                    :class="{ 'border-red-300 focus:ring-red-500': form.errors.margen_venta_productos }"
+                    placeholder="0.00"
+                  />
+                  <div v-if="form.errors.margen_venta_productos" class="absolute -bottom-6 left-0 flex items-center space-x-1 text-red-500 text-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>{{ form.errors.margen_venta_productos }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Margen Venta Servicios -->
+              <div class="space-y-2">
+                <label for="margen_venta_servicios" class="block text-sm font-semibold text-gray-700 flex items-center space-x-2">
+                  <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>Margen Servicios (%)</span>
+                </label>
+                <div class="relative">
+                  <input
+                    v-model="form.margen_venta_servicios"
+                    type="number"
+                    id="margen_venta_servicios"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80 backdrop-blur-sm shadow-sm transition-all duration-200 hover:shadow-md"
+                    :class="{ 'border-red-300 focus:ring-red-500': form.errors.margen_venta_servicios }"
+                    placeholder="0.00"
+                  />
+                  <div v-if="form.errors.margen_venta_servicios" class="absolute -bottom-6 left-0 flex items-center space-x-1 text-red-500 text-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>{{ form.errors.margen_venta_servicios }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Comisión Instalación -->
+              <div class="space-y-2">
+                <label for="comision_instalacion" class="block text-sm font-semibold text-gray-700 flex items-center space-x-2">
+                  <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                  </svg>
+                  <span>Comisión Instalación ($)</span>
+                </label>
+                <div class="relative">
+                  <input
+                    v-model="form.comision_instalacion"
+                    type="number"
+                    id="comision_instalacion"
+                    step="0.01"
+                    min="0"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80 backdrop-blur-sm shadow-sm transition-all duration-200 hover:shadow-md"
+                    :class="{ 'border-red-300 focus:ring-red-500': form.errors.comision_instalacion }"
+                    placeholder="0.00"
+                  />
+                  <div v-if="form.errors.comision_instalacion" class="absolute -bottom-6 left-0 flex items-center space-x-1 text-red-500 text-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>{{ form.errors.comision_instalacion }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Action Buttons -->
@@ -287,7 +414,11 @@ const form = useForm({
   apellido: '',
   email: '',
   telefono: '',
-  direccion: ''
+  direccion: '',
+  user_id: '',
+  margen_venta_productos: '',
+  margen_venta_servicios: '',
+  comision_instalacion: ''
 });
 
 // Computed properties

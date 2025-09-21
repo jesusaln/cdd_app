@@ -69,7 +69,8 @@ import {
   faPause,             // 👈 NUEVO (Suspender)
   faPlay,              // 👈 NUEVO (Reactivar)
   faClipboardList,     // Añadir clipboard-list
-  faArrowRight         // Añadir arrow-right
+  faArrowRight,        // Añadir arrow-right
+  faArrowLeft          // Añadir arrow-left
 } from '@fortawesome/free-solid-svg-icons'
 // Agrega todos los íconos necesarios a la librería
 library.add(
@@ -85,7 +86,8 @@ library.add(
   faEnvelope, faPhone, faHome, faEdit, faPlus, faTimes, faEye, faEyeSlash, faCopy, faPrint, faTrash,
   faSyncAlt, faPause, faPlay,
   faClipboardList,     // Asegúrate de agregar los nuevos íconos aquí
-  faArrowRight         // Asegúrate de agregar los nuevos íconos aquí
+  faArrowRight,        // Asegúrate de agregar los nuevos íconos aquí
+  faArrowLeft          // Asegúrate de agregar los nuevos íconos aquí
 )
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel'
 // Mejor práctica: desactivar devtools en producción

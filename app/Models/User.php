@@ -83,4 +83,22 @@ class User extends Authenticatable
             : asset('images/default-profile.png'); // Foto por defecto si no tiene una foto
     }
 
+    // Relación con técnico
+    public function tecnico()
+    {
+        return $this->hasOne(Tecnico::class);
+    }
+
+    // Ventas realizadas por este usuario
+    public function ventas()
+    {
+        return $this->morphMany(Venta::class, 'vendedor');
+    }
+
+    // Ganancia total de todas las ventas realizadas por este usuario
+    public function getGananciaTotalAttribute()
+    {
+        return $this->ventas->sum('ganancia_total');
+    }
+
 }

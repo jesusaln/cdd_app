@@ -7,6 +7,8 @@ use App\Models\VentaItem;
 use App\Models\Cliente;
 use App\Models\Producto;
 use App\Models\Servicio;
+use App\Models\User;
+use App\Models\Tecnico;
 use App\Enums\EstadoVenta;
 use App\Services\MarginService;
 use Illuminate\Http\Request;
@@ -114,6 +116,8 @@ class VentaController extends Controller
             'clientes' => Cliente::select('id', 'nombre_razon_social', 'email', 'telefono')->get(),
             'productos' => Producto::select('id', 'nombre', 'precio_venta', 'descripcion')->get(),
             'servicios' => Servicio::select('id', 'nombre', 'precio', 'descripcion')->get(),
+            'usuarios' => User::select('id', 'name', 'email')->get(),
+            'tecnicos' => Tecnico::select('id', 'nombre', 'apellido', 'email')->get(),
             'defaults' => [
                 'fecha' => now()->format('Y-m-d'),
                 'moneda' => 'MXN'
@@ -128,6 +132,8 @@ class VentaController extends Controller
     {
         $validated = $request->validate([
             'cliente_id' => 'required|exists:clientes,id',
+            'vendedor_type' => 'nullable|in:App\\Models\\User,App\\Models\\Tecnico',
+            'vendedor_id' => 'nullable|integer',
             'productos' => 'required|array',
             'productos.*.id' => 'required|integer',
             'productos.*.tipo' => 'required|in:producto,servicio',
@@ -200,6 +206,8 @@ class VentaController extends Controller
 
             $venta = Venta::create([
                 'cliente_id' => $validated['cliente_id'],
+                'vendedor_type' => $validated['vendedor_type'] ?? null,
+                'vendedor_id' => $validated['vendedor_id'] ?? null,
                 'factura_id' => null, // Puede llenarse si se asocia con una factura
                 'numero_venta' => $numero_venta,
                 'subtotal' => $subtotal,

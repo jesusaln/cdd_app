@@ -117,6 +117,7 @@ class ProductoController extends Controller
             'tipo_producto'     => 'required|in:fisico,digital',
             'imagen'            => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
             'estado'            => 'required|in:activo,inactivo',
+            'comision_vendedor' => 'nullable|numeric|min:0|max:100',
         ]);
 
         if ($request->hasFile('imagen')) {
@@ -176,6 +177,7 @@ class ProductoController extends Controller
             'fecha_vencimiento' => 'nullable|date',
             'tipo_producto' => 'nullable|in:fisico,digital',
             'estado'        => 'nullable|in:activo,inactivo',
+            'comision_vendedor' => 'nullable|numeric|min:0|max:100',
 
             // Imagen
             'imagen'        => 'nullable|image|mimes:jpeg,png,jpg|max:2048',

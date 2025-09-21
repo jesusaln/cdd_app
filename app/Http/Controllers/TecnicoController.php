@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Inertia\Inertia;
 use App\Models\Tecnico;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Exception;
@@ -52,7 +53,7 @@ class TecnicoController extends Controller
             $query->orderBy($sortBy, $sortDirection);
 
             // Paginación
-            $tecnicos = $query->paginate(10)->appends($request->query());
+            $tecnicos = $query->with('user')->paginate(10)->appends($request->query());
 
             // Estadísticas
             $tecnicosCount = Tecnico::count();
@@ -81,7 +82,9 @@ class TecnicoController extends Controller
      */
     public function create()
     {
-        return Inertia::render('Tecnicos/Create');
+        return Inertia::render('Tecnicos/Create', [
+            'usuarios' => User::select('id', 'name', 'email')->get(),
+        ]);
     }
 
     /**
@@ -96,6 +99,10 @@ class TecnicoController extends Controller
             'email' => 'nullable|email|max:255|unique:tecnicos,email',
             'telefono' => 'nullable|string|max:20',
             'direccion' => 'nullable|string|max:255',
+            'user_id' => 'nullable|exists:users,id',
+            'margen_venta_productos' => 'nullable|numeric|min:0|max:100',
+            'margen_venta_servicios' => 'nullable|numeric|min:0|max:100',
+            'comision_instalacion' => 'nullable|numeric|min:0',
         ]);
 
         // Crear un nuevo técnico con los datos del formulario
@@ -114,7 +121,8 @@ class TecnicoController extends Controller
     public function edit(Tecnico $tecnico)
     {
         return Inertia::render('Tecnicos/Edit', [
-            'tecnico' => $tecnico,
+            'tecnico' => $tecnico->load('user'),
+            'usuarios' => User::select('id', 'name', 'email')->get(),
         ]);
     }
 
@@ -130,6 +138,10 @@ class TecnicoController extends Controller
             'email' => 'nullable|email|max:255|unique:tecnicos,email,' . $tecnico->id,
             'telefono' => 'nullable|string|max:20',
             'direccion' => 'nullable|string|max:255',
+            'user_id' => 'nullable|exists:users,id',
+            'margen_venta_productos' => 'nullable|numeric|min:0|max:100',
+            'margen_venta_servicios' => 'nullable|numeric|min:0|max:100',
+            'comision_instalacion' => 'nullable|numeric|min:0',
         ]);
 
         // Actualizar el técnico con los datos validados
