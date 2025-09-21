@@ -6,6 +6,7 @@ use Inertia\Inertia;
 use App\Models\Tecnico;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Exception;
 //use App\Events\TecnicoCreated; // Evento opcional si deseas notificar creación de técnicos
 
 class TecnicoController extends Controller
@@ -18,47 +19,60 @@ class TecnicoController extends Controller
         try {
             $query = Tecnico::query();
 
-            // Filtros
-            if ($search = trim($request->input('search', ''))) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('nombre', 'like', "%{$search}%")
-                      ->orWhere('apellido', 'like', "%{$search}%")
-                      ->orWhere('email', 'like', "%{$search}%")
-                      ->orWhere('telefono', 'like', "%{$search}%");
+            // Filtros de búsqueda
+            if ($s = trim((string) $request->input('search', ''))) {
+                $query->where(function ($w) use ($s) {
+                    $w->where('nombre', 'like', "%{$s}%")
+                        ->orWhere('apellido', 'like', "%{$s}%")
+                        ->orWhere('email', 'like', "%{$s}%")
+                        ->orWhere('telefono', 'like', "%{$s}%");
                 });
             }
 
-            // Ordenamiento
-            $sortBy = $request->input('sort_by', 'nombre');
-            $sortDirection = $request->input('sort_direction', 'asc');
-
-            $validSortFields = ['nombre', 'apellido', 'email', 'telefono', 'created_at'];
-            if (!in_array($sortBy, $validSortFields)) {
-                $sortBy = 'nombre';
+            // Filtrar por estado activo/inactivo
+            if ($request->query->has('activo')) {
+                $val = (string) $request->query('activo');
+                if ($val === '1') {
+                    $query->where(function ($query) {
+                        $query->where('activo', true)->orWhereNull('activo');
+                    });
+                } elseif ($val === '0') {
+                    $query->where('activo', false);
+                }
             }
+
+            // Ordenamiento
+            $sortBy = $request->get('sort_by', 'created_at');
+            $sortDirection = $request->get('sort_direction', 'desc');
+            $validSort = ['nombre', 'apellido', 'email', 'telefono', 'created_at', 'activo'];
+
+            if (!in_array($sortBy, $validSort)) $sortBy = 'created_at';
+            if (!in_array($sortDirection, ['asc', 'desc'])) $sortDirection = 'desc';
 
             $query->orderBy($sortBy, $sortDirection);
 
             // Paginación
-            $perPage = min((int) $request->input('per_page', 10), 50);
-            $tecnicos = $query->paginate($perPage)->appends($request->query());
+            $tecnicos = $query->paginate(10)->appends($request->query());
 
             // Estadísticas
-            $total = Tecnico::count();
-
-            $stats = [
-                'total' => $total,
-            ];
+            $tecnicosCount = Tecnico::count();
+            $tecnicosActivos = Tecnico::where(function ($q) {
+                $q->where('activo', true)->orWhereNull('activo');
+            })->count();
 
             return Inertia::render('Tecnicos/Index', [
                 'tecnicos' => $tecnicos,
-                'stats' => $stats,
-                'filters' => $request->only(['search']),
+                'stats' => [
+                    'total' => $tecnicosCount,
+                    'activos' => $tecnicosActivos,
+                    'inactivos' => $tecnicosCount - $tecnicosActivos,
+                ],
+                'filters' => $request->only(['search', 'activo']),
                 'sorting' => ['sort_by' => $sortBy, 'sort_direction' => $sortDirection],
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Error en TecnicoController@index: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Error al cargar los técnicos.');
+            return redirect()->back()->with('error', 'Error al cargar la lista de técnicos.');
         }
     }
 
@@ -143,5 +157,88 @@ class TecnicoController extends Controller
     {
         $exists = Tecnico::where('email', $request->query('email'))->exists();
         return response()->json(['exists' => $exists]);
+    }
+
+    public function toggle(Tecnico $tecnico)
+    {
+        try {
+            $tecnico->update(['activo' => !$tecnico->activo]);
+            return redirect()->back()->with('success', $tecnico->activo ? 'Técnico activado correctamente' : 'Técnico desactivado correctamente');
+        } catch (Exception $e) {
+            Log::error('Error cambiando estado del técnico: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Hubo un problema al cambiar el estado del técnico.');
+        }
+    }
+
+    public function export(Request $request)
+    {
+        try {
+            $query = Tecnico::query();
+
+            // Aplicar los mismos filtros que en index
+            if ($s = trim((string) $request->input('search', ''))) {
+                $query->where(function ($w) use ($s) {
+                    $w->where('nombre', 'like', "%{$s}%")
+                        ->orWhere('apellido', 'like', "%{$s}%")
+                        ->orWhere('email', 'like', "%{$s}%")
+                        ->orWhere('telefono', 'like', "%{$s}%");
+                });
+            }
+
+            if ($request->query->has('activo')) {
+                $val = (string) $request->query('activo');
+                if ($val === '1') {
+                    $query->where(function ($query) {
+                        $query->where('activo', true)->orWhereNull('activo');
+                    });
+                } elseif ($val === '0') {
+                    $query->where('activo', false);
+                }
+            }
+
+            $tecnicos = $query->get();
+
+            $filename = 'tecnicos_' . date('Y-m-d_H-i-s') . '.csv';
+
+            $headers = [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            ];
+
+            $callback = function () use ($tecnicos) {
+                $file = fopen('php://output', 'w');
+                fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+                fputcsv($file, [
+                    'ID',
+                    'Nombre',
+                    'Apellido',
+                    'Email',
+                    'Teléfono',
+                    'Dirección',
+                    'Activo',
+                    'Fecha Creación'
+                ]);
+
+                foreach ($tecnicos as $tecnico) {
+                    fputcsv($file, [
+                        $tecnico->id,
+                        $tecnico->nombre,
+                        $tecnico->apellido,
+                        $tecnico->email,
+                        $tecnico->telefono,
+                        $tecnico->direccion,
+                        $tecnico->activo ? 'Sí' : 'No',
+                        $tecnico->created_at?->format('d/m/Y H:i:s')
+                    ]);
+                }
+                fclose($file);
+            };
+
+            return response()->stream($callback, 200, $headers);
+        } catch (Exception $e) {
+            Log::error('Error en exportación de técnicos: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al exportar los técnicos.');
+        }
     }
 }

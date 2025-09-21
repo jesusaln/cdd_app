@@ -16,6 +16,7 @@ class Tecnico extends Model
         'email',
         'telefono',
         'direccion',
+        'activo',
     ];
 
     // Relación con la tabla herramientas
