@@ -39,6 +39,7 @@ class Cita extends Model
         'foto_equipo',
         'foto_hoja_servicio',
         'foto_identificacion',
+        'activo',
     ];
 
     protected $casts = [

@@ -12,6 +12,7 @@ use Illuminate\Routing\Controller as BaseController;
 use Inertia\Inertia;
 use Illuminate\Database\QueryException;
 use Spatie\Permission\Models\Role;
+use Exception;
 
 class UserController extends BaseController
 {
@@ -35,45 +36,58 @@ class UserController extends BaseController
         try {
             $query = User::with('roles');
 
-            // Filtros
-            if ($search = trim($request->input('search', ''))) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%")
-                      ->orWhere('email', 'like', "%{$search}%");
+            // Filtros de búsqueda
+            if ($s = trim((string) $request->input('search', ''))) {
+                $query->where(function ($w) use ($s) {
+                    $w->where('name', 'like', "%{$s}%")
+                        ->orWhere('email', 'like', "%{$s}%");
                 });
             }
 
-            // Ordenamiento
-            $sortBy = $request->input('sort_by', 'name');
-            $sortDirection = $request->input('sort_direction', 'asc');
-
-            $validSortFields = ['name', 'email', 'created_at'];
-            if (!in_array($sortBy, $validSortFields)) {
-                $sortBy = 'name';
+            // Filtrar por estado activo/inactivo
+            if ($request->query->has('activo')) {
+                $val = (string) $request->query('activo');
+                if ($val === '1') {
+                    $query->where(function ($query) {
+                        $query->where('activo', true)->orWhereNull('activo');
+                    });
+                } elseif ($val === '0') {
+                    $query->where('activo', false);
+                }
             }
+
+            // Ordenamiento
+            $sortBy = $request->get('sort_by', 'created_at');
+            $sortDirection = $request->get('sort_direction', 'desc');
+            $validSort = ['name', 'email', 'created_at', 'activo'];
+
+            if (!in_array($sortBy, $validSort)) $sortBy = 'created_at';
+            if (!in_array($sortDirection, ['asc', 'desc'])) $sortDirection = 'desc';
 
             $query->orderBy($sortBy, $sortDirection);
 
             // Paginación
-            $perPage = min((int) $request->input('per_page', 10), 50);
-            $users = $query->paginate($perPage)->appends($request->query());
+            $usuarios = $query->paginate(10)->appends($request->query());
 
             // Estadísticas
-            $total = User::count();
-
-            $stats = [
-                'total' => $total,
-            ];
+            $usuariosCount = User::count();
+            $usuariosActivos = User::where(function ($q) {
+                $q->where('activo', true)->orWhereNull('activo');
+            })->count();
 
             return Inertia::render('Usuarios/Index', [
-                'usuarios' => $users,
-                'stats' => $stats,
-                'filters' => $request->only(['search']),
+                'usuarios' => $usuarios,
+                'stats' => [
+                    'total' => $usuariosCount,
+                    'activos' => $usuariosActivos,
+                    'inactivos' => $usuariosCount - $usuariosActivos,
+                ],
+                'filters' => $request->only(['search', 'activo']),
                 'sorting' => ['sort_by' => $sortBy, 'sort_direction' => $sortDirection],
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Error en UserController@index: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Error al cargar los usuarios.');
+            return redirect()->back()->with('error', 'Error al cargar la lista de usuarios.');
         }
     }
 
@@ -194,6 +208,87 @@ class UserController extends BaseController
             return redirect()->route('usuarios.index')->with('error', 'No se pudo eliminar el usuario debido a restricciones de la base de datos.');
         } catch (\Exception $e) {
             return redirect()->route('usuarios.index')->with('error', 'Ocurrió un error inesperado.');
+        }
+    }
+
+    public function toggle(User $user)
+    {
+        $this->authorize('update', $user);
+
+        try {
+            $user->update(['activo' => !$user->activo]);
+            return redirect()->back()->with('success', $user->activo ? 'Usuario activado correctamente' : 'Usuario desactivado correctamente');
+        } catch (Exception $e) {
+            Log::error('Error cambiando estado del usuario: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Hubo un problema al cambiar el estado del usuario.');
+        }
+    }
+
+    public function export(Request $request)
+    {
+        $this->authorize('viewAny', User::class);
+
+        try {
+            $query = User::with('roles');
+
+            // Aplicar los mismos filtros que en index
+            if ($s = trim((string) $request->input('search', ''))) {
+                $query->where(function ($w) use ($s) {
+                    $w->where('name', 'like', "%{$s}%")
+                        ->orWhere('email', 'like', "%{$s}%");
+                });
+            }
+
+            if ($request->query->has('activo')) {
+                $val = (string) $request->query('activo');
+                if ($val === '1') {
+                    $query->where(function ($query) {
+                        $query->where('activo', true)->orWhereNull('activo');
+                    });
+                } elseif ($val === '0') {
+                    $query->where('activo', false);
+                }
+            }
+
+            $usuarios = $query->get();
+
+            $filename = 'usuarios_' . date('Y-m-d_H-i-s') . '.csv';
+
+            $headers = [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            ];
+
+            $callback = function () use ($usuarios) {
+                $file = fopen('php://output', 'w');
+                fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+                fputcsv($file, [
+                    'ID',
+                    'Nombre',
+                    'Email',
+                    'Rol',
+                    'Activo',
+                    'Fecha Creación'
+                ]);
+
+                foreach ($usuarios as $usuario) {
+                    fputcsv($file, [
+                        $usuario->id,
+                        $usuario->name,
+                        $usuario->email,
+                        $usuario->getRoleNames()->first() ?? 'Sin rol',
+                        $usuario->activo ? 'Sí' : 'No',
+                        $usuario->created_at?->format('d/m/Y H:i:s')
+                    ]);
+                }
+                fclose($file);
+            };
+
+            return response()->stream($callback, 200, $headers);
+        } catch (Exception $e) {
+            Log::error('Error en exportación de usuarios: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al exportar los usuarios.');
         }
     }
 }

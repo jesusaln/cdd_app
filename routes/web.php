@@ -196,6 +196,12 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::put('/tecnicos/{tecnico}/toggle', [TecnicoController::class, 'toggle'])->name('tecnicos.toggle');
 
     // =====================================================
+    // RUTAS ESPECÍFICAS DE USUARIOS
+    // =====================================================
+    Route::get('/usuarios/export', [UserController::class, 'export'])->name('usuarios.export');
+    Route::put('/usuarios/{user}/toggle', [UserController::class, 'toggle'])->name('usuarios.toggle');
+
+    // =====================================================
     // RUTAS ESPECÍFICAS DE PRODUCTOS
     // =====================================================
     Route::post('/productos/validate-stock', [ProductoController::class, 'validateStock'])->name('productos.validateStock');
