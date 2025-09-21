@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Renta;
 use App\Models\Cliente;
 use App\Models\Equipo;
+use App\Models\Cobranza;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -145,6 +146,27 @@ class RentasController extends Controller
             'estado' => 'activo',
             'dia_pago' => 1, // Puedes hacerlo configurable
         ]);
+
+        // Crear cobranza pendiente para el primer mes
+        $fechaCobro = $fechaInicio->copy()->addMonth()->startOfMonth()->day($renta->dia_pago);
+        Cobranza::create([
+            'renta_id' => $renta->id,
+            'fecha_cobro' => $fechaCobro,
+            'monto_cobrado' => $renta->monto_mensual,
+            'concepto' => 'mensualidad',
+            'estado' => 'pendiente',
+        ]);
+
+        // Si hay depósito de garantía, crear cobranza para depósito
+        if ($renta->deposito_garantia > 0) {
+            Cobranza::create([
+                'renta_id' => $renta->id,
+                'fecha_cobro' => $fechaInicio,
+                'monto_cobrado' => $renta->deposito_garantia,
+                'concepto' => 'deposito_garantia',
+                'estado' => 'pendiente',
+            ]);
+        }
 
         // Asociar equipos
         foreach ($request->equipos as $equipoData) {

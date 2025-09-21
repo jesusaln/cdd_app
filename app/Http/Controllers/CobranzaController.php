@@ -4,7 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Cobranza;
 use App\Models\Renta;
+use App\Models\Reporte;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 
@@ -188,24 +191,96 @@ class CobranzaController extends Controller
     /**
      * Marca una cobranza como pagada.
      */
-    public function marcarPagada(Request $request, Cobranza $cobranza)
+    public function marcarPagada(Request $request, $id)
     {
         $request->validate([
-            'fecha_pago' => 'required|date',
-            'monto_pagado' => 'required|numeric|min:0',
-            'metodo_pago' => 'required|string|max:255',
-            'referencia_pago' => 'nullable|string|max:255',
+            'metodo_pago' => 'required|in:efectivo,transferencia,cheque,tarjeta,otros',
+            'notas_pago' => 'nullable|string|max:500'
         ]);
 
-        $cobranza->update([
-            'estado' => 'pagado',
-            'fecha_pago' => $request->fecha_pago,
-            'monto_pagado' => $request->monto_pagado,
-            'metodo_pago' => $request->metodo_pago,
-            'referencia_pago' => $request->referencia_pago,
-        ]);
+        $cobranza = Cobranza::findOrFail($id);
 
-        return redirect()->back()->with('success', 'Cobranza marcada como pagada.');
+        // Verificar que la cobranza no esté ya pagada
+        if ($cobranza->estado === 'pagado') {
+            return response()->json([
+                'success' => false,
+                'error' => 'Esta cobranza ya está marcada como pagada'
+            ], 400);
+        }
+
+        // Verificar que la cobranza no esté cancelada
+        if ($cobranza->estado === 'cancelado') {
+            return response()->json([
+                'success' => false,
+                'error' => 'No se puede marcar como pagada una cobranza cancelada'
+            ], 400);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Actualizar la cobranza con la información de pago
+            $cobranza->update([
+                'estado' => 'pagado',
+                'fecha_pago' => now(),
+                'monto_pagado' => $cobranza->monto_cobrado,
+                'metodo_pago' => $request->metodo_pago,
+                'referencia_pago' => $request->notas_pago,
+                'responsable_cobro' => $request->user()->id, // Usar ID del usuario como en ventas
+            ]);
+
+            // Agregar al reporte del corte diario
+            $fechaCorte = now()->format('Y-m-d');
+            $nombreCorte = 'Corte de Caja ' . now()->format('d/m/Y');
+
+            $reporteCorte = Reporte::where('nombre', $nombreCorte)
+                ->where('fecha', $fechaCorte)
+                ->first();
+
+            $nuevoIngreso = "Pago de {$cobranza->concepto} - Renta {$cobranza->renta->numero_contrato}: {$cobranza->monto_cobrado} vía {$request->metodo_pago}";
+
+            if ($reporteCorte) {
+                // Agregar a la descripción existente
+                $descripcionActual = $reporteCorte->descripcion ? $reporteCorte->descripcion . "\n" : "";
+                $reporteCorte->update([
+                    'descripcion' => $descripcionActual . $nuevoIngreso
+                ]);
+            } else {
+                // Crear nuevo reporte del corte
+                Reporte::create([
+                    'nombre' => $nombreCorte,
+                    'descripcion' => $nuevoIngreso,
+                    'fecha' => $fechaCorte,
+                ]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cobranza marcada como pagada exitosamente',
+                'cobranza' => [
+                    'id' => $cobranza->id,
+                    'estado' => 'pagado',
+                    'metodo_pago' => $cobranza->metodo_pago,
+                    'fecha_pago' => $cobranza->fecha_pago->format('Y-m-d'),
+                    'referencia_pago' => $cobranza->referencia_pago,
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al marcar cobranza como pagada: ' . $e->getMessage(), [
+                'cobranza_id' => $cobranza->id,
+                'user_id' => $request->user()->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error interno al procesar el pago',
+                'details' => app()->environment('local') ? $e->getMessage() : null
+            ], 500);
+        }
     }
 
     /**
