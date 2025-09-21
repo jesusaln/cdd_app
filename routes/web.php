@@ -165,17 +165,38 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
 // =====================================================
 // RUTAS DE REPORTES ORGANIZADAS
 // =====================================================
+
+// Dashboard principal de reportes
 Route::get('/reportes', [ReportesDashboardController::class, 'index'])->name('reportes.index');
 
-// Reportes específicos
+// CRUD de reportes personalizados (debe ir primero para evitar conflictos)
+Route::resource('reportes', ReporteController::class)->except(['index', 'show']);
+
+// Reportes específicos (después del resource para tener prioridad)
 Route::get('/reportes/ventas', [ReporteController::class, 'index'])->name('reportes.ventas');
 Route::get('/reportes/corte-diario', [ReporteController::class, 'corteDiario'])->name('reportes.corte-diario');
 Route::get('/reportes/export', [ReporteController::class, 'exportarCorteDiario'])->name('reportes.export');
-Route::get('/reportes/tecnicos', [ReporteTecnicoController::class, 'index'])->name('reportes.tecnicos');
+Route::get('/reportes/tecnicos', [ReporteTecnicoController::class, 'index'])->name('reportes.tecnicos.index');
 Route::get('/reportes/tecnicos/datos', [ReporteTecnicoController::class, 'datos'])->name('reportes.tecnicos.datos');
 
-// CRUD de reportes personalizados
-Route::resource('reportes', ReporteController::class)->except(['index', 'show']);
+// Nuevos reportes
+Route::get('/reportes/clientes', [ReporteController::class, 'clientes'])->name('reportes.clientes');
+Route::get('/reportes/inventario', [ReporteController::class, 'inventario'])->name('reportes.inventario');
+Route::get('/reportes/servicios', [ReporteController::class, 'servicios'])->name('reportes.servicios');
+Route::get('/reportes/citas', [ReporteController::class, 'citas'])->name('reportes.citas');
+Route::get('/reportes/mantenimientos', [ReporteController::class, 'mantenimientos'])->name('reportes.mantenimientos');
+Route::get('/reportes/rentas', [ReporteController::class, 'rentas'])->name('reportes.rentas');
+Route::get('/reportes/cobranzas', [ReporteController::class, 'cobranzas'])->name('reportes.cobranzas');
+Route::get('/reportes/ganancias', [ReporteController::class, 'ganancias'])->name('reportes.ganancias');
+Route::get('/reportes/productos', [ReporteController::class, 'productos'])->name('reportes.productos');
+Route::get('/reportes/proveedores', [ReporteController::class, 'proveedores'])->name('reportes.proveedores');
+Route::get('/reportes/empleados', [ReporteController::class, 'empleados'])->name('reportes.empleados');
+Route::get('/reportes/auditoria', [ReporteController::class, 'auditoria'])->name('reportes.auditoria');
+
+// Exportaciones
+Route::get('/reportes/clientes/export', [ReporteController::class, 'exportarClientes'])->name('reportes.clientes.export');
+Route::get('/reportes/inventario/export', [ReporteController::class, 'exportarInventario'])->name('reportes.inventario.export');
+Route::get('/reportes/productos/export', [ReporteController::class, 'exportarProductos'])->name('reportes.productos.export');
     Route::resource('herramientas', HerramientaController::class)->names('herramientas');
     Route::resource('tecnicos', TecnicoController::class)->names('tecnicos');
     Route::resource('citas', CitaController::class)->names('citas');

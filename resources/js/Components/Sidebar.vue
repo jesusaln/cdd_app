@@ -62,9 +62,6 @@
             <NavLink href="/reportes" icon="chart-bar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Reportes Largos' : null">
               Reportes Largos
             </NavLink>
-            <NavLink href="/reportes/corte-diario" icon="calculator" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Corte Diario' : null">
-              Corte Diario
-            </NavLink>
           </ul>
         </div>
 

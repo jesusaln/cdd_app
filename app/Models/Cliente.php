@@ -109,6 +109,11 @@ class Cliente extends Model implements AuditableContract
         return $this->hasMany(Pedido::class);
     }
 
+    public function rentas(): HasMany
+    {
+        return $this->hasMany(Renta::class);
+    }
+
     // ------------------------------------------------------------------
     // Relaciones a catálogos SAT (por clave)
     // ------------------------------------------------------------------

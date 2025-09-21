@@ -131,4 +131,28 @@ class Venta extends Model
 
         return $ganancia;
     }
+
+    // Calcular costo total de la venta
+    public function calcularCostoTotal()
+    {
+        $costoTotal = 0;
+
+        // Costo de productos
+        foreach ($this->productos as $producto) {
+            $pivot = $producto->pivot;
+            $costo = $producto->precio_compra;
+            $costoTotal += $costo * $pivot->cantidad;
+        }
+
+        // Costo de servicios (considerando margen de ganancia)
+        foreach ($this->servicios as $servicio) {
+            $pivot = $servicio->pivot;
+            $precioVenta = $pivot->precio - ($pivot->descuento ?? 0);
+            // El costo del servicio es el precio de venta menos el margen de ganancia
+            $costoServicio = $precioVenta * (1 - $servicio->margen_ganancia / 100);
+            $costoTotal += $costoServicio * $pivot->cantidad;
+        }
+
+        return $costoTotal;
+    }
 }

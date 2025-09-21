@@ -258,6 +258,10 @@
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
+import AppLayout from '@/Layouts/AppLayout.vue'
+
+
+defineOptions({ layout: AppLayout })
 
 // Props del servidor
 const props = defineProps({
