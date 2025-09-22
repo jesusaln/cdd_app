@@ -8,8 +8,8 @@ import 'notyf/notyf.min.css'
 
 import { generarPDF } from '@/Utils/pdfGenerator'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import UniversalHeader from '@/Components/IndexComponents/UniversalHeader.vue'
-import DocumentosTable from '@/Components/IndexComponents/DocumentosTable.vue'
+import PedidosHeader from '@/Components/IndexComponents/PedidosHeader.vue'
+import PedidosTable from '@/Components/IndexComponents/PedidosTable.vue'
 import Modal from '@/Components/IndexComponents/Modales.vue'
 import Pagination from '@/Components/Pagination.vue'
 
@@ -83,67 +83,10 @@ const auditoriaForModal = computed(() => {
 })
 
 /* =========================
-   Filtrado y ordenamiento
-========================= */
-const pedidosFiltrados = computed(() => {
-  let result = [...pedidosOriginales.value]
-
-  // Aplicar filtro de búsqueda
-  if (searchTerm.value.trim()) {
-    const search = searchTerm.value.toLowerCase().trim()
-    result = result.filter(pedido => {
-      const cliente = pedido.cliente?.nombre?.toLowerCase() || ''
-      const numero = String(pedido.numero_pedido || pedido.id || '').toLowerCase()
-      const estado = pedido.estado?.toLowerCase() || ''
-
-      return cliente.includes(search) ||
-             numero.includes(search) ||
-             estado.includes(search)
-    })
-  }
-
-  // Aplicar filtro de estado
-  if (filtroEstado.value) {
-    result = result.filter(pedido => pedido.estado === filtroEstado.value)
-  }
-
-  // Aplicar ordenamiento
-  if (sortBy.value) {
-    const [field, order] = sortBy.value.split('-')
-    const isDesc = order === 'desc'
-
-    result.sort((a, b) => {
-      let valueA, valueB
-
-      switch (field) {
-        case 'fecha':
-          valueA = new Date(a.fecha || a.created_at || 0)
-          valueB = new Date(b.fecha || b.created_at || 0)
-          break
-        case 'cliente':
-          valueA = a.cliente?.nombre || ''
-          valueB = b.cliente?.nombre || ''
-          break
-        case 'total':
-          valueA = parseFloat(a.total || 0)
-          valueB = parseFloat(b.total || 0)
-          break
-        case 'estado':
-          valueA = a.estado || ''
-          valueB = b.estado || ''
-          break
-        default:
-          valueA = a[field] || ''
-          valueB = b[field] || ''
-      }
-
-      if (valueA < valueB) return isDesc ? 1 : -1
-      if (valueA > valueB) return isDesc ? -1 : 1
-      return 0
-    })
-  }
-
-  return result
+    Datos para los componentes
+ ========================= */
+const documentosPedidos = computed(() => {
+  return [...pedidosOriginales.value]
 })
 
 /* =========================
@@ -215,7 +158,7 @@ const pedidosFiltradosYOrdenados = computed(() => {
 })
 
 // Documentos para mostrar (con paginación del lado del cliente)
-const documentosPedidos = computed(() => {
+const documentosPedidosPaginados = computed(() => {
   const startIndex = (currentPage.value - 1) * perPage.value
   const endIndex = startIndex + perPage.value
   return pedidosFiltradosYOrdenados.value.slice(startIndex, endIndex)
@@ -570,8 +513,8 @@ const crearNuevoPedido = () => {
   <div class="pedidos-index min-h-screen bg-gray-50">
     <!-- Contenido principal -->
     <div class="max-w-8xl mx-auto px-6 py-8">
-      <!-- Header de filtros y estadísticas -->
-      <UniversalHeader
+      <!-- Header específico de pedidos -->
+      <PedidosHeader
         :total="estadisticas.total"
         :pendientes="estadisticas.pendientes"
         :borrador="estadisticas.borrador"
@@ -586,20 +529,20 @@ const crearNuevoPedido = () => {
           searchPlaceholder: 'Buscar por cliente, número...'
         }"
         @limpiar-filtros="handleLimpiarFiltros"
+        @crear-nuevo="crearNuevoPedido"
       />
 
-      <!-- Tabla de documentos -->
+      <!-- Tabla específica de pedidos -->
       <div class="mt-6">
-        <DocumentosTable
-          :documentos="documentosPedidos"
-          tipo="pedidos"
+        <PedidosTable
+          :documentos="documentosPedidosPaginados"
           :search-term="searchTerm"
           :sort-by="sortBy"
-          :filtro-estado="filtroEstado"
           @ver-detalles="verDetalles"
           @editar="editarPedido"
           @eliminar="confirmarEliminacion"
           @enviar-venta="enviarAVenta"
+          @imprimir="imprimirPedido"
           @sort="updateSort"
         />
 

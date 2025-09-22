@@ -40,6 +40,7 @@ class ReportesDashboardController extends Controller
                 'descripcion' => 'Reportes de ventas, productos y utilidades',
                 'reportes' => [
                     ['nombre' => 'Ventas Generales', 'ruta' => 'reportes.ventas', 'icono' => 'fas fa-shopping-cart'],
+                    ['nombre' => 'Ventas Pendientes', 'ruta' => 'reportes.ventas-pendientes', 'icono' => 'fas fa-clock'],
                     ['nombre' => 'Productos Más Vendidos', 'ruta' => 'reportes.productos', 'icono' => 'fas fa-box'],
                 ],
                 'estadisticas' => [

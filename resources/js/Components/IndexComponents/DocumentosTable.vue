@@ -18,21 +18,21 @@
         :style="tooltipStyle"
       >
         <div class="p-4 border-b border-gray-100">
-          <div class="flex items-center justify-between">
-            <h3 class="text-sm font-semibold text-gray-900">Productos</h3>
-            <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full font-medium">
-              {{ (props.tipo === 'ordenescompra' ? hoveredDoc.items : hoveredDoc.productos)?.length || 0 }}
-            </span>
-          </div>
-        </div>
+           <div class="flex items-center justify-between">
+             <h3 class="text-sm font-semibold text-gray-900">Productos</h3>
+             <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full font-medium">
+               {{ hoveredDoc.productos?.length || 0 }}
+             </span>
+           </div>
+         </div>
 
-        <div class="max-h-72 overflow-y-auto px-4 pb-4 custom-scrollbar">
-          <div v-if="(props.tipo === 'ordenescompra' ? hoveredDoc.items : hoveredDoc.productos)?.length" class="space-y-2 pt-2">
-            <div
-              v-for="(producto, index) in (props.tipo === 'ordenescompra' ? hoveredDoc.items : hoveredDoc.productos)"
-              :key="index"
-              class="group p-3 bg-gray-50/70 rounded-lg hover:bg-gray-100/70 hover:shadow-sm transition-all duration-150"
-            >
+         <div class="max-h-72 overflow-y-auto px-4 pb-4 custom-scrollbar">
+           <div v-if="hoveredDoc.productos?.length" class="space-y-2 pt-2">
+             <div
+               v-for="(producto, index) in hoveredDoc.productos"
+               :key="index"
+               class="group p-3 bg-gray-50/70 rounded-lg hover:bg-gray-100/70 hover:shadow-sm transition-all duration-150"
+             >
               <div class="flex items-start justify-between">
                 <div class="flex-1 min-w-0 mr-3">
                   <p class="text-sm font-medium text-gray-900 truncate group-hover:text-gray-800">
@@ -95,16 +95,16 @@
               </div>
             </th>
 
-            <!-- Cliente/Proveedor | Equipo | Clientes | Productos | Herramientas -->
+            <!-- Cliente/Proveedor -->
             <th
               class="group px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100/60 transition-colors duration-150"
-              @click="onSort(props.tipo === 'herramientas' ? 'nombre' : (isEquipos ? 'nombre' : (isCompra ? 'proveedor' : (isClientes || isProductos ? 'nombre' : 'cliente'))))"
+              @click="onSort(isCompra ? 'proveedor' : 'cliente')"
             >
               <div class="flex items-center space-x-1">
-                <span>{{ props.tipo === 'herramientas' ? 'Herramienta' : (isEquipos ? 'Equipo' : (isCompra ? 'Proveedor' : (isClientes ? 'Cliente' : (isProductos ? 'Producto' : 'Cliente')))) }}</span>
+                <span>{{ isCompra ? 'Proveedor' : 'Cliente' }}</span>
                 <svg
-                  v-if="sortBy.startsWith(props.tipo === 'herramientas' ? 'nombre' : (isEquipos ? 'nombre' : (isCompra ? 'proveedor' : ((isClientes || isProductos) ? 'nombre' : 'cliente'))))"
-                  :class="['w-4 h-4 transition-transform duration-200', sortBy === `${props.tipo === 'herramientas' ? 'nombre' : (isEquipos ? 'nombre' : (isCompra ? 'proveedor' : ((isClientes || isProductos) ? 'nombre' : 'cliente')))}-desc` ? 'rotate-180' : '']"
+                  v-if="sortBy.startsWith(isCompra ? 'proveedor' : 'cliente')"
+                  :class="['w-4 h-4 transition-transform duration-200', sortBy === `${isCompra ? 'proveedor' : 'cliente'}-desc` ? 'rotate-180' : '']"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -114,13 +114,6 @@
               </div>
             </th>
 
-            <!-- Foto (solo herramientas) -->
-            <th
-              v-if="config.mostrarFoto"
-              class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider"
-            >
-              Foto
-            </th>
 
             <!-- Campo extra -->
             <th
@@ -142,33 +135,7 @@
               </div>
             </th>
 
-            <!-- Técnico (solo herramientas) -->
-            <th
-              v-if="config.mostrarTecnico"
-              class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider"
-            >
-              Técnico Asignado
-            </th>
 
-            <!-- Precio (solo productos) -->
-            <th
-              v-if="config.mostrarPrecio"
-              class="group px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100/60 transition-colors duration-150"
-              @click="onSort('precio')"
-            >
-              <div class="flex items-center space-x-1">
-                <span>Precio</span>
-                <svg
-                  v-if="sortBy.startsWith('precio')"
-                  :class="['w-4 h-4 transition-transform duration-200', sortBy === 'precio-desc' ? 'rotate-180' : '']"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </th>
 
             <!-- Total -->
             <th
@@ -247,149 +214,27 @@
                 </div>
               </td>
 
-              <!-- Cliente/Proveedor | Clientes | Equipos | Productos | Herramientas -->
+              <!-- Cliente/Proveedor -->
               <td class="px-6 py-4">
                 <div class="flex flex-col space-y-0.5">
-                  <!-- Para productos -->
-                  <div v-if="isProductos" class="space-y-1">
-                    <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800">
-                      {{ doc.nombre || doc.titulo || 'Sin nombre' }}
-                    </div>
-                    <div v-if="doc.descripcion" class="text-xs text-gray-500 line-clamp-2 max-w-48">
-                      {{ doc.descripcion }}
-                    </div>
-                    <div v-if="doc.categoria" class="text-xs text-gray-500">
-                      Categoría: {{ doc.categoria }}
-                    </div>
+                  <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800">
+                    {{ isCompra ? (doc.proveedor?.nombre_razon_social || 'Sin proveedor') : (doc.cliente?.nombre || 'Sin cliente') }}
                   </div>
-
-                  <!-- Para herramientas -->
-                  <div v-else-if="props.tipo === 'herramientas'" class="space-y-1">
-                    <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800">
-                      {{ doc.titulo || 'Sin nombre' }}
-                    </div>
-                  </div>
-
-                  <!-- Para servicios -->
-                  <div v-else-if="props.tipo === 'servicios'" class="space-y-1">
-                    <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800">
-                      {{ doc.nombre || doc.titulo || 'Sin nombre' }}
-                    </div>
-                    <div v-if="doc.descripcion" class="text-xs text-gray-500 line-clamp-2 max-w-48">
-                      {{ doc.descripcion }}
-                    </div>
-                  </div>
-
-                  <!-- Otros tipos -->
-                  <template v-else>
-                    <!-- ventas/pedidos/compras -->
-                    <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800" v-if="!isEquipos && !isClientes">
-                      {{ isCompra ? (doc.proveedor?.nombre_razon_social || 'Sin proveedor') : (doc.cliente?.nombre || 'Sin cliente') }}
-                    </div>
-                    <!-- clientes -->
-                    <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800" v-else-if="isClientes">
-                      {{ doc.titulo || 'Sin nombre' }}
-                    </div>
-                    <!-- equipos -->
-                    <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800" v-else>
-                      {{ doc.nombre || 'Sin nombre' }}
-                    </div>
-
-                    <!-- sublíneas -->
-                    <div
-                      v-if="!isEquipos && !isClientes && (isCompra ? doc.proveedor?.email : doc.cliente?.email)"
-                      class="text-xs text-gray-500 truncate max-w-48"
-                    >
-                      {{ isCompra ? doc.proveedor?.email : doc.cliente?.email }}
-                    </div>
-
-                    <div v-else-if="isClientes && doc.subtitulo" class="text-xs text-gray-500 truncate max-w-48">
-                      {{ doc.subtitulo }}
-                    </div>
-
-                    <div v-if="isEquipos && (doc.modelo || doc.marca)" class="text-xs text-gray-500 truncate max-w-48">
-                      {{ [doc.marca, doc.modelo].filter(Boolean).join(' · ') }}
-                    </div>
-                  </template>
-                </div>
-              </td>
-
-              <!-- Foto (solo herramientas) -->
-              <td v-if="config.mostrarFoto" class="px-6 py-4">
-                <div class="flex items-center">
-                  <img
-                    v-if="doc.meta?.foto"
-                    :src="doc.meta.foto"
-                    alt="Foto de la herramienta"
-                    class="h-12 w-12 rounded-lg object-cover border-2 border-gray-200 cursor-pointer hover:border-blue-500 transition-colors"
-                    @click="openImageModal(doc.meta.foto)"
-                  />
-                  <div
-                    v-else
-                    class="h-12 w-12 rounded-lg bg-gray-100 flex items-center justify-center"
-                  >
-                    <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
+                  <div v-if="isCompra ? doc.proveedor?.email : doc.cliente?.email" class="text-xs text-gray-500 truncate max-w-48">
+                    {{ isCompra ? doc.proveedor?.email : doc.cliente?.email }}
                   </div>
                 </div>
               </td>
+
 
               <!-- Campo extra -->
               <td v-if="config.mostrarCampoExtra" class="px-6 py-4">
-                <!-- Productos: Stock + SKU/Código -->
-                <div v-if="isProductos" class="space-y-1.5">
-                  <div class="flex items-center space-x-2">
-                    <div class="text-xs font-medium text-gray-600 bg-blue-50 px-2 py-1 rounded-md">
-                      Stock: {{ (doc.stock ?? doc.cantidad ?? doc.existencia ?? doc.meta?.stock ?? 0) }} und
-                    </div>
-                  </div>
-                  <div v-if="doc.sku || doc.codigo_barras" class="text-xs font-mono text-gray-500 bg-gray-100/60 px-2 py-0.5 rounded">
-                    {{ doc.sku || doc.codigo_barras }}
-                  </div>
-                </div>
-
-                <!-- Órdenes de compra: Número de orden -->
-                <div v-else-if="props.tipo === 'ordenescompra'" class="text-sm font-mono font-medium text-gray-700 bg-gray-100/60 px-2 py-1 rounded-md inline-block">
-                  {{ doc.numero_orden || doc.id || 'N/A' }}
-                </div>
-
-                <!-- Cotizaciones: Usar número formateado -->
-                <div v-else-if="props.tipo === 'cotizaciones'" class="text-sm font-mono font-medium text-gray-700 bg-gray-100/60 px-2 py-1 rounded-md inline-block">
-                  {{ doc.numero_cotizacion_display || doc.numero_cotizacion || doc.id || 'N/A' }}
-                </div>
-
-                <!-- Otros tipos -->
-                <div v-else class="text-sm font-mono font-medium text-gray-700 bg-gray-100/60 px-2 py-1 rounded-md inline-block">
-                  {{ isClientes ? (doc.extra || 'N/A') : (doc[config.campoExtra.key] || doc.codigo_barras || 'N/A') }}
+                <div class="text-sm font-mono font-medium text-gray-700 bg-gray-100/60 px-2 py-1 rounded-md inline-block">
+                  {{ doc[config.campoExtra.key] || 'N/A' }}
                 </div>
               </td>
 
-              <!-- Técnico (solo herramientas) -->
-              <td v-if="config.mostrarTecnico" class="px-6 py-4">
-                <div v-if="doc.meta?.tecnico" class="flex items-center">
-                  <div class="flex-shrink-0 h-8 w-8">
-                    <div class="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
-                      <span class="text-green-600 font-medium text-sm">
-                        {{ doc.meta.tecnico.nombre.charAt(0) }}{{ doc.meta.tecnico.apellido.charAt(0) }}
-                      </span>
-                    </div>
-                  </div>
-                  <div class="ml-3">
-                    <div class="text-sm font-medium text-gray-900">
-                      {{ doc.meta.tecnico.nombre }} {{ doc.meta.tecnico.apellido }}
-                    </div>
-                  </div>
-                </div>
-                <div v-else class="text-sm text-gray-500 italic">Sin asignar</div>
-              </td>
 
-              <!-- Precio (solo productos) -->
-              <td v-if="config.mostrarPrecio" class="px-6 py-4">
-                <div class="text-sm font-semibold text-gray-900">
-                  ${{ formatearMoneda(obtenerPrecio(doc)) }}
-                </div>
-              </td>
 
               <!-- Total -->
               <td v-if="config.mostrarTotal !== false" class="px-6 py-4">
@@ -405,11 +250,11 @@
               <td
                 v-if="config.mostrarProductos !== false"
                 class="px-6 py-4 relative"
-                @mouseenter="(props.tipo === 'ordenescompra' ? doc.items : props.tipo === 'ordenescompra' ? doc.items : doc.productos)?.length ? showProductTooltip(doc, $event) : null"
+                @mouseenter="doc.productos?.length ? showProductTooltip(doc, $event) : null"
                 @mouseleave="hideProductTooltip"
-                @mousemove="(props.tipo === 'ordenescompra' ? doc.items : props.tipo === 'ordenescompra' ? doc.items : doc.productos)?.length ? updateTooltipPosition($event) : null"
+                @mousemove="doc.productos?.length ? updateTooltipPosition($event) : null"
               >
-                <div class="flex items-center text-sm text-gray-600" :class="(props.tipo === 'ordenescompra' ? doc.items : props.tipo === 'ordenescompra' ? doc.items : doc.productos)?.length ? 'cursor-help hover:text-gray-800 transition-colors duration-150' : 'opacity-60'">
+                <div class="flex items-center text-sm text-gray-600" :class="doc.productos?.length ? 'cursor-help hover:text-gray-800 transition-colors duration-150' : 'opacity-60'">
                   <div class="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center mr-2 group-hover:bg-blue-100 transition-colors duration-150">
                     <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
@@ -420,7 +265,7 @@
                       />
                     </svg>
                   </div>
-                  <span class="font-medium">{{ (props.tipo === 'ordenescompra' ? doc.items : props.tipo === 'ordenescompra' ? doc.items : doc.productos)?.length || 0 }}</span>
+                  <span class="font-medium">{{ doc.productos?.length || 0 }}</span>
                   <span class="text-gray-400 ml-1">items</span>
                 </div>
               </td>
@@ -515,33 +360,6 @@
                     <font-awesome-icon icon="print" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
                   </button>
 
-                  <!-- Botones de rentas -->
-                  <button
-                    v-if="config.acciones.renovar && doc.estado !== 'suspendido' && ['activo', 'proximo_vencimiento', 'vencido'].includes(doc.estado)"
-                    @click="onRenovar(doc)"
-                    class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:ring-offset-1"
-                    title="Renovar contrato"
-                  >
-                    <font-awesome-icon icon="sync-alt" class="w-4 h-4 transition-transform duration-200 group-hover/btn:rotate-180" />
-                  </button>
-
-                  <button
-                    v-if="config.acciones.suspender && doc.estado === 'activo'"
-                    @click="onSuspender(doc)"
-                    class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-orange-50 text-orange-600 hover:bg-orange-100 hover:text-orange-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:ring-offset-1"
-                    title="Suspender contrato"
-                  >
-                    <font-awesome-icon icon="pause" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
-                  </button>
-
-                  <button
-                    v-if="config.acciones.reactivar && doc.estado === 'suspendido'"
-                    @click="onReactivar(doc)"
-                    class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:ring-offset-1"
-                    title="Reactivar contrato"
-                  >
-                    <font-awesome-icon icon="play" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
-                  </button>
 
                   <!-- Marcar como Pagado (solo ventas no pagadas) -->
                   <button
@@ -608,32 +426,6 @@
     </div>
   </div>
 
-  <!-- Modal para imagen ampliada -->
-  <Teleport to="body">
-    <Transition name="modal">
-      <div
-        v-if="showImageModal"
-        class="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4"
-        @click.self="closeImageModal"
-      >
-        <div class="bg-white rounded-lg shadow-xl max-w-2xl max-h-[90vh] overflow-auto p-4">
-          <img
-            :src="selectedImage"
-            alt="Imagen ampliada"
-            class="max-w-full h-auto rounded-lg"
-          />
-          <button
-            @click="closeImageModal"
-            class="absolute top-2 right-2 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors"
-          >
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      </div>
-    </Transition>
-  </Teleport>
 </template>
 
 <script setup>
@@ -644,7 +436,7 @@ const props = defineProps({
   tipo: {
     type: String,
     required: true,
-    validator: (value) => ['cotizaciones', 'pedidos', 'ventas', 'compras', 'ordenescompra', 'rentas', 'equipos', 'clientes', 'productos', 'herramientas', 'servicios'].includes(value)
+    validator: (value) => ['cotizaciones', 'pedidos', 'ventas', 'compras', 'ordenescompra'].includes(value)
   },
   searchTerm: { type: String, default: '' },
   sortBy: { type: String, default: 'fecha-desc' },
@@ -661,14 +453,11 @@ const props = defineProps({
 });
 
 const emit = defineEmits([
-  'ver-detalles','editar','eliminar','duplicar','imprimir','sort','renovar','suspender','reactivar','enviar-venta','enviar-pedido','marcar-pagado','open-image-modal','convertirCompra','marcarUrgente','confirmarRecepcion','enviar-compra','cancelar-orden'
+  'ver-detalles','editar','eliminar','duplicar','imprimir','sort','enviar-venta','enviar-pedido','marcar-pagado','enviar-compra','cancelar-orden'
 ]);
 
 // Flags
-const isCompra    = computed(() => props.tipo === 'compras' || props.tipo === 'ordenescompra');
-const isEquipos   = computed(() => props.tipo === 'equipos');
-const isClientes  = computed(() => props.tipo === 'clientes');
-const isProductos = computed(() => props.tipo === 'productos');
+const isCompra = computed(() => props.tipo === 'compras' || props.tipo === 'ordenescompra');
 
 // Tooltip
 const showTooltip = ref(false);
@@ -676,9 +465,7 @@ const hoveredDoc = ref(null);
 const tooltipPosition = ref({ x: 0, y: 0 });
 let tooltipTimeout = null;
 
-// Modal de imagen
-const showImageModal = ref(false);
-const selectedImage = ref('');
+// Modal de imagen eliminado
 
 const getViewport = () => {
   if (typeof window === 'undefined') return { w: 1280, h: 800 };
@@ -706,13 +493,12 @@ const tooltipStyle = computed(() => {
 });
 
 const showProductTooltip = (doc, event) => {
-  const items = props.tipo === 'ordenescompra' ? doc?.items : doc?.productos;
-  if (!items?.length) return;
-  clearTimeout(tooltipTimeout);
-  hoveredDoc.value = doc;
-  updateTooltipPosition(event);
-  tooltipTimeout = setTimeout(() => { showTooltip.value = true; }, 500);
-};
+   if (!doc?.productos?.length) return;
+   clearTimeout(tooltipTimeout);
+   hoveredDoc.value = doc;
+   updateTooltipPosition(event);
+   tooltipTimeout = setTimeout(() => { showTooltip.value = true; }, 500);
+ };
 
 const hideProductTooltip = () => {
   clearTimeout(tooltipTimeout);
@@ -810,98 +596,6 @@ const config = computed(() => {
         'convertida': { label: 'Procesada', classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
         'cancelada': { label: 'Cancelada', classes: 'bg-red-100 text-red-700', color: 'bg-red-400' }
       }
-    },
-    equipos: {
-      titulo: 'Equipos',
-      mostrarCampoExtra: true,
-      campoExtra: { key: 'numero_serie', label: 'Serie' },
-      acciones: { editar: true, duplicar: false, imprimir: true, eliminar: true },
-      estados: {
-        'borrador': { label: 'Borrador', classes: 'bg-gray-100 text-gray-700', color: 'bg-gray-400' },
-        'pendiente': { label: 'Pendiente', classes: 'bg-yellow-100 text-yellow-700', color: 'bg-yellow-400' },
-        'confirmado': { label: 'Confirmado', classes: 'bg-blue-100 text-blue-700', color: 'bg-blue-400' },
-        'en_preparacion': { label: 'En Preparación', classes: 'bg-orange-100 text-orange-700', color: 'bg-orange-400' },
-        'listo_entrega': { label: 'Listo para Entrega', classes: 'bg-purple-100 text-purple-700', color: 'bg-purple-400' },
-        'entregado': { label: 'Entregado', classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
-        'cancelado': { label: 'Cancelado', classes: 'bg-red-100 text-red-700', color: 'bg-red-400' }
-      }
-    },
-    rentas: {
-      titulo: 'Rentas',
-      mostrarCampoExtra: true,
-      campoExtra: { key: 'numero_contrato', label: 'N° Contrato' },
-      acciones: { editar: true, duplicar: true, imprimir: true, eliminar: true, renovar: true, suspender: true, reactivar: true },
-      estados: {
-        'borrador': { label: 'Borrador', classes: 'bg-gray-100 text-gray-700', color: 'bg-gray-400' },
-        'activo': { label: 'Activo', classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
-        'proximo_vencimiento': { label: 'Próximo Vencimiento', classes: 'bg-orange-100 text-orange-700', color: 'bg-orange-400' },
-        'vencido': { label: 'Vencido', classes: 'bg-red-100 text-red-700', color: 'bg-red-400' },
-        'moroso': { label: 'Moroso', classes: 'bg-red-200 text-red-800', color: 'bg-red-500' },
-        'suspendido': { label: 'Suspendido', classes: 'bg-yellow-100 text-yellow-700', color: 'bg-yellow-400' },
-        'finalizado': { label: 'Finalizado', classes: 'bg-gray-100 text-gray-600', color: 'bg-gray-400' },
-        'anulado': { label: 'Anulado', classes: 'bg-gray-100 text-gray-500', color: 'bg-gray-400' },
-        'sin_estado': { label: 'Sin Estado', classes: 'bg-gray-100 text-gray-500', color: 'bg-gray-400' }
-      }
-    },
-    clientes: {
-      titulo: 'Clientes',
-      mostrarCampoExtra: true,
-      mostrarTotal: false,
-      mostrarProductos: false,
-      campoExtra: { key: 'rfc', label: 'RFC' },
-      acciones: { editar: true, duplicar: false, imprimir: false, eliminar: true },
-      estados: {
-        'activo': { label: 'Activo',   classes: 'bg-emerald-100 text-emerald-700', color: 'bg-emerald-400' },
-        'inactivo': { label: 'Inactivo', classes: 'bg-red-100 text-red-700',        color: 'bg-red-400' },
-      }
-    },
-    // 👇 CONFIG MEJORADA PARA PRODUCTOS
-    productos: {
-      titulo: 'Productos',
-      mostrarCampoExtra: true,   // Columna "Campo extra" visible
-      mostrarPrecio: true,       // Columna "Precio" visible
-      mostrarTotal: false,       // Puedes cambiar a true si necesitas "Total"
-      mostrarProductos: false,   // No aplica columna "Productos" para el módulo productos
-      campoExtra: { key: 'stock', label: 'Stock' }, // El header de la columna extra dirá "Stock"
-      acciones: { editar: true, duplicar: false, imprimir: false, eliminar: true },
-      estados: {
-        'disponible':    { label: 'Disponible',    classes: 'bg-emerald-100 text-emerald-700', color: 'bg-emerald-400' },
-        'bajo_stock':    { label: 'Bajo Stock',    classes: 'bg-orange-100 text-orange-700',   color: 'bg-orange-400' },
-        'agotado':       { label: 'Agotado',       classes: 'bg-yellow-100 text-yellow-700',   color: 'bg-yellow-400' },
-        'descontinuado': { label: 'Descontinuado', classes: 'bg-red-100 text-red-700',         color: 'bg-red-400' },
-        'activo':        { label: 'Activo',        classes: 'bg-emerald-100 text-emerald-700', color: 'bg-emerald-400' },
-        'inactivo':      { label: 'Inactivo',      classes: 'bg-gray-100 text-gray-600',       color: 'bg-gray-400' }
-      }
-    },
-    herramientas: {
-      titulo: 'Herramientas',
-      mostrarCampoExtra: false,
-      mostrarPrecio: false,
-      mostrarTotal: false,
-      mostrarProductos: false,
-      mostrarTecnico: true,
-      mostrarFoto: true,
-      campoExtra: { key: 'numero_serie', label: 'N° Serie' },
-      acciones: { editar: true, duplicar: false, imprimir: false, eliminar: true },
-      estados: {
-        'asignada':    { label: 'Asignada',    classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
-        'sin_asignar': { label: 'Sin asignar', classes: 'bg-orange-100 text-orange-700', color: 'bg-orange-400' }
-      }
-    },
-    servicios: {
-      titulo: 'Servicios',
-      mostrarCampoExtra: true,
-      mostrarPrecio: true,
-      mostrarTotal: false,
-      mostrarProductos: false,
-      mostrarTecnico: false,
-      mostrarFoto: false,
-      campoExtra: { key: 'codigo', label: 'Código' },
-      acciones: { editar: true, duplicar: false, imprimir: false, eliminar: true },
-      estados: {
-        'activo':   { label: 'Activo',   classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
-        'inactivo': { label: 'Inactivo', classes: 'bg-red-100 text-red-700',    color: 'bg-red-400' }
-      }
     }
   };
 
@@ -987,40 +681,8 @@ const items = computed(() => {
   if (props.searchTerm) {
     const term = props.searchTerm.toLowerCase();
     filtered = filtered.filter(doc => {
-      if (isClientes.value) {
-        return (
-          (doc.titulo || '').toLowerCase().includes(term) ||
-          (doc.extra || '').toLowerCase().includes(term) ||
-          (doc.subtitulo || '').toLowerCase().includes(term) ||
-          (doc.meta?.direccion || '').toLowerCase().includes(term)
-        );
-      }
-      if (isProductos.value) {
-        return (
-          (doc.nombre || '').toLowerCase().includes(term) ||
-          (doc.sku || doc.codigo_barras || '').toLowerCase().includes(term) ||
-          (doc.estado || '').toLowerCase().includes(term) ||
-          (doc.descripcion || '').toLowerCase().includes(term)
-        );
-      }
-      if (props.tipo === 'herramientas') {
-        return (
-          (doc.titulo || '').toLowerCase().includes(term) ||
-          (doc.subtitulo || '').toLowerCase().includes(term) ||
-          (doc.meta?.tecnico?.nombre || '').toLowerCase().includes(term) ||
-          (doc.meta?.tecnico?.apellido || '').toLowerCase().includes(term)
-        );
-      }
-      if (isEquipos.value) {
-        return (
-          (doc.nombre || '').toLowerCase().includes(term) ||
-          (doc.modelo || '').toLowerCase().includes(term) ||
-          (doc.marca || '').toLowerCase().includes(term) ||
-          (doc.numero_serie || '').toLowerCase().includes(term)
-        );
-      }
       if (isCompra.value) {
-        const items = props.tipo === 'ordenescompra' ? doc.items : props.tipo === 'ordenescompra' ? doc.items : doc.productos;
+        const items = props.tipo === 'ordenescompra' ? doc.items : doc.productos;
         return (
           (doc.proveedor?.nombre_razon_social || '').toLowerCase().includes(term) ||
           items?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
@@ -1037,14 +699,14 @@ const items = computed(() => {
       if (props.tipo === 'cotizaciones') {
         return (
           (doc.cliente?.nombre || '').toLowerCase().includes(term) ||
-          (props.tipo === 'ordenescompra' ? doc.items : props.tipo === 'ordenescompra' ? doc.items : doc.productos)?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
+          doc.productos?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
           (doc.numero || doc.id || '').toString().toLowerCase().includes(term)
         );
       }
       if (props.tipo === 'pedidos') {
         return (
           (doc.cliente?.nombre || '').toLowerCase().includes(term) ||
-          (props.tipo === 'ordenescompra' ? doc.items : props.tipo === 'ordenescompra' ? doc.items : doc.productos)?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
+          doc.productos?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
           (doc.numero_pedido || doc.id || '').toString().toLowerCase().includes(term) ||
           (doc.estado === 'enviado_venta' ? 'enviado a venta' : '').toLowerCase().includes(term)
         );
@@ -1052,34 +714,20 @@ const items = computed(() => {
       if (props.tipo === 'ventas') {
         return (
           (doc.cliente?.nombre || '').toLowerCase().includes(term) ||
-          (props.tipo === 'ordenescompra' ? doc.items : props.tipo === 'ordenescompra' ? doc.items : doc.productos)?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
+          doc.productos?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
           (doc.numero_venta || doc.id || '').toString().toLowerCase().includes(term)
-        );
-      }
-      if (props.tipo === 'servicios') {
-        return (
-          (doc.nombre || doc.titulo || '').toLowerCase().includes(term) ||
-          (doc.codigo || '').toLowerCase().includes(term) ||
-          (doc.descripcion || '').toLowerCase().includes(term)
         );
       }
       return (
         (doc.cliente?.nombre_razon_social || '').toLowerCase().includes(term) ||
-        (props.tipo === 'ordenescompra' ? doc.items : props.tipo === 'ordenescompra' ? doc.items : doc.productos)?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
+        doc.productos?.some(p => (p.nombre || '').toLowerCase().includes(term)) ||
         (doc.numero_pedido || doc.numero_factura || doc.id || '').toString().toLowerCase().includes(term)
       );
     });
   }
 
   if (props.filtroEstado) {
-    filtered = filtered.filter(doc => {
-      if (isClientes.value) {
-        // Mapear filtroEstado ('1', '0') a estado del doc ('activo', 'inactivo')
-        const estadoFiltro = props.filtroEstado === '1' ? 'activo' : (props.filtroEstado === '0' ? 'inactivo' : '');
-        return doc.estado === estadoFiltro;
-      }
-      return doc.estado === props.filtroEstado;
-    });
+    filtered = filtered.filter(doc => doc.estado === props.filtroEstado);
   }
 
   const [field, direction] = props.sortBy.split('-');
@@ -1118,52 +766,21 @@ const items = computed(() => {
         aVal = (a.numero_compra || a.id || '').toString().toLowerCase();
         bVal = (b.numero_compra || b.id || '').toString().toLowerCase();
         break;
-      case 'nombre': // clientes/equipos/productos/herramientas
-        if (props.tipo === 'herramientas') {
-          aVal = (a.titulo || '').toLowerCase();
-          bVal = (b.titulo || '').toLowerCase();
-        } else {
-          aVal = (isClientes.value ? (a.titulo || '') : (a.nombre || a.titulo || '')).toLowerCase();
-          bVal = (isClientes.value ? (b.titulo || '') : (b.nombre || b.titulo || '')).toLowerCase();
-        }
-        break;
-      case 'rfc':
-        aVal = (isClientes.value ? (a.extra || '') : (a.rfc || '')).toLowerCase();
-        bVal = (isClientes.value ? (b.extra || '') : (b.rfc || '')).toLowerCase();
-        break;
-      case 'codigo':
-        aVal = (a.codigo || '').toLowerCase();
-        bVal = (b.codigo || '').toLowerCase();
-        break;
-      case 'email':
-        aVal = (a.subtitulo || '').toLowerCase();
-        bVal = (b.subtitulo || '').toLowerCase();
+      case 'nombre':
+        aVal = (a.nombre || a.titulo || '').toLowerCase();
+        bVal = (b.nombre || b.titulo || '').toLowerCase();
         break;
       case 'precio':
         aVal = obtenerPrecio(a);
         bVal = obtenerPrecio(b);
-        break;
-      case 'stock': // 👈 ordenar por stock cuando config.campoExtra.key === 'stock'
-        aVal = parseInt(a.stock ?? a.cantidad ?? a.existencia ?? a.meta?.stock ?? 0);
-        bVal = parseInt(b.stock ?? b.cantidad ?? b.existencia ?? b.meta?.stock ?? 0);
-        aVal = Number.isFinite(aVal) ? aVal : 0;
-        bVal = Number.isFinite(bVal) ? bVal : 0;
         break;
       case 'total':
         aVal = parseFloat(a.total); aVal = Number.isFinite(aVal) ? aVal : 0;
         bVal = parseFloat(b.total); bVal = Number.isFinite(bVal) ? bVal : 0;
         break;
       case 'estado':
-        if (isClientes.value) {
-          aVal = a.estado || '';
-          bVal = b.estado || '';
-        } else if (props.tipo === 'herramientas') {
-          aVal = a.meta?.tecnico ? 'asignada' : 'sin_asignar';
-          bVal = b.meta?.tecnico ? 'asignada' : 'sin_asignar';
-        } else {
-          aVal = a.estado || '';
-          bVal = b.estado || '';
-        }
+        aVal = a.estado || '';
+        bVal = b.estado || '';
         break;
       default:
         aVal = a?.[field] ?? '';
@@ -1183,9 +800,6 @@ const onEditar = (id) => emit('editar', id);
 const onEliminar = (id) => emit('eliminar', id);
 const onDuplicar = (doc) => emit('duplicar', doc);
 const onImprimir = (doc) => emit('imprimir', doc);
-const onRenovar = (doc) => emit('renovar', doc);
-const onSuspender = (doc) => emit('suspender', doc);
-const onReactivar = (doc) => emit('reactivar', doc);
 const onEnviarVenta = (doc) => emit('enviar-venta', doc);
 const onEnviarPedido = (doc) => emit('enviar-pedido', doc);
 const onMarcarPagado = (doc) => emit('marcar-pagado', doc);
@@ -1200,27 +814,15 @@ const onSort = (field) => {
 };
 
 const getColspan = () => {
-  let count = 4; // Fecha, Nombre, Estado, Acciones (siempre presentes)
+   let count = 4; // Fecha, Cliente/Proveedor, Estado, Acciones (siempre presentes)
 
-  if (config.value.mostrarCampoExtra) count++;
-  if (config.value.mostrarTecnico) count++;
-  if (config.value.mostrarFoto) count++;
-  if (config.value.mostrarPrecio) count++;
-  if (config.value.mostrarTotal !== false) count++;
-  if (config.value.mostrarProductos !== false) count++;
+   if (config.value.mostrarCampoExtra) count++;
+   if (config.value.mostrarTotal !== false) count++;
+   if (config.value.mostrarProductos !== false) count++;
 
-  return count;
-};
+   return count;
+ };
 
-const openImageModal = (imageUrl) => {
-  selectedImage.value = imageUrl;
-  showImageModal.value = true;
-};
-
-const closeImageModal = () => {
-  showImageModal.value = false;
-  selectedImage.value = '';
-};
 </script>
 
 <style scoped>

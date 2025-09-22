@@ -510,6 +510,9 @@ class ReporteController extends Controller
             $productosQuery->where('marca_id', $marcaId);
         }
 
+        // Obtener marcas para el filtro
+        $marcas = \App\Models\Marca::select('id', 'nombre')->get();
+
         $productos = $productosQuery->get()->map(function ($producto) {
             return [
                 'id' => $producto->id,
@@ -912,14 +915,13 @@ class ReporteController extends Controller
      */
     public function productos(Request $request)
     {
-        $fechaInicio = $request->get('fecha_inicio', now()->startOfMonth()->format('Y-m-d'));
-        $fechaFin = $request->get('fecha_fin', now()->endOfMonth()->format('Y-m-d'));
+        // Si no hay fechas especificadas, usar un rango amplio (último año)
+        $fechaInicio = $request->get('fecha_inicio', now()->subYear()->format('Y-m-d'));
+        $fechaFin = $request->get('fecha_fin', now()->format('Y-m-d'));
         $categoriaId = $request->get('categoria_id');
         $marcaId = $request->get('marca_id');
 
-        $productosQuery = Producto::with(['categoria', 'marca', 'ventas' => function($q) use ($fechaInicio, $fechaFin) {
-            $q->whereBetween('fecha', [$fechaInicio, $fechaFin]);
-        }]);
+        $productosQuery = Producto::with(['categoria', 'marca']);
 
         if ($categoriaId) {
             $productosQuery->where('categoria_id', $categoriaId);
@@ -929,17 +931,26 @@ class ReporteController extends Controller
             $productosQuery->where('marca_id', $marcaId);
         }
 
-        $productos = $productosQuery->get()->map(function ($producto) {
-            $cantidadVendida = $producto->ventas->sum('pivot.cantidad');
-            $totalVendido = $producto->ventas->sum(function ($venta) {
-                $pivot = $venta->pivot;
-                return ($pivot->precio - ($pivot->descuento ?? 0)) * $pivot->cantidad;
+        $productos = $productosQuery->get()->map(function ($producto) use ($fechaInicio, $fechaFin) {
+            // Obtener estadísticas de ventas para este producto en el período
+            // Incluir tanto ventas pagadas como no pagadas
+            $ventaItems = \App\Models\VentaItem::with('venta')
+                ->where('ventable_type', \App\Models\Producto::class)
+                ->where('ventable_id', $producto->id)
+                ->whereHas('venta', function($q) use ($fechaInicio, $fechaFin) {
+                    $q->whereBetween('fecha', [$fechaInicio, $fechaFin]);
+                })
+                ->get();
+
+            $cantidadVendida = $ventaItems->sum('cantidad');
+            $totalVendido = $ventaItems->sum(function ($item) {
+                return ($item->precio - ($item->descuento ?? 0)) * $item->cantidad;
             });
-            $costoTotal = $producto->ventas->sum(function ($venta) use ($producto) {
-                $pivot = $venta->pivot;
-                return ($pivot->costo_unitario ?? $producto->precio_compra) * $pivot->cantidad;
+            $costoTotal = $ventaItems->sum(function ($item) use ($producto) {
+                return ($item->costo_unitario ?? $producto->precio_compra) * $item->cantidad;
             });
             $ganancia = $totalVendido - $costoTotal;
+            $numeroVentas = $ventaItems->groupBy('venta_id')->count();
 
             return [
                 'id' => $producto->id,
@@ -954,7 +965,7 @@ class ReporteController extends Controller
                 'total_vendido' => $totalVendido,
                 'costo_total' => $costoTotal,
                 'ganancia' => $ganancia,
-                'numero_ventas' => $producto->ventas->count(),
+                'numero_ventas' => $numeroVentas,
             ];
         })->sortByDesc('total_vendido')->values();
 
@@ -1255,18 +1266,71 @@ class ReporteController extends Controller
     }
 
     /**
+     * Reporte de ventas pendientes de pago
+     */
+    public function ventasPendientes(Request $request)
+    {
+        $search = $request->get('search');
+        $estado = $request->get('estado');
+        $perPage = $request->get('per_page', 10);
+
+        $ventasQuery = Venta::with(['cliente:id,nombre_razon_social,email'])
+            ->where('estado', '!=', 'cancelada')
+            ->where('pagado', false)
+            ->orderBy('created_at', 'desc');
+
+        // Aplicar filtros
+        if ($search) {
+            $ventasQuery->where(function($q) use ($search) {
+                $q->whereHas('cliente', function($clienteQuery) use ($search) {
+                    $clienteQuery->where('nombre_razon_social', 'like', '%' . $search . '%');
+                })
+                ->orWhere('numero_venta', 'like', '%' . $search . '%');
+            });
+        }
+
+        if ($estado) {
+            if ($estado === 'borrador') {
+                $ventasQuery->where('estado', 'borrador');
+            } elseif ($estado === 'pendiente') {
+                $ventasQuery->where('estado', 'pendiente');
+            } elseif ($estado === 'aprobada') {
+                $ventasQuery->where('estado', 'aprobada');
+            }
+        }
+
+        $ventas = $ventasQuery->paginate($perPage);
+
+        // Calcular estadísticas de ventas pendientes de pago
+        $ventasPendientes = Venta::where('pagado', false)->where('estado', '!=', 'cancelada');
+        $estadisticas = [
+            'total' => $ventasPendientes->count(),
+            'total_monto' => $ventasPendientes->sum('total'),
+            'aprobadas' => $ventasPendientes->where('estado', 'aprobada')->count(),
+            'borrador' => $ventasPendientes->where('estado', 'borrador')->count(),
+        ];
+
+        return Inertia::render('Reportes/VentasPendientes', [
+            'ventas' => $ventas,
+            'estadisticas' => $estadisticas,
+            'filters' => [
+                'search' => $search,
+                'estado' => $estado,
+            ]
+        ]);
+    }
+
+    /**
      * Exportar reporte de productos a JSON para Excel
      */
     public function exportarProductos(Request $request)
     {
-        $fechaInicio = $request->get('fecha_inicio', now()->startOfMonth()->format('Y-m-d'));
-        $fechaFin = $request->get('fecha_fin', now()->endOfMonth()->format('Y-m-d'));
+        $fechaInicio = $request->get('fecha_inicio', now()->subYear()->format('Y-m-d'));
+        $fechaFin = $request->get('fecha_fin', now()->format('Y-m-d'));
         $categoriaId = $request->get('categoria_id');
         $marcaId = $request->get('marca_id');
 
-        $productosQuery = Producto::with(['categoria', 'marca', 'ventas' => function($q) use ($fechaInicio, $fechaFin) {
-            $q->whereBetween('fecha', [$fechaInicio, $fechaFin]);
-        }]);
+        $productosQuery = Producto::with(['categoria', 'marca']);
 
         if ($categoriaId) {
             $productosQuery->where('categoria_id', $categoriaId);
@@ -1276,17 +1340,30 @@ class ReporteController extends Controller
             $productosQuery->where('marca_id', $marcaId);
         }
 
-        $productos = $productosQuery->get()->map(function ($producto) {
-            $cantidadVendida = $producto->ventas->sum('pivot.cantidad');
-            $totalVendido = $producto->ventas->sum(function ($venta) {
-                $pivot = $venta->pivot;
-                return ($pivot->precio - ($pivot->descuento ?? 0)) * $pivot->cantidad;
+        $productos = $productosQuery->get()->map(function ($producto) use ($fechaInicio, $fechaFin) {
+            // Obtener estadísticas de ventas para este producto en el período
+            $ventaItemsQuery = \App\Models\VentaItem::with('venta')
+                ->where('ventable_type', \App\Models\Producto::class)
+                ->where('ventable_id', $producto->id);
+
+            // Solo filtrar por fechas si están especificadas
+            if ($fechaInicio && $fechaFin) {
+                $ventaItemsQuery->whereHas('venta', function($q) use ($fechaInicio, $fechaFin) {
+                    $q->whereBetween('fecha', [$fechaInicio, $fechaFin]);
+                });
+            }
+
+            $ventaItems = $ventaItemsQuery->get();
+
+            $cantidadVendida = $ventaItems->sum('cantidad');
+            $totalVendido = $ventaItems->sum(function ($item) {
+                return ($item->precio - ($item->descuento ?? 0)) * $item->cantidad;
             });
-            $costoTotal = $producto->ventas->sum(function ($venta) use ($producto) {
-                $pivot = $venta->pivot;
-                return ($pivot->costo_unitario ?? $producto->precio_compra) * $pivot->cantidad;
+            $costoTotal = $ventaItems->sum(function ($item) use ($producto) {
+                return ($item->costo_unitario ?? $producto->precio_compra) * $item->cantidad;
             });
             $ganancia = $totalVendido - $costoTotal;
+            $numeroVentas = $ventaItems->groupBy('venta_id')->count();
 
             return [
                 'Nombre' => $producto->nombre,
@@ -1300,7 +1377,7 @@ class ReporteController extends Controller
                 'Total Vendido' => $totalVendido,
                 'Costo Total' => $costoTotal,
                 'Ganancia' => $ganancia,
-                'Número Ventas' => $producto->ventas->count(),
+                'Número Ventas' => $numeroVentas,
             ];
         })->sortByDesc('Total Vendido')->values();
 

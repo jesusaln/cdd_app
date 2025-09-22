@@ -19,79 +19,58 @@ class CobranzaController extends Controller
      */
     public function index()
     {
-        // Obtener ventas pendientes de pago
-        $ventasQuery = Venta::with(['cliente:id,nombre_razon_social,email'])
-            ->where('pagado', false)
-            ->where('estado', '!=', 'cancelada');
+        // Obtener cobranzas con relaciones
+        $cobranzasQuery = Cobranza::with(['renta.cliente:id,nombre_razon_social,email'])
+            ->whereHas('renta', function($q) {
+                $q->where('estado', 'activo');
+            });
 
         // Aplicar filtros
         if (request('search')) {
             $search = request('search');
-            $ventasQuery->where(function($q) use ($search) {
-                $q->whereHas('cliente', function($clienteQuery) use ($search) {
+            $cobranzasQuery->where(function($q) use ($search) {
+                $q->whereHas('renta.cliente', function($clienteQuery) use ($search) {
                     $clienteQuery->where('nombre_razon_social', 'like', '%' . $search . '%');
                 })
-                ->orWhere('numero_venta', 'like', '%' . $search . '%');
+                ->orWhereHas('renta', function($rentaQuery) use ($search) {
+                    $rentaQuery->where('numero_contrato', 'like', '%' . $search . '%');
+                })
+                ->orWhere('concepto', 'like', '%' . $search . '%');
             });
         }
 
         if (request('estado')) {
-            // Para ventas, mapear 'pendiente' a false en pagado
-            if (request('estado') === 'pendiente') {
-                $ventasQuery->where('pagado', false);
-            } elseif (request('estado') === 'pagado') {
-                $ventasQuery->where('pagado', true);
-            }
+            $cobranzasQuery->where('estado', request('estado'));
+        }
+
+        if (request('mes')) {
+            $cobranzasQuery->whereMonth('fecha_cobro', request('mes'));
+        }
+
+        if (request('anio')) {
+            $cobranzasQuery->whereYear('fecha_cobro', request('anio'));
         }
 
         // Aplicar ordenamiento
-        $sortBy = request('sort_by', 'fecha');
+        $sortBy = request('sort_by', 'fecha_cobro');
         $sortDirection = request('sort_direction', 'desc');
-        $ventasQuery->orderBy($sortBy, $sortDirection);
+        $cobranzasQuery->orderBy($sortBy, $sortDirection);
 
-        $ventasCollection = $ventasQuery->get();
+        $cobranzas = $cobranzasQuery->paginate(request('per_page', 10));
 
-        // Transformar ventas para que tengan estructura similar a cobranzas
-        $ventasTransformadas = $ventasCollection->map(function ($venta) {
-            return [
-                'id' => $venta->id,
-                'tipo' => 'venta',
-                'numero_venta' => $venta->numero_venta,
-                'cliente' => $venta->cliente,
-                'fecha_cobro' => $venta->fecha ? $venta->fecha->format('Y-m-d') : $venta->created_at->format('Y-m-d'),
-                'monto_cobrado' => $venta->total,
-                'concepto' => 'Venta pendiente de pago',
-                'estado' => $venta->pagado ? 'pagado' : 'pendiente',
-                'notas' => $venta->notas,
-                'created_at' => $venta->created_at,
-                'updated_at' => $venta->updated_at,
-            ];
-        });
-
-        // Crear paginación manual
-        $perPage = request('per_page', 10);
-        $currentPage = \Illuminate\Pagination\Paginator::resolveCurrentPage('page');
-        $paginatedItems = $ventasTransformadas->forPage($currentPage, $perPage);
-        $ventas = new \Illuminate\Pagination\LengthAwarePaginator(
-            $paginatedItems,
-            $ventasTransformadas->count(),
-            $perPage,
-            $currentPage,
-            ['path' => request()->url(), 'pageName' => 'page']
-        );
-
-        // Calcular estadísticas de ventas pendientes
+        // Calcular estadísticas
         $stats = [
-            'total' => Venta::where('pagado', false)->where('estado', '!=', 'cancelada')->count(),
-            'pendientes' => Venta::where('pagado', false)->where('estado', '!=', 'cancelada')->count(),
-            'pagadas' => Venta::where('pagado', true)->count(),
-            'vencidas' => 0, // No aplicable para ventas
-            'total_pendiente' => Venta::where('pagado', false)->where('estado', '!=', 'cancelada')->sum('total'),
-            'total_pagado' => Venta::where('pagado', true)->sum('total'),
+            'total' => Cobranza::whereHas('renta', fn($q) => $q->where('estado', 'activo'))->count(),
+            'pendientes' => Cobranza::where('estado', 'pendiente')->whereHas('renta', fn($q) => $q->where('estado', 'activo'))->count(),
+            'pagadas' => Cobranza::where('estado', 'pagado')->whereHas('renta', fn($q) => $q->where('estado', 'activo'))->count(),
+            'parciales' => Cobranza::where('estado', 'parcial')->whereHas('renta', fn($q) => $q->where('estado', 'activo'))->count(),
+            'vencidas' => Cobranza::where('estado', 'vencido')->whereHas('renta', fn($q) => $q->where('estado', 'activo'))->count(),
+            'total_pendiente' => Cobranza::whereIn('estado', ['pendiente', 'parcial', 'vencido'])->whereHas('renta', fn($q) => $q->where('estado', 'activo'))->sum('monto_cobrado'),
+            'total_pagado' => Cobranza::where('estado', 'pagado')->whereHas('renta', fn($q) => $q->where('estado', 'activo'))->sum('monto_pagado'),
         ];
 
         return inertia('Cobranza/Index', [
-            'cobranzas' => $ventas,
+            'cobranzas' => $cobranzas,
             'stats' => $stats,
             'filters' => request()->only(['search', 'estado', 'mes', 'anio']),
             'sorting' => [

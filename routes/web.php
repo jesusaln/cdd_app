@@ -183,6 +183,7 @@ Route::get('/reportes/tecnicos', [ReporteTecnicoController::class, 'index'])->na
 Route::get('/reportes/tecnicos/datos', [ReporteTecnicoController::class, 'datos'])->name('reportes.tecnicos.datos');
 
 // Nuevos reportes
+Route::get('/reportes/ventas-pendientes', [ReporteController::class, 'ventasPendientes'])->name('reportes.ventas-pendientes');
 Route::get('/reportes/clientes', [ReporteController::class, 'clientes'])->name('reportes.clientes');
 Route::get('/reportes/inventario', [ReporteController::class, 'inventario'])->name('reportes.inventario');
 Route::get('/reportes/servicios', [ReporteController::class, 'servicios'])->name('reportes.servicios');

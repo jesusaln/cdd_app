@@ -8,8 +8,8 @@ import 'notyf/notyf.min.css'
 
 import { generarPDF } from '@/Utils/pdfGenerator'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import UniversalHeader from '@/Components/IndexComponents/UniversalHeader.vue'
-import DocumentosTable from '@/Components/IndexComponents/DocumentosTable.vue'
+import CotizacionesHeader from '@/Components/IndexComponents/CotizacionesHeader.vue'
+import CotizacionesTable from '@/Components/IndexComponents/CotizacionesTable.vue'
 import Modal from '@/Components/IndexComponents/Modales.vue'
 import Pagination from '@/Components/Pagination.vue'
 
@@ -83,8 +83,8 @@ const auditoriaForModal = computed(() => {
 })
 
 /* =========================
-   Filtrado y ordenamiento
-========================= */
+    Filtrado y ordenamiento simplificado
+ ========================= */
 const cotizacionesFiltradasYOrdenadas = computed(() => {
   let result = [...cotizacionesOriginales.value]
 
@@ -93,13 +93,11 @@ const cotizacionesFiltradasYOrdenadas = computed(() => {
     const search = searchTerm.value.toLowerCase().trim()
     result = result.filter(cotizacion => {
       const cliente = cotizacion.cliente?.nombre?.toLowerCase() || ''
-      const numeroOriginal = String(cotizacion.numero_cotizacion || cotizacion.id || '').toLowerCase()
-      const numeroFormateado = formatearNumeroCotizacion(cotizacion.numero_cotizacion).toLowerCase()
+      const numero = String(cotizacion.numero_cotizacion || cotizacion.id || '').toLowerCase()
       const estado = cotizacion.estado?.toLowerCase() || ''
 
       return cliente.includes(search) ||
-             numeroOriginal.includes(search) ||
-             numeroFormateado.includes(search) ||
+             numero.includes(search) ||
              estado.includes(search)
     })
   }
@@ -119,8 +117,8 @@ const cotizacionesFiltradasYOrdenadas = computed(() => {
 
       switch (field) {
         case 'fecha':
-          valueA = new Date(a.fecha || a.created_at || 0)
-          valueB = new Date(b.fecha || b.created_at || 0)
+          valueA = new Date(a.fecha || a.created_at || 0).getTime()
+          valueB = new Date(b.fecha || b.created_at || 0).getTime()
           break
         case 'cliente':
           valueA = a.cliente?.nombre || ''
@@ -227,36 +225,23 @@ watch(totalPages, (newTotal) => {
   }
 })
 
-// Estadísticas calculadas
+// Estadísticas calculadas - Fácil de modificar
 const estadisticas = computed(() => {
-  const stats = {
-    total: cotizacionesOriginales.value.length,
-    aprobadas: 0,
-    pendientes: 0,
-    borrador: 0,
-    enviado_pedido: 0,
-    cancelado: 0,
-  };
+  const cotizaciones = cotizacionesOriginales.value
 
-  cotizacionesOriginales.value.forEach(c => {
-    switch (String(c.estado || '').toLowerCase()) {
-      case 'aprobado':
-      case 'aprobada':
-        stats.aprobadas++; break;
-      case 'pendiente':
-        stats.pendientes++; break;
-      case 'borrador':
-        stats.borrador++; break;
-      case 'enviado_pedido':
-        stats.enviado_pedido++; break;
-      case 'cancelado':
-        stats.cancelado++; break;
-    }
-  });
+  return {
+    total: cotizaciones.length,
+    aprobadas: cotizaciones.filter(c => ['aprobado', 'aprobada'].includes(String(c.estado || '').toLowerCase())).length,
+    pendientes: cotizaciones.filter(c => c.estado === 'pendiente').length,
+    borrador: cotizaciones.filter(c => c.estado === 'borrador').length,
+    enviado_pedido: cotizaciones.filter(c => c.estado === 'enviado_pedido').length,
+    cancelado: cotizaciones.filter(c => c.estado === 'cancelado').length,
+  }
+})
 
-  return stats;
-});
-
+/* =========================
+    Funciones de manejo - Fáciles de modificar
+ ========================= */
 const handleLimpiarFiltros = () => {
   searchTerm.value = ''
   sortBy.value = 'fecha-desc'
@@ -267,10 +252,8 @@ const handleLimpiarFiltros = () => {
 }
 
 const updateSort = (newSort) => {
-  if (newSort && typeof newSort === 'string') {
-    sortBy.value = newSort
-    currentPage.value = 1 // Resetear página al cambiar ordenamiento
-  }
+  sortBy.value = newSort || 'fecha-desc'
+  currentPage.value = 1
 }
 
 /* =========================
@@ -527,8 +510,8 @@ const crearNuevaCotizacion = () => {
   <div class="cotizaciones-index min-h-screen bg-gray-50">
     <!-- Contenido principal -->
     <div class="max-w-8xl mx-auto px-6 py-8">
-      <!-- Header de filtros y estadísticas -->
-      <UniversalHeader
+      <!-- Header específico de cotizaciones -->
+      <CotizacionesHeader
         :total="estadisticas.total"
         :aprobadas="estadisticas.aprobadas"
         :pendientes="estadisticas.pendientes"
@@ -538,22 +521,19 @@ const crearNuevaCotizacion = () => {
         v-model:search-term="searchTerm"
         v-model:sort-by="sortBy"
         v-model:filtro-estado="filtroEstado"
-        :config="{
-          module: 'cotizaciones',
-          createButtonText: 'Nueva Cotización',
-          searchPlaceholder: 'Buscar por cliente, número...'
-        }"
+        @crear-nueva="crearNuevaCotizacion"
+        @search-change="updateSort"
+        @filtro-estado-change="updateSort"
+        @sort-change="updateSort"
         @limpiar-filtros="handleLimpiarFiltros"
       />
 
-      <!-- Tabla de documentos -->
+      <!-- Tabla específica de cotizaciones -->
       <div class="mt-6">
-        <DocumentosTable
+        <CotizacionesTable
           :documentos="documentosCotizaciones"
-          tipo="cotizaciones"
           :search-term="searchTerm"
           :sort-by="sortBy"
-          :filtro-estado="filtroEstado"
           @ver-detalles="verDetalles"
           @editar="editarCotizacion"
           @eliminar="confirmarEliminacion"

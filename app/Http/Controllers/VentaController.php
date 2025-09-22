@@ -765,6 +765,7 @@ class VentaController extends Controller
             // Actualizar la venta con la información de pago
             $venta->update([
                 'pagado' => true,
+                'estado' => EstadoVenta::Aprobada,
                 'metodo_pago' => $request->metodo_pago,
                 'fecha_pago' => now(),
                 'notas_pago' => $request->notas_pago,

@@ -7,8 +7,8 @@ import { Notyf } from 'notyf'
 import 'notyf/notyf.min.css'
 import { generarPDF } from '@/Utils/pdfGenerator'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import UniversalHeader from '@/Components/IndexComponents/UniversalHeader.vue'
-import DocumentosTable from '@/Components/IndexComponents/DocumentosTable.vue'
+import VentasHeader from '@/Components/IndexComponents/VentasHeader.vue'
+import VentasTable from '@/Components/IndexComponents/VentasTable.vue'
 import Modal from '@/Components/IndexComponents/Modales.vue'
 import Pagination from '@/Components/Pagination.vue'
 
@@ -98,67 +98,10 @@ const auditoriaForModal = computed(() => {
 })
 
 /* =========================
-   Filtrado y ordenamiento
-========================= */
-const ventasFiltradas = computed(() => {
-  let result = [...ventasOriginales.value]
-
-  // Aplicar filtro de búsqueda
-  if (searchTerm.value.trim()) {
-    const search = searchTerm.value.toLowerCase().trim()
-    result = result.filter(venta => {
-      const cliente = venta.cliente?.nombre?.toLowerCase() || ''
-      const numero = String(venta.numero_venta || venta.id || '').toLowerCase()
-      const estado = venta.estado?.toLowerCase() || ''
-
-      return cliente.includes(search) ||
-             numero.includes(search) ||
-             estado.includes(search)
-    })
-  }
-
-  // Aplicar filtro de estado
-  if (filtroEstado.value) {
-    result = result.filter(venta => venta.estado === filtroEstado.value)
-  }
-
-  // Aplicar ordenamiento
-  if (sortBy.value) {
-    const [field, order] = sortBy.value.split('-')
-    const isDesc = order === 'desc'
-
-    result.sort((a, b) => {
-      let valueA, valueB
-
-      switch (field) {
-        case 'fecha':
-          valueA = new Date(a.fecha || a.created_at || 0)
-          valueB = new Date(b.fecha || b.created_at || 0)
-          break
-        case 'cliente':
-          valueA = a.cliente?.nombre || ''
-          valueB = b.cliente?.nombre || ''
-          break
-        case 'total':
-          valueA = parseFloat(a.total || 0)
-          valueB = parseFloat(b.total || 0)
-          break
-        case 'estado':
-          valueA = a.estado || ''
-          valueB = b.estado || ''
-          break
-        default:
-          valueA = a[field] || ''
-          valueB = b[field] || ''
-      }
-
-      if (valueA < valueB) return isDesc ? 1 : -1
-      if (valueA > valueB) return isDesc ? -1 : 1
-      return 0
-    })
-  }
-
-  return result
+    Datos para los componentes
+ ========================= */
+const documentosVentas = computed(() => {
+  return [...ventasOriginales.value]
 })
 
 /* =========================
@@ -230,7 +173,7 @@ const ventasFiltradasYOrdenadas = computed(() => {
 })
 
 // Documentos para mostrar (con paginación del lado del cliente)
-const documentosVentas = computed(() => {
+const documentosVentasPaginados = computed(() => {
   const startIndex = (currentPage.value - 1) * perPage.value
   const endIndex = startIndex + perPage.value
   return ventasFiltradasYOrdenadas.value.slice(startIndex, endIndex)
@@ -568,6 +511,7 @@ const confirmarPago = async () => {
       if (index !== -1) {
         ventasOriginales.value[index] = {
           ...ventasOriginales.value[index],
+          estado: 'aprobada',
           pagado: true,
           metodo_pago: metodoPago.value,
           fecha_pago: new Date().toISOString().split('T')[0],
@@ -576,6 +520,12 @@ const confirmarPago = async () => {
       }
 
       cerrarPaymentModal()
+
+      // Recargar la página para actualizar estadísticas y datos del backend
+      router.visit('/ventas', {
+        method: 'get',
+        replace: true
+      })
     } else {
       throw new Error(data?.error || 'Error al procesar el pago')
     }
@@ -600,8 +550,8 @@ const confirmarPago = async () => {
   <div class="ventas-index min-h-screen bg-gray-50">
     <!-- Contenido principal -->
     <div class="max-w-8xl mx-auto px-6 py-8">
-      <!-- Header de filtros y estadísticas -->
-      <UniversalHeader
+      <!-- Header específico de ventas -->
+      <VentasHeader
         :total="estadisticas.total"
         :borrador="estadisticas.borrador"
         :aprobadas="estadisticas.aprobados"
@@ -616,20 +566,20 @@ const confirmarPago = async () => {
           searchPlaceholder: 'Buscar por cliente, número...'
         }"
         @limpiar-filtros="handleLimpiarFiltros"
+        @crear-nuevo="crearNuevaVenta"
       />
 
-      <!-- Tabla de documentos -->
+      <!-- Tabla específica de ventas -->
       <div class="mt-6">
-        <DocumentosTable
-          :documentos="documentosVentas"
-          tipo="ventas"
+        <VentasTable
+          :documentos="documentosVentasPaginados"
           :search-term="searchTerm"
           :sort-by="sortBy"
-          :filtro-estado="filtroEstado"
           @ver-detalles="verDetalles"
           @editar="editarVenta"
           @eliminar="confirmarEliminacion"
           @marcar-pagado="marcarComoPagado"
+          @imprimir="imprimirVenta"
           @sort="updateSort"
         />
 
