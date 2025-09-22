@@ -542,6 +542,42 @@ const confirmarPago = async () => {
     loading.value = false
   }
 }
+
+const cancelarVenta = async (id) => {
+  try {
+    if (!confirm('¿Está seguro de que desea cancelar esta venta? Esta acción devolverá el pago y el inventario.')) {
+      return
+    }
+
+    loading.value = true
+    notyf.success('Cancelando venta...')
+
+    const { data } = await axios.post(`/ventas/${id}/cancel`)
+
+    if (data?.success) {
+      notyf.success(data.message || 'Venta cancelada exitosamente')
+
+      // Recargar la página para actualizar estadísticas y datos del backend
+      router.visit('/ventas', {
+        method: 'get',
+        replace: true
+      })
+    } else {
+      throw new Error(data?.error || 'Error al cancelar la venta')
+    }
+
+  } catch (error) {
+    console.error('Error al cancelar venta:', error)
+    let mensaje = 'Error al cancelar la venta'
+    if (error.response?.data?.error) mensaje = error.response.data.error
+    else if (error.response?.data?.message) mensaje = error.response.data.message
+    else if (error.message) mensaje = error.message
+
+    notyf.error(mensaje)
+  } finally {
+    loading.value = false
+  }
+}
 </script>
 
 <template>
@@ -579,6 +615,7 @@ const confirmarPago = async () => {
           @editar="editarVenta"
           @eliminar="confirmarEliminacion"
           @marcar-pagado="marcarComoPagado"
+          @cancelar="cancelarVenta"
           @imprimir="imprimirVenta"
           @sort="updateSort"
         />

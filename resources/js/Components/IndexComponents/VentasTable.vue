@@ -247,6 +247,16 @@
                     <font-awesome-icon icon="print" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
                   </button>
 
+                  <!-- Cancelar Venta -->
+                  <button
+                    v-if="doc.estado !== 'cancelada'"
+                    @click="onCancelar(doc.id)"
+                    class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-orange-50 text-orange-600 hover:bg-orange-100 hover:text-orange-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:ring-offset-1"
+                    title="Cancelar Venta"
+                  >
+                    <font-awesome-icon icon="times-circle" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
+                  </button>
+
                   <button
                     v-if="doc.estado !== 'cancelada'"
                     @click="onEliminar(doc.id)"
@@ -292,7 +302,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits([
-  'ver-detalles','editar','eliminar','imprimir','sort','marcar-pagado'
+  'ver-detalles','editar','eliminar','imprimir','sort','marcar-pagado','cancelar'
 ])
 
 // Estados de ventas - lógica de negocio actualizada
@@ -447,6 +457,7 @@ const onEditar = (id) => emit('editar', id)
 const onEliminar = (id) => emit('eliminar', id)
 const onImprimir = (doc) => emit('imprimir', doc)
 const onMarcarPagado = (doc) => emit('marcar-pagado', doc)
+const onCancelar = (id) => emit('cancelar', id)
 
 const onSort = (field) => {
   const current = props.sortBy.startsWith(field) ? props.sortBy : `${field}-desc`

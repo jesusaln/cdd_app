@@ -685,26 +685,44 @@ class VentaController extends Controller
 
         DB::beginTransaction();
         try {
-            // Devolver inventario de productos (incrementar reservas)
+            // Devolver inventario de productos
             foreach ($venta->items as $item) {
                 if ($item->ventable_type === Producto::class) {
                     $producto = $item->ventable;
                     if ($producto) {
-                        // Devolver a reservas (ya que la venta consumió reservas)
-                        $producto->increment('reservado', $item->cantidad);
-                        Log::info("Reserva devuelta para producto {$producto->id}", [
-                            'producto_id' => $producto->id,
-                            'cantidad_devuelta' => $item->cantidad,
-                            'reservado_anterior' => $producto->reservado - $item->cantidad,
-                            'reservado_actual' => $producto->reservado
-                        ]);
+                        if ($venta->pagado) {
+                            // Si la venta estaba pagada, devolver al stock físico
+                            $producto->increment('stock', $item->cantidad);
+                            Log::info("Stock devuelto para producto {$producto->id} (venta pagada cancelada)", [
+                                'producto_id' => $producto->id,
+                                'venta_id' => $venta->id,
+                                'cantidad_devuelta' => $item->cantidad,
+                                'stock_anterior' => $producto->stock - $item->cantidad,
+                                'stock_actual' => $producto->stock
+                            ]);
+                        } else {
+                            // Si la venta no estaba pagada, devolver a reservas
+                            $producto->increment('reservado', $item->cantidad);
+                            Log::info("Reserva devuelta para producto {$producto->id} (venta no pagada cancelada)", [
+                                'producto_id' => $producto->id,
+                                'venta_id' => $venta->id,
+                                'cantidad_devuelta' => $item->cantidad,
+                                'reservado_anterior' => $producto->reservado - $item->cantidad,
+                                'reservado_actual' => $producto->reservado
+                            ]);
+                        }
                     }
                 }
             }
 
-            // Actualizar estado a cancelada y registrar quién lo canceló
+            // Actualizar estado a cancelada, quitar pago y registrar quién lo canceló
             $venta->update([
                 'estado' => EstadoVenta::Cancelada,
+                'pagado' => false,
+                'metodo_pago' => null,
+                'fecha_pago' => null,
+                'notas_pago' => 'CANCELADO - ' . ($venta->notas_pago ?? ''),
+                'pagado_por' => null,
                 'deleted_by' => \Illuminate\Support\Facades\Auth::id(),
                 'deleted_at' => now()
             ]);
