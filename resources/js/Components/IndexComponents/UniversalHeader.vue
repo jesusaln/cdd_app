@@ -254,8 +254,9 @@ const defaultConfigs = {
     searchFields: ['numero_orden', 'proveedor.nombre_razon_social', 'productos.nombre'],
     estadisticas: {
       total: { label: 'Total', icon: 'document', description: 'Total de órdenes de compra' },
-      aprobadas: { label: 'Recibidas', icon: 'check-circle', color: 'green', description: 'Órdenes recibidas' },
+      aprobadas: { label: 'Procesadas', icon: 'check-circle', color: 'green', description: 'Órdenes procesadas' },
       pendientes: { label: 'Pendientes', icon: 'clock', color: 'yellow', description: 'Órdenes pendientes' },
+      enviadas: { label: 'Enviadas a Compra', icon: 'paper-plane', color: 'blue', description: 'Órdenes enviadas a compra' },
       borrador: { label: 'Borrador', icon: 'document-text', color: 'gray', description: 'Órdenes en borrador' },
       cancelada: { label: 'Canceladas', icon: 'x-circle', color: 'red', description: 'Órdenes canceladas' }
     },
@@ -263,8 +264,8 @@ const defaultConfigs = {
       { value: '', label: 'Todos los Estados', color: 'slate' },
       { value: 'borrador', label: 'Borrador', color: 'gray' },
       { value: 'pendiente', label: 'Pendientes', color: 'yellow' },
-      { value: 'aprobado', label: 'Aprobadas', color: 'blue' },
-      { value: 'recibida', label: 'Recibidas', color: 'green' },
+      { value: 'enviado_a_compra', label: 'Enviadas a Compra', color: 'blue' },
+      { value: 'convertida', label: 'Procesadas', color: 'green' },
       { value: 'cancelada', label: 'Canceladas', color: 'red' },
       { value: 'urgente', label: 'Urgentes', color: 'red' }
     ],
@@ -425,6 +426,7 @@ const estadisticasConPorcentaje = computed(() => {
     return {
       aprobadas: { ...finalConfig.value.estadisticas.aprobadas, porcentaje: Math.round(((props.aprobadas || 0) / total) * 100) },
       pendientes:{ ...finalConfig.value.estadisticas.pendientes, porcentaje: Math.round(((props.pendientes || 0) / total) * 100) },
+      enviadas: { ...finalConfig.value.estadisticas.enviadas, porcentaje: Math.round(((props.enviadas || 0) / total) * 100) },
       borrador: { ...finalConfig.value.estadisticas.borrador, porcentaje: Math.round(((props.borrador || 0) / total) * 100) },
       cancelada: { ...finalConfig.value.estadisticas.cancelada, porcentaje: Math.round(((props.cancelada || 0) / total) * 100) },
     };
@@ -1051,6 +1053,10 @@ const getIconPath = (iconName) => icons[iconName] || icons.document;
     <span>{{ estadisticasConPorcentaje.pendientes?.porcentaje || 0 }}% {{ finalConfig.estadisticas.pendientes.label }}</span>
   </div>
   <div class="flex items-center gap-1">
+    <div class="w-3 h-3 rounded-full" :class="getColorClasses(finalConfig.estadisticas.enviadas.color).text.replace('text-', 'bg-')"></div>
+    <span>{{ estadisticasConPorcentaje.enviadas?.porcentaje || 0 }}% {{ finalConfig.estadisticas.enviadas.label }}</span>
+  </div>
+  <div class="flex items-center gap-1">
     <div class="w-3 h-3 rounded-full" :class="getColorClasses(finalConfig.estadisticas.aprobadas.color).text.replace('text-', 'bg-')"></div>
     <span>{{ estadisticasConPorcentaje.aprobadas?.porcentaje || 0 }}% {{ finalConfig.estadisticas.aprobadas.label }}</span>
   </div>
@@ -1141,6 +1147,7 @@ const getIconPath = (iconName) => icons[iconName] || icons.document;
   <template v-else-if="finalConfig.module === 'ordenescompra'">
     <div :class="getColorClasses(finalConfig.estadisticas.borrador.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.borrador?.porcentaje || 0}%` }"></div>
     <div :class="getColorClasses(finalConfig.estadisticas.pendientes.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.pendientes?.porcentaje || 0}%` }"></div>
+    <div :class="getColorClasses(finalConfig.estadisticas.enviadas.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.enviadas?.porcentaje || 0}%` }"></div>
     <div :class="getColorClasses(finalConfig.estadisticas.aprobadas.color).text.replace('text-', 'bg-')" class="h-full transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.aprobadas?.porcentaje || 0}%` }"></div>
     <div class="h-full bg-red-500 transition-all duration-500 ease-out" :style="{ width: `${estadisticasConPorcentaje.cancelada?.porcentaje || 0}%` }"></div>
   </template>

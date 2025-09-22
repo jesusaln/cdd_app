@@ -39,6 +39,7 @@ import {
   faTools,
   faUserCog,
   faToolbox,
+  faCogs,               // 👈 NUEVO (cogs)
   // Administración / usuario
   faUser,
   faDatabase,
@@ -64,6 +65,15 @@ import {
   faCopy,
   faPrint,
   faTrash,
+  // Iconos adicionales faltantes
+  faExchangeAlt,        // 👈 NUEVO (exchange-alt)
+  faTimesCircle,        // 👈 NUEVO (times-circle)
+  faCircleExclamation,  // 👈 NUEVO (circle-exclamation)
+  faCalculator,         // 👈 NUEVO (calculator)
+  faShoppingCart,       // 👈 NUEVO (shopping-cart)
+  faClock,              // 👈 NUEVO (clock)
+  faFileText,           // 👈 NUEVO (document-text)
+  faFile,               // 👈 NUEVO (document)
   // Acciones de rentas (contratos)
   faSyncAlt,           // 👈 NUEVO (Renovar)
   faPause,             // 👈 NUEVO (Suspender)
@@ -80,14 +90,23 @@ library.add(
   faUsers, faCalendarAlt,
   faLaptop, faBox, faWrench, faTags, faTrademark, faWarehouse,
   faFileAlt, faTruck, faDollarSign, faCartShopping, faFileInvoiceDollar, faFileContract,
-  faCar, faTools, faUserCog, faToolbox,
+  faCar, faTools, faUserCog, faToolbox, faCogs,
   faUser, faDatabase,
   faCog, faMapMarkerAlt, faInfoCircle, faExclamationTriangle, faCheckCircle, faSpinner, faCheck, faRedo, faSave, faExclamationCircle,
   faEnvelope, faPhone, faHome, faEdit, faPlus, faTimes, faEye, faEyeSlash, faCopy, faPrint, faTrash,
   faSyncAlt, faPause, faPlay,
   faClipboardList,     // Asegúrate de agregar los nuevos íconos aquí
   faArrowRight,        // Asegúrate de agregar los nuevos íconos aquí
-  faArrowLeft          // Asegúrate de agregar los nuevos íconos aquí
+  faArrowLeft,         // Asegúrate de agregar los nuevos íconos aquí
+  // Iconos adicionales faltantes
+  faExchangeAlt,       // exchange-alt
+  faTimesCircle,       // times-circle
+  faCircleExclamation, // circle-exclamation
+  faCalculator,        // calculator
+  faShoppingCart,      // shopping-cart
+  faClock,             // clock
+  faFileText,          // document-text
+  faFile               // document
 )
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel'
 // Mejor práctica: desactivar devtools en producción

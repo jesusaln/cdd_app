@@ -161,9 +161,12 @@ const total = computed(() => props.compra.total || 0);
 
 // Items
 const items = computed(() => {
+    if (!props.compra.items || !Array.isArray(props.compra.items)) {
+        return [];
+    }
     return props.compra.items.map(item => ({
         id: item.comprable_id,
-        nombre: item.comprable.nombre,
+        nombre: item.comprable?.nombre || 'Sin nombre',
         tipo: item.comprable_type === 'App\\Models\\Producto' ? 'producto' : 'servicio',
         cantidad: item.cantidad,
         precio: item.precio,

@@ -51,6 +51,6 @@ class OrdenCompra extends Model
     public function productos()
     {
         return $this->belongsToMany(Producto::class, 'orden_compra_producto')
-            ->withPivot('cantidad', 'precio', 'descuento');
+            ->withPivot('cantidad', 'precio', 'descuento', 'unidad_medida');
     }
 }

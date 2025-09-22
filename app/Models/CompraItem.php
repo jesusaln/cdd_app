@@ -18,6 +18,7 @@ class CompraItem extends Model
         'descuento',
         'subtotal',
         'descuento_monto',
+        'unidad_medida',
     ];
 
     public function comprable()

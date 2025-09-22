@@ -553,14 +553,35 @@
                     <font-awesome-icon icon="check-circle" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
                   </button>
 
+                  <!-- Procesar Compra (órdenes de compra pendientes o enviadas a compra) -->
                   <button
-                    v-if="config.acciones.eliminar && doc.estado !== 'cancelado'"
-                    @click="onEliminar(doc.id)"
-                    class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:ring-offset-1"
-                    title="Eliminar"
+                    v-if="tipo === 'ordenescompra' && ['pendiente', 'enviado_a_compra'].includes(doc.estado)"
+                    @click="onEnviarCompra(doc)"
+                    class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-1"
+                    :title="doc.estado === 'pendiente' ? 'Procesar Compra (actualizará inventario y creará registro de compra)' : 'Procesar Compra (actualizará inventario)'"
                   >
-                    <font-awesome-icon icon="trash" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
+                    <font-awesome-icon icon="shopping-cart" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
                   </button>
+
+
+                  <!-- Cancelar Orden (solo órdenes de compra no canceladas) -->
+                  <button
+                    v-if="tipo === 'ordenescompra' && ['pendiente', 'enviado_a_compra', 'convertida'].includes(doc.estado)"
+                    @click="onCancelarOrden(doc)"
+                    class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-orange-50 text-orange-600 hover:bg-orange-100 hover:text-orange-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:ring-offset-1"
+                    title="Cancelar Orden"
+                  >
+                    <font-awesome-icon icon="times-circle" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
+                  </button>
+
+                  <button
+                     v-if="config.acciones.eliminar && doc.estado !== 'cancelado' && doc.estado !== 'cancelada'"
+                     @click="onEliminar(doc.id)"
+                     class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:ring-offset-1"
+                     title="Eliminar"
+                   >
+                     <font-awesome-icon icon="trash" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
+                   </button>
                 </div>
               </td>
             </tr>
@@ -640,7 +661,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits([
-  'ver-detalles','editar','eliminar','duplicar','imprimir','sort','renovar','suspender','reactivar','enviar-venta','enviar-pedido','marcar-pagado','open-image-modal'
+  'ver-detalles','editar','eliminar','duplicar','imprimir','sort','renovar','suspender','reactivar','enviar-venta','enviar-pedido','marcar-pagado','open-image-modal','convertirCompra','marcarUrgente','confirmarRecepcion','enviar-compra','cancelar-orden'
 ]);
 
 // Flags
@@ -781,12 +802,12 @@ const config = computed(() => {
       titulo: 'Órdenes de Compra',
       mostrarCampoExtra: true,
       campoExtra: { key: 'numero_orden', label: 'N° Orden' },
-      acciones: { editar: true, duplicar: false, imprimir: true, eliminar: true },
+      acciones: { editar: true, duplicar: true, imprimir: true, eliminar: true },
       estados: {
         'borrador': { label: 'Borrador', classes: 'bg-gray-100 text-gray-700', color: 'bg-gray-400' },
         'pendiente': { label: 'Pendiente', classes: 'bg-yellow-100 text-yellow-700', color: 'bg-yellow-400' },
-        'aprobado': { label: 'Aprobado', classes: 'bg-blue-100 text-blue-700', color: 'bg-blue-400' },
-        'recibida': { label: 'Recibida', classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
+        'enviado_a_compra': { label: 'Enviada a Compra', classes: 'bg-blue-100 text-blue-700', color: 'bg-blue-400' },
+        'convertida': { label: 'Procesada', classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
         'cancelada': { label: 'Cancelada', classes: 'bg-red-100 text-red-700', color: 'bg-red-400' }
       }
     },
@@ -1168,6 +1189,9 @@ const onReactivar = (doc) => emit('reactivar', doc);
 const onEnviarVenta = (doc) => emit('enviar-venta', doc);
 const onEnviarPedido = (doc) => emit('enviar-pedido', doc);
 const onMarcarPagado = (doc) => emit('marcar-pagado', doc);
+const onEnviarCompra = (doc) => emit('enviar-compra', doc);
+const onConvertirCompra = (doc) => emit('convertir-compra', doc);
+const onCancelarOrden = (doc) => emit('cancelar-orden', doc);
 
 const onSort = (field) => {
   const current = props.sortBy.startsWith(field) ? props.sortBy : `${field}-desc`;

@@ -6,7 +6,8 @@ use App\Enums\EstadoCompra;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\Concerns\Blameable;
 
@@ -43,10 +44,16 @@ class Compra extends Model
         return $this->belongsTo(Proveedor::class);
     }
 
-    /** Ítems de la compra */
-    public function items(): HasMany
+    /** Productos de la compra */
+    public function productos(): MorphToMany
     {
-        return $this->hasMany(CompraItem::class);
+        return $this->morphedByMany(
+            Producto::class,
+            'comprable',
+            'compra_items',
+            'compra_id',
+            'comprable_id'
+        )->withPivot('cantidad', 'precio', 'descuento');
     }
 
     // Relaciones de "culpables"

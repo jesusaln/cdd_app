@@ -41,7 +41,14 @@ const selectedOrden = ref(null)
 
 // Configuración del módulo
 const headerConfig = {
-  module: 'ordenescompra'
+  module: 'ordenescompra',
+  labels: {
+    aprobadas: 'Procesadas',
+    pendientes: 'Pendientes',
+    enviadas: 'Enviadas a Compra',
+    borrador: 'Borrador',
+    cancelada: 'Canceladas'
+  }
 }
 
 // Notificaciones
@@ -127,8 +134,9 @@ const ordenesFiltradas = computed(() => {
 // Estadísticas
 const estadisticas = computed(() => ({
   total: props.stats?.total ?? ordenesOriginales.value.length,
-  aprobadas: props.stats?.recibidas ?? ordenesOriginales.value.filter(o => o.estado === 'recibida').length,
+  procesadas: props.stats?.procesadas ?? ordenesOriginales.value.filter(o => o.estado === 'convertida').length,
   pendientes: props.stats?.pendientes ?? ordenesOriginales.value.filter(o => o.estado === 'pendiente').length,
+  enviadas: props.stats?.enviadas ?? ordenesOriginales.value.filter(o => o.estado === 'enviado_a_compra').length,
   borrador: props.stats?.borrador ?? ordenesOriginales.value.filter(o => o.estado === 'borrador').length,
   cancelada: props.stats?.canceladas ?? ordenesOriginales.value.filter(o => o.estado === 'cancelada').length
 }))
@@ -195,21 +203,6 @@ const duplicarOrden = (orden) => {
   }
 }
 
-const convertirACompra = (orden) => {
-  if (confirm(`¿Convertir orden #${orden.id} en compra a proveedores? Esto creará una entrada en el módulo de compras.`)) {
-    router.post(`/ordenescompra/${orden.id}/convertir-compra`, {}, {
-      onSuccess: () => {
-        notyf.success('Orden convertida a compra exitosamente')
-        // Actualizar el estado local
-        const index = ordenesOriginales.value.findIndex(o => o.id === orden.id)
-        if (index !== -1) {
-          ordenesOriginales.value[index] = { ...orden, estado: 'convertida' }
-        }
-      },
-      onError: () => notyf.error('Error al convertir la orden')
-    })
-  }
-}
 
 const imprimirOrden = async (orden) => {
   if (!orden?.id) return notyf.error('ID no válido')
@@ -234,28 +227,30 @@ const confirmarEliminacion = (id) => {
   showModal.value = true
 }
 
-const confirmarRecepcion = (id) => {
-  if (!id) return notyf.error('ID no válido')
-  selectedId.value = id
+const confirmarRecepcion = (orden) => {
+  if (!orden?.id) return notyf.error('Orden no válida')
+  selectedId.value = orden.id
+  selectedOrden.value = orden
   modalMode.value = 'receive'
   showModal.value = true
 }
 
 const recibirOrden = async () => {
-  if (!selectedId.value) return notyf.error('No hay orden seleccionada')
+  if (!selectedOrden.value?.id) return notyf.error('No hay orden seleccionada')
 
   try {
-    router.post(`/ordenescompra/${selectedId.value}/recibir`, {}, {
+    router.post(`/ordenescompra/${selectedOrden.value.id}/enviar-compra`, {}, {
       onSuccess: () => {
-        notyf.success('Orden recibida exitosamente')
+        notyf.success('Orden enviada a compra exitosamente')
         // Nota: No actualizamos stock aquí porque las órdenes de compra no manejan inventario
         ordenesOriginales.value = ordenesOriginales.value.map(o =>
-          o.id === selectedId.value ? { ...o, estado: 'recibida' } : o
+          o.id === selectedOrden.value.id ? { ...o, estado: 'enviada' } : o
         )
         showModal.value = false
+        selectedOrden.value = null
         selectedId.value = null
       },
-      onError: () => notyf.error('Error al recibir la orden')
+      onError: () => notyf.error('Error al enviar la orden a compra')
     })
   } catch (error) {
     console.error(error)
@@ -312,6 +307,63 @@ const importarOrdenes = () => {
   notyf.success('Funcionalidad de importación - pendiente de implementar')
 }
 
+
+const handleMarcarUrgente = (orden) => {
+  marcarUrgente(orden)
+}
+
+const handleConfirmarRecepcion = (orden) => {
+  confirmarRecepcion(orden)
+}
+
+const handleEnviarCompra = (orden) => {
+  const isEnviada = orden.estado === 'enviado_a_compra'
+  const mensaje = isEnviada
+    ? `¿Procesar orden #${orden.id} enviada a compra? Esto actualizará el inventario.`
+    : `¿Procesar orden #${orden.id} a compra? Esto actualizará el inventario y creará la compra automáticamente.`
+
+  if (confirm(mensaje)) {
+    router.post(route('ordenescompra.enviar-compra', orden.id), {}, {
+      onSuccess: (page) => {
+        const successMessage = isEnviada
+          ? 'Stock actualizado exitosamente desde orden enviada a compra.'
+          : 'Orden enviada a compra exitosamente. Stock actualizado y compra creada.'
+        notyf.success(successMessage)
+        const index = ordenesOriginales.value.findIndex(o => o.id === orden.id)
+        if (index !== -1) {
+          ordenesOriginales.value[index] = { ...orden, estado: 'convertida' }
+        }
+      },
+      onError: (errors) => {
+        console.error('Error al procesar la orden:', errors)
+        notyf.error('Error al procesar la orden a compra')
+      }
+    })
+  }
+}
+
+const cancelarOrden = (orden) => {
+  if (confirm(`¿Cancelar orden #${orden.id}? Esta acción revertirá el inventario si la orden fue convertida a compra.`)) {
+    router.post(`/ordenescompra/${orden.id}/cancelar`, {}, {
+      onSuccess: () => {
+        notyf.success('Orden cancelada exitosamente')
+        const index = ordenesOriginales.value.findIndex(o => o.id === orden.id)
+        if (index !== -1) {
+          ordenesOriginales.value[index] = { ...orden, estado: 'cancelada' }
+        }
+      },
+      onError: (error) => {
+        console.error('Error al cancelar:', error)
+        notyf.error('Error al cancelar la orden')
+      }
+    })
+  }
+}
+
+const handleCancelarOrden = (orden) => {
+  cancelarOrden(orden)
+}
+
 </script>
 
 <template>
@@ -323,7 +375,7 @@ const importarOrdenes = () => {
       <!-- Header universal con estadísticas -->
       <UniversalHeader
         :total="estadisticas.total"
-        :aprobadas="estadisticas.aprobadas"
+        :procesadas="estadisticas.procesadas"
         :pendientes="estadisticas.pendientes"
         :borrador="estadisticas.borrador"
         :cancelada="estadisticas.cancelada"
@@ -356,11 +408,12 @@ const importarOrdenes = () => {
           @ver-detalles="verDetalles"
           @editar="editarOrden"
           @duplicar="duplicarOrden"
-          @convertir-compra="convertirACompra"
-          @marcar-urgente="marcarUrgente"
+          @marcar-urgente="handleMarcarUrgente"
           @imprimir="imprimirOrden"
           @eliminar="confirmarEliminacion"
-          @confirmar-recepcion="confirmarRecepcion"
+          @confirmar-recepcion="handleConfirmarRecepcion"
+          @enviar-compra="handleEnviarCompra"
+          @cancelar-orden="handleCancelarOrden"
           @sort="updateSort"
         />
       </div>

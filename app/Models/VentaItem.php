@@ -15,7 +15,8 @@ class VentaItem extends Model
         'precio',
         'descuento',
         'subtotal',
-        'descuento_monto'
+        'descuento_monto',
+        'costo_unitario'
     ];
 
     public function venta()

@@ -543,11 +543,11 @@
             <!-- Órdenes de Compra -->
             <template v-if="isOrdenesCompra">
               <button
-                v-if="selected?.estado !== 'cancelado' && selected?.estado !== 'recibida'"
+                v-if="selected?.estado !== 'cancelado' && selected?.estado !== 'enviada'"
                 @click="emit('confirmar-recepcion', selected)"
                 class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
-                Marcar como Recibida
+                Enviar a Compra
               </button>
               <button
                 v-if="selected?.estado !== 'cancelado' && !selected?.urgente"

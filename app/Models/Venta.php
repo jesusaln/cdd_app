@@ -60,7 +60,7 @@ class Venta extends Model
             'venta_items',
             'venta_id',
             'ventable_id'
-        )->withPivot('cantidad', 'precio', 'descuento');
+        )->withPivot('cantidad', 'precio', 'descuento', 'costo_unitario');
     }
 
     // Relación polimórfica para servicios
@@ -72,7 +72,7 @@ class Venta extends Model
             'venta_items',
             'venta_id',
             'ventable_id'
-        )->withPivot('cantidad', 'precio', 'descuento');
+        )->withPivot('cantidad', 'precio', 'descuento', 'costo_unitario');
     }
 
     // Todos los ítems (productos + servicios)
@@ -93,7 +93,7 @@ class Venta extends Model
         foreach ($this->productos as $producto) {
             $pivot = $producto->pivot;
             $precioVenta = $pivot->precio - ($pivot->descuento ?? 0);
-            $costo = $producto->precio_compra;
+            $costo = $pivot->costo_unitario ?? $producto->precio_compra;
             $gananciaBase = ($precioVenta - $costo) * $pivot->cantidad;
 
             // Aplicar comisión individual del producto
@@ -140,7 +140,7 @@ class Venta extends Model
         // Costo de productos
         foreach ($this->productos as $producto) {
             $pivot = $producto->pivot;
-            $costo = $producto->precio_compra;
+            $costo = $pivot->costo_unitario ?? $producto->precio_compra;
             $costoTotal += $costo * $pivot->cantidad;
         }
 

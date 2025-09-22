@@ -136,10 +136,13 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // RECURSOS PRINCIPALES
     // =====================================================
     Route::resource('ordenescompra', OrdenCompraController::class);
-    Route::post('ordenescompra/{id}/recibir', [OrdenCompraController::class, 'recibirOrden'])->name('ordenescompra.recibir');
+    Route::post('ordenescompra/{id}/enviar-compra', [OrdenCompraController::class, 'enviarACompra'])->name('ordenescompra.enviar-compra');
     Route::post('ordenescompra/{id}/duplicate', [OrdenCompraController::class, 'duplicate'])->name('ordenescompra.duplicate');
     Route::post('ordenescompra/{id}/urgente', [OrdenCompraController::class, 'marcarUrgente'])->name('ordenescompra.urgente');
     Route::post('ordenescompra/{id}/convertir-compra', [OrdenCompraController::class, 'convertirACompra'])->name('ordenescompra.convertir-compra');
+    Route::post('ordenescompra/{id}/cancelar', [OrdenCompraController::class, 'cancelar'])->name('ordenescompra.cancelar');
+    Route::post('ordenescompra/{id}/cambiar-estado', [OrdenCompraController::class, 'cambiarEstado'])->name('ordenescompra.cambiar-estado');
+    Route::get('ordenescompra/{id}/estado', [OrdenCompraController::class, 'getEstado'])->name('ordenescompra.get-estado');
 
     Route::resource('clientes', ClienteController::class)->names('clientes');
     Route::resource('productos', ProductoController::class)->names('productos');

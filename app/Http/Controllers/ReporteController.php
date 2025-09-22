@@ -935,7 +935,10 @@ class ReporteController extends Controller
                 $pivot = $venta->pivot;
                 return ($pivot->precio - ($pivot->descuento ?? 0)) * $pivot->cantidad;
             });
-            $costoTotal = $cantidadVendida * $producto->precio_compra;
+            $costoTotal = $producto->ventas->sum(function ($venta) use ($producto) {
+                $pivot = $venta->pivot;
+                return ($pivot->costo_unitario ?? $producto->precio_compra) * $pivot->cantidad;
+            });
             $ganancia = $totalVendido - $costoTotal;
 
             return [
@@ -1279,7 +1282,10 @@ class ReporteController extends Controller
                 $pivot = $venta->pivot;
                 return ($pivot->precio - ($pivot->descuento ?? 0)) * $pivot->cantidad;
             });
-            $costoTotal = $cantidadVendida * $producto->precio_compra;
+            $costoTotal = $producto->ventas->sum(function ($venta) use ($producto) {
+                $pivot = $venta->pivot;
+                return ($pivot->costo_unitario ?? $producto->precio_compra) * $pivot->cantidad;
+            });
             $ganancia = $totalVendido - $costoTotal;
 
             return [

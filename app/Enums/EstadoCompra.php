@@ -8,7 +8,9 @@ enum EstadoCompra: string
     case Aprobada = 'aprobada';
     case Rechazada = 'rechazada';
     case Recibida = 'recibida';
+    case Recibido = 'recibido';
     case Cancelada = 'cancelada';
+    case Devuelto = 'devuelto';
     case Borrador = 'borrador';
 
     public function label(): string
@@ -18,7 +20,9 @@ enum EstadoCompra: string
             self::Aprobada => 'Aprobada',
             self::Rechazada => 'Rechazada',
             self::Recibida => 'Recibida',
+            self::Recibido => 'Recibido',
             self::Cancelada => 'Cancelada',
+            self::Devuelto => 'Devuelto',
             self::Borrador => 'Borrador',
         };
     }
@@ -30,7 +34,9 @@ enum EstadoCompra: string
             self::Aprobada => 'blue',
             self::Rechazada => 'red',
             self::Recibida => 'green',
+            self::Recibido => 'green',
             self::Cancelada => 'red',
+            self::Devuelto => 'orange',
             self::Borrador => 'yellow',
         };
     }

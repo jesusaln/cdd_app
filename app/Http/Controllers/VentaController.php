@@ -271,6 +271,7 @@ class VentaController extends Controller
                     'descuento' => $item['descuento'],
                     'subtotal' => $subtotalItem,
                     'descuento_monto' => $descuentoMontoItem,
+                    'costo_unitario' => $item['tipo'] === 'producto' ? $modelo->precio_compra : 0,
                 ]);
 
                 // Reducir inventario solo para productos (priorizar reservas)
@@ -485,6 +486,7 @@ class VentaController extends Controller
                     'descuento' => $itemData['descuento'],
                     'subtotal' => $subtotalItem,
                     'descuento_monto' => $descuentoMontoItem,
+                    'costo_unitario' => $itemData['tipo'] === 'producto' ? $modelo->precio_compra : 0,
                 ]);
             }
         });
@@ -606,6 +608,7 @@ class VentaController extends Controller
                     'descuento' => $item->descuento,
                     'subtotal' => $item->subtotal,
                     'descuento_monto' => $item->descuento_monto,
+                    'costo_unitario' => $item->costo_unitario ?? 0,
                 ]);
 
                 $itemsDuplicados++;

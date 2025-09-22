@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\OrdenCompra;
 use App\Models\Proveedor;
 use App\Models\Producto;
-use App\Models\Servicio;
 use App\Models\Compra; // <-- Importa el modelo Compra aquí
+use App\Enums\EstadoCompra;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
@@ -28,7 +28,7 @@ class OrdenCompraController extends Controller
         $baseQuery = OrdenCompra::with([
             'proveedor',
             'productos' => function ($q) {
-                $q->withPivot(['cantidad', 'precio', 'descuento']);
+                $q->withPivot(['cantidad', 'precio', 'descuento', 'unidad_medida']);
             },
         ])->orderByDesc('created_at');
 
@@ -38,11 +38,12 @@ class OrdenCompraController extends Controller
         $transformed = $ordenes->map(function ($orden) {
             $items = $orden->productos->map(function ($p) {
                 return [
-                    'id'        => $p->id,
-                    'nombre'    => $p->nombre ?? $p->descripcion ?? '',
-                    'cantidad'  => (int) ($p->pivot->cantidad ?? 0),
-                    'precio'    => (float) ($p->pivot->precio ?? 0),
-                    'descuento' => (float) ($p->pivot->descuento ?? 0),
+                    'id'           => $p->id,
+                    'nombre'       => $p->nombre ?? $p->descripcion ?? '',
+                    'cantidad'     => (int) ($p->pivot->cantidad ?? 0),
+                    'precio'       => (float) ($p->pivot->precio ?? 0),
+                    'descuento'    => (float) ($p->pivot->descuento ?? 0),
+                    'unidad_medida' => $p->pivot->unidad_medida ?? '',
                 ];
             });
 
@@ -77,8 +78,9 @@ class OrdenCompraController extends Controller
         // Estadísticas para el dashboard
         $stats = [
             'total' => OrdenCompra::count(),
-            'aprobadas' => OrdenCompra::where('estado', 'recibida')->count(),
+            'procesadas' => OrdenCompra::where('estado', 'convertida')->count(),
             'pendientes' => OrdenCompra::where('estado', 'pendiente')->count(),
+            'enviadas' => OrdenCompra::where('estado', 'enviado_a_compra')->count(),
             'borrador' => OrdenCompra::where('estado', 'borrador')->count(),
             'cancelada' => OrdenCompra::where('estado', 'cancelada')->count(),
         ];
@@ -167,10 +169,15 @@ class OrdenCompraController extends Controller
             // Asocia los productos a la orden de compra a través de la tabla pivote
             foreach ($validatedData['items'] as $itemData) {
                 if ($itemData['tipo'] === 'producto') {
+                    // Obtener la unidad de medida del producto
+                    $producto = Producto::find($itemData['id']);
+                    $unidadMedida = $producto ? $producto->unidad_medida : '';
+
                     $ordenCompra->productos()->attach($itemData['id'], [
                         'cantidad' => $itemData['cantidad'],
                         'precio' => $itemData['precio'],
                         'descuento' => $itemData['descuento'] ?? 0,
+                        'unidad_medida' => $unidadMedida,
                     ]);
                 }
                 // Nota: Solo se permiten productos, no servicios
@@ -376,10 +383,15 @@ class OrdenCompraController extends Controller
 
             foreach ($validatedData['items'] as $itemData) {
                 if ($itemData['tipo'] === 'producto') {
+                    // Obtener la unidad de medida del producto
+                    $producto = Producto::find($itemData['id']);
+                    $unidadMedida = $producto ? $producto->unidad_medida : '';
+
                     $ordenCompra->productos()->attach($itemData['id'], [
                         'cantidad' => $itemData['cantidad'],
                         'precio' => $itemData['precio'],
                         'descuento' => $itemData['descuento'] ?? 0,
+                        'unidad_medida' => $unidadMedida,
                     ]);
                 }
                 // Nota: Solo se permiten productos, no servicios
@@ -428,110 +440,169 @@ class OrdenCompraController extends Controller
     }
 
     /**
-     * Marca una orden de compra como recibida, actualiza el stock y crea un registro de compra.
+     * Envía una orden de compra a compra, actualiza el stock y crea un registro de compra.
+     * Compatible con órdenes existentes en diferentes estados.
      *
      * @param  \Illuminate\Http\Request  $request
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function recibirOrden(Request $request, $id)
+    public function enviarACompra(Request $request, $id)
     {
-        // Inicia una transacción para asegurar que el stock y la creación de la compra se actualicen correctamente
         DB::beginTransaction();
         try {
-            // Carga la orden de compra con sus productos para acceder a la información necesaria
-            $ordenCompra = OrdenCompra::with('proveedor', 'productos')->findOrFail($id);
+            $ordenCompra = OrdenCompra::with([
+                'proveedor',
+                'productos' => function ($q) {
+                    $q->withPivot(['cantidad', 'precio', 'descuento']);
+                }
+            ])->findOrFail($id);
 
-            // Solo procesar si la orden está pendiente para evitar duplicados o errores lógicos
-            if ($ordenCompra->estado !== 'pendiente') {
-                DB::rollBack();
-                return redirect()->back()->with('error', 'La orden de compra ya ha sido procesada o no está en estado pendiente.');
+            // Si ya está procesada, no hacer nada
+            if ($ordenCompra->estado === 'convertida') {
+                return redirect()->route('compras.index')->with('error', 'La orden de compra ya ha sido procesada.');
             }
 
-            // Prepara los datos para la creación de la Compra y la actualización del stock
-            $productosParaCompra = []; // Para adjuntar a la nueva Compra
+            // Si ya está cancelada, no hacer nada
+            if ($ordenCompra->estado === 'cancelada') {
+                return redirect()->route('compras.index')->with('error', 'La orden de compra está cancelada.');
+            }
 
-            foreach ($ordenCompra->productos as $producto) {
-                // Verifica que el pivot existe y tiene los datos necesarios
-                if (!$producto->pivot || !isset($producto->pivot->cantidad) || !isset($producto->pivot->precio)) {
-                    Log::error('Datos de pivot faltantes para producto ID: ' . $producto->id . ' en orden ID: ' . $ordenCompra->id);
-                    continue;
+            $productosParaCompra = [];
+            $compra = null;
+
+            // Si está pendiente, hacer todo el proceso completo
+            if ($ordenCompra->estado === 'pendiente') {
+                foreach ($ordenCompra->productos as $producto) {
+                    // Validar que los datos esenciales del pivot estén presentes
+                    if (!$producto->pivot ||
+                        !isset($producto->pivot->cantidad) ||
+                        !isset($producto->pivot->precio) ||
+                        $producto->pivot->cantidad <= 0 ||
+                        $producto->pivot->precio <= 0) {
+                        Log::error('Datos de pivot faltantes o inválidos para producto ID: ' . $producto->id . ' en orden ID: ' . $ordenCompra->id, [
+                            'pivot_data' => $producto->pivot ? $producto->pivot->toArray() : null,
+                            'cantidad' => $producto->pivot->cantidad ?? null,
+                            'precio' => $producto->pivot->precio ?? null,
+                            'unidad_medida' => $producto->pivot->unidad_medida ?? null
+                        ]);
+                        continue;
+                    }
+
+                    $prodModel = Producto::find($producto->id);
+                    if ($prodModel) {
+                        $cantidadRecibida = (int) $producto->pivot->cantidad;
+                        $precioUnitario = (float) $producto->pivot->precio;
+                        // Obtener unidad de medida del pivot o del modelo producto
+                        $unidadMedida = $producto->pivot->unidad_medida ?? $prodModel->unidad_medida ?? '';
+
+                        // Actualizar el stock del producto
+                        $prodModel->increment('stock', $cantidadRecibida);
+
+                        $productosParaCompra[$producto->id] = [
+                            'cantidad' => $cantidadRecibida,
+                            'precio' => $precioUnitario,
+                            'unidad_medida' => $unidadMedida,
+                        ];
+                    } else {
+                        Log::warning('Producto no encontrado para incrementar stock en orden de compra ID: ' . $ordenCompra->id . ', Producto ID: ' . $producto->id);
+                    }
                 }
 
-                $prodModel = Producto::find($producto->id);
-                if ($prodModel) {
-                    // Incrementa el stock del producto con la cantidad recibida
-                    $cantidadRecibida = (int) $producto->pivot->cantidad;
-                    $precioUnitario = (float) $producto->pivot->precio;
+                // Crea la compra
+                $compra = Compra::create([
+                    'proveedor_id' => $ordenCompra->proveedor_id,
+                    'total' => $ordenCompra->total,
+                    'estado' => EstadoCompra::Recibido,
+                ]);
 
-                    $prodModel->increment('stock', $cantidadRecibida);
+                // Crea los items de la compra
+                if (!empty($productosParaCompra)) {
+                    foreach ($productosParaCompra as $productoId => $datos) {
+                        // Obtener la unidad de medida del producto desde la orden de compra
+                        $productoPivot = $ordenCompra->productos->find($productoId);
+                        $unidadMedida = '';
+                        $descuento = 0;
 
-                    // Prepara los datos para la tabla pivote de la nueva Compra
-                    $productosParaCompra[$producto->id] = [
-                        'cantidad' => $cantidadRecibida,
-                        'precio' => $precioUnitario,
-                    ];
+                        if ($productoPivot) {
+                            $unidadMedida = $productoPivot->pivot->unidad_medida ?? '';
+                            $descuento = $productoPivot->pivot->descuento ?? 0;
+                        }
 
-                    Log::info("Stock actualizado para producto ID {$producto->id}: +{$cantidadRecibida} unidades");
-                } else {
-                    Log::warning('Producto no encontrado para incrementar stock en orden de compra ID: ' . $ordenCompra->id . ', Producto ID: ' . $producto->id);
+                        // Si no hay unidad de medida en el pivot, obtenerla del modelo producto
+                        if (empty($unidadMedida)) {
+                            $prodModel = Producto::find($productoId);
+                            if ($prodModel) {
+                                $unidadMedida = $prodModel->unidad_medida ?? '';
+                            }
+                        }
+
+                        // Calcular subtotal considerando descuento
+                        $subtotal = $datos['cantidad'] * $datos['precio'];
+                        $descuentoMonto = ($subtotal * $descuento) / 100;
+                        $subtotalFinal = $subtotal - $descuentoMonto;
+
+                        \App\Models\CompraItem::create([
+                            'compra_id' => $compra->id,
+                            'comprable_id' => $productoId,
+                            'comprable_type' => \App\Models\Producto::class,
+                            'cantidad' => $datos['cantidad'],
+                            'precio' => $datos['precio'],
+                            'descuento' => $descuento,
+                            'subtotal' => $subtotalFinal,
+                            'descuento_monto' => $descuentoMonto,
+                            'unidad_medida' => $unidadMedida,
+                        ]);
+                    }
+                }
+            }
+            // Si está enviada a compra, solo actualizar stock (sin crear nueva compra)
+            elseif ($ordenCompra->estado === 'enviado_a_compra') {
+                foreach ($ordenCompra->productos as $producto) {
+                    if (!$producto->pivot || !isset($producto->pivot->cantidad)) {
+                        Log::error('Datos de pivot faltantes para producto ID: ' . $producto->id . ' en orden ID: ' . $ordenCompra->id);
+                        continue;
+                    }
+
+                    $prodModel = Producto::find($producto->id);
+                    if ($prodModel) {
+                        $cantidadRecibida = (int) $producto->pivot->cantidad;
+                        // Actualizar el stock del producto
+                        $prodModel->increment('stock', $cantidadRecibida);
+                    } else {
+                        Log::warning('Producto no encontrado para incrementar stock en orden de compra ID: ' . $ordenCompra->id . ', Producto ID: ' . $producto->id);
+                    }
                 }
             }
 
-            // Crea un nuevo registro en la tabla `compras`
-            $compra = Compra::create([
-                'proveedor_id' => $ordenCompra->proveedor_id,
-                'total' => $ordenCompra->total,
-                'fecha_compra' => now(),
-            ]);
+            // Marcar la orden como convertida
+            $observaciones = ($ordenCompra->observaciones ? $ordenCompra->observaciones . "\n\n" : '');
 
-            // Adjunta los productos a la Compra recién creada a través de la tabla pivote `compra_producto`
-            if (!empty($productosParaCompra)) {
-                $compra->productos()->attach($productosParaCompra);
-                Log::info("Compra creada con ID {$compra->id} y productos adjuntados");
+            if ($compra) {
+                $observaciones .= '*** ENVIADO A COMPRA Y CONVERTIDO #' . $compra->id . ' *** ' . now()->format('d/m/Y H:i') .
+                    ' - Stock actualizado automáticamente';
+            } else {
+                $observaciones .= '*** STOCK ACTUALIZADO DESDE ORDEN ENVIADA A COMPRA *** ' . now()->format('d/m/Y H:i');
             }
 
-            // Actualiza el estado de la OrdenCompra a "recibida"
             $ordenCompra->update([
-                'estado' => 'recibida',
-                'fecha_recepcion' => now()
+                'estado' => 'convertida',
+                'observaciones' => $observaciones
             ]);
 
-            Log::info("Orden de compra ID {$ordenCompra->id} marcada como recibida");
-
-            // Confirma todas las operaciones de la transacción si no hubo errores
             DB::commit();
 
-            // Retorna una respuesta JSON si es una petición AJAX, o redirección normal
-            if ($request->wantsJson()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Orden de compra recibida exitosamente',
-                    'orden' => [
-                        'id' => $ordenCompra->id,
-                        'estado' => $ordenCompra->estado,
-                        'fecha_recepcion' => $ordenCompra->fecha_recepcion->format('d/m/Y H:i')
-                    ]
-                ]);
+            if ($compra) {
+                return redirect()->route('compras.index')
+                    ->with('success', 'Orden de compra enviada y procesada exitosamente. Compra #' . $compra->id . ' creada y stock actualizado.');
+            } else {
+                return redirect()->route('compras.index')
+                    ->with('success', 'Stock actualizado exitosamente desde orden enviada a compra.');
             }
-
-            return redirect()->route('ordenescompra.index')
-                ->with('success', 'Orden de compra marcada como recibida, stock actualizado y registro de compra creado exitosamente.');
         } catch (\Exception $e) {
-            // Si ocurre algún error, se revierte toda la transacción para mantener la integridad de los datos
             DB::rollBack();
-            Log::error('Error al recibir la orden de compra: ' . $e->getMessage());
-            Log::error('Stack trace: ' . $e->getTraceAsString());
-
-            if ($request->wantsJson()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Error al procesar la orden de compra'
-                ], 500);
-            }
-
-            return redirect()->back()
-                ->with('error', 'Ocurrió un error al procesar la recepción de la orden de compra. Por favor, inténtalo de nuevo.');
+            Log::error('Error al enviar orden a compra: ' . $e->getMessage());
+            return redirect()->route('compras.index')->with('error', 'Error al procesar la orden a compra.');
         }
     }
 
@@ -597,6 +668,7 @@ class OrdenCompraController extends Controller
                     'cantidad' => $producto->pivot->cantidad,
                     'precio' => $producto->pivot->precio,
                     'descuento' => $producto->pivot->descuento ?? 0,
+                    'unidad_medida' => $producto->pivot->unidad_medida ?? '',
                 ]);
             }
 
@@ -604,7 +676,6 @@ class OrdenCompraController extends Controller
 
             return redirect()->route('ordenescompra.edit', $ordenDuplicada->id)
                 ->with('success', 'Orden de compra duplicada exitosamente. Revisa y ajusta los datos antes de guardar.');
-
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error al duplicar orden de compra: ' . $e->getMessage());
@@ -626,7 +697,7 @@ class OrdenCompraController extends Controller
             $ordenCompra->update([
                 'prioridad' => 'urgente',
                 'observaciones' => ($ordenCompra->observaciones ? $ordenCompra->observaciones . "\n\n" : '') .
-                                  '*** ORDEN MARCADA COMO URGENTE *** ' . now()->format('d/m/Y H:i')
+                    '*** ORDEN MARCADA COMO URGENTE *** ' . now()->format('d/m/Y H:i')
             ]);
 
             return response()->json([
@@ -634,7 +705,6 @@ class OrdenCompraController extends Controller
                 'message' => 'Orden marcada como urgente',
                 'prioridad' => $ordenCompra->prioridad
             ]);
-
         } catch (\Exception $e) {
             Log::error('Error al marcar orden como urgente: ' . $e->getMessage());
             return response()->json([
@@ -652,61 +722,235 @@ class OrdenCompraController extends Controller
      */
     public function convertirACompra($id)
     {
+        DB::beginTransaction();
         try {
-            $ordenCompra = OrdenCompra::with('productos')->findOrFail($id);
+            $ordenCompra = OrdenCompra::with([
+                'proveedor',
+                'productos' => function ($q) {
+                    $q->withPivot(['cantidad', 'precio', 'descuento']);
+                }
+            ])->findOrFail($id);
 
-            // Solo procesar si la orden está pendiente
-            if ($ordenCompra->estado !== 'pendiente') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Solo se pueden convertir órdenes en estado pendiente'
-                ], 400);
+            if ($ordenCompra->estado !== 'enviado_a_compra') {
+                return redirect()->back()->with('error', 'Solo se pueden convertir órdenes enviadas a compra.');
             }
 
-            DB::beginTransaction();
+            // Prepara los datos para la creación de la Compra y la actualización del stock
+            $productosParaCompra = [];
 
-            // Crear una compra simulada
+            foreach ($ordenCompra->productos as $producto) {
+                // Validar que los datos esenciales del pivot estén presentes
+                if (!$producto->pivot ||
+                    !isset($producto->pivot->cantidad) ||
+                    !isset($producto->pivot->precio) ||
+                    $producto->pivot->cantidad <= 0 ||
+                    $producto->pivot->precio <= 0) {
+                    Log::error('Datos de pivot faltantes o inválidos para producto ID: ' . $producto->id . ' en orden ID: ' . $ordenCompra->id, [
+                        'pivot_data' => $producto->pivot ? $producto->pivot->toArray() : null,
+                        'cantidad' => $producto->pivot->cantidad ?? null,
+                        'precio' => $producto->pivot->precio ?? null,
+                        'unidad_medida' => $producto->pivot->unidad_medida ?? null
+                    ]);
+                    continue;
+                }
+
+                $prodModel = Producto::find($producto->id);
+                if ($prodModel) {
+                    $cantidadRecibida = (int) $producto->pivot->cantidad;
+                    $precioUnitario = (float) $producto->pivot->precio;
+                    // Obtener unidad de medida del pivot o del modelo producto
+                    $unidadMedida = $producto->pivot->unidad_medida ?? $prodModel->unidad_medida ?? '';
+
+                    $prodModel->increment('stock', $cantidadRecibida);
+
+                    $productosParaCompra[$producto->id] = [
+                        'cantidad' => $cantidadRecibida,
+                        'precio' => $precioUnitario,
+                        'unidad_medida' => $unidadMedida,
+                    ];
+                } else {
+                    Log::warning('Producto no encontrado para incrementar stock en orden de compra ID: ' . $ordenCompra->id . ', Producto ID: ' . $producto->id);
+                }
+            }
+
+            // Crea la compra
             $compra = Compra::create([
                 'proveedor_id' => $ordenCompra->proveedor_id,
                 'total' => $ordenCompra->total,
-                'fecha_compra' => now(),
+                'estado' => EstadoCompra::Recibido,
             ]);
 
-            // Adjuntar productos a la compra
-            $productosParaCompra = [];
-            foreach ($ordenCompra->productos as $producto) {
-                $productosParaCompra[$producto->id] = [
-                    'cantidad' => $producto->pivot->cantidad,
-                    'precio' => $producto->pivot->precio,
-                ];
-            }
-
+            // Crea los items de la compra
             if (!empty($productosParaCompra)) {
-                $compra->productos()->attach($productosParaCompra);
+                foreach ($productosParaCompra as $productoId => $datos) {
+                    // Obtener la unidad de medida del producto desde la orden de compra
+                    $productoPivot = $ordenCompra->productos->find($productoId);
+                    $unidadMedida = '';
+                    $descuento = 0;
+
+                    if ($productoPivot) {
+                        $unidadMedida = $productoPivot->pivot->unidad_medida ?? '';
+                        $descuento = $productoPivot->pivot->descuento ?? 0;
+                    }
+
+                    // Si no hay unidad de medida en el pivot, obtenerla del modelo producto
+                    if (empty($unidadMedida)) {
+                        $prodModel = Producto::find($productoId);
+                        if ($prodModel) {
+                            $unidadMedida = $prodModel->unidad_medida ?? '';
+                        }
+                    }
+
+                    // Calcular subtotal considerando descuento
+                    $subtotal = $datos['cantidad'] * $datos['precio'];
+                    $descuentoMonto = ($subtotal * $descuento) / 100;
+                    $subtotalFinal = $subtotal - $descuentoMonto;
+
+                    \App\Models\CompraItem::create([
+                        'compra_id' => $compra->id,
+                        'comprable_id' => $productoId,
+                        'comprable_type' => \App\Models\Producto::class,
+                        'cantidad' => $datos['cantidad'],
+                        'precio' => $datos['precio'],
+                        'descuento' => $descuento,
+                        'subtotal' => $subtotalFinal,
+                        'descuento_monto' => $descuentoMonto,
+                        'unidad_medida' => $unidadMedida,
+                    ]);
+                }
             }
 
             // Marcar la orden como convertida
             $ordenCompra->update([
                 'estado' => 'convertida',
                 'observaciones' => ($ordenCompra->observaciones ? $ordenCompra->observaciones . "\n\n" : '') .
-                                  '*** CONVERTIDA A COMPRA #' . $compra->id . ' *** ' . now()->format('d/m/Y H:i')
+                                   '*** CONVERTIDA A COMPRA #' . $compra->id . ' *** ' . now()->format('d/m/Y H:i')
+            ]);
+
+            DB::commit();
+
+            return redirect()->route('compras.index')
+                ->with('success', 'Orden convertida a compra exitosamente. Compra #' . $compra->id . ' creada.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al convertir orden a compra: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al convertir la orden a compra.');
+        }
+    }
+
+    /**
+     * Cancela una orden de compra y revierte el inventario si es necesario
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function cancelar($id)
+    {
+        DB::beginTransaction();
+        try {
+            $ordenCompra = OrdenCompra::with('productos')->findOrFail($id);
+
+            // Solo se puede cancelar si está en estado pendiente, enviada a compra o convertida
+            if (!in_array($ordenCompra->estado, ['pendiente', 'enviado_a_compra', 'convertida'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Solo se pueden cancelar órdenes en estado pendiente, enviada a compra o procesada'
+                ], 400);
+            }
+
+            // Si la orden fue convertida a compra, necesitamos revertir el inventario
+            if ($ordenCompra->estado === 'convertida') {
+                foreach ($ordenCompra->productos as $producto) {
+                    if ($producto->pivot && isset($producto->pivot->cantidad)) {
+                        $cantidadARevertir = (int) $producto->pivot->cantidad;
+                        $prodModel = Producto::find($producto->id);
+                        if ($prodModel) {
+                            // Decrementar el stock (revertir el incremento que se hizo al convertir)
+                            $prodModel->decrement('stock', $cantidadARevertir);
+                            Log::info("Stock revertido para producto ID {$producto->id}: -{$cantidadARevertir}");
+                        }
+                    }
+                }
+            }
+
+            // Actualizar el estado de la orden a cancelada
+            $ordenCompra->update([
+                'estado' => 'cancelada',
+                'observaciones' => ($ordenCompra->observaciones ? $ordenCompra->observaciones . "\n\n" : '') .
+                    '*** ORDEN CANCELADA *** ' . now()->format('d/m/Y H:i') .
+                    ' - Inventario revertido automáticamente'
             ]);
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Orden convertida a compra exitosamente',
-                'compra_id' => $compra->id,
+                'message' => 'Orden de compra cancelada exitosamente',
                 'estado' => $ordenCompra->estado
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error al convertir orden a compra: ' . $e->getMessage());
+            Log::error('Error al cancelar orden de compra: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Error al convertir la orden a compra'
+                'message' => 'Error al cancelar la orden de compra'
+            ], 500);
+        }
+    }
+
+    /**
+     * Cambia el estado de una orden de compra
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function cambiarEstado(Request $request, $id)
+    {
+        try {
+            $ordenCompra = OrdenCompra::findOrFail($id);
+
+            $request->validate([
+                'estado' => 'required|in:pendiente,enviado_a_compra,convertida,cancelada,borrador'
+            ]);
+
+            $estadoAnterior = $ordenCompra->estado;
+            $nuevoEstado = $request->estado;
+
+            // Validar transiciones de estado permitidas
+            $transicionesPermitidas = [
+                'borrador' => ['pendiente', 'cancelada'],
+                'pendiente' => ['enviado_a_compra', 'convertida', 'cancelada'], // Puede ir a enviado_a_compra o directamente a convertida
+                'enviado_a_compra' => ['convertida', 'cancelada'], // Puede convertirse o cancelarse
+                'convertida' => ['cancelada'], // Solo se puede cancelar una vez procesada
+                'cancelada' => [] // Estado final
+            ];
+
+            if (!in_array($nuevoEstado, $transicionesPermitidas[$estadoAnterior] ?? [])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "No se puede cambiar de estado '{$estadoAnterior}' a '{$nuevoEstado}'"
+                ], 400);
+            }
+
+            $ordenCompra->update([
+                'estado' => $nuevoEstado,
+                'observaciones' => ($ordenCompra->observaciones ? $ordenCompra->observaciones . "\n\n" : '') .
+                    "*** CAMBIO DE ESTADO *** {$estadoAnterior} → {$nuevoEstado} - " . now()->format('d/m/Y H:i')
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Estado cambiado de '{$estadoAnterior}' a '{$nuevoEstado}'",
+                'estado' => $ordenCompra->estado
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error al cambiar estado de orden de compra: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al cambiar el estado de la orden'
             ], 500);
         }
     }

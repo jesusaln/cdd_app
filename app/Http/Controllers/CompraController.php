@@ -18,7 +18,7 @@ class CompraController extends Controller
 {
     public function index()
     {
-        $compras = Compra::with('proveedor', 'items.comprable')->get();
+        $compras = Compra::with('proveedor', 'productos')->get();
         return Inertia::render('Compras/Index', ['compras' => $compras]);
     }
 
@@ -91,13 +91,13 @@ class CompraController extends Controller
 
     public function show($id)
     {
-        $compra = Compra::with('proveedor', 'items.comprable')->findOrFail($id);
+        $compra = Compra::with('proveedor', 'productos')->findOrFail($id);
         return Inertia::render('Compras/Show', ['compra' => $compra]);
     }
 
     public function edit($id)
     {
-        $compra = Compra::with('proveedor', 'items.comprable')->findOrFail($id);
+        $compra = Compra::with('proveedor', 'productos')->findOrFail($id);
         $proveedores = Proveedor::all();
         $productos = Producto::all();
         return Inertia::render('Compras/Edit', ['compra' => $compra, 'proveedores' => $proveedores, 'productos' => $productos]);
@@ -110,7 +110,7 @@ class CompraController extends Controller
 
         DB::transaction(function () use ($compra, $validatedData) {
             // Restar cantidades antiguas del stock
-            foreach ($compra->items as $item) {
+            foreach ($compra->productos as $item) {
                 $producto = $item->comprable;
                 $producto->stock -= $item->cantidad;
                 if ($producto->stock < 0) {
@@ -137,7 +137,7 @@ class CompraController extends Controller
             ]);
 
             // Eliminar items antiguos
-            $compra->items()->delete();
+            $compra->productos()->delete();
 
             // Crear items nuevos y agregar al stock
             foreach ($validatedData['productos'] as $productoData) {
@@ -178,20 +178,20 @@ class CompraController extends Controller
     {
         $compra = Compra::findOrFail($id);
 
-        // Permitir cancelar en cualquier estado excepto ya cancelado
-        if ($compra->estado === EstadoCompra::Cancelada) {
-            return Redirect::back()->with('error', 'La compra ya está cancelada');
+        // Permitir cancelar en cualquier estado excepto ya devuelto
+        if ($compra->estado === EstadoCompra::Devuelto) {
+            return Redirect::back()->with('error', 'La compra ya está devuelta');
         }
 
-        // Actualizar estado a cancelado y registrar quién lo canceló
+        // Actualizar estado a devuelto y registrar quién lo canceló
         $compra->update([
-            'estado' => EstadoCompra::Cancelada,
+            'estado' => EstadoCompra::Devuelto,
             'deleted_by' => Auth::id(),
             'deleted_at' => now()
         ]);
 
         return Redirect::route('compras.index')
-            ->with('success', 'Compra cancelada exitosamente');
+            ->with('success', 'Compra devuelta exitosamente');
     }
 
     /**
@@ -199,7 +199,7 @@ class CompraController extends Controller
      */
     public function duplicate(Request $request, $id)
     {
-        $original = Compra::with('proveedor', 'items.comprable')->findOrFail($id);
+        $original = Compra::with('proveedor', 'productos')->findOrFail($id);
 
         try {
             return DB::transaction(function () use ($original) {
@@ -220,8 +220,8 @@ class CompraController extends Controller
                 $nueva->save();
 
                 // Duplicar ítems (crea el FK compra_id automáticamente)
-                foreach ($original->items as $item) {
-                    $nueva->items()->create([
+                foreach ($original->productos as $item) {
+                    $nueva->productos()->create([
                         'comprable_id'    => $item->comprable_id,
                         'comprable_type'  => $item->comprable_type,
                         'cantidad'        => $item->cantidad,
@@ -244,10 +244,10 @@ class CompraController extends Controller
 
     public function destroy($id)
     {
-        $compra = Compra::with('items.comprable')->findOrFail($id);
+        $compra = Compra::with('productos')->findOrFail($id);
 
         DB::transaction(function () use ($compra) {
-            foreach ($compra->items as $item) {
+            foreach ($compra->productos as $item) {
                 $producto = $item->comprable;
                 $producto->stock -= $item->cantidad;
                 if ($producto->stock < 0) {

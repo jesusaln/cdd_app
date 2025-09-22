@@ -158,7 +158,7 @@ class ReporteTecnicoController extends Controller
             foreach ($venta->productos as $producto) {
                 $pivot = $producto->pivot;
                 $precioVenta = $pivot->precio - ($pivot->descuento ?? 0);
-                $costo = $producto->precio_compra;
+                $costo = $pivot->costo_unitario ?? $producto->precio_compra;
                 $gananciaProducto = ($precioVenta - $costo) * $pivot->cantidad;
 
                 $gananciaBase += $gananciaProducto;
