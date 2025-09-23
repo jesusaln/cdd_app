@@ -48,6 +48,7 @@ const sortBy = ref('fecha-desc')
 const filtroEstado = ref('')
 const filtroTipo = ref('')
 const filtroCarro = ref('')
+const filtroPrioridad = ref('')
 
 // Paginación
 const perPage = ref(10)
@@ -73,7 +74,11 @@ const estadisticas = computed(() => ({
   proximos_vencer: props.stats?.proximos_vencer ?? 0,
   completadosPorcentaje: props.stats?.completados > 0 ? Math.round((props.stats.completados / props.stats.total) * 100) : 0,
   pendientesPorcentaje: props.stats?.pendientes > 0 ? Math.round((props.stats.pendientes / props.stats.total) * 100) : 0,
-  enProcesoPorcentaje: props.stats?.en_proceso > 0 ? Math.round((props.stats.en_proceso / props.stats.total) * 100) : 0
+  enProcesoPorcentaje: props.stats?.en_proceso > 0 ? Math.round((props.stats.en_proceso / props.stats.total) * 100) : 0,
+  // Nuevas estadísticas de alertas
+  alertas_pendientes: props.stats?.alertas_pendientes ?? 0,
+  criticos: props.stats?.criticos ?? 0,
+  vencidos: props.stats?.vencidos ?? 0
 }))
 
 // Transformación de datos
@@ -141,6 +146,22 @@ function handleCarroChange(newCarroId) {
     estado: filtroEstado.value,
     tipo: filtroTipo.value,
     carro_id: newCarroId,
+    prioridad: filtroPrioridad.value,
+    per_page: perPage.value,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+function handlePrioridadChange(newPrioridad) {
+  filtroPrioridad.value = newPrioridad
+  router.get(route('mantenimientos.index'), {
+    search: searchTerm.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc',
+    estado: filtroEstado.value,
+    tipo: filtroTipo.value,
+    carro_id: filtroCarro.value,
+    prioridad: newPrioridad,
     per_page: perPage.value,
     page: 1
   }, { preserveState: true, preserveScroll: true })
@@ -261,6 +282,68 @@ const obtenerLabelEstado = (estado) => {
   }
   return labels[estado] || 'Pendiente'
 }
+
+const obtenerClasesPrioridad = (prioridad) => {
+  const clases = {
+    'baja': 'bg-green-100 text-green-700 border-green-200',
+    'media': 'bg-blue-100 text-blue-700 border-blue-200',
+    'alta': 'bg-orange-100 text-orange-700 border-orange-200',
+    'critica': 'bg-red-100 text-red-700 border-red-200'
+  }
+  return clases[prioridad] || 'bg-gray-100 text-gray-700 border-gray-200'
+}
+
+const obtenerLabelPrioridad = (prioridad) => {
+  const labels = {
+    'baja': 'Baja',
+    'media': 'Media',
+    'alta': 'Alta',
+    'critica': 'Crítica'
+  }
+  return labels[prioridad] || 'Media'
+}
+
+const obtenerClasesUrgencia = (mantenimiento) => {
+  const diasRestantes = mantenimiento.dias_restantes
+  const prioridad = mantenimiento.prioridad
+
+  if (diasRestantes < 0) {
+    return 'bg-red-100 text-red-700 border-red-200'
+  }
+
+  if (diasRestantes <= 3 || prioridad === 'critica') {
+    return 'bg-red-100 text-red-700 border-red-200'
+  }
+
+  if (diasRestantes <= 7 || prioridad === 'alta') {
+    return 'bg-orange-100 text-orange-700 border-orange-200'
+  }
+
+  if (diasRestantes <= 15) {
+    return 'bg-yellow-100 text-yellow-700 border-yellow-200'
+  }
+
+  return 'bg-green-100 text-green-700 border-green-200'
+}
+
+const obtenerIconoUrgencia = (mantenimiento) => {
+  const diasRestantes = mantenimiento.dias_restantes
+  const prioridad = mantenimiento.prioridad
+
+  if (diasRestantes < 0 || prioridad === 'critica') {
+    return '⚠️'
+  }
+
+  if (diasRestantes <= 7 || prioridad === 'alta') {
+    return '⚡'
+  }
+
+  if (diasRestantes <= 15) {
+    return '🔔'
+  }
+
+  return '✅'
+}
 </script>
 
 <template>
@@ -358,6 +441,31 @@ const obtenerLabelEstado = (estado) => {
                   <span class="text-xs text-blue-600 font-medium">{{ estadisticas.enProcesoPorcentaje }}%</span>
                 </div>
               </div>
+
+              <!-- Nuevas estadísticas de alertas -->
+              <div class="flex items-center gap-2 px-4 py-3 bg-red-50 rounded-xl border border-red-200">
+                <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                <span class="font-medium text-slate-700">Vencidos:</span>
+                <span class="font-bold text-red-700 text-lg">{{ formatNumber(estadisticas.vencidos) }}</span>
+              </div>
+
+              <div class="flex items-center gap-2 px-4 py-3 bg-orange-50 rounded-xl border border-orange-200">
+                <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span class="font-medium text-slate-700">Críticos:</span>
+                <span class="font-bold text-orange-700 text-lg">{{ formatNumber(estadisticas.criticos) }}</span>
+              </div>
+
+              <div class="flex items-center gap-2 px-4 py-3 bg-yellow-50 rounded-xl border border-yellow-200">
+                <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5v-5zM4.868 12.683A17.925 17.925 0 0112 21.5c3.04 0 5.952-.853 8.5-2.5M4.868 12.683A17.925 17.925 0 004.5 12c0-3.04.853-5.952 2.5-8.5m0 0A17.925 17.925 0 0112 4.5c3.04 0 5.952.853 8.5 2.5" />
+                </svg>
+                <span class="font-medium text-slate-700">Alertas Pendientes:</span>
+                <span class="font-bold text-yellow-700 text-lg">{{ formatNumber(estadisticas.alertas_pendientes) }}</span>
+              </div>
             </div>
           </div>
 
@@ -411,6 +519,19 @@ const obtenerLabelEstado = (estado) => {
               </option>
             </select>
 
+            <!-- Prioridad -->
+            <select
+              v-model="filtroPrioridad"
+              @change="handlePrioridadChange($event.target.value)"
+              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+            >
+              <option value="">Todas las Prioridades</option>
+              <option value="baja">Baja</option>
+              <option value="media">Media</option>
+              <option value="alta">Alta</option>
+              <option value="critica">Crítica</option>
+            </select>
+
             <!-- Orden -->
             <select
               v-model="sortBy"
@@ -440,13 +561,20 @@ const obtenerLabelEstado = (estado) => {
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Vehículo</th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Tipo</th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Próximo</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Prioridad</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Urgencia</th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Costo</th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Estado</th>
                 <th class="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Acciones</th>
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-              <tr v-for="mantenimiento in mantenimientosDocumentos" :key="mantenimiento.id" class="hover:bg-gray-50 transition-colors duration-150">
+              <tr v-for="mantenimiento in mantenimientosDocumentos" :key="mantenimiento.id" :class="[
+                'hover:bg-gray-50 transition-colors duration-150',
+                mantenimiento.raw.dias_restantes < 0 ? 'bg-red-50' : '',
+                mantenimiento.raw.prioridad === 'critica' ? 'border-l-4 border-l-red-500' : '',
+                mantenimiento.raw.prioridad === 'alta' ? 'border-l-4 border-l-orange-500' : ''
+              ]">
                 <td class="px-6 py-4">
                   <div class="text-sm text-gray-900">{{ formatearFecha(mantenimiento.fecha) }}</div>
                 </td>
@@ -459,6 +587,22 @@ const obtenerLabelEstado = (estado) => {
                 </td>
                 <td class="px-6 py-4">
                   <div class="text-sm text-gray-700">{{ formatearFecha(mantenimiento.raw.proximo_mantenimiento) }}</div>
+                  <div v-if="mantenimiento.raw.dias_restantes !== null" class="text-xs mt-1" :class="mantenimiento.raw.dias_restantes < 0 ? 'text-red-600 font-medium' : 'text-gray-500'">
+                    {{ mantenimiento.raw.dias_restantes < 0 ? `${Math.abs(mantenimiento.raw.dias_restantes)} días vencido` : `${mantenimiento.raw.dias_restantes} días restantes` }}
+                  </div>
+                </td>
+                <td class="px-6 py-4">
+                  <span :class="obtenerClasesPrioridad(mantenimiento.raw.prioridad)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                    {{ obtenerLabelPrioridad(mantenimiento.raw.prioridad) }}
+                  </span>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="flex items-center gap-2">
+                    <span class="text-lg">{{ obtenerIconoUrgencia(mantenimiento.raw) }}</span>
+                    <span :class="obtenerClasesUrgencia(mantenimiento.raw)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                      {{ mantenimiento.raw.dias_restantes < 0 ? 'Vencido' : mantenimiento.raw.dias_restantes <= 7 ? 'Urgente' : 'Normal' }}
+                    </span>
+                  </div>
                 </td>
                 <td class="px-6 py-4">
                   <div class="text-sm text-gray-700">${{ formatNumber(mantenimiento.raw.costo || 0) }}</div>
@@ -490,7 +634,7 @@ const obtenerLabelEstado = (estado) => {
                 </td>
               </tr>
               <tr v-if="mantenimientosDocumentos.length === 0">
-                <td colspan="7" class="px-6 py-16 text-center">
+                <td colspan="9" class="px-6 py-16 text-center">
                   <div class="flex flex-col items-center space-y-4">
                     <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                       <svg class="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">

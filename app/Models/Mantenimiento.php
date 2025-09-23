@@ -21,18 +21,43 @@ class Mantenimiento extends Model
         'estado',
         'kilometraje_actual',
         'proximo_kilometraje',
+        'prioridad',
+        'alerta_enviada',
+        'alerta_enviada_at',
+        'dias_anticipacion_alerta',
+        'observaciones_alerta',
+        'requiere_aprobacion',
+        'tipo_alerta',
+        'recordatorios_enviados',
+        'frecuencia_recordatorio_dias',
     ];
 
     protected $casts = [
         'fecha' => 'date',
         'proximo_mantenimiento' => 'date',
         'costo' => 'decimal:2',
+        'alerta_enviada' => 'boolean',
+        'alerta_enviada_at' => 'datetime',
+        'requiere_aprobacion' => 'boolean',
+        'recordatorios_enviados' => 'array',
+        'dias_anticipacion_alerta' => 'integer',
+        'frecuencia_recordatorio_dias' => 'integer',
     ];
 
     // Constantes para los estados
     const ESTADO_COMPLETADO = 'completado';
     const ESTADO_PENDIENTE = 'pendiente';
     const ESTADO_EN_PROCESO = 'en_proceso';
+
+    // Constantes para prioridades
+    const PRIORIDAD_BAJA = 'baja';
+    const PRIORIDAD_MEDIA = 'media';
+    const PRIORIDAD_ALTA = 'alta';
+    const PRIORIDAD_CRITICA = 'critica';
+
+    // Constantes para tipos de alerta
+    const TIPO_ALERTA_AUTOMATICA = 'automatica';
+    const TIPO_ALERTA_MANUAL = 'manual';
 
     // Constantes para tipos comunes de mantenimiento
     const TIPO_CAMBIO_ACEITE = 'cambio_aceite';
@@ -107,5 +132,149 @@ class Mantenimiento extends Model
         }
 
         return now()->diffInDays($this->proximo_mantenimiento, false);
+    }
+
+    /**
+     * Scope para obtener mantenimientos por prioridad
+     */
+    public function scopeByPrioridad($query, $prioridad)
+    {
+        return $query->where('prioridad', $prioridad);
+    }
+
+    /**
+     * Scope para obtener mantenimientos con alertas pendientes
+     */
+    public function scopeConAlertasPendientes($query)
+    {
+        return $query->where('alerta_enviada', false)
+            ->where('proximo_mantenimiento', '<=', now()->addDays($this->dias_anticipacion_alerta ?? 30));
+    }
+
+    /**
+     * Scope para obtener mantenimientos críticos (alta prioridad y próximos a vencer)
+     */
+    public function scopeCriticos($query)
+    {
+        return $query->whereIn('prioridad', [self::PRIORIDAD_ALTA, self::PRIORIDAD_CRITICA])
+            ->where('proximo_mantenimiento', '<=', now()->addDays(7));
+    }
+
+    /**
+     * Scope para obtener mantenimientos que requieren aprobación
+     */
+    public function scopeRequierenAprobacion($query)
+    {
+        return $query->where('requiere_aprobacion', true);
+    }
+
+    /**
+     * Verificar si el mantenimiento requiere alerta
+     */
+    public function getRequiereAlertaAttribute()
+    {
+        if ($this->alerta_enviada) {
+            return false;
+        }
+
+        if (!$this->proximo_mantenimiento) {
+            return false;
+        }
+
+        $diasRestantes = $this->dias_restantes;
+        $diasAnticipacion = $this->dias_anticipacion_alerta ?? 30;
+
+        return $diasRestantes !== null && $diasRestantes <= $diasAnticipacion;
+    }
+
+    /**
+     * Obtener el nivel de urgencia basado en días restantes y prioridad
+     */
+    public function getNivelUrgenciaAttribute()
+    {
+        $diasRestantes = $this->dias_restantes;
+
+        if ($diasRestantes === null) {
+            return 'info';
+        }
+
+        if ($diasRestantes < 0) {
+            return 'danger'; // Vencido
+        }
+
+        if ($diasRestantes <= 3) {
+            return 'critical'; // Muy urgente
+        }
+
+        if ($diasRestantes <= 7) {
+            return 'warning'; // Urgente
+        }
+
+        if ($diasRestantes <= 15) {
+            return 'info'; // Moderado
+        }
+
+        return 'success'; // Todo bien
+    }
+
+    /**
+     * Obtener clases CSS para el nivel de urgencia
+     */
+    public function getClasesUrgenciaAttribute()
+    {
+        $niveles = [
+            'success' => 'bg-green-100 text-green-700 border-green-200',
+            'info' => 'bg-blue-100 text-blue-700 border-blue-200',
+            'warning' => 'bg-yellow-100 text-yellow-700 border-yellow-200',
+            'critical' => 'bg-orange-100 text-orange-700 border-orange-200',
+            'danger' => 'bg-red-100 text-red-700 border-red-200'
+        ];
+
+        return $niveles[$this->nivel_urgencia] ?? 'bg-gray-100 text-gray-700 border-gray-200';
+    }
+
+    /**
+     * Marcar alerta como enviada
+     */
+    public function marcarAlertaEnviada($tipo = 'automatica')
+    {
+        $this->update([
+            'alerta_enviada' => true,
+            'alerta_enviada_at' => now(),
+            'tipo_alerta' => $tipo
+        ]);
+    }
+
+    /**
+     * Agregar recordatorio enviado
+     */
+    public function agregarRecordatorioEnviado($tipo = 'email', $fecha = null)
+    {
+        $recordatorios = $this->recordatorios_enviados ?? [];
+        $recordatorios[] = [
+            'tipo' => $tipo,
+            'fecha' => $fecha ?? now()->toISOString(),
+            'timestamp' => now()->timestamp
+        ];
+
+        $this->update(['recordatorios_enviados' => $recordatorios]);
+    }
+
+    /**
+     * Obtener estadísticas de alertas para dashboard
+     */
+    public static function getEstadisticasAlertas()
+    {
+        return [
+            'total_con_alerta_pendiente' => self::conAlertasPendientes()->count(),
+            'criticos' => self::criticos()->count(),
+            'por_vencer_7_dias' => self::where('proximo_mantenimiento', '<=', now()->addDays(7))
+                ->where('proximo_mantenimiento', '>=', now())
+                ->count(),
+            'vencidos' => self::where('proximo_mantenimiento', '<', now())
+                ->where('estado', '!=', self::ESTADO_COMPLETADO)
+                ->count(),
+            'requieren_aprobacion' => self::requierenAprobacion()->count(),
+        ];
     }
 }

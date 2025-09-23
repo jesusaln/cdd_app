@@ -3,7 +3,7 @@
 
   <div class="container mx-auto px-6 py-10">
     <!-- Tarjetas de Resumen -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8">
       <!-- Clientes -->
       <PanLink
         :href="clientesHref"

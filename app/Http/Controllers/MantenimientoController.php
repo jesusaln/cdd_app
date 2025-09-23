@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Mantenimiento;
 use App\Models\Carro;
+use App\Services\AlertaMantenimientoService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Carbon\Carbon;
@@ -142,6 +143,10 @@ class MantenimientoController extends Controller
             'kilometraje_actual' => 'required|integer|min:0',
             'costo' => 'nullable|numeric|min:0|max:999999.99',
             'descripcion' => 'nullable|string|max:1000',
+            'prioridad' => 'required|in:baja,media,alta,critica',
+            'dias_anticipacion_alerta' => 'required|integer|min:1|max:365',
+            'requiere_aprobacion' => 'boolean',
+            'observaciones_alerta' => 'nullable|string|max:500',
         ], [
             'carro_id.required' => 'Debes seleccionar un vehículo.',
             'tipo.required' => 'El tipo de servicio es obligatorio.',
@@ -151,6 +156,12 @@ class MantenimientoController extends Controller
             'kilometraje_actual.min' => 'El kilometraje no puede ser negativo.',
             'costo.max' => 'El costo no puede exceder $999,999.99',
             'notas.max' => 'Las notas no pueden exceder 1000 caracteres.',
+            'prioridad.required' => 'La prioridad es obligatoria.',
+            'prioridad.in' => 'La prioridad debe ser: baja, media, alta o crítica.',
+            'dias_anticipacion_alerta.required' => 'Los días de anticipación son obligatorios.',
+            'dias_anticipacion_alerta.min' => 'Debe haber al menos 1 día de anticipación.',
+            'dias_anticipacion_alerta.max' => 'No puede haber más de 365 días de anticipación.',
+            'observaciones_alerta.max' => 'Las observaciones no pueden exceder 500 caracteres.',
         ]);
 
         DB::beginTransaction();
@@ -180,6 +191,10 @@ class MantenimientoController extends Controller
                 'costo' => $validated['costo'] ?? 0,
                 'descripcion' => $validated['descripcion'],
                 'estado' => Mantenimiento::ESTADO_COMPLETADO,
+                'prioridad' => $validated['prioridad'],
+                'dias_anticipacion_alerta' => $validated['dias_anticipacion_alerta'],
+                'requiere_aprobacion' => $validated['requiere_aprobacion'] ?? false,
+                'observaciones_alerta' => $validated['observaciones_alerta'] ?? null,
             ]);
 
             DB::commit();
@@ -221,6 +236,10 @@ class MantenimientoController extends Controller
             'kilometraje_actual' => 'required|integer|min:0',
             'costo' => 'nullable|numeric|min:0|max:999999.99',
             'descripcion' => 'nullable|string|max:1000',
+            'prioridad' => 'required|in:baja,media,alta,critica',
+            'dias_anticipacion_alerta' => 'required|integer|min:1|max:365',
+            'requiere_aprobacion' => 'boolean',
+            'observaciones_alerta' => 'nullable|string|max:500',
         ]);
 
         DB::beginTransaction();
@@ -254,6 +273,10 @@ class MantenimientoController extends Controller
                 'kilometraje_actual' => $validated['kilometraje_actual'],
                 'costo' => $validated['costo'] ?? 0,
                 'descripcion' => $validated['descripcion'],
+                'prioridad' => $validated['prioridad'],
+                'dias_anticipacion_alerta' => $validated['dias_anticipacion_alerta'],
+                'requiere_aprobacion' => $validated['requiere_aprobacion'] ?? false,
+                'observaciones_alerta' => $validated['observaciones_alerta'] ?? null,
             ]);
 
             // Si es el mantenimiento más reciente, actualizar kilometraje del carro
@@ -359,6 +382,32 @@ class MantenimientoController extends Controller
         return response()->json([
             'proximos_a_vencer' => $proximosAVencer,
             'total' => $proximosAVencer->count()
+        ]);
+    }
+
+    // API: Obtener estadísticas de alertas para dashboard
+    public function getEstadisticasAlertas()
+    {
+        $alertaService = new AlertaMantenimientoService();
+        $estadisticas = $alertaService->generarReporteAlertas();
+        $criticos = $alertaService->getMantenimientosCriticos();
+
+        return response()->json([
+            'estadisticas' => $estadisticas,
+            'criticos' => $criticos,
+            'timestamp' => now()->toISOString()
+        ]);
+    }
+
+    // API: Marcar alerta como enviada manualmente
+    public function marcarAlertaEnviada(Mantenimiento $mantenimiento)
+    {
+        $mantenimiento->marcarAlertaEnviada('manual');
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Alerta marcada como enviada',
+            'mantenimiento' => $mantenimiento->load('carro')
         ]);
     }
 
