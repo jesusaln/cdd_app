@@ -37,6 +37,8 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\CfdiController;
 use App\Http\Controllers\ReporteTecnicoController;
 use App\Http\Controllers\ReportesDashboardController;
+use App\Http\Controllers\AsignacionHerramientaController;
+use App\Http\Controllers\EstadoHerramientaController;
 
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -202,7 +204,19 @@ Route::get('/reportes/clientes/export', [ReporteController::class, 'exportarClie
 Route::get('/reportes/inventario/export', [ReporteController::class, 'exportarInventario'])->name('reportes.inventario.export');
 Route::get('/reportes/productos/export', [ReporteController::class, 'exportarProductos'])->name('reportes.productos.export');
     Route::resource('herramientas', HerramientaController::class)->names('herramientas');
+    Route::post('herramientas/{herramienta}/asignar', [HerramientaController::class, 'asignar'])->name('herramientas.asignar');
+    Route::post('herramientas/{herramienta}/recibir', [HerramientaController::class, 'recibir'])->name('herramientas.recibir');
     Route::resource('tecnicos', TecnicoController::class)->names('tecnicos');
+
+    // Rutas para asignaciones de herramientas
+    Route::resource('herramientas/asignaciones', AsignacionHerramientaController::class)->names('herramientas.asignaciones');
+    Route::post('herramientas/asignaciones/{asignacion}/agregar-firma', [AsignacionHerramientaController::class, 'agregarFirma'])->name('herramientas.asignaciones.agregar-firma');
+    Route::get('herramientas/{herramienta}/asignaciones-activas', [AsignacionHerramientaController::class, 'getAsignacionesActivas'])->name('herramientas.asignaciones-activas');
+
+    // Rutas para estados de herramientas
+    Route::resource('herramientas/estados', EstadoHerramientaController::class)->names('herramientas.estados');
+    Route::get('herramientas/{herramienta}/estadisticas-desgaste', [EstadoHerramientaController::class, 'getEstadisticasDesgaste'])->name('herramientas.estadisticas-desgaste');
+    Route::get('herramientas/estados/reporte-atencion', [EstadoHerramientaController::class, 'reporteAtencion'])->name('herramientas.estados.reporte-atencion');
     Route::resource('citas', CitaController::class)->names('citas');
     Route::resource('carros', CarroController::class)->names('carros');
     Route::resource('mantenimientos', MantenimientoController::class)->names('mantenimientos');

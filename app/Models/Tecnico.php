@@ -35,6 +35,36 @@ class Tecnico extends Model
         return $this->hasMany(Herramienta::class, 'tecnico_id');
     }
 
+    // Relación con asignaciones de herramientas
+    public function asignacionesHerramientas()
+    {
+        return $this->hasMany(AsignacionHerramienta::class);
+    }
+
+    // Relación con historial de herramientas
+    public function historialHerramientas()
+    {
+        return $this->hasMany(HistorialHerramienta::class);
+    }
+
+    // Herramientas actualmente asignadas (activas)
+    public function herramientasAsignadas()
+    {
+        return $this->herramientas()->where('estado', Herramienta::ESTADO_ASIGNADA);
+    }
+
+    // Historial de herramientas activas (sin devolver)
+    public function historialActivo()
+    {
+        return $this->historialHerramientas()->whereNull('fecha_devolucion');
+    }
+
+    // Historial de herramientas completado (devueltas)
+    public function historialCompletado()
+    {
+        return $this->historialHerramientas()->whereNotNull('fecha_devolucion');
+    }
+
     // Relación con usuario
     public function user()
     {

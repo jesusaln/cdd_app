@@ -56,6 +56,7 @@ class HerramientaController extends Controller
 
         return Inertia::render('Herramientas/Index', [
             'herramientas' => $herramientas,
+            'tecnicos' => $tecnicos,
             'stats' => [
                 'total' => $totalHerramientas,
                 'asignadas' => $herramientasAsignadas,
@@ -90,8 +91,14 @@ class HerramientaController extends Controller
             $validated = $request->validate([
                 'nombre' => 'required|string|max:255',
                 'numero_serie' => 'required|string|max:255|unique:herramientas,numero_serie',
+                'categoria' => 'required|string|in:electrica,manual,medicion,seguridad,limpieza,jardineria,construccion,electronica,otra',
                 'foto' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
                 'tecnico_id' => 'nullable|exists:tecnicos,id',
+                'vida_util_meses' => 'nullable|integer|min:1|max:120',
+                'costo_reemplazo' => 'nullable|numeric|min:0',
+                'requiere_mantenimiento' => 'nullable|boolean',
+                'dias_para_mantenimiento' => 'nullable|integer|min:1|max:365',
+                'descripcion' => 'nullable|string|max:1000',
             ]);
 
             if ($request->hasFile('foto')) {
@@ -151,8 +158,14 @@ class HerramientaController extends Controller
             $validated = $request->validate([
                 'nombre' => 'sometimes|required|string|max:255',
                 'numero_serie' => 'sometimes|required|string|max:255|unique:herramientas,numero_serie,' . $herramienta->id,
+                'categoria' => 'sometimes|required|string|in:electrica,manual,medicion,seguridad,limpieza,jardineria,construccion,electronica,otra',
                 'foto' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
                 'tecnico_id' => 'nullable|exists:tecnicos,id',
+                'vida_util_meses' => 'nullable|integer|min:1|max:120',
+                'costo_reemplazo' => 'nullable|numeric|min:0',
+                'requiere_mantenimiento' => 'nullable|boolean',
+                'dias_para_mantenimiento' => 'nullable|integer|min:1|max:365',
+                'descripcion' => 'nullable|string|max:1000',
                 'remove_foto' => 'sometimes|boolean',
             ]);
 
@@ -247,6 +260,77 @@ class HerramientaController extends Controller
     {
         $herramienta->foto_url = $herramienta->foto ? asset('storage/' . $herramienta->foto) : null;
         return $herramienta;
+    }
+
+    /**
+     * Asigna una herramienta a un técnico.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \App\Models\Herramienta  $herramienta
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function asignar(Request $request, Herramienta $herramienta)
+    {
+        try {
+            $validated = $request->validate([
+                'tecnico_id' => 'required|exists:tecnicos,id',
+                'observaciones' => 'nullable|string|max:500',
+            ]);
+
+            // Verificar que la herramienta no esté ya asignada
+            if ($herramienta->tecnico_id) {
+                return redirect()->back()
+                    ->with('error', 'La herramienta ya está asignada a otro técnico.');
+            }
+
+            $herramienta->update([
+                'tecnico_id' => $validated['tecnico_id'],
+                'estado' => 'asignada',
+                'fecha_asignacion' => now(),
+            ]);
+
+            return redirect()->route('herramientas.index')
+                ->with('success', 'Herramienta "' . $herramienta->nombre . '" asignada correctamente.');
+        } catch (\Exception $e) {
+            Log::error('Error al asignar herramienta: ' . $e->getMessage());
+            return redirect()->back()
+                ->with('error', 'Error al asignar la herramienta: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Recibe una herramienta de un técnico (la desasigna).
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \App\Models\Herramienta  $herramienta
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function recibir(Request $request, Herramienta $herramienta)
+    {
+        try {
+            $validated = $request->validate([
+                'observaciones' => 'nullable|string|max:500',
+            ]);
+
+            // Verificar que la herramienta esté asignada
+            if (!$herramienta->tecnico_id) {
+                return redirect()->back()
+                    ->with('error', 'La herramienta no está asignada a ningún técnico.');
+            }
+
+            $herramienta->update([
+                'tecnico_id' => null,
+                'estado' => 'disponible',
+                'fecha_recepcion' => now(),
+            ]);
+
+            return redirect()->route('herramientas.index')
+                ->with('success', 'Herramienta "' . $herramienta->nombre . '" recibida correctamente.');
+        } catch (\Exception $e) {
+            Log::error('Error al recibir herramienta: ' . $e->getMessage());
+            return redirect()->back()
+                ->with('error', 'Error al recibir la herramienta: ' . $e->getMessage());
+        }
     }
 
     /**

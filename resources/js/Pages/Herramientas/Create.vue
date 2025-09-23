@@ -136,6 +136,47 @@
                   <p class="mt-1 text-sm text-gray-500">Identificador único de la herramienta</p>
                 </div>
 
+                <!-- Categoría -->
+                <div class="mb-6">
+                  <label for="categoria" class="block text-sm font-medium text-gray-700 mb-2">
+                    Categoría
+                    <span class="text-red-500">*</span>
+                  </label>
+                  <div class="relative">
+                    <select
+                      v-model="form.categoria"
+                      id="categoria"
+                      class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
+                      :class="{ 'border-red-500 focus:ring-red-500': form.errors.categoria }"
+                      @change="validateField('categoria')"
+                      required
+                    >
+                      <option value="">Seleccionar categoría...</option>
+                      <option value="electrica">Eléctrica</option>
+                      <option value="manual">Manual</option>
+                      <option value="medicion">Medición</option>
+                      <option value="seguridad">Seguridad</option>
+                      <option value="limpieza">Limpieza</option>
+                      <option value="jardineria">Jardinería</option>
+                      <option value="construccion">Construcción</option>
+                      <option value="electronica">Electrónica</option>
+                      <option value="otra">Otra</option>
+                    </select>
+                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
+                  <p v-if="form.errors.categoria" class="mt-2 text-sm text-red-600 flex items-center">
+                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg>
+                    {{ form.errors.categoria }}
+                  </p>
+                  <p class="mt-1 text-sm text-gray-500">Clasifica la herramienta por su tipo de uso</p>
+                </div>
+
                 <!-- Técnico Asignado -->
                 <div class="mb-6">
                   <label for="tecnico_id" class="block text-sm font-medium text-gray-700 mb-2">
@@ -170,6 +211,148 @@
                   <p class="mt-1 text-sm text-gray-500">
                     Puedes asignar la herramienta a un técnico más tarde
                   </p>
+                </div>
+              </div>
+
+              <!-- Información de Mantenimiento -->
+              <div>
+                <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                  <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  Información de Mantenimiento
+                </h3>
+
+                <!-- Vida Útil -->
+                <div class="mb-6">
+                  <label for="vida_util_meses" class="block text-sm font-medium text-gray-700 mb-2">
+                    Vida Útil (meses)
+                    <span class="text-gray-400">(Opcional)</span>
+                  </label>
+                  <input
+                    v-model="form.vida_util_meses"
+                    type="number"
+                    id="vida_util_meses"
+                    min="1"
+                    max="120"
+                    class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                    :class="{ 'border-red-500 focus:ring-red-500': form.errors.vida_util_meses }"
+                    @input="validateField('vida_util_meses')"
+                    placeholder="Ej: 24"
+                  />
+                  <p v-if="form.errors.vida_util_meses" class="mt-2 text-sm text-red-600 flex items-center">
+                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg>
+                    {{ form.errors.vida_util_meses }}
+                  </p>
+                  <p class="mt-1 text-sm text-gray-500">Duración estimada de la herramienta en meses</p>
+                </div>
+
+                <!-- Costo de Reemplazo -->
+                <div class="mb-6">
+                  <label for="costo_reemplazo" class="block text-sm font-medium text-gray-700 mb-2">
+                    Costo de Reemplazo
+                    <span class="text-gray-400">(Opcional)</span>
+                  </label>
+                  <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <span class="text-gray-500 sm:text-sm">$</span>
+                    </div>
+                    <input
+                      v-model="form.costo_reemplazo"
+                      type="number"
+                      id="costo_reemplazo"
+                      step="0.01"
+                      min="0"
+                      class="block w-full pl-8 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                      :class="{ 'border-red-500 focus:ring-red-500': form.errors.costo_reemplazo }"
+                      @input="validateField('costo_reemplazo')"
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <p v-if="form.errors.costo_reemplazo" class="mt-2 text-sm text-red-600 flex items-center">
+                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg>
+                    {{ form.errors.costo_reemplazo }}
+                  </p>
+                  <p class="mt-1 text-sm text-gray-500">Costo estimado para reemplazar la herramienta</p>
+                </div>
+
+                <!-- Requiere Mantenimiento -->
+                <div class="mb-6">
+                  <label class="flex items-center">
+                    <input
+                      v-model="form.requiere_mantenimiento"
+                      type="checkbox"
+                      class="form-checkbox h-4 w-4 text-blue-600 rounded focus:ring-blue-500"
+                      @change="validateField('requiere_mantenimiento')"
+                    />
+                    <span class="ml-2 text-sm text-gray-700">Requiere mantenimiento programado</span>
+                  </label>
+                  <p class="mt-1 text-sm text-gray-500">Indica si la herramienta necesita mantenimiento regular</p>
+                </div>
+
+                <!-- Días para Mantenimiento -->
+                <div v-if="form.requiere_mantenimiento" class="mb-6">
+                  <label for="dias_para_mantenimiento" class="block text-sm font-medium text-gray-700 mb-2">
+                    Días entre Mantenimientos
+                    <span class="text-gray-400">(Opcional)</span>
+                  </label>
+                  <input
+                    v-model="form.dias_para_mantenimiento"
+                    type="number"
+                    id="dias_para_mantenimiento"
+                    min="1"
+                    max="365"
+                    class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                    :class="{ 'border-red-500 focus:ring-red-500': form.errors.dias_para_mantenimiento }"
+                    @input="validateField('dias_para_mantenimiento')"
+                    placeholder="Ej: 30"
+                  />
+                  <p v-if="form.errors.dias_para_mantenimiento" class="mt-2 text-sm text-red-600 flex items-center">
+                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg>
+                    {{ form.errors.dias_para_mantenimiento }}
+                  </p>
+                  <p class="mt-1 text-sm text-gray-500">Intervalo en días para realizar mantenimiento</p>
+                </div>
+              </div>
+
+              <!-- Información Adicional -->
+              <div>
+                <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                  <svg class="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Información Adicional
+                </h3>
+
+                <!-- Descripción -->
+                <div class="mb-6">
+                  <label for="descripcion" class="block text-sm font-medium text-gray-700 mb-2">
+                    Descripción
+                    <span class="text-gray-400">(Opcional)</span>
+                  </label>
+                  <textarea
+                    v-model="form.descripcion"
+                    id="descripcion"
+                    rows="4"
+                    class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                    :class="{ 'border-red-500 focus:ring-red-500': form.errors.descripcion }"
+                    @input="validateField('descripcion')"
+                    placeholder="Describe las características, uso, cuidados especiales de la herramienta..."
+                  ></textarea>
+                  <p v-if="form.errors.descripcion" class="mt-2 text-sm text-red-600 flex items-center">
+                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg>
+                    {{ form.errors.descripcion }}
+                  </p>
+                  <p class="mt-1 text-sm text-gray-500">Información detallada sobre la herramienta</p>
                 </div>
               </div>
             </div>
@@ -335,8 +518,14 @@ const fileInput = ref(null);
 const form = useForm({
   nombre: '',
   numero_serie: '',
+  categoria: '',
   foto: null,
   tecnico_id: '',
+  vida_util_meses: '',
+  costo_reemplazo: '',
+  requiere_mantenimiento: false,
+  dias_para_mantenimiento: '',
+  descripcion: '',
 });
 
 // Computed para validación y progreso
@@ -346,12 +535,16 @@ const isFormValid = computed(() => {
 
 const completionPercentage = computed(() => {
   let completed = 0;
-  const total = 4; // Total de campos
+  const total = 8; // Total de campos principales
 
   if (form.nombre.trim()) completed++;
   if (form.numero_serie.trim()) completed++;
+  if (form.categoria) completed++;
   if (form.foto) completed++;
   if (form.tecnico_id) completed++;
+  if (form.vida_util_meses) completed++;
+  if (form.costo_reemplazo) completed++;
+  if (form.descripcion.trim()) completed++;
 
   return Math.round((completed / total) * 100);
 });
@@ -452,8 +645,14 @@ const removeImage = () => {
 // Limpiar errores cuando se modifica el formulario
 watch(() => form.nombre, () => validateField('nombre'));
 watch(() => form.numero_serie, () => validateField('numero_serie'));
+watch(() => form.categoria, () => validateField('categoria'));
 watch(() => form.foto, () => validateField('foto'));
 watch(() => form.tecnico_id, () => validateField('tecnico_id'));
+watch(() => form.vida_util_meses, () => validateField('vida_util_meses'));
+watch(() => form.costo_reemplazo, () => validateField('costo_reemplazo'));
+watch(() => form.requiere_mantenimiento, () => validateField('requiere_mantenimiento'));
+watch(() => form.dias_para_mantenimiento, () => validateField('dias_para_mantenimiento'));
+watch(() => form.descripcion, () => validateField('descripcion'));
 </script>
 
 <style scoped>
