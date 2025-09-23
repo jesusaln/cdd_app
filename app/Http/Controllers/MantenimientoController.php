@@ -47,7 +47,7 @@ class MantenimientoController extends Controller
 
             // Ordenamiento
             $sortBy = $request->input('sort_by', 'fecha');
-            $sortDirection = $request->input('sort_direction', 'desc');
+            $sortDirection = $request->input('sort_direction', 'asc'); // Por defecto orden ascendente para mejor flujo cronológico
 
             $validSortFields = ['fecha', 'tipo', 'costo', 'estado', 'created_at'];
             if (!in_array($sortBy, $validSortFields)) {
@@ -185,6 +185,21 @@ class MantenimientoController extends Controller
                 'carro_id' => $validated['carro_id']
             ]);
 
+            // Con Opción B: Permitir crear mantenimientos completados incluso si existe uno pendiente
+            // Los completados son registros históricos, los pendientes son únicos por tipo
+
+            // Verificar si ya existe un mantenimiento para este vehículo y tipo en la misma fecha
+            $existeMantenimiento = Mantenimiento::where('carro_id', $validated['carro_id'])
+                ->where('tipo', $validated['tipo'])
+                ->where('fecha', $validated['fecha'])
+                ->exists();
+
+            if ($existeMantenimiento) {
+                return back()->withErrors([
+                    'fecha' => 'Ya existe un mantenimiento registrado para este vehículo y tipo en la fecha seleccionada.'
+                ])->withInput();
+            }
+
             // Obtener el carro asociado
             $carro = Carro::findOrFail($validated['carro_id']);
             Log::info('Carro encontrado', ['carro_id' => $carro->id, 'kilometraje_actual' => $carro->kilometraje]);
@@ -210,8 +225,20 @@ class MantenimientoController extends Controller
             // Actualizar el kilometraje del carro
             $carro->update(['kilometraje' => $validated['kilometraje_actual']]);
 
-            // Preparar datos para crear el mantenimiento
-            $mantenimientoData = [
+            // Validar que la fecha del próximo mantenimiento sea posterior a la fecha del servicio
+            $fechaServicio = Carbon::parse($validated['fecha']);
+            $proximoMantenimiento = Carbon::parse($validated['proximo_mantenimiento']);
+
+            if ($proximoMantenimiento->lessThanOrEqualTo($fechaServicio)) {
+                return back()->withErrors([
+                    'proximo_mantenimiento' => 'La fecha del próximo mantenimiento debe ser posterior a la fecha del servicio actual.'
+                ])->withInput();
+            }
+
+            $intervaloDias = $fechaServicio->diffInDays($proximoMantenimiento);
+
+            // 1. Crear el servicio que YA SE HIZO (completado)
+            $mantenimientoCompletado = [
                 'carro_id' => $validated['carro_id'],
                 'tipo' => $validated['tipo'],
                 'fecha' => $validated['fecha'],
@@ -220,21 +247,25 @@ class MantenimientoController extends Controller
                 'kilometraje_actual' => $validated['kilometraje_actual'],
                 'costo' => $validated['costo'] ?? 0,
                 'descripcion' => $validated['descripcion'] ?? '',
-                'estado' => Mantenimiento::ESTADO_COMPLETADO,
+                'estado' => Mantenimiento::ESTADO_COMPLETADO, // Este ya se completó
                 'prioridad' => $validated['prioridad'],
                 'dias_anticipacion_alerta' => $validated['dias_anticipacion_alerta'],
                 'requiere_aprobacion' => filter_var($validated['requiere_aprobacion'] ?? false, FILTER_VALIDATE_BOOLEAN),
                 'observaciones_alerta' => $validated['observaciones_alerta'] ?? null,
             ];
 
-            Log::info('Datos finales para mantenimiento', ['mantenimiento_data' => $mantenimientoData]);
+            Log::info('Creando mantenimiento completado', ['mantenimiento_data' => $mantenimientoCompletado]);
+            $mantenimiento = Mantenimiento::create($mantenimientoCompletado);
 
-            Log::info('Creando mantenimiento con datos', ['mantenimiento_data' => $mantenimientoData]);
+            // NO crear automáticamente el siguiente mantenimiento pendiente
+            // El siguiente mantenimiento se creará solo cuando se complete este desde el modal
+            Log::info('No se crea mantenimiento pendiente automáticamente - se creará desde el modal al completar');
+            $proximoMantenimiento = null;
 
-            // Crear el registro de mantenimiento
-            $mantenimiento = Mantenimiento::create($mantenimientoData);
-
-            Log::info('Mantenimiento creado exitosamente', ['mantenimiento_id' => $mantenimiento->id]);
+            Log::info('Mantenimiento creado exitosamente', [
+                'completado_id' => $mantenimiento->id,
+                'pendiente_id' => $proximoMantenimiento ? $proximoMantenimiento->id : null
+            ]);
 
             DB::commit();
 
@@ -468,6 +499,174 @@ class MantenimientoController extends Controller
             'message' => 'Alerta marcada como enviada',
             'mantenimiento' => $mantenimiento->load('carro')
         ]);
+    }
+
+    // Reprogramar mantenimiento (Opción B: actualizar registro existente)
+    public function completar(Request $request, Mantenimiento $mantenimiento)
+    {
+        $request->validate([
+            'costo' => 'nullable|numeric|min:0|max:999999.99',
+            'proxima_fecha' => 'required|date|after:today',
+        ], [
+            'costo.min' => 'El costo no puede ser negativo.',
+            'costo.max' => 'El costo no puede exceder $999,999.99',
+            'proxima_fecha.required' => 'La fecha del próximo mantenimiento es obligatoria.',
+            'proxima_fecha.after' => 'La fecha del próximo mantenimiento debe ser posterior a hoy.',
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+            Log::info('Reprogramando mantenimiento desde modal (Opción B)', [
+                'mantenimiento_id' => $mantenimiento->id,
+                'tipo' => $mantenimiento->tipo,
+                'carro_id' => $mantenimiento->carro_id,
+                'costo' => $request->input('costo'),
+                'proxima_fecha' => $request->input('proxima_fecha'),
+                'fecha_actual_mantenimiento' => $mantenimiento->fecha
+            ]);
+
+            // Calcular intervalo entre servicios para mantener consistencia
+            $fechaUltimoServicio = Carbon::parse($mantenimiento->fecha);
+            $proximaFechaServicio = Carbon::parse($request->input('proxima_fecha'));
+            $intervaloDias = $fechaUltimoServicio->diffInDays($proximaFechaServicio);
+
+            // Calcular nueva fecha de próximo mantenimiento
+            $nuevaFechaProximo = $proximaFechaServicio->copy()->addDays($intervaloDias);
+
+            // Opción B: Actualizar el registro existente con nueva información
+            $mantenimiento->update([
+                // Mantener fecha del último servicio realizado (histórico)
+                'fecha' => $mantenimiento->fecha,
+                // Actualizar fecha del próximo mantenimiento programado
+                'proximo_mantenimiento' => $nuevaFechaProximo->format('Y-m-d'),
+                // Estado permanece como completado (servicio ya realizado)
+                'estado' => Mantenimiento::ESTADO_COMPLETADO,
+                // Actualizar costo del último servicio
+                'costo' => $request->input('costo', $mantenimiento->costo),
+                // Mantener kilometraje del último servicio
+                'kilometraje_actual' => $mantenimiento->kilometraje_actual,
+                // Actualizar notas con información del reprogramado
+                'notas' => 'Último servicio: ' . $mantenimiento->fecha . ' - Próximo programado: ' . $nuevaFechaProximo->format('d/m/Y'),
+                // Mantener otros campos sin cambios
+                'descripcion' => $mantenimiento->descripcion,
+                'prioridad' => $mantenimiento->prioridad,
+                'dias_anticipacion_alerta' => $mantenimiento->dias_anticipacion_alerta,
+                'requiere_aprobacion' => $mantenimiento->requiere_aprobacion,
+                'observaciones_alerta' => $mantenimiento->observaciones_alerta,
+            ]);
+
+            // Actualizar kilometraje del carro si este es el mantenimiento más reciente
+            $carro = $mantenimiento->carro;
+            if ($carro && $mantenimiento->kilometraje_actual) {
+                $carro->update(['kilometraje' => $mantenimiento->kilometraje_actual]);
+                Log::info('Kilometraje del carro actualizado tras reprogramación', [
+                    'carro_id' => $carro->id,
+                    'kilometraje_actualizado' => $mantenimiento->kilometraje_actual
+                ]);
+            }
+
+            Log::info('Mantenimiento reprogramado exitosamente (Opción B)', [
+                'mantenimiento_id' => $mantenimiento->id,
+                'fecha_ultimo_servicio' => $mantenimiento->fecha,
+                'proxima_fecha_programada' => $nuevaFechaProximo->format('Y-m-d'),
+                'intervalo_dias' => $intervaloDias
+            ]);
+
+            DB::commit();
+
+            return redirect()->route('mantenimientos.index')
+                ->with('success', 'Mantenimiento reprogramado exitosamente. El siguiente servicio está programado para el ' . $nuevaFechaProximo->format('d/m/Y') . '.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al reprogramar mantenimiento desde modal: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+
+            return redirect()->back()
+                ->with('error', 'Error al reprogramar el mantenimiento.');
+        }
+    }
+
+    // Marcar mantenimiento como realizado hoy
+    public function marcarRealizadoHoy(Mantenimiento $mantenimiento)
+    {
+        DB::beginTransaction();
+
+        try {
+            Log::info('Marcando mantenimiento como realizado hoy', [
+                'mantenimiento_id' => $mantenimiento->id,
+                'tipo' => $mantenimiento->tipo,
+                'carro_id' => $mantenimiento->carro_id,
+                'fecha_actual' => $mantenimiento->fecha,
+                'proxima_fecha_actual' => $mantenimiento->proximo_mantenimiento
+            ]);
+
+            // Calcular el intervalo entre servicios
+            $fechaUltimoServicio = Carbon::parse($mantenimiento->fecha);
+            $fechaProximaActual = Carbon::parse($mantenimiento->proximo_mantenimiento);
+            $intervaloDias = $fechaUltimoServicio->diffInDays($fechaProximaActual);
+
+            // Nueva fecha del último servicio: hoy
+            $fechaHoy = Carbon::now();
+            // Nueva fecha de próximo mantenimiento: hoy + intervalo
+            $nuevaFechaProximo = $fechaHoy->copy()->addDays($intervaloDias);
+
+            // Actualizar el mantenimiento
+            $mantenimiento->update([
+                'fecha' => $fechaHoy->format('Y-m-d'),
+                'proximo_mantenimiento' => $nuevaFechaProximo->format('Y-m-d'),
+                'estado' => Mantenimiento::ESTADO_COMPLETADO,
+                'notas' => 'Servicio realizado hoy (' . $fechaHoy->format('d/m/Y') . ') - Próximo programado: ' . $nuevaFechaProximo->format('d/m/Y'),
+                // Mantener otros campos sin cambios
+                'kilometraje_actual' => $mantenimiento->kilometraje_actual,
+                'costo' => $mantenimiento->costo,
+                'descripcion' => $mantenimiento->descripcion,
+                'prioridad' => $mantenimiento->prioridad,
+                'dias_anticipacion_alerta' => $mantenimiento->dias_anticipacion_alerta,
+                'requiere_aprobacion' => $mantenimiento->requiere_aprobacion,
+                'observaciones_alerta' => $mantenimiento->observaciones_alerta,
+            ]);
+
+            // Actualizar kilometraje del carro si este es el mantenimiento más reciente
+            $carro = $mantenimiento->carro;
+            if ($carro && $mantenimiento->kilometraje_actual) {
+                $carro->update(['kilometraje' => $mantenimiento->kilometraje_actual]);
+                Log::info('Kilometraje del carro actualizado tras marcar como realizado hoy', [
+                    'carro_id' => $carro->id,
+                    'kilometraje_actualizado' => $mantenimiento->kilometraje_actual
+                ]);
+            }
+
+            Log::info('Mantenimiento marcado como realizado hoy exitosamente', [
+                'mantenimiento_id' => $mantenimiento->id,
+                'nueva_fecha_ultimo_servicio' => $fechaHoy->format('Y-m-d'),
+                'nueva_fecha_proximo' => $nuevaFechaProximo->format('Y-m-d'),
+                'intervalo_dias' => $intervaloDias
+            ]);
+
+            DB::commit();
+
+            return redirect()->route('mantenimientos.index')
+                ->with('success', 'Mantenimiento marcado como realizado hoy. Próximo servicio programado para el ' . $nuevaFechaProximo->format('d/m/Y') . '.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al marcar mantenimiento como realizado hoy: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+
+            return redirect()->back()
+                ->with('error', 'Error al marcar el mantenimiento como realizado hoy.');
+        }
+    }
+
+    // Generar mantenimientos recurrentes (método legacy - ya no se usa)
+    public function generarRecurrentes(Request $request)
+    {
+        // Este método ya no es necesario ya que la lógica está integrada
+        // en el proceso de crear y completar mantenimientos
+        return redirect()->route('mantenimientos.index')
+            ->with('info', 'La generación de mantenimientos recurrentes ahora es automática al crear y completar servicios.');
     }
 
     // =================== MÉTODOS PRIVADOS ===================

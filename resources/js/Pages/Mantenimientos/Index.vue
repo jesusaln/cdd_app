@@ -24,6 +24,30 @@ onMounted(() => {
   const flash = page.props.flash
   if (flash?.success) notyf.success(flash.success)
   if (flash?.error) notyf.error(flash.error)
+
+  // Debug: Verificar todos los mantenimientos y sus valores
+  console.log('=== DEBUG MANTENIMIENTOS ===')
+  mantenimientosData.value.forEach(m => {
+    console.log(`ID: ${m.id}, Tipo: ${m.tipo}, Estado: "${m.estado}", Días restantes: ${m.dias_restantes}, Próximo: ${m.proximo_mantenimiento}`)
+  })
+
+  // Verificar si hay mantenimientos que requieren atención (vencidos o próximos)
+  const mantenimientosVencidos = mantenimientosData.value.filter(m => {
+    const estadoLimpio = (m.estado || '').toString().toLowerCase().trim()
+    const esVencido = m.dias_restantes <= 0 && estadoLimpio !== 'completado'
+    const esProximo = m.dias_restantes <= 0 // Cualquier mantenimiento con 0 o menos días requiere atención
+    console.log(`Mantenimiento ${m.id}: dias_restantes=${m.dias_restantes}, estado="${m.estado}" (limpio: "${estadoLimpio}"), esVencido=${esVencido}, esProximo=${esProximo}`)
+    return esProximo // Mostrar notificación si requiere atención
+  })
+
+  console.log(`Total mantenimientos vencidos: ${mantenimientosVencidos.length}`)
+
+  if (mantenimientosVencidos.length > 0) {
+    notyf.open({
+      type: 'warning',
+      message: `¡Atención! Tienes ${mantenimientosVencidos.length} mantenimiento(s) que requieren atención inmediata (fecha de próximo mantenimiento alcanzada).`
+    })
+  }
 })
 
 // Props
@@ -37,14 +61,27 @@ const props = defineProps({
 })
 
 // Estado UI
-const showModal = ref(false)
-const modalMode = ref('details')
-const selectedMantenimiento = ref(null)
-const selectedId = ref(null)
+  const showModal = ref(false)
+  const modalMode = ref('details')
+  const selectedMantenimiento = ref(null)
+  const selectedId = ref(null)
+  const showHistorialModal = ref(false)
+  const historialVehiculo = ref(null)
+  const historialMantenimientos = ref([])
+  const showReprogramarModal = ref(false)
+  const mantenimientoAReprogramar = ref(null)
+  const costoReprogramar = ref(0)
+  const proximaFecha = ref('')
+
+  const showCompletarModal = ref(false)
+  const mantenimientoACompletar = ref(null)
+  const costoCompletar = ref(0)
+  const fechaCompletar = ref('')
+  const kilometrajeCompletar = ref(0)
 
 // Filtros
 const searchTerm = ref(props.filters?.search ?? '')
-const sortBy = ref('fecha-desc')
+const sortBy = ref('fecha-asc') // Ordenar por fecha ascendente por defecto para mejor flujo cronológico
 const filtroEstado = ref('')
 const filtroTipo = ref('')
 const filtroCarro = ref('')
@@ -187,6 +224,61 @@ const verDetalles = (doc) => {
   showModal.value = true
 }
 
+const verHistorialVehiculo = async (carroId) => {
+  console.log('verHistorialVehiculo llamado con carroId:', carroId)
+
+  if (!carroId) {
+    console.error('Error: carroId es null o undefined')
+    notyf.error('No se puede mostrar el historial: vehículo no encontrado')
+    return
+  }
+
+  try {
+    // Buscar el vehículo en la lista de carros
+    const carro = props.carros.find(c => c.id === carroId)
+    if (!carro) {
+      notyf.error('Vehículo no encontrado')
+      return
+    }
+
+    // Obtener todos los mantenimientos de este vehículo
+    const mantenimientosDelVehiculo = mantenimientosData.value.filter(m => m.carro_id === carroId)
+
+    console.log('Mostrando historial del vehículo:', carro.marca + ' ' + carro.modelo)
+    console.log('Total mantenimientos encontrados:', mantenimientosDelVehiculo.length)
+
+    // Configurar el modal de historial
+    historialVehiculo.value = carro
+    historialMantenimientos.value = mantenimientosDelVehiculo
+    showHistorialModal.value = true
+
+  } catch (error) {
+    console.error('Error al obtener historial del vehículo:', error)
+    notyf.error('Error al cargar el historial del vehículo')
+  }
+}
+
+const limpiarFiltros = () => {
+  searchTerm.value = ''
+  filtroEstado.value = ''
+  filtroTipo.value = ''
+  filtroCarro.value = ''
+  filtroPrioridad.value = ''
+  sortBy.value = 'fecha-desc'
+
+  router.get(route('mantenimientos.index'), {
+    search: '',
+    estado: '',
+    tipo: '',
+    carro_id: '',
+    prioridad: '',
+    sort_by: 'fecha',
+    sort_direction: 'desc',
+    per_page: perPage.value,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
 const editarMantenimiento = (id) => {
   router.visit(route('mantenimientos.edit', id))
 }
@@ -210,6 +302,94 @@ const eliminarMantenimiento = () => {
       notyf.error('No se pudo eliminar el mantenimiento')
     }
   })
+}
+
+const cerrarHistorialModal = () => {
+  showHistorialModal.value = false
+  historialVehiculo.value = null
+  historialMantenimientos.value = []
+}
+
+const abrirModalReprogramar = (mantenimiento) => {
+  mantenimientoAReprogramar.value = mantenimiento
+  costoReprogramar.value = mantenimiento.raw.costo || 0
+  // Calcular fecha próxima sugerida (3 meses después)
+  const fechaActual = new Date(mantenimiento.raw.fecha)
+  const proximaSugerida = new Date(fechaActual)
+  proximaSugerida.setMonth(proximaSugerida.getMonth() + 3)
+  proximaFecha.value = proximaSugerida.toISOString().split('T')[0]
+  showReprogramarModal.value = true
+}
+
+const reprogramarMantenimiento = () => {
+  if (!mantenimientoAReprogramar.value) return
+
+  const datos = {
+    costo: costoReprogramar.value,
+    proxima_fecha: proximaFecha.value
+  }
+
+  // Usar URL completa directamente
+  const url = `/mantenimientos/${mantenimientoAReprogramar.value.id}/completar`
+
+  router.post(url, datos, {
+    preserveScroll: true,
+    onSuccess: () => {
+      notyf.success('Mantenimiento reprogramado exitosamente')
+      cerrarModalReprogramar()
+      router.reload()
+    },
+    onError: (errors) => {
+      notyf.error('No se pudo reprogramar el mantenimiento')
+      console.error('Error al reprogramar mantenimiento:', errors)
+    }
+  })
+}
+
+const cerrarModalReprogramar = () => {
+  showReprogramarModal.value = false
+  mantenimientoAReprogramar.value = null
+  costoReprogramar.value = 0
+  proximaFecha.value = ''
+}
+
+const abrirModalCompletar = (mantenimiento) => {
+  mantenimientoACompletar.value = mantenimiento
+  costoCompletar.value = mantenimiento.raw.costo || 0
+  fechaCompletar.value = new Date().toISOString().split('T')[0] // Fecha de hoy por defecto
+  kilometrajeCompletar.value = mantenimiento.raw.kilometraje_actual || 0
+  showCompletarModal.value = true
+}
+
+const completarMantenimiento = () => {
+  if (!mantenimientoACompletar.value) return
+
+  const datos = {
+    costo: costoCompletar.value,
+    fecha_servicio: fechaCompletar.value,
+    kilometraje: kilometrajeCompletar.value
+  }
+
+  router.post(route('mantenimientos.marcar-realizado-hoy', mantenimientoACompletar.value.raw.id), datos, {
+    preserveScroll: true,
+    onSuccess: () => {
+      notyf.success('Mantenimiento completado exitosamente')
+      cerrarModalCompletar()
+      router.reload()
+    },
+    onError: (errors) => {
+      notyf.error('No se pudo completar el mantenimiento')
+      console.error('Error al completar mantenimiento:', errors)
+    }
+  })
+}
+
+const cerrarModalCompletar = () => {
+  showCompletarModal.value = false
+  mantenimientoACompletar.value = null
+  costoCompletar.value = 0
+  fechaCompletar.value = ''
+  kilometrajeCompletar.value = 0
 }
 
 const exportMantenimientos = () => {
@@ -265,7 +445,25 @@ const formatearFecha = (date) => {
   }
 }
 
-const obtenerClasesEstado = (estado) => {
+const obtenerClasesEstado = (mantenimiento) => {
+  const estado = mantenimiento.estado
+  const diasRestantes = mantenimiento.dias_restantes
+
+  // Opción B: Lógica basada en fecha de próximo mantenimiento
+  if (estado === 'completado') {
+    if (diasRestantes !== null && diasRestantes <= 0) {
+      // Completado pero próximo mantenimiento vencido
+      return 'bg-red-100 text-red-700'
+    } else if (diasRestantes !== null && diasRestantes <= 7) {
+      // Completado pero próximo mantenimiento próximo
+      return 'bg-orange-100 text-orange-700'
+    } else {
+      // Completado y próximo mantenimiento en orden
+      return 'bg-green-100 text-green-700'
+    }
+  }
+
+  // Estados legacy por si acaso
   const clases = {
     'completado': 'bg-green-100 text-green-700',
     'pendiente': 'bg-yellow-100 text-yellow-700',
@@ -274,7 +472,24 @@ const obtenerClasesEstado = (estado) => {
   return clases[estado] || 'bg-gray-100 text-gray-700'
 }
 
-const obtenerLabelEstado = (estado) => {
+const obtenerLabelEstado = (mantenimiento) => {
+  const estado = mantenimiento.estado
+  const diasRestantes = mantenimiento.dias_restantes
+
+  // Opción B: Lógica basada en fecha de próximo mantenimiento
+  if (estado === 'completado') {
+    if (diasRestantes === null) {
+      return 'Completado'
+    } else if (diasRestantes <= 0) {
+      return 'Vencido'
+    } else if (diasRestantes <= 7) {
+      return 'Próximo'
+    } else {
+      return 'Programado'
+    }
+  }
+
+  // Estados legacy por si acaso
   const labels = {
     'completado': 'Completado',
     'pendiente': 'Pendiente',
@@ -307,15 +522,21 @@ const obtenerClasesUrgencia = (mantenimiento) => {
   const diasRestantes = mantenimiento.dias_restantes
   const prioridad = mantenimiento.prioridad
 
-  if (diasRestantes < 0) {
+  // Opción B: Lógica simplificada basada en días restantes
+  if (diasRestantes === null) {
+    // No hay fecha de próximo mantenimiento programada
+    return 'bg-gray-100 text-gray-700 border-gray-200'
+  }
+
+  if (diasRestantes <= 0 || prioridad === 'critica') {
     return 'bg-red-100 text-red-700 border-red-200'
   }
 
-  if (diasRestantes <= 3 || prioridad === 'critica') {
+  if (diasRestantes <= 3 || prioridad === 'alta') {
     return 'bg-red-100 text-red-700 border-red-200'
   }
 
-  if (diasRestantes <= 7 || prioridad === 'alta') {
+  if (diasRestantes <= 7) {
     return 'bg-orange-100 text-orange-700 border-orange-200'
   }
 
@@ -330,7 +551,12 @@ const obtenerIconoUrgencia = (mantenimiento) => {
   const diasRestantes = mantenimiento.dias_restantes
   const prioridad = mantenimiento.prioridad
 
-  if (diasRestantes < 0 || prioridad === 'critica') {
+  // Opción B: Lógica simplificada
+  if (diasRestantes === null) {
+    return '📋'
+  }
+
+  if (diasRestantes <= 0 || prioridad === 'critica') {
     return '⚠️'
   }
 
@@ -344,11 +570,34 @@ const obtenerIconoUrgencia = (mantenimiento) => {
 
   return '✅'
 }
+
+const obtenerTextoUrgencia = (mantenimiento) => {
+  const diasRestantes = mantenimiento.dias_restantes
+
+  if (diasRestantes === null) {
+    return 'Sin programar'
+  }
+
+  if (diasRestantes <= 0) {
+    return 'Vencido'
+  }
+
+  if (diasRestantes <= 7) {
+    return 'Urgente'
+  }
+
+  if (diasRestantes <= 15) {
+    return 'Próximo'
+  }
+
+  return 'Normal'
+}
 </script>
 
 <template>
-  <Head title="Mantenimientos" />
-  <div class="mantenimientos-index min-h-screen bg-gray-50">
+  <div>
+    <Head title="Mantenimientos" />
+    <div class="mantenimientos-index min-h-screen bg-gray-50">
     <div class="max-w-8xl mx-auto px-6 py-8">
       <!-- Header -->
       <div class="bg-white border border-slate-200 rounded-xl shadow-sm mb-6 overflow-hidden">
@@ -372,6 +621,16 @@ const obtenerIconoUrgencia = (mantenimiento) => {
 
               <!-- Botones de acción -->
               <div class="flex items-center gap-3">
+                <button
+                  @click="limpiarFiltros"
+                  class="inline-flex items-center gap-2 px-4 py-2.5 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-all duration-200 border border-gray-200"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  <span class="text-sm font-medium">Ver Todos</span>
+                </button>
+
                 <button
                   @click="exportMantenimientos"
                   class="inline-flex items-center gap-2 px-4 py-2.5 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-all duration-200 border border-green-200"
@@ -662,7 +921,7 @@ const obtenerIconoUrgencia = (mantenimiento) => {
             <tbody class="bg-white divide-y divide-gray-200">
               <tr v-for="mantenimiento in mantenimientosDocumentos" :key="mantenimiento.id" :class="[
                 'hover:bg-gray-50 transition-colors duration-150',
-                mantenimiento.raw.dias_restantes < 0 ? 'bg-red-50' : '',
+                mantenimiento.raw.dias_restantes <= 0 ? 'bg-red-50' : '',
                 mantenimiento.raw.prioridad === 'critica' ? 'border-l-4 border-l-red-500' : '',
                 mantenimiento.raw.prioridad === 'alta' ? 'border-l-4 border-l-orange-500' : ''
               ]">
@@ -672,17 +931,32 @@ const obtenerIconoUrgencia = (mantenimiento) => {
                 <td class="px-6 py-4">
                   <div class="text-sm font-medium text-gray-900">{{ mantenimiento.raw.carro ? mantenimiento.raw.carro.marca + ' ' + mantenimiento.raw.carro.modelo : 'N/A' }}</div>
                   <div class="text-sm text-gray-500">{{ mantenimiento.raw.carro?.placa || '' }}</div>
+                  <div v-if="mantenimiento.raw.kilometraje_actual" class="text-xs text-gray-400">
+                    {{ formatNumber(mantenimiento.raw.kilometraje_actual) }} km
+                  </div>
                 </td>
                 <td class="px-6 py-4">
-                  <div class="text-sm text-gray-700">{{ mantenimiento.titulo }}</div>
+                  <div class="text-sm font-medium text-gray-900">{{ mantenimiento.titulo }}</div>
+                  <div v-if="mantenimiento.raw.estado === 'completado'" class="text-xs text-green-600 mt-1">
+                    ✓ Servicio realizado
+                  </div>
+                  <div v-else-if="mantenimiento.raw.estado === 'pendiente'" class="text-xs text-blue-600 mt-1">
+                    ⏳ Programado
+                  </div>
+                  <div v-if="mantenimiento.raw.notas && mantenimiento.raw.notas.includes('automáticamente')" class="text-xs text-purple-600 mt-1">
+                    🤖 Generado automáticamente
+                  </div>
                 </td>
                 <td class="px-6 py-4">
                   <div class="text-sm text-gray-700">{{ formatearFecha(mantenimiento.raw.proximo_mantenimiento) }}</div>
-                  <div v-if="mantenimiento.raw.dias_restantes !== null && mantenimiento.raw.dias_restantes !== undefined" class="text-xs mt-1" :class="mantenimiento.raw.dias_restantes < 0 ? 'text-red-600 font-medium' : 'text-gray-500'">
-                    {{ mantenimiento.raw.dias_restantes < 0 ? `${Math.abs(mantenimiento.raw.dias_restantes)} días vencido` : `${mantenimiento.raw.dias_restantes} días restantes` }}
+                  <div v-if="mantenimiento.raw.dias_restantes !== null && mantenimiento.raw.dias_restantes !== undefined" class="text-xs mt-1" :class="mantenimiento.raw.dias_restantes <= 0 ? 'text-red-600 font-medium' : 'text-gray-500'">
+                    {{ mantenimiento.raw.dias_restantes <= 0 ? `${Math.abs(mantenimiento.raw.dias_restantes)} días vencido` : `${mantenimiento.raw.dias_restantes} días restantes` }}
                   </div>
                   <div v-else class="text-xs mt-1 text-gray-400">
                     Sin fecha de próximo mantenimiento
+                  </div>
+                  <div v-if="mantenimiento.raw.estado === 'completado'" class="text-xs mt-1 text-green-600 font-medium">
+                    ✓ Servicio realizado
                   </div>
                 </td>
                 <td class="px-6 py-4">
@@ -694,17 +968,30 @@ const obtenerIconoUrgencia = (mantenimiento) => {
                   <div class="flex items-center gap-2">
                     <span class="text-lg">{{ obtenerIconoUrgencia(mantenimiento.raw) }}</span>
                     <span :class="obtenerClasesUrgencia(mantenimiento.raw)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
-                      {{ mantenimiento.raw.dias_restantes < 0 ? 'Vencido' : mantenimiento.raw.dias_restantes <= 7 ? 'Urgente' : 'Normal' }}
+                      {{ obtenerTextoUrgencia(mantenimiento.raw) }}
                     </span>
                   </div>
                 </td>
                 <td class="px-6 py-4">
-                  <div class="text-sm text-gray-700">${{ formatNumber(mantenimiento.raw.costo || 0) }}</div>
+                  <div v-if="mantenimiento.raw.costo && mantenimiento.raw.costo > 0" class="text-sm font-medium text-gray-900">
+                    ${{ formatNumber(mantenimiento.raw.costo) }}
+                  </div>
+                  <div v-else class="text-sm text-gray-400 italic">
+                    Pendiente
+                  </div>
                 </td>
                 <td class="px-6 py-4">
-                  <span :class="obtenerClasesEstado(mantenimiento.estado)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
-                    {{ obtenerLabelEstado(mantenimiento.estado) }}
-                  </span>
+                  <div class="flex flex-col gap-1">
+                    <span :class="obtenerClasesEstado(mantenimiento.estado)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                      {{ obtenerLabelEstado(mantenimiento.estado) }}
+                    </span>
+                    <div v-if="mantenimiento.estado === 'completado'" class="text-xs text-green-600">
+                      {{ formatearFecha(mantenimiento.raw.fecha) }}
+                    </div>
+                    <div v-else-if="mantenimiento.estado === 'pendiente'" class="text-xs text-blue-600">
+                      Programado: {{ formatearFecha(mantenimiento.raw.fecha) }}
+                    </div>
+                  </div>
                 </td>
                 <td class="px-6 py-4 text-right">
                   <div class="flex items-center justify-end space-x-1">
@@ -719,6 +1006,49 @@ const obtenerIconoUrgencia = (mantenimiento) => {
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
                     </button>
+                    <button
+                      v-if="mantenimiento.raw.carro?.id"
+                      @click="verHistorialVehiculo(mantenimiento.raw.carro.id)"
+                      class="w-8 h-8 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 transition-colors duration-150"
+                      title="Ver historial del vehículo"
+                    >
+                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </button>
+                    <button
+                      v-else
+                      class="w-8 h-8 bg-gray-50 text-gray-400 rounded-lg cursor-not-allowed"
+                      title="Vehículo no disponible"
+                      disabled
+                    >
+                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </button>
+                    <!-- Botón para reprogramar (cuando está próximo a vencer) -->
+                    <button
+                       v-if="mantenimiento.raw.dias_restantes !== null && mantenimiento.raw.dias_restantes <= 7 && mantenimiento.raw.dias_restantes > 0"
+                       @click="abrirModalReprogramar(mantenimiento)"
+                       class="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors duration-150"
+                       title="Reprogramar mantenimiento"
+                     >
+                       <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                       </svg>
+                     </button>
+
+                     <!-- Botón para completar mantenimiento (siempre que tenga fecha programada) -->
+                     <button
+                       v-if="mantenimiento.raw.dias_restantes !== null"
+                       @click="abrirModalCompletar(mantenimiento)"
+                       class="w-8 h-8 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors duration-150"
+                       title="Completar mantenimiento"
+                     >
+                       <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                       </svg>
+                     </button>
                     <button @click="confirmarEliminacion(mantenimiento.id)" class="w-8 h-8 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors duration-150" title="Eliminar">
                       <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -808,6 +1138,151 @@ const obtenerIconoUrgencia = (mantenimiento) => {
                 </svg>
               </span>
             </nav>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal de Historial del Vehículo -->
+      <div v-if="showHistorialModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="showHistorialModal = false">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+          <!-- Header del modal -->
+          <div class="flex items-center justify-between p-6 border-b border-gray-200">
+            <div>
+              <h3 class="text-lg font-medium text-gray-900">Historial de Mantenimientos</h3>
+              <p class="text-sm text-gray-600 mt-1" v-if="historialVehiculo">
+                {{ historialVehiculo.marca }} {{ historialVehiculo.modelo }}
+                <span class="text-gray-400">•</span>
+                Placa: {{ historialVehiculo.placa || 'N/A' }}
+              </p>
+            </div>
+            <button @click="cerrarHistorialModal" class="text-gray-400 hover:text-gray-600 transition-colors">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="p-6">
+            <div v-if="historialMantenimientos.length === 0" class="text-center py-8">
+              <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <p class="text-gray-700 font-medium">No hay mantenimientos registrados</p>
+              <p class="text-sm text-gray-500">Este vehículo aún no tiene mantenimientos en el sistema</p>
+            </div>
+
+            <div v-else class="space-y-4">
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <p class="text-sm font-medium text-blue-600">Total Mantenimientos</p>
+                      <p class="text-2xl font-bold text-blue-900">{{ historialMantenimientos.length }}</p>
+                    </div>
+                    <div class="bg-blue-100 p-2 rounded-lg">
+                      <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <p class="text-sm font-medium text-green-600">Completados</p>
+                      <p class="text-2xl font-bold text-green-900">{{ historialMantenimientos.filter(m => m.estado === 'completado').length }}</p>
+                    </div>
+                    <div class="bg-green-100 p-2 rounded-lg">
+                      <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <p class="text-sm font-medium text-yellow-600">Costo Total</p>
+                      <p class="text-2xl font-bold text-yellow-900">${{ formatNumber(historialMantenimientos.reduce((sum, m) => sum + (m.costo || 0), 0)) }}</p>
+                    </div>
+                    <div class="bg-yellow-100 p-2 rounded-lg">
+                      <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Lista de mantenimientos -->
+              <div class="space-y-3">
+                <h4 class="text-lg font-semibold text-gray-800 mb-4">Lista de Mantenimientos</h4>
+                <div v-for="mantenimiento in historialMantenimientos" :key="mantenimiento.id" class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                  <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                      <div class="flex items-center gap-3 mb-2">
+                        <h5 class="font-medium text-gray-900">{{ mantenimiento.tipo }}</h5>
+                        <span :class="obtenerClasesEstado(mantenimiento.estado)" class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">
+                          {{ obtenerLabelEstado(mantenimiento.estado) }}
+                        </span>
+                        <span v-if="mantenimiento.prioridad" :class="obtenerClasesPrioridad(mantenimiento.prioridad)" class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">
+                          {{ obtenerLabelPrioridad(mantenimiento.prioridad) }}
+                        </span>
+                      </div>
+
+                      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-gray-600">
+                        <div>
+                          <span class="font-medium">Fecha:</span>
+                          {{ formatearFecha(mantenimiento.fecha) }}
+                        </div>
+                        <div>
+                          <span class="font-medium">Próximo:</span>
+                          {{ formatearFecha(mantenimiento.proximo_mantenimiento) }}
+                        </div>
+                        <div>
+                          <span class="font-medium">Kilometraje:</span>
+                          {{ formatNumber(mantenimiento.kilometraje_actual || 0) }} km
+                        </div>
+                        <div>
+                          <span class="font-medium">Costo:</span>
+                          ${{ formatNumber(mantenimiento.costo || 0) }}
+                        </div>
+                      </div>
+
+                      <div v-if="mantenimiento.descripcion" class="mt-2 text-sm text-gray-700">
+                        <span class="font-medium">Descripción:</span>
+                        {{ mantenimiento.descripcion }}
+                      </div>
+
+                      <div v-if="mantenimiento.notas" class="mt-2 text-sm text-gray-700">
+                        <span class="font-medium">Notas:</span>
+                        {{ mantenimiento.notas }}
+                      </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 ml-4">
+                      <button @click="verDetalles(mantenimiento)" class="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors duration-150" title="Ver detalles">
+                        <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer del modal -->
+          <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+            <button @click="cerrarHistorialModal" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+              Cerrar
+            </button>
           </div>
         </div>
       </div>
@@ -919,7 +1394,106 @@ const obtenerIconoUrgencia = (mantenimiento) => {
           </div>
         </div>
       </div>
+
+      <!-- Modal para Reprogramar Mantenimiento -->
+      <div v-if="showReprogramarModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="cerrarModalReprogramar">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <!-- Header del modal -->
+          <div class="flex items-center justify-between p-6 border-b border-gray-200">
+            <div>
+              <h3 class="text-lg font-medium text-gray-900">Reprogramar Mantenimiento</h3>
+              <p class="text-sm text-gray-600 mt-1" v-if="mantenimientoAReprogramar">
+                {{ mantenimientoAReprogramar.titulo }} - {{ mantenimientoAReprogramar.raw.carro?.marca }} {{ mantenimientoAReprogramar.raw.carro?.modelo }}
+              </p>
+              <p class="text-xs text-gray-500 mt-1">
+                Último servicio realizado: {{ formatearFecha(mantenimientoAReprogramar.raw.fecha) }}
+              </p>
+            </div>
+            <button @click="cerrarModalReprogramar" class="text-gray-400 hover:text-gray-600 transition-colors">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="p-6">
+            <form @submit.prevent="reprogramarMantenimiento" class="space-y-4">
+              <!-- Costo del servicio -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                  Costo del Último Servicio <span class="text-red-500">*</span>
+                </label>
+                <div class="relative">
+                  <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <span class="text-gray-500 sm:text-sm">$</span>
+                  </div>
+                  <input
+                    v-model.number="costoReprogramar"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="999999.99"
+                    class="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Ingrese el costo total del mantenimiento realizado</p>
+              </div>
+
+              <!-- Fecha del próximo mantenimiento -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                  Fecha del Próximo Mantenimiento <span class="text-red-500">*</span>
+                </label>
+                <input
+                  v-model="proximaFecha"
+                  type="date"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                  :min="new Date().toISOString().split('T')[0]"
+                  required
+                />
+                <p class="text-xs text-gray-500 mt-1">Seleccione cuándo debe realizarse el próximo mantenimiento</p>
+              </div>
+
+              <!-- Información del mantenimiento actual -->
+              <div v-if="mantenimientoAReprogramar" class="bg-gray-50 p-4 rounded-lg">
+                <h4 class="text-sm font-medium text-gray-900 mb-2">Información del Mantenimiento</h4>
+                <div class="space-y-1 text-sm text-gray-600">
+                  <div><strong>Vehículo:</strong> {{ mantenimientoAReprogramar.raw.carro?.marca }} {{ mantenimientoAReprogramar.raw.carro?.modelo }}</div>
+                  <div><strong>Tipo:</strong> {{ mantenimientoAReprogramar.titulo }}</div>
+                  <div><strong>Fecha del servicio:</strong> {{ formatearFecha(mantenimientoAReprogramar.raw.fecha) }}</div>
+                  <div v-if="mantenimientoAReprogramar.raw.kilometraje_actual">
+                    <strong>Kilometraje:</strong> {{ formatNumber(mantenimientoAReprogramar.raw.kilometraje_actual) }} km
+                  </div>
+                </div>
+              </div>
+
+              <!-- Botones -->
+              <div class="flex justify-end gap-3 pt-4">
+                <button
+                  type="button"
+                  @click="cerrarModalReprogramar"
+                  class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Reprogramar Mantenimiento
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
     </div>
+  </div>
   </div>
 </template>
 

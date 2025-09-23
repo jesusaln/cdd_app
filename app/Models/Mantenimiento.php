@@ -277,4 +277,63 @@ class Mantenimiento extends Model
             'requieren_aprobacion' => self::requierenAprobacion()->count(),
         ];
     }
+
+    /**
+     * Generar mantenimientos recurrentes para los vencidos (método legacy para datos antiguos)
+     * Nota: Esta funcionalidad ahora está integrada en el proceso de crear y completar mantenimientos
+     */
+    public static function generarMantenimientosRecurrentes()
+    {
+        $mantenimientosVencidos = self::where('proximo_mantenimiento', '<', now())
+            ->where('estado', '!=', self::ESTADO_COMPLETADO)
+            ->with('carro')
+            ->get();
+
+        $creados = 0;
+
+        foreach ($mantenimientosVencidos as $mantenimiento) {
+            // Calcular la fecha del próximo mantenimiento basado en el intervalo anterior
+            if ($mantenimiento->fecha && $mantenimiento->proximo_mantenimiento) {
+                $intervaloDias = $mantenimiento->fecha->diffInDays($mantenimiento->proximo_mantenimiento);
+
+                // Crear nuevo mantenimiento
+                $nuevoMantenimiento = self::create([
+                    'carro_id' => $mantenimiento->carro_id,
+                    'tipo' => $mantenimiento->tipo,
+                    'fecha' => $mantenimiento->proximo_mantenimiento, // La fecha vencida se convierte en la fecha del servicio
+                    'proximo_mantenimiento' => now()->addDays($intervaloDias), // Próximo mantenimiento
+                    'descripcion' => $mantenimiento->descripcion,
+                    'notas' => $mantenimiento->notas,
+                    'costo' => $mantenimiento->costo,
+                    'estado' => self::ESTADO_PENDIENTE, // Nuevo mantenimiento como pendiente
+                    'kilometraje_actual' => $mantenimiento->carro->kilometraje ?? $mantenimiento->kilometraje_actual,
+                    'proximo_kilometraje' => $mantenimiento->proximo_kilometraje,
+                    'prioridad' => $mantenimiento->prioridad,
+                    'dias_anticipacion_alerta' => $mantenimiento->dias_anticipacion_alerta,
+                    'requiere_aprobacion' => $mantenimiento->requiere_aprobacion,
+                    'observaciones_alerta' => $mantenimiento->observaciones_alerta,
+                ]);
+
+                // Marcar el mantenimiento anterior como completado
+                $mantenimiento->update([
+                    'estado' => self::ESTADO_COMPLETADO,
+                    'notas' => ($mantenimiento->notas ? $mantenimiento->notas . ' | ' : '') . 'Mantenimiento completado automáticamente - generado nuevo registro ID: ' . $nuevoMantenimiento->id
+                ]);
+
+                $creados++;
+            }
+        }
+
+        return $creados;
+    }
+
+    /**
+     * Verificar si necesita generar mantenimiento recurrente
+     */
+    public function necesitaGenerarRecurrente()
+    {
+        return $this->proximo_mantenimiento &&
+               $this->proximo_mantenimiento < now() &&
+               $this->estado !== self::ESTADO_COMPLETADO;
+    }
 }

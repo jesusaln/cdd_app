@@ -92,7 +92,7 @@
               ⚡ {{ n(mantenimientosCriticosCount) }} críticos
             </span>
             <span v-else class="text-green-600">
-              ✅ Al día
+              ✅ Todos al día
             </span>
           </p>
         </div>

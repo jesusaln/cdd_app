@@ -220,6 +220,9 @@ Route::get('/reportes/productos/export', [ReporteController::class, 'exportarPro
     Route::resource('citas', CitaController::class)->names('citas');
     Route::resource('carros', CarroController::class)->names('carros');
     Route::resource('mantenimientos', MantenimientoController::class)->names('mantenimientos');
+    Route::post('mantenimientos/{mantenimiento}/completar', [MantenimientoController::class, 'completar'])->name('mantenimientos.completar');
+    Route::post('mantenimientos/{mantenimiento}/marcar-realizado-hoy', [MantenimientoController::class, 'marcarRealizadoHoy'])->name('mantenimientos.marcar-realizado-hoy');
+    Route::post('mantenimientos/generar-recurrentes', [MantenimientoController::class, 'generarRecurrentes'])->name('mantenimientos.generar-recurrentes');
     Route::resource('equipos', EquipoController::class);
     Route::put('/equipos/{equipo}/toggle', [EquipoController::class, 'toggle'])->name('equipos.toggle');
     Route::get('/equipos/export', [EquipoController::class, 'export'])->name('equipos.export');
@@ -332,8 +335,6 @@ Route::get('/reportes/productos/export', [ReporteController::class, 'exportarPro
 
     // Ruta temporal para pruebas
     Route::post('/test-notification', [UserNotificationController::class, 'createTest'])->name('test.notification');
-
-
 
     // =====================================================
     // RUTAS BACKUP
