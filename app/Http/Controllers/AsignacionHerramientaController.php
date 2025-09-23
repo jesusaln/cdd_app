@@ -20,8 +20,8 @@ class AsignacionHerramientaController extends Controller
     public function index(Request $request)
     {
         try {
-            $query = AsignacionHerramienta::with(['herramienta', 'tecnico', 'usuarioEntrega', 'usuarioRecepcion'])
-                ->orderBy('fecha_asignacion', 'desc');
+            // Cargar asignaciones sin relaciones problemáticas primero
+            $query = AsignacionHerramienta::orderBy('fecha_asignacion', 'desc');
 
             // Filtros
             if ($search = $request->input('search')) {
@@ -47,23 +47,22 @@ class AsignacionHerramientaController extends Controller
 
             $asignaciones = $query->paginate(15)->appends($request->query());
 
-            // Estadísticas
+            // Cargar datos básicos sin relaciones problemáticas
+            $herramientas = Herramienta::select('id', 'nombre', 'numero_serie')->get();
+            $tecnicos = Tecnico::select('id', 'nombre', 'apellido')->get();
+
+            // Estadísticas básicas
             $stats = [
                 'total' => AsignacionHerramienta::count(),
                 'entregas' => AsignacionHerramienta::where('tipo_asignacion', 'entrega')->count(),
                 'recepciones' => AsignacionHerramienta::where('tipo_asignacion', 'recepcion')->count(),
                 'activas' => AsignacionHerramienta::where('activo', true)->count(),
-                'pendientes_firma' => AsignacionHerramienta::where('activo', true)
-                    ->where(function ($q) {
-                        $q->whereNull('firma_entrega')
-                            ->orWhereNull('firma_recepcion');
-                    })->count(),
             ];
 
             return Inertia::render('Herramientas/Asignaciones/Index', [
                 'asignaciones' => $asignaciones,
-                'herramientas' => Herramienta::select('id', 'nombre', 'numero_serie')->get(),
-                'tecnicos' => Tecnico::select('id', 'nombre', 'apellido')->get(),
+                'herramientas' => $herramientas,
+                'tecnicos' => $tecnicos,
                 'stats' => $stats,
                 'filters' => $request->only(['search', 'tipo', 'estado'])
             ]);

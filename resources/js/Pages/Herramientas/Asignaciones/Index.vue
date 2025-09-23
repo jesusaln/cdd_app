@@ -52,22 +52,22 @@ const asignacionesData = computed(() => {
 })
 
 const filteredAsignaciones = computed(() => {
-  let filtered = asignacionesData.value
+  let filtered = asignacionesData.value || []
 
   // Filtro por búsqueda
   if (search.value) {
     filtered = filtered.filter(asignacion => {
-      const herramienta = props.herramientas.find(h => h.id === asignacion.herramienta_id)
-      const tecnico = props.tecnicos.find(t => t.id === asignacion.tecnico_id)
+      const herramienta = props.herramientas?.find(h => h.id === asignacion.herramienta_id)
+      const tecnico = props.tecnicos?.find(t => t.id === asignacion.tecnico_id)
       const searchTerm = search.value.toLowerCase()
 
       return (
-        herramienta?.nombre.toLowerCase().includes(searchTerm) ||
-        herramienta?.numero_serie.toLowerCase().includes(searchTerm) ||
-        tecnico?.nombre.toLowerCase().includes(searchTerm) ||
-        tecnico?.apellido.toLowerCase().includes(searchTerm) ||
-        asignacion.observaciones_entrega?.toLowerCase().includes(searchTerm) ||
-        asignacion.observaciones_recepcion?.toLowerCase().includes(searchTerm)
+        (herramienta?.nombre || '').toLowerCase().includes(searchTerm) ||
+        (herramienta?.numero_serie || '').toLowerCase().includes(searchTerm) ||
+        (tecnico?.nombre || '').toLowerCase().includes(searchTerm) ||
+        (tecnico?.apellido || '').toLowerCase().includes(searchTerm) ||
+        (asignacion.observaciones_entrega || '').toLowerCase().includes(searchTerm) ||
+        (asignacion.observaciones_recepcion || '').toLowerCase().includes(searchTerm)
       )
     })
   }
@@ -79,7 +79,7 @@ const filteredAsignaciones = computed(() => {
 
   // Filtro por estado
   if (estadoFilter.value) {
-    filtered = filtered.filter(asignacion => asignacion.estado === estadoFilter.value)
+    filtered = filtered.filter(asignacion => asignacion.activo === (estadoFilter.value === 'activa'))
   }
 
   return filtered
@@ -117,13 +117,15 @@ const estadisticas = computed(() => {
 
 // Métodos
 const getHerramientaNombre = (herramientaId) => {
+  if (!props.herramientas || !Array.isArray(props.herramientas)) return 'Herramienta no encontrada'
   const herramienta = props.herramientas.find(h => h.id === herramientaId)
-  return herramienta ? `${herramienta.nombre} (${herramienta.numero_serie})` : 'N/A'
+  return herramienta ? `${herramienta.nombre} (${herramienta.numero_serie})` : 'Herramienta no encontrada'
 }
 
 const getTecnicoNombre = (tecnicoId) => {
+  if (!props.tecnicos || !Array.isArray(props.tecnicos)) return 'Técnico no encontrado'
   const tecnico = props.tecnicos.find(t => t.id === tecnicoId)
-  return tecnico ? `${tecnico.nombre} ${tecnico.apellido}` : 'N/A'
+  return tecnico ? `${tecnico.nombre} ${tecnico.apellido}` : 'Técnico no encontrado'
 }
 
 const getEstadoBadgeClass = (estado) => {
@@ -374,12 +376,12 @@ const estadosHerramientas = {
               >
                 <td class="px-6 py-4 whitespace-nowrap">
                   <div class="text-sm font-medium text-gray-900">
-                    {{ getHerramientaNombre(asignacion.herramienta_id) }}
+                    {{ getHerramientaNombre(asignacion.herramienta_id) || 'Herramienta no encontrada' }}
                   </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                   <div class="text-sm text-gray-900">
-                    {{ getTecnicoNombre(asignacion.tecnico_id) }}
+                    {{ getTecnicoNombre(asignacion.tecnico_id) || 'Técnico no encontrado' }}
                   </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
