@@ -125,7 +125,7 @@ class OrdenCompraController extends Controller
         try {
             // Valida los datos de entrada del formulario
             $validatedData = $request->validate([
-                'numero_orden' => 'required|string|unique:orden_compras,numero_orden',
+                'numero_orden' => 'nullable|string',
                 'fecha_orden' => 'required|date',
                 'fecha_entrega_esperada' => 'nullable|date',
                 'prioridad' => 'required|in:baja,media,alta,urgente',
@@ -149,7 +149,6 @@ class OrdenCompraController extends Controller
 
             // Crea la nueva orden de compra en la tabla 'orden_compras'
             $ordenCompra = OrdenCompra::create([
-                'numero_orden' => $validatedData['numero_orden'],
                 'fecha_orden' => $validatedData['fecha_orden'],
                 'fecha_entrega_esperada' => $validatedData['fecha_entrega_esperada'],
                 'prioridad' => $validatedData['prioridad'],
@@ -337,7 +336,7 @@ class OrdenCompraController extends Controller
 
             // Valida los datos de entrada
             $validatedData = $request->validate([
-                'numero_orden' => 'required|string|unique:orden_compras,numero_orden,' . $id,
+                'numero_orden' => 'nullable|string',
                 'fecha_orden' => 'required|date',
                 'fecha_entrega_esperada' => 'nullable|date',
                 'prioridad' => 'required|in:baja,media,alta,urgente',
@@ -361,7 +360,6 @@ class OrdenCompraController extends Controller
 
             // Actualiza todos los campos de la orden de compra
             $ordenCompra->update([
-                'numero_orden' => $validatedData['numero_orden'],
                 'fecha_orden' => $validatedData['fecha_orden'],
                 'fecha_entrega_esperada' => $validatedData['fecha_entrega_esperada'],
                 'prioridad' => $validatedData['prioridad'],

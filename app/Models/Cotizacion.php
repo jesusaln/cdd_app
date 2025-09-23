@@ -22,6 +22,7 @@ class Cotizacion extends Model
     protected $fillable = [
         'cliente_id',
         'numero_cotizacion',   // ✅ agregado
+        'fecha_cotizacion',    // ✅ agregado
         'subtotal',
         'descuento_general',
         'descuento_items',     // ✅ agregado
@@ -139,28 +140,6 @@ class Cotizacion extends Model
 
     public static function generarNumero(): string
     {
-        $prefix = 'COT-' . now()->format('Y');
-
-        // Tomamos el último dentro del año actual
-        $ultimo = static::where('numero_cotizacion', 'like', "$prefix-%")
-            ->orderByDesc('id')
-            ->value('numero_cotizacion');
-
-        $n = 0;
-        if ($ultimo && preg_match('/-(\d{5})$/', $ultimo, $m)) {
-            $n = (int) $m[1];
-        }
-
-        // Intentos por si hay choque con unique (raro en dev, útil en prod)
-        for ($i = 0; $i < 5; $i++) {
-            $n++;
-            $num = sprintf('%s-%05d', $prefix, $n);
-            if (! static::where('numero_cotizacion', $num)->exists()) {
-                return $num;
-            }
-        }
-
-        // Si hubo mucha concurrencia, usa timestamp de respaldo
-        return $prefix . '-' . now()->format('His');
+        return 'COT0001';
     }
 }

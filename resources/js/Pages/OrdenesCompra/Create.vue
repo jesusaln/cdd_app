@@ -30,11 +30,11 @@
             <div>
               <label for="numero_orden" class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
                 Número de Orden *
-                <span class="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                <span class="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
                   <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                   </svg>
-                  Generado automáticamente
+                  Número fijo
                 </span>
               </label>
               <div class="relative">
@@ -42,8 +42,9 @@
                   id="numero_orden"
                   v-model="form.numero_orden"
                   type="text"
-                  class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Ej: OC20250101001"
+                  class="w-full bg-gray-50 text-gray-500 cursor-not-allowed border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="OC0001"
+                  readonly
                   required
                 />
                 <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
@@ -54,7 +55,7 @@
               </div>
               <div class="mt-2 flex items-center gap-2">
                 <p class="text-xs text-gray-500">
-                  Este número ha sido generado automáticamente para evitar duplicados
+                  Este número es fijo para todas las órdenes de compra
                 </p>
                 <button
                   @click="copiarNumeroOrden"
@@ -360,7 +361,7 @@
         <BotonesAccion
           :back-url="route('ordenescompra.index')"
           :is-processing="form.processing"
-          :can-submit="form.numero_orden && form.proveedor_id && selectedProducts.length > 0"
+          :can-submit="form.proveedor_id && selectedProducts.length > 0"
           :button-text="form.processing ? 'Guardando...' : 'Crear Orden de Compra'"
           @limpiar="limpiarFormulario"
         />
@@ -438,29 +439,24 @@ const props = defineProps({
   productos: { type: Array, default: () => [] },
 });
 
-// Generar número de orden automáticamente
-const generarNumeroOrden = () => {
-  const fecha = new Date();
-  const year = fecha.getFullYear();
-  const month = String(fecha.getMonth() + 1).padStart(2, '0');
-  const day = String(fecha.getDate()).padStart(2, '0');
-  const timestamp = Date.now().toString().slice(-4); // Últimos 4 dígitos del timestamp
-
-  return `OC${year}${month}${day}${timestamp}`;
-};
+// Número de orden fijo
+const numeroOrdenFijo = 'OC0001';
 
 // Copia reactiva de proveedores para evitar mutación de props
 const proveedoresList = ref([...props.proveedores]);
 
-// Obtener fecha actual en formato YYYY-MM-DD
+// Obtener fecha actual en formato YYYY-MM-DD (zona horaria local)
 const getCurrentDate = () => {
   const today = new Date();
-  return today.toISOString().split('T')[0];
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 // Formulario
 const form = useForm({
-  numero_orden: generarNumeroOrden(),
+  numero_orden: numeroOrdenFijo,
   fecha_orden: getCurrentDate(),
   fecha_entrega_esperada: '',
   prioridad: 'media',
@@ -489,17 +485,17 @@ const mostrarVistaPrevia = ref(false);
 const mostrarAtajos = ref(true);
 
 // Estado para controlar cambios en número de orden
-const numeroOrdenOriginal = ref(generarNumeroOrden());
+const numeroOrdenOriginal = ref(numeroOrdenFijo);
 
 // Función para mostrar información del número de orden
 const mostrarInfoNumeroOrden = () => {
-  const numeroActual = form.numero_orden || generarNumeroOrden();
+  const numeroActual = form.numero_orden || numeroOrdenFijo;
   showNotification(`Número de orden actual: ${numeroActual}`, 'info');
 };
 
 // Función para copiar el número de orden al portapapeles
 const copiarNumeroOrden = async () => {
-  const numeroACopiar = form.numero_orden.trim() || generarNumeroOrden();
+  const numeroACopiar = form.numero_orden.trim() || numeroOrdenFijo;
 
   try {
     await navigator.clipboard.writeText(numeroACopiar);
@@ -602,10 +598,10 @@ const removeFromLocalStorage = (key) => {
 
 // Funciones
 const handlePreview = () => {
-  if (proveedorSeleccionado.value && selectedProducts.value.length > 0 && form.numero_orden) {
+  if (proveedorSeleccionado.value && selectedProducts.value.length > 0) {
     mostrarVistaPrevia.value = true;
   } else {
-    showNotification('Completa el número de orden, selecciona un proveedor y al menos un producto', 'error');
+    showNotification('Selecciona un proveedor y al menos un producto', 'error');
   }
 };
 
@@ -736,10 +732,10 @@ const validarDatos = () => {
     return false;
   }
 
-  // Validar formato del número de orden
-  const numeroRegex = /^OC\d{4}\d{2}\d{2}\d{4}$/;
+  // Validar formato del número de orden fijo
+  const numeroRegex = /^OC0001$/;
   if (!numeroRegex.test(form.numero_orden.trim())) {
-    showNotification('El número de orden debe tener el formato OC20250101001', 'error');
+    showNotification('El número de orden debe ser OC0001', 'error');
     return false;
   }
 
@@ -813,8 +809,8 @@ const crearOrdenCompra = () => {
       discounts.value = {};
       proveedorSeleccionado.value = null;
       form.reset();
-      // Generar un nuevo número de orden
-      form.numero_orden = generarNumeroOrden();
+      // Usar el número de orden fijo
+      form.numero_orden = numeroOrdenFijo;
       // Mantener la fecha de orden como automática (siempre la fecha actual)
       form.fecha_orden = getCurrentDate();
       form.prioridad = 'media';
@@ -850,8 +846,8 @@ const crearOrdenCompra = () => {
 
 const limpiarFormulario = () => {
   proveedorSeleccionado.value = null;
-  // Generar un nuevo número de orden
-  form.numero_orden = generarNumeroOrden();
+  // Usar el número de orden fijo
+  form.numero_orden = numeroOrdenFijo;
   // Asegurar que la fecha sea la actual
   asegurarFechaActual();
   form.fecha_entrega_esperada = '';
@@ -872,7 +868,7 @@ const limpiarFormulario = () => {
 
 const saveState = () => {
   const stateToSave = {
-    numero_orden: form.numero_orden,
+    numero_orden: numeroOrdenFijo,
     fecha_orden: form.fecha_orden,
     fecha_entrega_esperada: form.fecha_entrega_esperada,
     prioridad: form.prioridad,
@@ -900,15 +896,14 @@ const handleBeforeUnload = (event) => {
 
 // Lifecycle hooks
 onMounted(() => {
-  // Mostrar información sobre el número de orden generado
-  const numeroGenerado = generarNumeroOrden();
-  showNotification(`Número de orden generado automáticamente: ${numeroGenerado}`, 'info');
+  // Mostrar información sobre el número de orden fijo
+  showNotification(`Número de orden fijo: ${numeroOrdenFijo}`, 'info');
 
   const savedData = loadFromLocalStorage('ordenCompraEnProgreso');
   if (savedData && typeof savedData === 'object') {
     try {
-      // Mantener el número de orden generado o usar el guardado
-      form.numero_orden = savedData.numero_orden || generarNumeroOrden();
+      // Mantener el número de orden fijo o usar el guardado
+      form.numero_orden = savedData.numero_orden || numeroOrdenFijo;
       // Mantener la fecha de orden como automática (siempre usar fecha actual)
       form.fecha_orden = getCurrentDate();
       form.fecha_entrega_esperada = savedData.fecha_entrega_esperada || '';

@@ -15,6 +15,82 @@
       />
 
       <form @submit.prevent="crearPedido" class="space-y-8">
+        <!-- Información General -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div class="bg-gradient-to-r from-indigo-500 to-indigo-600 px-6 py-4">
+            <h2 class="text-lg font-semibold text-white flex items-center">
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              Información General
+            </h2>
+          </div>
+          <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Número de Pedido -->
+            <div>
+              <label for="numero_pedido" class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                Número de Pedido *
+                <span class="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  Número fijo
+                </span>
+              </label>
+              <div class="relative">
+                <input
+                  id="numero_pedido"
+                  v-model="form.numero_pedido"
+                  type="text"
+                  class="w-full bg-gray-50 text-gray-500 cursor-not-allowed border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="P0001"
+                  readonly
+                  required
+                />
+                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                  <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </div>
+              </div>
+              <p class="mt-1 text-xs text-gray-500">
+                Este número es fijo para todos los pedidos
+              </p>
+            </div>
+
+            <!-- Fecha de Pedido -->
+            <div>
+              <label for="fecha_pedido" class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                Fecha de Pedido *
+                <span class="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  Automática
+                </span>
+              </label>
+              <div class="relative">
+                <input
+                  id="fecha_pedido"
+                  v-model="form.fecha_pedido"
+                  type="date"
+                  class="w-full bg-gray-50 text-gray-500 cursor-not-allowed border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  readonly
+                  required
+                />
+                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                  <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+              <p class="mt-1 text-xs text-gray-500">
+                Esta fecha se establece automáticamente con la fecha de creación
+              </p>
+            </div>
+          </div>
+        </div>
+
         <!-- Cliente -->
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4">
@@ -199,8 +275,22 @@ const clientesList = ref([...props.clientes]);
 // Catalogs para el modal
 const catalogs = computed(() => props.catalogs);
 
+// Número de pedido fijo
+const numeroPedidoFijo = 'P0001';
+
+// Obtener fecha actual en formato YYYY-MM-DD (zona horaria local)
+const getCurrentDate = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 // Formulario
 const form = useForm({
+  numero_pedido: numeroPedidoFijo,
+  fecha_pedido: getCurrentDate(),
   cliente_id: '',
   subtotal: 0,
   descuento_items: 0,
@@ -208,6 +298,7 @@ const form = useForm({
   total: 0,
   productos: [],
   notas: '',
+  estado: 'borrador',
 });
 
 // Referencias
@@ -462,8 +553,12 @@ const limpiarFormulario = () => {
   // Limpiar notas
   form.notas = '';
 
+  // Restablecer número y fecha fijos
+  form.numero_pedido = numeroPedidoFijo;
+  form.fecha_pedido = getCurrentDate();
+
   // Limpiar localStorage si es necesario
-  localStorage.removeItem(`venta_edit_${props.venta?.id}`);
+  localStorage.removeItem(`pedido_edit_${props.pedido?.id}`);
 
   // Notificación
   notyf.success('Formulario limpiado correctamente');
@@ -537,6 +632,8 @@ const handleBeforeUnload = (event) => {
 // Guardar estado automáticamente
 const saveState = () => {
   const stateToSave = {
+    numero_pedido: numeroPedidoFijo,
+    fecha_pedido: form.fecha_pedido,
     cliente_id: form.cliente_id,
     cliente: clienteSeleccionado.value,
     selectedProducts: selectedProducts.value,
@@ -547,11 +644,26 @@ const saveState = () => {
   saveToLocalStorage('pedidoEnProgreso', stateToSave);
 };
 
+// Función para asegurar que la fecha sea siempre la actual
+const asegurarFechaActual = () => {
+  const fechaActual = getCurrentDate();
+  if (form.fecha_pedido !== fechaActual) {
+    form.fecha_pedido = fechaActual;
+  }
+};
+
 // Lifecycle hooks
 onMounted(() => {
+  // Mostrar información sobre el número de pedido fijo
+  showNotification(`Número de pedido fijo: ${numeroPedidoFijo}`, 'info');
+
   const savedData = loadFromLocalStorage('pedidoEnProgreso');
   if (savedData && typeof savedData === 'object') {
     try {
+      // Siempre usar número y fecha fijos
+      form.numero_pedido = numeroPedidoFijo;
+      form.fecha_pedido = getCurrentDate(); // Siempre usar fecha actual
+
       form.cliente_id = savedData.cliente_id || '';
       clienteSeleccionado.value = savedData.cliente || null;
       selectedProducts.value = Array.isArray(savedData.selectedProducts) ? savedData.selectedProducts : [];
@@ -565,11 +677,21 @@ onMounted(() => {
     }
   }
 
+  // Verificar la fecha cada 5 minutos para mantenerla actual
+  const fechaInterval = setInterval(() => {
+    asegurarFechaActual();
+  }, 5 * 60 * 1000); // 5 minutos
+
   window.addEventListener('beforeunload', handleBeforeUnload);
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('beforeunload', handleBeforeUnload);
+
+  // Limpiar el intervalo de fecha si existe
+  if (typeof fechaInterval !== 'undefined') {
+    clearInterval(fechaInterval);
+  }
 });
 
 // Funciones para manejar alerta de margen insuficiente

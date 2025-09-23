@@ -20,6 +20,7 @@ class Compra extends Model
     protected $fillable = [
         'proveedor_id',
         'numero_compra',
+        'fecha_compra',
         'subtotal',
         'descuento_general',
         'descuento_items',
@@ -84,25 +85,6 @@ class Compra extends Model
 
     public static function generarNumero(): string
     {
-        $prefix = 'COMP-' . now()->format('Y');
-
-        $ultimo = static::withTrashed()->where('numero_compra', 'like', "$prefix-%")
-            ->orderByDesc('id')
-            ->value('numero_compra');
-
-        $n = 0;
-        if ($ultimo && preg_match('/-(\d{5})$/', $ultimo, $m)) {
-            $n = (int) $m[1];
-        }
-
-        for ($i = 0; $i < 5; $i++) {
-            $n++;
-            $num = sprintf('%s-%05d', $prefix, $n);
-            if (! static::withTrashed()->where('numero_compra', $num)->exists()) {
-                return $num;
-            }
-        }
-
-        return $prefix . '-' . now()->format('His');
+        return 'C0001';
     }
 }

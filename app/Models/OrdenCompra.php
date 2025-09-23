@@ -53,4 +53,13 @@ class OrdenCompra extends Model
         return $this->belongsToMany(Producto::class, 'orden_compra_producto')
             ->withPivot('cantidad', 'precio', 'descuento', 'unidad_medida');
     }
+
+    protected static function booted(): void
+    {
+        static::creating(function (OrdenCompra $orden) {
+            if (empty($orden->numero_orden)) {
+                $orden->numero_orden = 'OC0001';
+            }
+        });
+    }
 }
