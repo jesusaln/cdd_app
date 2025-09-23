@@ -351,202 +351,293 @@ const obtenerIconoUrgencia = (mantenimiento) => {
   <div class="mantenimientos-index min-h-screen bg-gray-50">
     <div class="max-w-8xl mx-auto px-6 py-8">
       <!-- Header -->
-      <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-8 mb-6">
-        <div class="flex flex-col lg:flex-row gap-8 items-start lg:items-center justify-between">
-          <!-- Izquierda -->
-          <div class="flex flex-col gap-6 w-full lg:w-auto">
-            <div class="flex items-center gap-3">
-              <h1 class="text-2xl font-bold text-slate-900">Mantenimientos</h1>
-            </div>
-
-            <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-              <Link
-                :href="route('mantenimientos.create')"
-                class="inline-flex items-center gap-2.5 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg"
-              >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
-                <span>{{ headerConfig.createButtonText }}</span>
-              </Link>
-
-              <button
-                @click="exportMantenimientos"
-                class="inline-flex items-center gap-2 px-4 py-3 bg-green-50 text-green-700 rounded-xl hover:bg-green-100 transition-all duration-200 border border-green-200"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                </svg>
-                <span class="text-sm font-medium">Exportar</span>
-              </button>
-            </div>
-
-            <!-- Estadísticas con barras de progreso -->
-            <div class="flex flex-wrap items-center gap-4 text-sm">
-              <div class="flex items-center gap-2 px-4 py-3 bg-slate-50 rounded-xl border border-slate-200">
-                <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <span class="font-medium text-slate-700">Total:</span>
-                <span class="font-bold text-slate-900 text-lg">{{ formatNumber(estadisticas.total) }}</span>
-              </div>
-
-              <div class="flex items-center gap-2 px-4 py-3 bg-green-50 rounded-xl border border-green-200">
-                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span class="font-medium text-slate-700">Completados:</span>
-                <span class="font-bold text-green-700 text-lg">{{ formatNumber(estadisticas.completados) }}</span>
-                <div class="ml-2 flex items-center gap-2">
-                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      class="h-full bg-green-500 transition-all duration-300"
-                      :style="{ width: estadisticas.completadosPorcentaje + '%' }"
-                    ></div>
-                  </div>
-                  <span class="text-xs text-green-600 font-medium">{{ estadisticas.completadosPorcentaje }}%</span>
+      <div class="bg-white border border-slate-200 rounded-xl shadow-sm mb-6 overflow-hidden">
+        <!-- Header Principal -->
+        <div class="px-8 py-6 border-b border-slate-100">
+          <div class="flex flex-col lg:flex-row gap-6 items-start lg:items-center justify-between">
+            <!-- Título y acciones principales -->
+            <div class="flex items-center justify-between w-full lg:w-auto">
+              <div class="flex items-center gap-4">
+                <div class="bg-blue-100 p-3 rounded-xl">
+                  <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                  </svg>
+                </div>
+                <div>
+                  <h1 class="text-3xl font-bold text-slate-900">Mantenimientos</h1>
+                  <p class="text-slate-600 mt-1">Gestión y seguimiento de mantenimientos de vehículos</p>
                 </div>
               </div>
 
-              <div class="flex items-center gap-2 px-4 py-3 bg-yellow-50 rounded-xl border border-yellow-200">
-                <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span class="font-medium text-slate-700">Pendientes:</span>
-                <span class="font-bold text-yellow-700 text-lg">{{ formatNumber(estadisticas.pendientes) }}</span>
-                <div class="ml-2 flex items-center gap-2">
-                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      class="h-full bg-yellow-500 transition-all duration-300"
-                      :style="{ width: estadisticas.pendientesPorcentaje + '%' }"
-                    ></div>
-                  </div>
-                  <span class="text-xs text-yellow-600 font-medium">{{ estadisticas.pendientesPorcentaje }}%</span>
-                </div>
-              </div>
+              <!-- Botones de acción -->
+              <div class="flex items-center gap-3">
+                <button
+                  @click="exportMantenimientos"
+                  class="inline-flex items-center gap-2 px-4 py-2.5 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-all duration-200 border border-green-200"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                  </svg>
+                  <span class="text-sm font-medium">Exportar</span>
+                </button>
 
-              <div class="flex items-center gap-2 px-4 py-3 bg-blue-50 rounded-xl border border-blue-200">
-                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                <span class="font-medium text-slate-700">En Proceso:</span>
-                <span class="font-bold text-blue-700 text-lg">{{ formatNumber(estadisticas.en_proceso) }}</span>
-                <div class="ml-2 flex items-center gap-2">
-                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      class="h-full bg-blue-500 transition-all duration-300"
-                      :style="{ width: estadisticas.enProcesoPorcentaje + '%' }"
-                    ></div>
-                  </div>
-                  <span class="text-xs text-blue-600 font-medium">{{ estadisticas.enProcesoPorcentaje }}%</span>
-                </div>
-              </div>
-
-              <!-- Nuevas estadísticas de alertas -->
-              <div class="flex items-center gap-2 px-4 py-3 bg-red-50 rounded-xl border border-red-200">
-                <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-                <span class="font-medium text-slate-700">Vencidos:</span>
-                <span class="font-bold text-red-700 text-lg">{{ formatNumber(estadisticas.vencidos) }}</span>
-              </div>
-
-              <div class="flex items-center gap-2 px-4 py-3 bg-orange-50 rounded-xl border border-orange-200">
-                <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span class="font-medium text-slate-700">Críticos:</span>
-                <span class="font-bold text-orange-700 text-lg">{{ formatNumber(estadisticas.criticos) }}</span>
-              </div>
-
-              <div class="flex items-center gap-2 px-4 py-3 bg-yellow-50 rounded-xl border border-yellow-200">
-                <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5v-5zM4.868 12.683A17.925 17.925 0 0112 21.5c3.04 0 5.952-.853 8.5-2.5M4.868 12.683A17.925 17.925 0 004.5 12c0-3.04.853-5.952 2.5-8.5m0 0A17.925 17.925 0 0112 4.5c3.04 0 5.952.853 8.5 2.5" />
-                </svg>
-                <span class="font-medium text-slate-700">Alertas Pendientes:</span>
-                <span class="font-bold text-yellow-700 text-lg">{{ formatNumber(estadisticas.alertas_pendientes) }}</span>
+                <Link
+                  :href="route('mantenimientos.create')"
+                  class="inline-flex items-center gap-2.5 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg"
+                >
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                  </svg>
+                  <span>{{ headerConfig.createButtonText }}</span>
+                </Link>
               </div>
             </div>
           </div>
+        </div>
 
-          <!-- Derecha: Filtros -->
-          <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto lg:flex-shrink-0">
+        <!-- Estadísticas -->
+        <div class="px-8 py-6 bg-slate-50/50 border-b border-slate-100">
+          <div class="mb-4">
+            <h3 class="text-lg font-semibold text-slate-800 mb-2">Resumen General</h3>
+            <p class="text-sm text-slate-600">Vista general del estado de todos los mantenimientos</p>
+          </div>
+
+          <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+            <!-- Total -->
+            <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm font-medium text-slate-600">Total</p>
+                  <p class="text-2xl font-bold text-slate-900">{{ formatNumber(estadisticas.total) }}</p>
+                </div>
+                <div class="bg-slate-100 p-2 rounded-lg">
+                  <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <!-- Completados -->
+            <div class="bg-white p-4 rounded-lg border border-green-200 shadow-sm">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm font-medium text-slate-600">Completados</p>
+                  <p class="text-2xl font-bold text-green-600">{{ formatNumber(estadisticas.completados) }}</p>
+                  <div class="mt-2 flex items-center gap-2">
+                    <div class="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        class="h-full bg-green-500 transition-all duration-300"
+                        :style="{ width: estadisticas.completadosPorcentaje + '%' }"
+                      ></div>
+                    </div>
+                    <span class="text-xs text-green-600 font-medium">{{ estadisticas.completadosPorcentaje }}%</span>
+                  </div>
+                </div>
+                <div class="bg-green-100 p-2 rounded-lg">
+                  <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <!-- Pendientes -->
+            <div class="bg-white p-4 rounded-lg border border-yellow-200 shadow-sm">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm font-medium text-slate-600">Pendientes</p>
+                  <p class="text-2xl font-bold text-yellow-600">{{ formatNumber(estadisticas.pendientes) }}</p>
+                  <div class="mt-2 flex items-center gap-2">
+                    <div class="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        class="h-full bg-yellow-500 transition-all duration-300"
+                        :style="{ width: estadisticas.pendientesPorcentaje + '%' }"
+                      ></div>
+                    </div>
+                    <span class="text-xs text-yellow-600 font-medium">{{ estadisticas.pendientesPorcentaje }}%</span>
+                  </div>
+                </div>
+                <div class="bg-yellow-100 p-2 rounded-lg">
+                  <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <!-- En Proceso -->
+            <div class="bg-white p-4 rounded-lg border border-blue-200 shadow-sm">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm font-medium text-slate-600">En Proceso</p>
+                  <p class="text-2xl font-bold text-blue-600">{{ formatNumber(estadisticas.en_proceso) }}</p>
+                  <div class="mt-2 flex items-center gap-2">
+                    <div class="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        class="h-full bg-blue-500 transition-all duration-300"
+                        :style="{ width: estadisticas.enProcesoPorcentaje + '%' }"
+                      ></div>
+                    </div>
+                    <span class="text-xs text-blue-600 font-medium">{{ estadisticas.enProcesoPorcentaje }}%</span>
+                  </div>
+                </div>
+                <div class="bg-blue-100 p-2 rounded-lg">
+                  <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <!-- Vencidos -->
+            <div class="bg-white p-4 rounded-lg border border-red-200 shadow-sm">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm font-medium text-slate-600">Vencidos</p>
+                  <p class="text-2xl font-bold text-red-600">{{ formatNumber(estadisticas.vencidos) }}</p>
+                </div>
+                <div class="bg-red-100 p-2 rounded-lg">
+                  <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <!-- Críticos -->
+            <div class="bg-white p-4 rounded-lg border border-orange-200 shadow-sm">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm font-medium text-slate-600">Críticos</p>
+                  <p class="text-2xl font-bold text-orange-600">{{ formatNumber(estadisticas.criticos) }}</p>
+                </div>
+                <div class="bg-orange-100 p-2 rounded-lg">
+                  <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <!-- Alertas Pendientes -->
+            <div class="bg-white p-4 rounded-lg border border-yellow-200 shadow-sm">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm font-medium text-slate-600">Alertas</p>
+                  <p class="text-2xl font-bold text-yellow-600">{{ formatNumber(estadisticas.alertas_pendientes) }}</p>
+                </div>
+                <div class="bg-yellow-100 p-2 rounded-lg">
+                  <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5v-5zM4.868 12.683A17.925 17.925 0 0112 21.5c3.04 0 5.952-.853 8.5-2.5M4.868 12.683A17.925 17.925 0 004.5 12c0-3.04.853-5.952 2.5-8.5m0 0A17.925 17.925 0 0112 4.5c3.04 0 5.952.853 8.5 2.5" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filtros y Búsqueda -->
+        <div class="px-8 py-6">
+          <div class="mb-4">
+            <h3 class="text-lg font-semibold text-slate-800 mb-2">Filtros y Búsqueda</h3>
+            <p class="text-sm text-slate-600">Filtra y busca mantenimientos específicos</p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             <!-- Búsqueda -->
-            <div class="relative">
-              <input
-                v-model="searchTerm"
-                @input="handleSearchChange($event.target.value)"
-                type="text"
-                :placeholder="headerConfig.searchPlaceholder"
-                class="w-full sm:w-64 lg:w-80 pl-4 pr-10 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-              />
-              <svg class="absolute right-3 top-3.5 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+            <div class="md:col-span-2 lg:col-span-3 xl:col-span-2">
+              <label class="block text-sm font-medium text-slate-700 mb-2">Búsqueda</label>
+              <div class="relative">
+                <input
+                  v-model="searchTerm"
+                  @input="handleSearchChange($event.target.value)"
+                  type="text"
+                  :placeholder="headerConfig.searchPlaceholder"
+                  class="w-full pl-4 pr-10 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+                />
+                <svg class="absolute right-3 top-3.5 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
             </div>
 
             <!-- Estado -->
-            <select
-              v-model="filtroEstado"
-              @change="handleEstadoChange($event.target.value)"
-              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-            >
-              <option value="">Todos los Estados</option>
-              <option value="completado">Completado</option>
-              <option value="pendiente">Pendiente</option>
-              <option value="en_proceso">En Proceso</option>
-            </select>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">Estado</label>
+              <select
+                v-model="filtroEstado"
+                @change="handleEstadoChange($event.target.value)"
+                class="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+              >
+                <option value="">Todos los Estados</option>
+                <option value="completado">✅ Completado</option>
+                <option value="pendiente">⏳ Pendiente</option>
+                <option value="en_proceso">🔄 En Proceso</option>
+              </select>
+            </div>
 
             <!-- Tipo -->
-            <select
-              v-model="filtroTipo"
-              @change="handleTipoChange($event.target.value)"
-              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-            >
-              <option value="">Todos los Tipos</option>
-              <option v-for="tipo in tiposMantenimiento" :key="tipo" :value="tipo">{{ tipo }}</option>
-            </select>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">Tipo</label>
+              <select
+                v-model="filtroTipo"
+                @change="handleTipoChange($event.target.value)"
+                class="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+              >
+                <option value="">Todos los Tipos</option>
+                <option v-for="tipo in tiposMantenimiento" :key="tipo" :value="tipo">{{ tipo }}</option>
+              </select>
+            </div>
 
             <!-- Vehículo -->
-            <select
-              v-model="filtroCarro"
-              @change="handleCarroChange($event.target.value)"
-              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-            >
-              <option value="">Todos los Vehículos</option>
-              <option v-for="carro in carros" :key="carro.id" :value="carro.id">
-                {{ carro.marca }} {{ carro.modelo }} ({{ carro.placa || 'Sin placa' }})
-              </option>
-            </select>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">Vehículo</label>
+              <select
+                v-model="filtroCarro"
+                @change="handleCarroChange($event.target.value)"
+                class="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+              >
+                <option value="">Todos los Vehículos</option>
+                <option v-for="carro in carros" :key="carro.id" :value="carro.id">
+                  {{ carro.marca }} {{ carro.modelo }}
+                </option>
+              </select>
+            </div>
 
             <!-- Prioridad -->
-            <select
-              v-model="filtroPrioridad"
-              @change="handlePrioridadChange($event.target.value)"
-              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-            >
-              <option value="">Todas las Prioridades</option>
-              <option value="baja">Baja</option>
-              <option value="media">Media</option>
-              <option value="alta">Alta</option>
-              <option value="critica">Crítica</option>
-            </select>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">Prioridad</label>
+              <select
+                v-model="filtroPrioridad"
+                @change="handlePrioridadChange($event.target.value)"
+                class="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+              >
+                <option value="">Todas las Prioridades</option>
+                <option value="baja">🟢 Baja</option>
+                <option value="media">🔵 Media</option>
+                <option value="alta">🟠 Alta</option>
+                <option value="critica">🔴 Crítica</option>
+              </select>
+            </div>
 
             <!-- Orden -->
-            <select
-              v-model="sortBy"
-              @change="handleSortChange($event.target.value)"
-              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-            >
-              <option value="fecha-desc">Fecha Más Reciente</option>
-              <option value="fecha-asc">Fecha Más Antigua</option>
-              <option value="tipo-asc">Tipo A-Z</option>
-              <option value="tipo-desc">Tipo Z-A</option>
-              <option value="costo-desc">Costo Mayor</option>
-              <option value="costo-asc">Costo Menor</option>
-              <option value="created_at-desc">Creado Más Reciente</option>
-              <option value="created_at-asc">Creado Más Antiguo</option>
-            </select>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">Ordenar por</label>
+              <select
+                v-model="sortBy"
+                @change="handleSortChange($event.target.value)"
+                class="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+              >
+                <option value="fecha-desc">📅 Fecha Más Reciente</option>
+                <option value="fecha-asc">📅 Fecha Más Antigua</option>
+                <option value="tipo-asc">🔤 Tipo A-Z</option>
+                <option value="tipo-desc">🔤 Tipo Z-A</option>
+                <option value="costo-desc">💰 Costo Mayor</option>
+                <option value="costo-asc">💰 Costo Menor</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
@@ -587,8 +678,11 @@ const obtenerIconoUrgencia = (mantenimiento) => {
                 </td>
                 <td class="px-6 py-4">
                   <div class="text-sm text-gray-700">{{ formatearFecha(mantenimiento.raw.proximo_mantenimiento) }}</div>
-                  <div v-if="mantenimiento.raw.dias_restantes !== null" class="text-xs mt-1" :class="mantenimiento.raw.dias_restantes < 0 ? 'text-red-600 font-medium' : 'text-gray-500'">
+                  <div v-if="mantenimiento.raw.dias_restantes !== null && mantenimiento.raw.dias_restantes !== undefined" class="text-xs mt-1" :class="mantenimiento.raw.dias_restantes < 0 ? 'text-red-600 font-medium' : 'text-gray-500'">
                     {{ mantenimiento.raw.dias_restantes < 0 ? `${Math.abs(mantenimiento.raw.dias_restantes)} días vencido` : `${mantenimiento.raw.dias_restantes} días restantes` }}
+                  </div>
+                  <div v-else class="text-xs mt-1 text-gray-400">
+                    Sin fecha de próximo mantenimiento
                   </div>
                 </td>
                 <td class="px-6 py-4">

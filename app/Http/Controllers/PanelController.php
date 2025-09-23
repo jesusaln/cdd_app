@@ -14,6 +14,7 @@ use App\Models\Categoria;
 use App\Models\Marca;
 use App\Models\Almacen;
 use App\Models\OrdenCompra; // Asegúrate de importar el modelo
+use App\Models\Mantenimiento; // Importar modelo de Mantenimiento
 
 use App\Models\Tecnico; // ¡IMPORTANTE: Asegúrate de importar el modelo Tecnico si no lo habías hecho!
 use Carbon\Carbon;
@@ -31,6 +32,7 @@ class PanelController extends Controller
         $productosCount = Producto::count();
         $proveedoresCount = Proveedor::count();
         $citasCount = Cita::count();
+        $mantenimientosCount = Mantenimiento::count();
 
         // --- Contadores Adicionales ---
         $clientesNuevosCount = Cliente::where('created_at', '>=', $startOfMonth)->count();
@@ -89,6 +91,41 @@ class PanelController extends Controller
             ];
         })->toArray();
 
+        // Mantenimientos Vencidos y Críticos
+        $mantenimientosVencidos = Mantenimiento::with('carro')
+            ->where('proximo_mantenimiento', '<', $now)
+            ->where('estado', '!=', Mantenimiento::ESTADO_COMPLETADO)
+            ->orderBy('proximo_mantenimiento', 'asc')
+            ->get();
+
+        $mantenimientosCriticos = Mantenimiento::with('carro')
+            ->whereIn('prioridad', [Mantenimiento::PRIORIDAD_ALTA, Mantenimiento::PRIORIDAD_CRITICA])
+            ->where('proximo_mantenimiento', '<=', $now->copy()->addDays(7))
+            ->where('proximo_mantenimiento', '>=', $now)
+            ->orderBy('prioridad', 'desc')
+            ->orderBy('proximo_mantenimiento', 'asc')
+            ->get();
+
+        $mantenimientosVencidosCount = $mantenimientosVencidos->count();
+        $mantenimientosCriticosCount = $mantenimientosCriticos->count();
+
+        // Combinar y formatear mantenimientos críticos para mostrar en el panel
+        $mantenimientosCriticosDetalles = $mantenimientosVencidos->concat($mantenimientosCriticos)->map(function ($mantenimiento) {
+            return [
+                'id' => $mantenimiento->id,
+                'tipo' => $mantenimiento->tipo,
+                'carro' => $mantenimiento->carro ? [
+                    'marca' => $mantenimiento->carro->marca,
+                    'modelo' => $mantenimiento->carro->modelo,
+                    'placa' => $mantenimiento->carro->placa
+                ] : null,
+                'proximo_mantenimiento' => $mantenimiento->proximo_mantenimiento,
+                'dias_restantes' => $mantenimiento->dias_restantes,
+                'prioridad' => $mantenimiento->prioridad,
+                'estado' => $mantenimiento->estado,
+            ];
+        })->toArray();
+
         return Inertia::render('Panel', [
             'user' => $user ? [
                 'id' => $user->id,
@@ -106,6 +143,11 @@ class PanelController extends Controller
             'citasCount' => $citasCount,
             'citasHoyCount' => $citasHoyCount,
             'citasHoyDetalles' => $citasHoyDetalles,
+            // Nuevas métricas de mantenimiento
+            'mantenimientosCount' => $mantenimientosCount,
+            'mantenimientosVencidosCount' => $mantenimientosVencidosCount,
+            'mantenimientosCriticosCount' => $mantenimientosCriticosCount,
+            'mantenimientosCriticosDetalles' => $mantenimientosCriticosDetalles,
         ]);
     }
 }

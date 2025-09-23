@@ -72,10 +72,35 @@
           </p>
         </div>
       </PanLink>
+
+      <!-- Mantenimientos -->
+      <PanLink
+        :href="mantenimientosHref"
+        class="group bg-white p-6 rounded-2xl shadow-lg border border-gray-200 transition-all transform hover:scale-105 hover:shadow-xl text-center flex flex-col items-center justify-center h-full"
+        aria-label="Ir a mantenimientos"
+      >
+        <div class="flex flex-col items-center justify-center space-y-2">
+          <FontAwesomeIcon :icon="['fas', 'wrench']" class="h-10 w-10 text-red-600 group-hover:text-red-700 transition-colors" />
+          <h2 class="text-xl font-bold text-gray-900">
+            Mantenimientos {{ n(mantenimientosCount) }}
+          </h2>
+          <p class="text-sm text-gray-600">
+            <span v-if="mantenimientosVencidosCount > 0" class="text-red-600 font-medium">
+              ⚠️ {{ n(mantenimientosVencidosCount) }} vencidos
+            </span>
+            <span v-else-if="mantenimientosCriticosCount > 0" class="text-orange-600 font-medium">
+              ⚡ {{ n(mantenimientosCriticosCount) }} críticos
+            </span>
+            <span v-else class="text-green-600">
+              ✅ Al día
+            </span>
+          </p>
+        </div>
+      </PanLink>
     </div>
 
     <!-- Sección de Alertas -->
-    <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+    <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-8">
       <!-- Alerta de Stock Bajo -->
       <div
         v-if="productosBajoStockNombresSafe.length > 0"
@@ -147,10 +172,59 @@
           Ver Órdenes Pendientes
           <FontAwesomeIcon :icon="['fas', 'arrow-right']" class="ml-2" />
         </PanLink>
-      </div>
-    </div>
+        </div>
 
-    <!-- Citas activas del día de hoy -->
+        <!-- Alerta de Mantenimientos Críticos -->
+        <div
+          v-if="mantenimientosVencidosCount > 0 || mantenimientosCriticosCount > 0"
+          class="bg-white p-6 rounded-2xl shadow-lg border-l-8 border-red-500 flex flex-col justify-between items-start text-left"
+        >
+          <div class="w-full">
+            <div class="flex items-center mb-4">
+              <FontAwesomeIcon :icon="['fas', 'wrench']" class="h-8 w-8 text-red-600 mr-3" />
+              <h3 class="text-2xl font-extrabold text-gray-900">Mantenimientos Urgentes</h3>
+            </div>
+            <p class="text-base text-gray-700 mb-4">
+              <span v-if="mantenimientosVencidosCount > 0" class="text-red-600 font-bold">
+                ¡ATENCIÓN! {{ n(mantenimientosVencidosCount) }} mantenimiento(s) vencido(s)
+              </span>
+              <span v-if="mantenimientosCriticosCount > 0" class="text-orange-600 font-bold">
+                {{ n(mantenimientosCriticosCount) }} mantenimiento(s) crítico(s) requieren atención inmediata
+              </span>
+            </p>
+
+            <div v-if="mantenimientosCriticosDetallesSafe.length > 0" class="space-y-2">
+              <h4 class="text-lg font-bold text-gray-800 mb-2">Mantenimientos críticos:</h4>
+              <ul class="text-gray-700 space-y-2 list-none">
+                <li
+                  v-for="mantenimiento in mantenimientosCriticosDetallesSafe.slice(0, 3)"
+                  :key="`mantenimiento-${mantenimiento.id ?? Math.random()}`"
+                  class="text-base bg-red-50 p-3 rounded-md border-l-4 border-red-500"
+                >
+                  <div class="font-medium">{{ mantenimiento.carro?.marca }} {{ mantenimiento.carro?.modelo }}</div>
+                  <div class="text-sm text-gray-600">{{ mantenimiento.tipo }}</div>
+                  <div class="text-sm text-red-600 font-medium">
+                    {{ mantenimiento.dias_restantes < 0 ? `${Math.abs(mantenimiento.dias_restantes)} días vencido` : 'Próximo a vencer' }}
+                  </div>
+                </li>
+              </ul>
+              <div v-if="mantenimientosCriticosDetallesSafe.length > 3" class="text-sm text-gray-500 mt-2">
+                Y {{ n(mantenimientosCriticosDetallesSafe.length - 3) }} más...
+              </div>
+            </div>
+          </div>
+          <PanLink
+            :href="mantenimientosHref"
+            class="mt-6 px-6 py-2 bg-red-500 text-white font-semibold rounded-lg shadow hover:bg-red-600 transition-colors duration-300 transform hover:scale-105 list-none"
+            aria-label="Gestionar mantenimientos urgentes"
+          >
+            Gestionar Mantenimientos
+            <FontAwesomeIcon :icon="['fas', 'arrow-right']" class="ml-2" />
+          </PanLink>
+        </div>
+      </div>
+
+      <!-- Citas activas del día de hoy -->
     <div
       v-if="citasHoyDetallesSafe.length > 0"
       class="mt-8 bg-white p-6 rounded-2xl shadow-lg border-l-8 border-blue-500"
@@ -234,7 +308,12 @@ const props = defineProps({
 
   citasCount: { type: Number, default: 0 },
   citasHoyCount: { type: Number, default: 0 },
-  citasHoyDetalles: { type: Array, default: () => [] }
+  citasHoyDetalles: { type: Array, default: () => [] },
+
+  mantenimientosCount: { type: Number, default: 0 },
+  mantenimientosVencidosCount: { type: Number, default: 0 },
+  mantenimientosCriticosCount: { type: Number, default: 0 },
+  mantenimientosCriticosDetalles: { type: Array, default: () => [] }
 })
 
 // ===== Utilidades de formato (evita repetir lógica)
@@ -256,6 +335,9 @@ const ordenesPendientesDetallesSafe = computed(() =>
 const citasHoyDetallesSafe = computed(() =>
   Array.isArray(props.citasHoyDetalles) ? props.citasHoyDetalles : []
 )
+const mantenimientosCriticosDetallesSafe = computed(() =>
+  Array.isArray(props.mantenimientosCriticosDetalles) ? props.mantenimientosCriticosDetalles : []
+)
 
 // ===== Rutas (usa lo que tengas; si tienes Ziggy, podrías usar route('nombre'))
 const clientesHref = '/clientes'
@@ -264,4 +346,5 @@ const productosLowHref = '/productos?stock=low'
 const proveedoresHref = '/proveedores'
 const ordenesPendientesHref = '/ordenes-compra?estado=pendiente'
 const citasHref = '/citas'
+const mantenimientosHref = '/mantenimientos'
 </script>

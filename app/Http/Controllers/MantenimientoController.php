@@ -60,6 +60,19 @@ class MantenimientoController extends Controller
             $perPage = min((int) $request->input('per_page', 10), 50);
             $mantenimientos = $query->paginate($perPage)->appends($request->query());
 
+            // Calcular días restantes para cada mantenimiento
+            foreach ($mantenimientos->items() as $mantenimiento) {
+                if ($mantenimiento->proximo_mantenimiento) {
+                    $fechaProximo = Carbon::parse($mantenimiento->proximo_mantenimiento);
+                    $fechaHoy = Carbon::now();
+                    $diasRestantes = round($fechaHoy->diffInDays($fechaProximo, false)); // Redondear a número entero
+
+                    $mantenimiento->dias_restantes = $diasRestantes;
+                } else {
+                    $mantenimiento->dias_restantes = null;
+                }
+            }
+
             // Estadísticas
             $stats = [
                 'total' => Mantenimiento::count(),
@@ -167,45 +180,91 @@ class MantenimientoController extends Controller
         DB::beginTransaction();
 
         try {
+            Log::info('Iniciando creación de mantenimiento', [
+                'validated_data' => $validated,
+                'carro_id' => $validated['carro_id']
+            ]);
+
             // Obtener el carro asociado
             $carro = Carro::findOrFail($validated['carro_id']);
+            Log::info('Carro encontrado', ['carro_id' => $carro->id, 'kilometraje_actual' => $carro->kilometraje]);
 
             // Validar que el kilometraje sea coherente
             if ($validated['kilometraje_actual'] < $carro->kilometraje) {
+                Log::warning('Kilometraje inconsistente', [
+                    'kilometraje_enviado' => $validated['kilometraje_actual'],
+                    'kilometraje_carro' => $carro->kilometraje
+                ]);
                 return back()->withErrors([
                     'kilometraje_actual' => "El kilometraje debe ser mayor o igual al actual del carro ({$carro->kilometraje} km)."
                 ])->withInput();
             }
 
+            // Log antes de actualizar el carro
+            Log::info('Actualizando kilometraje del carro', [
+                'carro_id' => $carro->id,
+                'kilometraje_anterior' => $carro->kilometraje,
+                'kilometraje_nuevo' => $validated['kilometraje_actual']
+            ]);
+
             // Actualizar el kilometraje del carro
             $carro->update(['kilometraje' => $validated['kilometraje_actual']]);
 
-            // Crear el registro de mantenimiento
-            Mantenimiento::create([
+            // Preparar datos para crear el mantenimiento
+            $mantenimientoData = [
                 'carro_id' => $validated['carro_id'],
                 'tipo' => $validated['tipo'],
                 'fecha' => $validated['fecha'],
                 'proximo_mantenimiento' => $validated['proximo_mantenimiento'],
-                'notas' => $validated['notas'],
+                'notas' => $validated['notas'] ?? '',
                 'kilometraje_actual' => $validated['kilometraje_actual'],
                 'costo' => $validated['costo'] ?? 0,
-                'descripcion' => $validated['descripcion'],
+                'descripcion' => $validated['descripcion'] ?? '',
                 'estado' => Mantenimiento::ESTADO_COMPLETADO,
                 'prioridad' => $validated['prioridad'],
                 'dias_anticipacion_alerta' => $validated['dias_anticipacion_alerta'],
-                'requiere_aprobacion' => $validated['requiere_aprobacion'] ?? false,
+                'requiere_aprobacion' => filter_var($validated['requiere_aprobacion'] ?? false, FILTER_VALIDATE_BOOLEAN),
                 'observaciones_alerta' => $validated['observaciones_alerta'] ?? null,
-            ]);
+            ];
+
+            Log::info('Datos finales para mantenimiento', ['mantenimiento_data' => $mantenimientoData]);
+
+            Log::info('Creando mantenimiento con datos', ['mantenimiento_data' => $mantenimientoData]);
+
+            // Crear el registro de mantenimiento
+            $mantenimiento = Mantenimiento::create($mantenimientoData);
+
+            Log::info('Mantenimiento creado exitosamente', ['mantenimiento_id' => $mantenimiento->id]);
 
             DB::commit();
 
             return redirect()->route('mantenimientos.index')
                 ->with('success', 'Mantenimiento registrado exitosamente.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Error de validación en MantenimientoController@store: ' . $e->getMessage());
+            return back()->withErrors($e->errors())->withInput();
+        } catch (\Illuminate\Database\QueryException $e) {
+            Log::error('Error de base de datos en MantenimientoController@store: ' . $e->getMessage());
+            Log::error('SQL Error Code: ' . $e->getCode());
+            Log::error('SQL Error: ' . $e->getSql());
+
+            $errorMessage = 'Error en la base de datos al crear el mantenimiento.';
+            if ($e->getCode() == 23000) {
+                $errorMessage = 'Error de integridad de datos. Verifica que el vehículo existe y los datos sean válidos.';
+            }
+
+            return back()->withErrors([
+                'general' => $errorMessage . ' Detalles: ' . $e->getMessage()
+            ])->withInput();
         } catch (\Exception $e) {
             DB::rollBack();
 
+            Log::error('Error inesperado en MantenimientoController@store: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            Log::error('Request data: ' . json_encode($request->all()));
+
             return back()->withErrors([
-                'general' => 'Error al procesar el mantenimiento. Intenta nuevamente.'
+                'general' => 'Error inesperado al procesar el mantenimiento: ' . $e->getMessage()
             ])->withInput();
         }
     }
@@ -435,7 +494,7 @@ class MantenimientoController extends Controller
                     return [
                         'carro' => $carro,
                         'ultimo_mantenimiento' => $ultimoMantenimiento,
-                        'dias_restantes' => Carbon::parse($ultimoMantenimiento->proximo_mantenimiento)->diffInDays(Carbon::now())
+                        'dias_restantes' => round(Carbon::parse($ultimoMantenimiento->proximo_mantenimiento)->diffInDays(Carbon::now()))
                     ];
                 }
                 return null;
@@ -464,7 +523,7 @@ class MantenimientoController extends Controller
                     return [
                         'carro' => $carro,
                         'ultimo_mantenimiento' => $ultimoMantenimiento,
-                        'dias_vencido' => Carbon::now()->diffInDays(Carbon::parse($ultimoMantenimiento->proximo_mantenimiento))
+                        'dias_vencido' => round(Carbon::now()->diffInDays(Carbon::parse($ultimoMantenimiento->proximo_mantenimiento)))
                     ];
                 }
                 return null;

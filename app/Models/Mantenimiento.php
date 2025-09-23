@@ -131,7 +131,7 @@ class Mantenimiento extends Model
             return null;
         }
 
-        return now()->diffInDays($this->proximo_mantenimiento, false);
+        return round(now()->diffInDays($this->proximo_mantenimiento, false));
     }
 
     /**
