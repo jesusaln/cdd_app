@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
             // 2) Ahora sí, dependientes
             ClienteSeeder::class,
             ProductoSeeder::class,
+            OrdenCompraSeeder::class,
             TecnicoSeeder::class,
             HerramientaSeeder::class,
             EquipoSeeder::class,

@@ -32,6 +32,7 @@ class CitaModelTest extends TestCase
             'foto_equipo',
             'foto_hoja_servicio',
             'foto_identificacion',
+            'activo',
         ];
 
         $this->assertEquals($expectedFillable, $cita->getFillable());

@@ -30,7 +30,54 @@ class OrdenCompraController extends Controller
             'productos' => function ($q) {
                 $q->withPivot(['cantidad', 'precio', 'descuento', 'unidad_medida']);
             },
-        ])->orderByDesc('created_at');
+        ]);
+
+        // Aplicar filtros
+        if ($search = trim($request->get('search', ''))) {
+            $baseQuery->where(function ($query) use ($search) {
+                $query->where('numero_orden', 'like', "%{$search}%")
+                      ->orWhere('observaciones', 'like', "%{$search}%")
+                      ->orWhereHas('proveedor', function ($q) use ($search) {
+                          $q->where('nombre_razon_social', 'like', "%{$search}%")
+                            ->orWhere('rfc', 'like', "%{$search}%");
+                      })
+                      ->orWhereHas('productos', function ($q) use ($search) {
+                          $q->where('nombre', 'like', "%{$search}%")
+                            ->orWhere('descripcion', 'like', "%{$search}%");
+                      });
+            });
+        }
+
+        if ($request->filled('estado')) {
+            $baseQuery->where('estado', $request->estado);
+        }
+
+        if ($request->filled('prioridad')) {
+            $baseQuery->where('prioridad', $request->prioridad);
+        }
+
+        if ($request->filled('proveedor_id')) {
+            $baseQuery->where('proveedor_id', $request->proveedor_id);
+        }
+
+        if ($request->filled('fecha_desde')) {
+            $baseQuery->whereDate('fecha_orden', '>=', $request->fecha_desde);
+        }
+
+        if ($request->filled('fecha_hasta')) {
+            $baseQuery->whereDate('fecha_orden', '<=', $request->fecha_hasta);
+        }
+
+        // Ordenamiento
+        $sortBy = $request->get('sort_by', 'created_at');
+        $sortDirection = $request->get('sort_direction', 'desc');
+
+        $allowedSorts = ['created_at', 'numero_orden', 'total', 'estado', 'prioridad', 'fecha_orden'];
+        if (!in_array($sortBy, $allowedSorts)) {
+            $sortBy = 'created_at';
+        }
+
+        $baseQuery->orderBy($sortBy, $sortDirection === 'asc' ? 'asc' : 'desc');
 
         $total = (clone $baseQuery)->count();
         $ordenes = $baseQuery->forPage($page, $perPage)->get();
@@ -47,6 +94,24 @@ class OrdenCompraController extends Controller
                 ];
             });
 
+            // Crear resumen de productos para tooltip
+            $productosTooltip = $items->map(function ($item) {
+                return $item['nombre'] . ' (' . $item['cantidad'] . ' ' . ($item['unidad_medida'] ?: 'u') . ')';
+            })->join(', ');
+
+            // Etiquetas legibles para estados (coincidiendo con BD)
+            $estadoLabels = [
+                'pendiente' => 'Pendiente',
+                'aprobada' => 'Aprobada',
+                'enviada' => 'Enviada',
+                'recibida' => 'Recibida',
+                'cancelada' => 'Cancelada',
+                // Estados del sistema (por si acaso)
+                'borrador' => 'Borrador',
+                'enviado_a_compra' => 'Enviado a Compra',
+                'convertida' => 'Recibida',
+            ];
+
             return [
                 'id'                 => $orden->id,
                 'numero_orden'       => $orden->numero_orden ?? $orden->id,
@@ -56,14 +121,38 @@ class OrdenCompraController extends Controller
                     'rfc'                 => $orden->proveedor->rfc ?? null,
                 ] : null,
                 'items'              => $items,
+                'productos_count'    => $items->count(),
+                'productos_tooltip'  => $productosTooltip ?: 'Sin productos',
                 'subtotal'           => (float) ($orden->subtotal ?? 0),
                 'descuento_items'    => (float) ($orden->descuento_items ?? 0),
                 'descuento_general'  => (float) ($orden->descuento_general ?? 0),
                 'iva'                => (float) ($orden->iva ?? 0),
                 'total'              => (float) ($orden->total ?? 0),
                 'estado'             => $orden->estado ?? 'pendiente',
+                'estado_label'       => $estadoLabels[$orden->estado] ?? 'Desconocido',
+                'prioridad'          => $orden->prioridad ?? 'baja',
+                'fecha_orden'        => $orden->fecha_orden?->format('d/m/Y'),
+                'fecha_entrega_esperada' => $orden->fecha_entrega_esperada?->format('d/m/Y'),
                 'created_at'         => optional($orden->created_at)->format('Y-m-d H:i:s'),
                 'fecha'              => optional($orden->created_at)->format('Y-m-d'),
+                // URLs para acciones
+                'urls' => [
+                    'show' => route('ordenescompra.show', $orden->id),
+                    'edit' => route('ordenescompra.edit', $orden->id),
+                    'duplicate' => route('ordenescompra.duplicate', $orden->id),
+                    'enviar' => route('ordenescompra.enviar-compra', $orden->id),
+                    'recibir' => route('ordenescompra.recibir-mercancia', $orden->id),
+                    'cancelar' => route('ordenescompra.cancelar', $orden->id),
+                    'delete' => route('ordenescompra.destroy', $orden->id),
+                ],
+                // Permisos de acciones
+                'can' => [
+                    'edit' => in_array($orden->estado, ['borrador', 'pendiente']),
+                    'enviar' => $orden->estado === 'pendiente',
+                    'recibir' => $orden->estado === 'enviado_a_compra',
+                    'cancelar' => in_array($orden->estado, ['pendiente', 'enviado_a_compra', 'convertida']),
+                    'delete' => in_array($orden->estado, ['borrador', 'pendiente']),
+                ],
             ];
         });
 
@@ -75,21 +164,68 @@ class OrdenCompraController extends Controller
             ['path' => $request->url(), 'pageName' => 'page']
         );
 
-        // Estadísticas para el dashboard
+        // Estadísticas para el dashboard (usando estados de BD)
         $stats = [
             'total' => OrdenCompra::count(),
-            'procesadas' => OrdenCompra::where('estado', 'convertida')->count(),
             'pendientes' => OrdenCompra::where('estado', 'pendiente')->count(),
-            'enviadas' => OrdenCompra::where('estado', 'enviado_a_compra')->count(),
-            'borrador' => OrdenCompra::where('estado', 'borrador')->count(),
-            'cancelada' => OrdenCompra::where('estado', 'cancelada')->count(),
+            'aprobadas' => OrdenCompra::where('estado', 'aprobada')->count(),
+            'enviadas' => OrdenCompra::where('estado', 'enviada')->count(),
+            'recibidas' => OrdenCompra::where('estado', 'recibida')->count(),
+            'canceladas' => OrdenCompra::where('estado', 'cancelada')->count(),
+        ];
+
+        // Etiquetas para estados (coincidiendo con BD)
+        $estadoLabels = [
+            'pendiente' => 'Pendiente',
+            'aprobada' => 'Aprobada',
+            'enviada' => 'Enviada',
+            'recibida' => 'Recibida',
+            'cancelada' => 'Cancelada',
+            // Estados del sistema (por compatibilidad)
+            'borrador' => 'Borrador',
+            'enviado_a_compra' => 'Enviado a Compra',
+            'convertida' => 'Recibida',
+        ];
+
+        // Opciones para filtros
+        $proveedores = Proveedor::select('id', 'nombre_razon_social', 'rfc')
+            ->orderBy('nombre_razon_social')
+            ->get()
+            ->mapWithKeys(function ($proveedor) {
+                return [$proveedor->id => $proveedor->nombre_razon_social . ' (' . $proveedor->rfc . ')'];
+            });
+
+        $filterOptions = [
+            'estados' => $estadoLabels,
+            'prioridades' => [
+                'baja' => 'Baja',
+                'media' => 'Media',
+                'alta' => 'Alta',
+                'urgente' => 'Urgente',
+            ],
+            'proveedores' => $proveedores,
+            'per_page_options' => [10, 15, 25, 50],
         ];
 
         return Inertia::render('OrdenesCompra/Index', [
             'ordenesCompra' => $paginator,
             'stats' => $stats,
-            'filters' => $request->only(['search', 'estado']),
-            'sorting' => ['sort_by' => 'created_at', 'sort_direction' => 'desc'],
+            'estadoLabels' => $estadoLabels,
+            'filterOptions' => $filterOptions,
+            'filters' => $request->only(['search', 'estado', 'prioridad', 'proveedor_id', 'fecha_desde', 'fecha_hasta']),
+            'sorting' => [
+                'sort_by' => $sortBy,
+                'sort_direction' => $sortDirection,
+                'allowed_sorts' => $allowedSorts,
+            ],
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $perPage,
+                'total' => $paginator->total(),
+                'from' => $paginator->firstItem(),
+                'to' => $paginator->lastItem(),
+            ],
         ]);
     }
 
@@ -279,9 +415,13 @@ class OrdenCompraController extends Controller
                         'cantidad' => $producto->pivot->cantidad,
                         'precio' => $producto->pivot->precio,
                         'descuento' => $producto->pivot->descuento ?? 0,
+                        'unidad_medida' => $producto->pivot->unidad_medida ?? $producto->unidad_medida ?? '',
                     ],
                 ];
             })->filter(fn($item) => $item !== null); // Elimina cualquier ítem nulo si hubo errores
+
+            // Recalcular totales basados en los items actuales para asegurar consistencia
+            $totalesCalculados = $this->calcularTotalesDesdeItems($items, $ordenCompra->descuento_general ?? 0);
 
             // Obtiene todos los proveedores y productos para los selectores/búsquedas en el frontend
             $proveedores = Proveedor::all();
@@ -300,11 +440,11 @@ class OrdenCompraController extends Controller
                     'direccion_entrega' => $ordenCompra->direccion_entrega,
                     'terminos_pago' => $ordenCompra->terminos_pago,
                     'metodo_pago' => $ordenCompra->metodo_pago,
-                    'subtotal' => $ordenCompra->subtotal,
-                    'descuento_items' => $ordenCompra->descuento_items,
-                    'descuento_general' => $ordenCompra->descuento_general,
-                    'iva' => $ordenCompra->iva,
-                    'total' => $ordenCompra->total,
+                    'subtotal' => $totalesCalculados['subtotal'],
+                    'descuento_items' => $totalesCalculados['descuento_items'],
+                    'descuento_general' => $ordenCompra->descuento_general ?? 0,
+                    'iva' => $totalesCalculados['iva'],
+                    'total' => $totalesCalculados['total'],
                     'observaciones' => $ordenCompra->observaciones,
                     'estado' => $ordenCompra->estado,
                     'items' => $items,
@@ -438,14 +578,48 @@ class OrdenCompraController extends Controller
     }
 
     /**
-     * Envía una orden de compra a compra, actualiza el stock y crea un registro de compra.
-     * Compatible con órdenes existentes en diferentes estados.
+     * Envía una orden de compra al proveedor (cambia estado a enviado_a_compra)
+     * No actualiza inventario aún - eso se hace cuando se recibe la mercancía
      *
      * @param  \Illuminate\Http\Request  $request
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
     public function enviarACompra(Request $request, $id)
+    {
+        DB::beginTransaction();
+        try {
+            $ordenCompra = OrdenCompra::findOrFail($id);
+
+            // Solo se puede enviar si está pendiente
+            if ($ordenCompra->estado !== 'pendiente') {
+                return redirect()->back()->with('error', 'Solo se pueden enviar órdenes en estado pendiente.');
+            }
+
+            $ordenCompra->update([
+                'estado' => 'enviado_a_compra',
+                'observaciones' => ($ordenCompra->observaciones ? $ordenCompra->observaciones . "\n\n" : '') .
+                    '*** ORDEN ENVIADA AL PROVEEDOR *** ' . now()->format('d/m/Y H:i')
+            ]);
+
+            DB::commit();
+
+            return redirect()->back()->with('success', 'Orden de compra enviada al proveedor exitosamente.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al enviar orden a compra: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al enviar la orden de compra.');
+        }
+    }
+
+    /**
+     * Recibe la mercancía de una orden enviada (actualiza inventario y crea compra)
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function recibirMercancia(Request $request, $id)
     {
         DB::beginTransaction();
         try {
@@ -456,151 +630,113 @@ class OrdenCompraController extends Controller
                 }
             ])->findOrFail($id);
 
-            // Si ya está procesada, no hacer nada
-            if ($ordenCompra->estado === 'convertida') {
-                return redirect()->route('compras.index')->with('error', 'La orden de compra ya ha sido procesada.');
-            }
-
-            // Si ya está cancelada, no hacer nada
-            if ($ordenCompra->estado === 'cancelada') {
-                return redirect()->route('compras.index')->with('error', 'La orden de compra está cancelada.');
+            // Solo se puede recibir si está enviada a compra
+            if ($ordenCompra->estado !== 'enviado_a_compra') {
+                return redirect()->back()->with('error', 'Solo se puede recibir mercancía de órdenes enviadas al proveedor.');
             }
 
             $productosParaCompra = [];
-            $compra = null;
 
-            // Si está pendiente, hacer todo el proceso completo
-            if ($ordenCompra->estado === 'pendiente') {
-                foreach ($ordenCompra->productos as $producto) {
-                    // Validar que los datos esenciales del pivot estén presentes
-                    if (!$producto->pivot ||
-                        !isset($producto->pivot->cantidad) ||
-                        !isset($producto->pivot->precio) ||
-                        $producto->pivot->cantidad <= 0 ||
-                        $producto->pivot->precio <= 0) {
-                        Log::error('Datos de pivot faltantes o inválidos para producto ID: ' . $producto->id . ' en orden ID: ' . $ordenCompra->id, [
-                            'pivot_data' => $producto->pivot ? $producto->pivot->toArray() : null,
-                            'cantidad' => $producto->pivot->cantidad ?? null,
-                            'precio' => $producto->pivot->precio ?? null,
-                            'unidad_medida' => $producto->pivot->unidad_medida ?? null
-                        ]);
-                        continue;
-                    }
-
-                    $prodModel = Producto::find($producto->id);
-                    if ($prodModel) {
-                        $cantidadRecibida = (int) $producto->pivot->cantidad;
-                        $precioUnitario = (float) $producto->pivot->precio;
-                        // Obtener unidad de medida del pivot o del modelo producto
-                        $unidadMedida = $producto->pivot->unidad_medida ?? $prodModel->unidad_medida ?? '';
-
-                        // Actualizar el stock del producto
-                        $prodModel->increment('stock', $cantidadRecibida);
-
-                        $productosParaCompra[$producto->id] = [
-                            'cantidad' => $cantidadRecibida,
-                            'precio' => $precioUnitario,
-                            'unidad_medida' => $unidadMedida,
-                        ];
-                    } else {
-                        Log::warning('Producto no encontrado para incrementar stock en orden de compra ID: ' . $ordenCompra->id . ', Producto ID: ' . $producto->id);
-                    }
+            foreach ($ordenCompra->productos as $producto) {
+                // Validar que los datos esenciales del pivot estén presentes
+                if (!$producto->pivot ||
+                    !isset($producto->pivot->cantidad) ||
+                    !isset($producto->pivot->precio) ||
+                    $producto->pivot->cantidad <= 0 ||
+                    $producto->pivot->precio <= 0) {
+                    Log::error('Datos de pivot faltantes o inválidos para producto ID: ' . $producto->id . ' en orden ID: ' . $ordenCompra->id, [
+                        'pivot_data' => $producto->pivot ? $producto->pivot->toArray() : null,
+                        'cantidad' => $producto->pivot->cantidad ?? null,
+                        'precio' => $producto->pivot->precio ?? null,
+                        'unidad_medida' => $producto->pivot->unidad_medida ?? null
+                    ]);
+                    continue;
                 }
 
-                // Crea la compra
-                $compra = Compra::create([
-                    'proveedor_id' => $ordenCompra->proveedor_id,
-                    'total' => $ordenCompra->total,
-                    'estado' => EstadoCompra::Recibido,
-                ]);
+                $prodModel = Producto::find($producto->id);
+                if ($prodModel) {
+                    $cantidadRecibida = (int) $producto->pivot->cantidad;
+                    $precioUnitario = (float) $producto->pivot->precio;
+                    // Obtener unidad de medida del pivot o del modelo producto
+                    $unidadMedida = $producto->pivot->unidad_medida ?? $prodModel->unidad_medida ?? '';
 
-                // Crea los items de la compra
-                if (!empty($productosParaCompra)) {
-                    foreach ($productosParaCompra as $productoId => $datos) {
-                        // Obtener la unidad de medida del producto desde la orden de compra
-                        $productoPivot = $ordenCompra->productos->find($productoId);
-                        $unidadMedida = '';
-                        $descuento = 0;
+                    // Actualizar el stock del producto
+                    $prodModel->increment('stock', $cantidadRecibida);
 
-                        if ($productoPivot) {
-                            $unidadMedida = $productoPivot->pivot->unidad_medida ?? '';
-                            $descuento = $productoPivot->pivot->descuento ?? 0;
+                    $productosParaCompra[$producto->id] = [
+                        'cantidad' => $cantidadRecibida,
+                        'precio' => $precioUnitario,
+                        'unidad_medida' => $unidadMedida,
+                    ];
+                } else {
+                    Log::warning('Producto no encontrado para incrementar stock en orden de compra ID: ' . $ordenCompra->id . ', Producto ID: ' . $producto->id);
+                }
+            }
+
+            // Crea la compra
+            $compra = Compra::create([
+                'proveedor_id' => $ordenCompra->proveedor_id,
+                'total' => $ordenCompra->total,
+                'estado' => EstadoCompra::Recibido,
+            ]);
+
+            // Crea los items de la compra
+            if (!empty($productosParaCompra)) {
+                foreach ($productosParaCompra as $productoId => $datos) {
+                    // Obtener la unidad de medida del producto desde la orden de compra
+                    $productoPivot = $ordenCompra->productos->find($productoId);
+                    $unidadMedida = '';
+                    $descuento = 0;
+
+                    if ($productoPivot) {
+                        $unidadMedida = $productoPivot->pivot->unidad_medida ?? '';
+                        $descuento = $productoPivot->pivot->descuento ?? 0;
+                    }
+
+                    // Si no hay unidad de medida en el pivot, obtenerla del modelo producto
+                    if (empty($unidadMedida)) {
+                        $prodModel = Producto::find($productoId);
+                        if ($prodModel) {
+                            $unidadMedida = $prodModel->unidad_medida ?? '';
                         }
-
-                        // Si no hay unidad de medida en el pivot, obtenerla del modelo producto
-                        if (empty($unidadMedida)) {
-                            $prodModel = Producto::find($productoId);
-                            if ($prodModel) {
-                                $unidadMedida = $prodModel->unidad_medida ?? '';
-                            }
-                        }
-
-                        // Calcular subtotal considerando descuento
-                        $subtotal = $datos['cantidad'] * $datos['precio'];
-                        $descuentoMonto = ($subtotal * $descuento) / 100;
-                        $subtotalFinal = $subtotal - $descuentoMonto;
-
-                        \App\Models\CompraItem::create([
-                            'compra_id' => $compra->id,
-                            'comprable_id' => $productoId,
-                            'comprable_type' => \App\Models\Producto::class,
-                            'cantidad' => $datos['cantidad'],
-                            'precio' => $datos['precio'],
-                            'descuento' => $descuento,
-                            'subtotal' => $subtotalFinal,
-                            'descuento_monto' => $descuentoMonto,
-                            'unidad_medida' => $unidadMedida,
-                        ]);
-                    }
-                }
-            }
-            // Si está enviada a compra, solo actualizar stock (sin crear nueva compra)
-            elseif ($ordenCompra->estado === 'enviado_a_compra') {
-                foreach ($ordenCompra->productos as $producto) {
-                    if (!$producto->pivot || !isset($producto->pivot->cantidad)) {
-                        Log::error('Datos de pivot faltantes para producto ID: ' . $producto->id . ' en orden ID: ' . $ordenCompra->id);
-                        continue;
                     }
 
-                    $prodModel = Producto::find($producto->id);
-                    if ($prodModel) {
-                        $cantidadRecibida = (int) $producto->pivot->cantidad;
-                        // Actualizar el stock del producto
-                        $prodModel->increment('stock', $cantidadRecibida);
-                    } else {
-                        Log::warning('Producto no encontrado para incrementar stock en orden de compra ID: ' . $ordenCompra->id . ', Producto ID: ' . $producto->id);
-                    }
+                    // Calcular subtotal considerando descuento
+                    $subtotal = $datos['cantidad'] * $datos['precio'];
+                    $descuentoMonto = ($subtotal * $descuento) / 100;
+                    $subtotalFinal = $subtotal - $descuentoMonto;
+
+                    \App\Models\CompraItem::create([
+                        'compra_id' => $compra->id,
+                        'comprable_id' => $productoId,
+                        'comprable_type' => \App\Models\Producto::class,
+                        'cantidad' => $datos['cantidad'],
+                        'precio' => $datos['precio'],
+                        'descuento' => $descuento,
+                        'subtotal' => $subtotalFinal,
+                        'descuento_monto' => $descuentoMonto,
+                        'unidad_medida' => $unidadMedida,
+                    ]);
                 }
             }
 
-            // Marcar la orden como convertida
-            $observaciones = ($ordenCompra->observaciones ? $ordenCompra->observaciones . "\n\n" : '');
-
-            if ($compra) {
-                $observaciones .= '*** ENVIADO A COMPRA Y CONVERTIDO #' . $compra->id . ' *** ' . now()->format('d/m/Y H:i') .
-                    ' - Stock actualizado automáticamente';
-            } else {
-                $observaciones .= '*** STOCK ACTUALIZADO DESDE ORDEN ENVIADA A COMPRA *** ' . now()->format('d/m/Y H:i');
-            }
-
+            // Marcar la orden como convertida y agregar fecha de recepción
             $ordenCompra->update([
                 'estado' => 'convertida',
-                'observaciones' => $observaciones
+                'fecha_recepcion' => now(),
+                'observaciones' => ($ordenCompra->observaciones ? $ordenCompra->observaciones . "\n\n" : '') .
+                    '*** MERCANCÍA RECIBIDA - COMPRA #' . $compra->id . ' *** ' . now()->format('d/m/Y H:i') .
+                    ' - Stock actualizado automáticamente'
             ]);
 
             DB::commit();
 
-            if ($compra) {
-                return redirect()->route('compras.index')
-                    ->with('success', 'Orden de compra enviada y procesada exitosamente. Compra #' . $compra->id . ' creada y stock actualizado.');
-            } else {
-                return redirect()->route('compras.index')
-                    ->with('success', 'Stock actualizado exitosamente desde orden enviada a compra.');
-            }
+            return redirect()->route('compras.index')
+                ->with('success', 'Mercancía recibida exitosamente. Compra #' . $compra->id . ' creada y stock actualizado.');
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error al enviar orden a compra: ' . $e->getMessage());
-            return redirect()->route('compras.index')->with('error', 'Error al procesar la orden a compra.');
+            Log::error('Error al recibir mercancía: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al procesar la recepción de mercancía.');
         }
     }
 
@@ -712,129 +848,6 @@ class OrdenCompraController extends Controller
         }
     }
 
-    /**
-     * Convierte una orden de compra en una compra (simula el proceso)
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function convertirACompra($id)
-    {
-        DB::beginTransaction();
-        try {
-            $ordenCompra = OrdenCompra::with([
-                'proveedor',
-                'productos' => function ($q) {
-                    $q->withPivot(['cantidad', 'precio', 'descuento']);
-                }
-            ])->findOrFail($id);
-
-            if ($ordenCompra->estado !== 'enviado_a_compra') {
-                return redirect()->back()->with('error', 'Solo se pueden convertir órdenes enviadas a compra.');
-            }
-
-            // Prepara los datos para la creación de la Compra y la actualización del stock
-            $productosParaCompra = [];
-
-            foreach ($ordenCompra->productos as $producto) {
-                // Validar que los datos esenciales del pivot estén presentes
-                if (!$producto->pivot ||
-                    !isset($producto->pivot->cantidad) ||
-                    !isset($producto->pivot->precio) ||
-                    $producto->pivot->cantidad <= 0 ||
-                    $producto->pivot->precio <= 0) {
-                    Log::error('Datos de pivot faltantes o inválidos para producto ID: ' . $producto->id . ' en orden ID: ' . $ordenCompra->id, [
-                        'pivot_data' => $producto->pivot ? $producto->pivot->toArray() : null,
-                        'cantidad' => $producto->pivot->cantidad ?? null,
-                        'precio' => $producto->pivot->precio ?? null,
-                        'unidad_medida' => $producto->pivot->unidad_medida ?? null
-                    ]);
-                    continue;
-                }
-
-                $prodModel = Producto::find($producto->id);
-                if ($prodModel) {
-                    $cantidadRecibida = (int) $producto->pivot->cantidad;
-                    $precioUnitario = (float) $producto->pivot->precio;
-                    // Obtener unidad de medida del pivot o del modelo producto
-                    $unidadMedida = $producto->pivot->unidad_medida ?? $prodModel->unidad_medida ?? '';
-
-                    $prodModel->increment('stock', $cantidadRecibida);
-
-                    $productosParaCompra[$producto->id] = [
-                        'cantidad' => $cantidadRecibida,
-                        'precio' => $precioUnitario,
-                        'unidad_medida' => $unidadMedida,
-                    ];
-                } else {
-                    Log::warning('Producto no encontrado para incrementar stock en orden de compra ID: ' . $ordenCompra->id . ', Producto ID: ' . $producto->id);
-                }
-            }
-
-            // Crea la compra
-            $compra = Compra::create([
-                'proveedor_id' => $ordenCompra->proveedor_id,
-                'total' => $ordenCompra->total,
-                'estado' => EstadoCompra::Recibido,
-            ]);
-
-            // Crea los items de la compra
-            if (!empty($productosParaCompra)) {
-                foreach ($productosParaCompra as $productoId => $datos) {
-                    // Obtener la unidad de medida del producto desde la orden de compra
-                    $productoPivot = $ordenCompra->productos->find($productoId);
-                    $unidadMedida = '';
-                    $descuento = 0;
-
-                    if ($productoPivot) {
-                        $unidadMedida = $productoPivot->pivot->unidad_medida ?? '';
-                        $descuento = $productoPivot->pivot->descuento ?? 0;
-                    }
-
-                    // Si no hay unidad de medida en el pivot, obtenerla del modelo producto
-                    if (empty($unidadMedida)) {
-                        $prodModel = Producto::find($productoId);
-                        if ($prodModel) {
-                            $unidadMedida = $prodModel->unidad_medida ?? '';
-                        }
-                    }
-
-                    // Calcular subtotal considerando descuento
-                    $subtotal = $datos['cantidad'] * $datos['precio'];
-                    $descuentoMonto = ($subtotal * $descuento) / 100;
-                    $subtotalFinal = $subtotal - $descuentoMonto;
-
-                    \App\Models\CompraItem::create([
-                        'compra_id' => $compra->id,
-                        'comprable_id' => $productoId,
-                        'comprable_type' => \App\Models\Producto::class,
-                        'cantidad' => $datos['cantidad'],
-                        'precio' => $datos['precio'],
-                        'descuento' => $descuento,
-                        'subtotal' => $subtotalFinal,
-                        'descuento_monto' => $descuentoMonto,
-                        'unidad_medida' => $unidadMedida,
-                    ]);
-                }
-            }
-
-            // Marcar la orden como convertida
-            $ordenCompra->update([
-                'estado' => 'convertida',
-                'observaciones' => ($ordenCompra->observaciones ? $ordenCompra->observaciones . "\n\n" : '') .
-                                   '*** CONVERTIDA A COMPRA #' . $compra->id . ' *** ' . now()->format('d/m/Y H:i')
-            ]);
-
-            DB::commit();
-
-            return redirect()->route('compras.index')
-                ->with('success', 'Orden convertida a compra exitosamente. Compra #' . $compra->id . ' creada.');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Error al convertir orden a compra: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Error al convertir la orden a compra.');
-        }
-    }
 
     /**
      * Cancela una orden de compra y revierte el inventario si es necesario
@@ -856,14 +869,14 @@ class OrdenCompraController extends Controller
                 ], 400);
             }
 
-            // Si la orden fue convertida a compra, necesitamos revertir el inventario
+            // Si la orden fue convertida (mercancía recibida), necesitamos revertir el inventario
             if ($ordenCompra->estado === 'convertida') {
                 foreach ($ordenCompra->productos as $producto) {
                     if ($producto->pivot && isset($producto->pivot->cantidad)) {
                         $cantidadARevertir = (int) $producto->pivot->cantidad;
                         $prodModel = Producto::find($producto->id);
                         if ($prodModel) {
-                            // Decrementar el stock (revertir el incremento que se hizo al convertir)
+                            // Decrementar el stock (revertir el incremento que se hizo al recibir mercancía)
                             $prodModel->decrement('stock', $cantidadARevertir);
                             Log::info("Stock revertido para producto ID {$producto->id}: -{$cantidadARevertir}");
                         }
@@ -919,9 +932,9 @@ class OrdenCompraController extends Controller
             // Validar transiciones de estado permitidas
             $transicionesPermitidas = [
                 'borrador' => ['pendiente', 'cancelada'],
-                'pendiente' => ['enviado_a_compra', 'convertida', 'cancelada'], // Puede ir a enviado_a_compra o directamente a convertida
-                'enviado_a_compra' => ['convertida', 'cancelada'], // Puede convertirse o cancelarse
-                'convertida' => ['cancelada'], // Solo se puede cancelar una vez procesada
+                'pendiente' => ['enviado_a_compra', 'cancelada'], // Solo puede enviarse al proveedor o cancelarse
+                'enviado_a_compra' => ['convertida', 'cancelada'], // Puede recibir mercancía o cancelarse
+                'convertida' => ['cancelada'], // Solo se puede cancelar una vez procesada (revertirá inventario)
                 'cancelada' => [] // Estado final
             ];
 
@@ -951,5 +964,48 @@ class OrdenCompraController extends Controller
                 'message' => 'Error al cambiar el estado de la orden'
             ], 500);
         }
+    }
+
+    /**
+     * Calcula los totales basados en los items actuales
+     *
+     * @param \Illuminate\Support\Collection $items
+     * @param float $descuentoGeneral
+     * @return array
+     */
+    private function calcularTotalesDesdeItems($items, $descuentoGeneral = 0)
+    {
+        $subtotal = 0;
+        $descuentoItems = 0;
+
+        foreach ($items as $item) {
+            if (!isset($item['pivot'])) continue;
+
+            $cantidad = (float) ($item['pivot']['cantidad'] ?? 0);
+            $precio = (float) ($item['pivot']['precio'] ?? 0);
+            $descuento = (float) ($item['pivot']['descuento'] ?? 0);
+
+            $subtotalItem = $cantidad * $precio;
+            $descuentoItem = ($subtotalItem * $descuento) / 100;
+
+            $subtotal += $subtotalItem;
+            $descuentoItems += $descuentoItem;
+        }
+
+        // Aplicar descuento general
+        $subtotalDespuesDescuentoGeneral = $subtotal - $descuentoItems - $descuentoGeneral;
+
+        // Calcular IVA (16%)
+        $iva = $subtotalDespuesDescuentoGeneral * 0.16;
+
+        // Total final
+        $total = $subtotalDespuesDescuentoGeneral + $iva;
+
+        return [
+            'subtotal' => round($subtotal, 2),
+            'descuento_items' => round($descuentoItems, 2),
+            'iva' => round($iva, 2),
+            'total' => round($total, 2),
+        ];
     }
 }

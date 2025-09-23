@@ -60,7 +60,7 @@
               Panel
             </NavLink>
             <NavLink href="/reportes" icon="chart-bar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Reportes Largos' : null">
-              Reportes Largos
+              Reportes
             </NavLink>
           </ul>
         </div>

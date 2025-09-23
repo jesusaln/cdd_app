@@ -23,14 +23,20 @@ class CitaApiControllerTest extends TestCase
         $response->assertStatus(200)
                  ->assertJsonStructure([
                      'citas' => [
-                         '*' => [
-                             'id',
-                             'tecnico_id',
-                             'cliente_id',
-                             'tipo_servicio',
-                             'fecha_hora',
-                             'estado'
-                         ]
+                         'data' => [
+                             '*' => [
+                                 'id',
+                                 'tecnico_id',
+                                 'cliente_id',
+                                 'tipo_servicio',
+                                 'fecha_hora',
+                                 'estado'
+                             ]
+                         ],
+                         'current_page',
+                         'per_page',
+                         'last_page',
+                         'total'
                      ],
                      'meta' => [
                          'total',
