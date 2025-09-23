@@ -5,9 +5,15 @@ namespace App\Http\Controllers;
 use Inertia\Inertia;
 use App\Models\Herramienta;
 use App\Models\Tecnico;
+use App\Models\CategoriaHerramienta;
+use App\Models\AsignacionMasiva;
+use App\Models\ResponsabilidadHerramienta;
+use App\Models\HistorialHerramienta;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 class HerramientaController extends Controller
 {
@@ -19,7 +25,12 @@ class HerramientaController extends Controller
     public function index(Request $request)
     {
         // Construir query con filtros
-        $query = Herramienta::with('tecnico');
+        $query = Herramienta::with([
+            'tecnico',
+            'categoriaHerramienta',
+            'detallesAsignacionesMasivas.asignacionMasiva',
+            'estados' => function($q) { $q->latest('fecha_inspeccion'); }
+        ]);
 
         // Filtro por búsqueda
         if ($search = trim($request->input('search', ''))) {
@@ -47,20 +58,29 @@ class HerramientaController extends Controller
         $perPage = min((int) $request->input('per_page', 10), 50);
         $herramientas = $query->orderBy('created_at', 'desc')->paginate($perPage)->appends($request->query());
 
-        // Estadísticas
+        // Estadísticas mejoradas
         $totalHerramientas = Herramienta::count();
         $herramientasAsignadas = Herramienta::whereNotNull('tecnico_id')->count();
         $herramientasSinAsignar = $totalHerramientas - $herramientasAsignadas;
+        $herramientasEnAsignacionMasiva = Herramienta::whereHas('detallesAsignacionesMasivas', function($q) {
+            $q->where('estado_individual', 'asignada')
+              ->whereHas('asignacionMasiva', function($aq) {
+                  $aq->where('estado', 'activa');
+              });
+        })->count();
 
         $tecnicos = Tecnico::select('id', 'nombre', 'apellido')->get();
+        $categorias = CategoriaHerramienta::activas()->select('id', 'nombre', 'slug')->get();
 
         return Inertia::render('Herramientas/Index', [
             'herramientas' => $herramientas,
             'tecnicos' => $tecnicos,
+            'categorias' => $categorias,
             'stats' => [
                 'total' => $totalHerramientas,
                 'asignadas' => $herramientasAsignadas,
                 'sin_asignar' => $herramientasSinAsignar,
+                'en_asignacion_masiva' => $herramientasEnAsignacionMasiva,
             ],
             'filters' => $request->only(['search', 'filtro_estado']),
             'sorting' => ['sort_by' => 'created_at', 'sort_direction' => 'desc'],
@@ -76,6 +96,7 @@ class HerramientaController extends Controller
     {
         return Inertia::render('Herramientas/Create', [
             'tecnicos' => Tecnico::select('id', 'nombre', 'apellido')->orderBy('nombre')->get(),
+            'categorias' => CategoriaHerramienta::activas()->select('id', 'nombre', 'slug')->get(),
         ]);
     }
 
@@ -91,7 +112,7 @@ class HerramientaController extends Controller
             $validated = $request->validate([
                 'nombre' => 'required|string|max:255',
                 'numero_serie' => 'required|string|max:255|unique:herramientas,numero_serie',
-                'categoria' => 'required|string|in:electrica,manual,medicion,seguridad,limpieza,jardineria,construccion,electronica,otra',
+                'categoria_id' => 'required|exists:categoria_herramientas,id',
                 'foto' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
                 'tecnico_id' => 'nullable|exists:tecnicos,id',
                 'vida_util_meses' => 'nullable|integer|min:1|max:120',
@@ -126,8 +147,9 @@ class HerramientaController extends Controller
     public function edit(Herramienta $herramienta)
     {
         return Inertia::render('Herramientas/Edit', [
-            'herramienta' => $this->addFotoUrl($herramienta->load('tecnico')),
+            'herramienta' => $this->addFotoUrl($herramienta->load('tecnico', 'categoriaHerramienta')),
             'tecnicos' => Tecnico::select('id', 'nombre', 'apellido')->orderBy('nombre')->get(),
+            'categorias' => CategoriaHerramienta::activas()->select('id', 'nombre', 'slug')->get(),
         ]);
     }
 
@@ -158,7 +180,7 @@ class HerramientaController extends Controller
             $validated = $request->validate([
                 'nombre' => 'sometimes|required|string|max:255',
                 'numero_serie' => 'sometimes|required|string|max:255|unique:herramientas,numero_serie,' . $herramienta->id,
-                'categoria' => 'sometimes|required|string|in:electrica,manual,medicion,seguridad,limpieza,jardineria,construccion,electronica,otra',
+                'categoria_id' => 'sometimes|required|exists:categoria_herramientas,id',
                 'foto' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
                 'tecnico_id' => 'nullable|exists:tecnicos,id',
                 'vida_util_meses' => 'nullable|integer|min:1|max:120',
@@ -242,7 +264,7 @@ class HerramientaController extends Controller
     public function show($id)
     {
         try {
-            $herramienta = Herramienta::with('tecnico')->findOrFail($id);
+            $herramienta = Herramienta::with('tecnico', 'categoriaHerramienta')->findOrFail($id);
             return response()->json($this->addFotoUrl($herramienta));
         } catch (\Exception $e) {
             Log::error('Error al mostrar herramienta: ' . $e->getMessage());
@@ -283,11 +305,34 @@ class HerramientaController extends Controller
                     ->with('error', 'La herramienta ya está asignada a otro técnico.');
             }
 
+            // Verificar si la herramienta está en una asignación masiva
+            if ($herramienta->estaEnAsignacionMasiva()) {
+                return redirect()->back()
+                    ->with('error', 'La herramienta está en una asignación masiva activa. Use el sistema de asignaciones masivas para gestionarla.');
+            }
+
+            DB::beginTransaction();
+
             $herramienta->update([
                 'tecnico_id' => $validated['tecnico_id'],
                 'estado' => 'asignada',
                 'fecha_asignacion' => now(),
             ]);
+
+            // Crear registro en historial
+            HistorialHerramienta::create([
+                'herramienta_id' => $herramienta->id,
+                'tecnico_id' => $validated['tecnico_id'],
+                'fecha_asignacion' => now(),
+                'asignado_por' => Auth::id(),
+                'observaciones_asignacion' => $validated['observaciones'] ?? 'Asignación individual',
+                'tipo_asignacion' => 'individual'
+            ]);
+
+            // Actualizar responsabilidades del técnico
+            ResponsabilidadHerramienta::actualizarParaTecnico($validated['tecnico_id']);
+
+            DB::commit();
 
             return redirect()->route('herramientas.index')
                 ->with('success', 'Herramienta "' . $herramienta->nombre . '" asignada correctamente.');
@@ -318,11 +363,45 @@ class HerramientaController extends Controller
                     ->with('error', 'La herramienta no está asignada a ningún técnico.');
             }
 
+            // Verificar si la herramienta está en una asignación masiva
+            if ($herramienta->estaEnAsignacionMasiva()) {
+                return redirect()->back()
+                    ->with('error', 'La herramienta está en una asignación masiva activa. Use el sistema de asignaciones masivas para gestionarla.');
+            }
+
+            DB::beginTransaction();
+
+            $tecnicoAnterior = $herramienta->tecnico_id;
+
             $herramienta->update([
                 'tecnico_id' => null,
                 'estado' => 'disponible',
                 'fecha_recepcion' => now(),
             ]);
+
+            // Completar registro en historial
+            $historial = HistorialHerramienta::where('herramienta_id', $herramienta->id)
+                                           ->where('tipo_asignacion', 'individual')
+                                           ->whereNull('fecha_devolucion')
+                                           ->latest('fecha_asignacion')
+                                           ->first();
+
+            if ($historial) {
+                $historial->update([
+                    'fecha_devolucion' => now(),
+                    'recibido_por' => Auth::id(),
+                    'observaciones_devolucion' => $validated['observaciones'] ?? 'Recepción individual',
+                    'motivo_devolucion' => HistorialHerramienta::MOTIVO_DEVOLUCION_NORMAL,
+                    'duracion_dias' => $historial->fecha_asignacion->diffInDays(now())
+                ]);
+            }
+
+            // Actualizar responsabilidades del técnico
+            if ($tecnicoAnterior) {
+                ResponsabilidadHerramienta::actualizarParaTecnico($tecnicoAnterior);
+            }
+
+            DB::commit();
 
             return redirect()->route('herramientas.index')
                 ->with('success', 'Herramienta "' . $herramienta->nombre . '" recibida correctamente.');

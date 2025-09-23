@@ -30,6 +30,7 @@ onMounted(() => {
 const props = defineProps({
   herramientas: { type: [Object, Array], required: true },
   tecnicos: { type: Array, default: () => [] },
+  categorias: { type: Array, default: () => [] },
   stats: { type: Object, default: () => ({}) },
   filters: { type: Object, default: () => ({}) },
   sorting: { type: Object, default: () => ({ sort_by: 'created_at', sort_direction: 'desc' }) },
@@ -67,18 +68,14 @@ const estadosHerramientas = {
   'perdida': { label: 'Perdida', color: 'red', icon: 'exclamation-triangle' }
 }
 
-// Categorías de herramientas
-const categoriasHerramientas = {
-  'electrica': 'Eléctrica',
-  'manual': 'Manual',
-  'medicion': 'Medición',
-  'seguridad': 'Seguridad',
-  'limpieza': 'Limpieza',
-  'jardineria': 'Jardinería',
-  'construccion': 'Construcción',
-  'electronica': 'Electrónica',
-  'otra': 'Otra'
-}
+// Categorías de herramientas (dinámicas desde props)
+const categoriasHerramientas = computed(() => {
+  const categoriasMap = {}
+  props.categorias.forEach(cat => {
+    categoriasMap[cat.slug] = cat.nombre
+  })
+  return categoriasMap
+})
 
 // Datos
 const herramientasPaginator = computed(() => props.herramientas)
@@ -114,7 +111,7 @@ const estadisticas = computed(() => {
 const herramientasDocumentos = computed(() => {
   return herramientasData.value.map(h => {
     const estadoInfo = estadosHerramientas[h.estado] || estadosHerramientas['disponible']
-    const categoriaLabel = categoriasHerramientas[h.categoria] || 'Sin Categoría'
+    const categoriaLabel = h.categoriaHerramienta?.nombre || 'Sin Categoría'
 
     // Calcular indicadores de alerta
     const necesitaAtencion = h.requiere_mantenimiento ||
@@ -512,6 +509,26 @@ const obtenerLabelEstado = (estado) => {
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
                 <span class="text-sm font-medium">Asignaciones</span>
+              </Link>
+
+              <Link
+                :href="route('herramientas.asignaciones-masivas.index')"
+                class="inline-flex items-center gap-2 px-4 py-3 bg-indigo-50 text-indigo-700 rounded-xl hover:bg-indigo-100 transition-all duration-200 border border-indigo-200"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                <span class="text-sm font-medium">Asign. Masivas</span>
+              </Link>
+
+              <Link
+                :href="route('herramientas.tecnicos-herramientas.index')"
+                class="inline-flex items-center gap-2 px-4 py-3 bg-teal-50 text-teal-700 rounded-xl hover:bg-teal-100 transition-all duration-200 border border-teal-200"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                </svg>
+                <span class="text-sm font-medium">Por Técnico</span>
               </Link>
 
               <Link
@@ -937,7 +954,7 @@ const obtenerLabelEstado = (estado) => {
                     <div>
                       <label class="block text-sm font-medium text-gray-700">Categoría</label>
                       <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 mt-1">
-                        {{ selectedHerramienta.categoria || 'Sin categoría' }}
+                        {{ selectedHerramienta.categoriaHerramienta?.nombre || 'Sin categoría' }}
                       </span>
                     </div>
                     <div>
@@ -1167,7 +1184,7 @@ const obtenerLabelEstado = (estado) => {
                     </p>
                     <div class="flex items-center space-x-2 mt-2">
                       <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                        {{ herramientaAAsignar.categoria }}
+                        {{ herramientaAAsignar.categoriaHerramienta?.nombre || herramientaAAsignar.categoria }}
                       </span>
                       <span :class="herramientaAAsignar.estadoColor === 'green' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'" class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">
                         {{ herramientaAAsignar.estadoLabel }}

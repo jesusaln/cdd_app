@@ -39,6 +39,8 @@ use App\Http\Controllers\ReporteTecnicoController;
 use App\Http\Controllers\ReportesDashboardController;
 use App\Http\Controllers\AsignacionHerramientaController;
 use App\Http\Controllers\EstadoHerramientaController;
+use App\Http\Controllers\AsignacionMasivaController;
+use App\Http\Controllers\TecnicoHerramientasController;
 
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -217,6 +219,20 @@ Route::get('/reportes/productos/export', [ReporteController::class, 'exportarPro
     Route::resource('herramientas/estados', EstadoHerramientaController::class)->names('herramientas.estados');
     Route::get('herramientas/{herramienta}/estadisticas-desgaste', [EstadoHerramientaController::class, 'getEstadisticasDesgaste'])->name('herramientas.estadisticas-desgaste');
     Route::get('herramientas/estados/reporte-atencion', [EstadoHerramientaController::class, 'reporteAtencion'])->name('herramientas.estados.reporte-atencion');
+
+    // Rutas para asignaciones masivas de herramientas
+    Route::resource('herramientas/asignaciones-masivas', AsignacionMasivaController::class)->names('herramientas.asignaciones-masivas');
+    Route::post('herramientas/asignaciones-masivas/{asignacionMasiva}/autorizar', [AsignacionMasivaController::class, 'autorizar'])->name('herramientas.asignaciones-masivas.autorizar');
+    Route::post('herramientas/asignaciones-masivas/{asignacionMasiva}/completar', [AsignacionMasivaController::class, 'completar'])->name('herramientas.asignaciones-masivas.completar');
+    Route::post('herramientas/asignaciones-masivas/{asignacionMasiva}/cancelar', [AsignacionMasivaController::class, 'cancelar'])->name('herramientas.asignaciones-masivas.cancelar');
+    Route::post('herramientas/asignaciones-masivas/{asignacionMasiva}/devolver-herramienta/{herramienta}', [AsignacionMasivaController::class, 'devolverHerramienta'])->name('herramientas.asignaciones-masivas.devolver-herramienta');
+
+    // Rutas para control de herramientas por técnico
+    Route::get('herramientas/tecnicos-herramientas', [TecnicoHerramientasController::class, 'index'])->name('herramientas.tecnicos-herramientas.index');
+    Route::get('herramientas/tecnicos-herramientas/{tecnico}', [TecnicoHerramientasController::class, 'show'])->name('herramientas.tecnicos-herramientas.show');
+    Route::post('herramientas/tecnicos-herramientas/{tecnico}/actualizar-responsabilidad', [TecnicoHerramientasController::class, 'actualizarResponsabilidad'])->name('herramientas.tecnicos-herramientas.actualizar-responsabilidad');
+    Route::get('herramientas/tecnicos-herramientas/{tecnico}/reporte', [TecnicoHerramientasController::class, 'reporte'])->name('herramientas.tecnicos-herramientas.reporte');
+    Route::get('herramientas/tecnicos-herramientas/alertas', [TecnicoHerramientasController::class, 'alertas'])->name('herramientas.tecnicos-herramientas.alertas');
     Route::resource('citas', CitaController::class)->names('citas');
     Route::resource('carros', CarroController::class)->names('carros');
     Route::resource('mantenimientos', MantenimientoController::class)->names('mantenimientos');

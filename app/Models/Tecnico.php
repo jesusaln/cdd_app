@@ -41,6 +41,18 @@ class Tecnico extends Model
         return $this->hasMany(AsignacionHerramienta::class);
     }
 
+    // Relación con asignaciones masivas
+    public function asignacionesMasivas()
+    {
+        return $this->hasMany(AsignacionMasiva::class);
+    }
+
+    // Relación con responsabilidad de herramientas
+    public function responsabilidadHerramientas()
+    {
+        return $this->hasOne(ResponsabilidadHerramienta::class);
+    }
+
     // Relación con historial de herramientas
     public function historialHerramientas()
     {
@@ -65,6 +77,18 @@ class Tecnico extends Model
         return $this->historialHerramientas()->whereNotNull('fecha_devolucion');
     }
 
+    // Asignaciones masivas activas
+    public function asignacionesMasivasActivas()
+    {
+        return $this->asignacionesMasivas()->where('estado', AsignacionMasiva::ESTADO_ACTIVA);
+    }
+
+    // Asignaciones masivas pendientes
+    public function asignacionesMasivasPendientes()
+    {
+        return $this->asignacionesMasivas()->where('estado', AsignacionMasiva::ESTADO_PENDIENTE);
+    }
+
     // Relación con usuario
     public function user()
     {
@@ -81,5 +105,51 @@ class Tecnico extends Model
     public function getGananciaTotalAttribute()
     {
         return $this->ventas->sum('ganancia_total');
+    }
+
+    // Obtener resumen de herramientas del técnico
+    public function getResumenHerramientasAttribute()
+    {
+        $herramientasAsignadas = $this->herramientasAsignadas;
+        $responsabilidad = $this->responsabilidadHerramientas;
+
+        return [
+            'total_herramientas' => $herramientasAsignadas->count(),
+            'valor_total' => $herramientasAsignadas->sum('costo_reemplazo') ?? 0,
+            'herramientas_vencidas' => $herramientasAsignadas->filter(function ($h) {
+                return $h->necesitaMantenimiento() || $h->vidaUtilProximaAVencer();
+            })->count(),
+            'asignaciones_masivas_activas' => $this->asignacionesMasivasActivas->count(),
+            'dias_promedio_uso' => $responsabilidad->dias_promedio_uso ?? 0,
+            'tiene_alertas' => $responsabilidad && count($responsabilidad->alertas) > 0
+        ];
+    }
+
+    // Verificar si el técnico tiene herramientas vencidas
+    public function tieneHerramientasVencidas()
+    {
+        return $this->herramientasAsignadas->filter(function ($herramienta) {
+            return $herramienta->necesitaMantenimiento() || $herramienta->vidaUtilProximaAVencer();
+        })->count() > 0;
+    }
+
+    // Obtener valor total de herramientas asignadas
+    public function getValorTotalHerramientasAttribute()
+    {
+        return $this->herramientasAsignadas->sum('costo_reemplazo') ?? 0;
+    }
+
+    // Obtener herramientas que necesitan atención
+    public function getHerramientasQueNecesitanAtencionAttribute()
+    {
+        return $this->herramientasAsignadas->filter(function ($herramienta) {
+            return $herramienta->necesitaMantenimiento() || $herramienta->vidaUtilProximaAVencer();
+        });
+    }
+
+    // Actualizar responsabilidades automáticamente
+    public function actualizarResponsabilidades()
+    {
+        return ResponsabilidadHerramienta::actualizarParaTecnico($this->id);
     }
 }

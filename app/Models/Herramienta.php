@@ -19,6 +19,7 @@ class Herramienta extends Model
         'fecha_ultimo_mantenimiento',
         'costo_reemplazo',
         'categoria',
+        'categoria_id',
         'descripcion',
         'requiere_mantenimiento',
         'dias_para_mantenimiento',
@@ -62,9 +63,26 @@ class Herramienta extends Model
         return $this->belongsTo(Tecnico::class, 'tecnico_id');
     }
 
+    public function categoriaHerramienta()
+    {
+        return $this->belongsTo(CategoriaHerramienta::class, 'categoria_id');
+    }
+
     public function asignaciones()
     {
         return $this->hasMany(AsignacionHerramienta::class);
+    }
+
+    public function detallesAsignacionesMasivas()
+    {
+        return $this->hasMany(DetalleAsignacionMasiva::class);
+    }
+
+    public function asignacionesMasivas()
+    {
+        return $this->belongsToMany(AsignacionMasiva::class, 'detalle_asignaciones_masivas', 'herramienta_id', 'asignacion_masiva_id')
+                    ->withPivot(['estado_individual', 'fecha_asignacion_individual', 'fecha_devolucion_individual'])
+                    ->withTimestamps();
     }
 
     public function estados()
@@ -150,6 +168,12 @@ class Herramienta extends Model
 
     public function getCategoriaLabelAttribute()
     {
+        // Primero intenta usar la relación con CategoriaHerramienta
+        if ($this->categoriaHerramienta) {
+            return $this->categoriaHerramienta->nombre;
+        }
+
+        // Si no hay relación, usa el campo categoria legacy
         return self::CATEGORIAS[$this->categoria] ?? 'Sin Categoría';
     }
 
@@ -161,6 +185,23 @@ class Herramienta extends Model
     public function getAsignacionActivaAttribute()
     {
         return $this->asignaciones()->where('activo', true)->latest('fecha_asignacion')->first();
+    }
+
+    public function getAsignacionMasivaActivaAttribute()
+    {
+        return $this->detallesAsignacionesMasivas()
+                    ->with('asignacionMasiva')
+                    ->where('estado_individual', DetalleAsignacionMasiva::ESTADO_ASIGNADA)
+                    ->whereHas('asignacionMasiva', function ($query) {
+                        $query->where('estado', AsignacionMasiva::ESTADO_ACTIVA);
+                    })
+                    ->latest('fecha_asignacion_individual')
+                    ->first();
+    }
+
+    public function getEstaEnAsignacionMasivaAttribute()
+    {
+        return $this->asignacion_masiva_activa !== null;
     }
 
     public function getDiasDesdeUltimoMantenimientoAttribute()
@@ -222,5 +263,86 @@ class Herramienta extends Model
             'devoluciones_por_danio' => $historial->where('motivo_devolucion', HistorialHerramienta::MOTIVO_DEVOLUCION_DANIO)->count(),
             'devoluciones_por_perdida' => $historial->where('motivo_devolucion', HistorialHerramienta::MOTIVO_DEVOLUCION_PERDIDA)->count(),
         ];
+    }
+
+    // Verificar si está en una asignación masiva activa
+    public function estaEnAsignacionMasiva()
+    {
+        return $this->esta_en_asignacion_masiva;
+    }
+
+    // Obtener información completa de asignación (individual o masiva)
+    public function getInfoAsignacionCompletaAttribute()
+    {
+        if ($this->estaEnAsignacionMasiva()) {
+            $detalle = $this->asignacion_masiva_activa;
+            return [
+                'tipo' => 'masiva',
+                'codigo' => $detalle->asignacionMasiva->codigo_asignacion,
+                'tecnico' => $detalle->asignacionMasiva->tecnico,
+                'fecha_asignacion' => $detalle->fecha_asignacion_individual,
+                'proyecto' => $detalle->asignacionMasiva->proyecto_trabajo,
+                'observaciones' => $detalle->observaciones_asignacion,
+                'asignacion_id' => $detalle->asignacion_masiva_id
+            ];
+        } elseif ($this->asignacion_activa) {
+            return [
+                'tipo' => 'individual',
+                'codigo' => 'IND-' . $this->asignacion_activa->id,
+                'tecnico' => $this->tecnico,
+                'fecha_asignacion' => $this->asignacion_activa->fecha_asignacion,
+                'proyecto' => null,
+                'observaciones' => $this->asignacion_activa->observaciones_entrega,
+                'asignacion_id' => $this->asignacion_activa->id
+            ];
+        }
+
+        return null;
+    }
+
+    // Liberar herramienta de cualquier tipo de asignación
+    public function liberar($observaciones = null, $motivo = 'normal')
+    {
+        if ($this->estaEnAsignacionMasiva()) {
+            $detalle = $this->asignacion_masiva_activa;
+
+            switch ($motivo) {
+                case 'perdida':
+                    $detalle->marcarComoPerdida($observaciones);
+                    break;
+                case 'dañada':
+                    $detalle->marcarComoDañada($observaciones);
+                    break;
+                default:
+                    $detalle->marcarComoDevuelta($observaciones);
+            }
+        } else {
+            // Lógica para asignación individual existente
+            $this->update([
+                'estado' => self::ESTADO_DISPONIBLE,
+                'tecnico_id' => null,
+                'fecha_recepcion' => now()
+            ]);
+        }
+
+        return true;
+    }
+
+    // Obtener historial completo (individual y masivo)
+    public function getHistorialCompletoAttribute()
+    {
+        $historialIndividual = $this->historial()
+                                   ->where('tipo_asignacion', 'individual')
+                                   ->with(['tecnico', 'asignadoPor', 'recibidoPor'])
+                                   ->get();
+
+        $historialMasivo = $this->historial()
+                               ->where('tipo_asignacion', 'masiva')
+                               ->with(['tecnico', 'asignadoPor', 'recibidoPor', 'asignacionMasiva'])
+                               ->get();
+
+        return $historialIndividual->merge($historialMasivo)
+                                  ->sortByDesc('fecha_asignacion')
+                                  ->values();
     }
 }

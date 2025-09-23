@@ -158,29 +158,23 @@
 
                 <!-- Categoría -->
                 <div class="mb-6">
-                  <label for="categoria" class="block text-sm font-medium text-gray-700 mb-2">
+                  <label for="categoria_id" class="block text-sm font-medium text-gray-700 mb-2">
                     Categoría
                     <span class="text-red-500">*</span>
                   </label>
                   <div class="relative">
                     <select
-                      v-model="form.categoria"
-                      id="categoria"
+                      v-model="form.categoria_id"
+                      id="categoria_id"
                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white"
-                      :class="{ 'border-red-500 focus:ring-red-500': form.errors.categoria }"
-                      @change="validateField('categoria')"
+                      :class="{ 'border-red-500 focus:ring-red-500': form.errors.categoria_id }"
+                      @change="validateField('categoria_id')"
                       required
                     >
                       <option value="">Seleccionar categoría...</option>
-                      <option value="electrica">Eléctrica</option>
-                      <option value="manual">Manual</option>
-                      <option value="medicion">Medición</option>
-                      <option value="seguridad">Seguridad</option>
-                      <option value="limpieza">Limpieza</option>
-                      <option value="jardineria">Jardinería</option>
-                      <option value="construccion">Construcción</option>
-                      <option value="electronica">Electrónica</option>
-                      <option value="otra">Otra</option>
+                      <option v-for="categoria in props.categorias" :key="categoria.id" :value="categoria.id">
+                        {{ categoria.nombre }}
+                      </option>
                     </select>
                     <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                       <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -188,11 +182,11 @@
                       </svg>
                     </div>
                   </div>
-                  <p v-if="form.errors.categoria" class="mt-2 text-sm text-red-600 flex items-center">
+                  <p v-if="form.errors.categoria_id" class="mt-2 text-sm text-red-600 flex items-center">
                     <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                       <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
                     </svg>
-                    {{ form.errors.categoria }}
+                    {{ form.errors.categoria_id }}
                   </p>
                   <p class="mt-1 text-sm text-gray-500">Clasifica la herramienta por su tipo de uso</p>
                 </div>
@@ -555,6 +549,10 @@ const props = defineProps({
         type: Array,
         required: true
     },
+    categorias: {
+        type: Array,
+        required: true
+    },
 });
 
 // Estados reactivos
@@ -569,7 +567,7 @@ const form = useForm({
     _method: 'PUT', // Especificar el método para la actualización
     nombre: props.herramienta?.nombre || '',
     numero_serie: props.herramienta?.numero_serie || '',
-    categoria: props.herramienta?.categoria || '',
+    categoria_id: props.herramienta?.categoria_id || '',
     tecnico_id: props.herramienta?.tecnico_id || '',
     vida_util_meses: props.herramienta?.vida_util_meses || '',
     costo_reemplazo: props.herramienta?.costo_reemplazo || '',
@@ -595,11 +593,11 @@ const isFormValid = computed(() => {
 // Propiedad computada para la barra de progreso
 const completionPercentage = computed(() => {
     let completed = 0;
-    const total = 8; // nombre, numero_serie, categoria, foto, tecnico_id, vida_util, costo_reemplazo, descripcion
+    const total = 8; // nombre, numero_serie, categoria_id, foto, tecnico_id, vida_util, costo_reemplazo, descripcion
 
     if (form.nombre.trim()) completed++;
     if (form.numero_serie.trim()) completed++;
-    if (form.categoria) completed++;
+    if (form.categoria_id) completed++;
     // Cuenta si hay una imagen nueva O si existe una actual y no se va a eliminar
     if (form.foto || (currentImage.value && !form.remove_foto)) completed++;
     if (form.tecnico_id) completed++;
@@ -629,7 +627,7 @@ const submit = () => {
             // Mantener los valores originales de los otros campos
             form.nombre = props.herramienta?.nombre || '';
             form.numero_serie = props.herramienta?.numero_serie || '';
-            form.categoria = props.herramienta?.categoria || '';
+            form.categoria_id = props.herramienta?.categoria_id || '';
             form.tecnico_id = props.herramienta?.tecnico_id || '';
             form.vida_util_meses = props.herramienta?.vida_util_meses || '';
             form.costo_reemplazo = props.herramienta?.costo_reemplazo || '';
@@ -741,7 +739,7 @@ watch(() => props.herramienta.foto_url, (newUrl) => {
 // Watchers para validación en tiempo real
 watch(() => form.nombre, () => validateField('nombre'));
 watch(() => form.numero_serie, () => validateField('numero_serie'));
-watch(() => form.categoria, () => validateField('categoria'));
+watch(() => form.categoria_id, () => validateField('categoria_id'));
 watch(() => form.tecnico_id, () => validateField('tecnico_id'));
 watch(() => form.vida_util_meses, () => validateField('vida_util_meses'));
 watch(() => form.costo_reemplazo, () => validateField('costo_reemplazo'));
