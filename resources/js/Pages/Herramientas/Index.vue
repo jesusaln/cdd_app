@@ -1,6 +1,6 @@
-<!-- /resources/js/Pages/Herramientas/IndexNew.vue -->
+<!-- /resources/js/Pages/Herramientas/Index.vue - Versión Mejorada -->
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { Head, router, usePage, Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { Notyf } from 'notyf'
@@ -8,14 +8,15 @@ import 'notyf/notyf.min.css'
 
 defineOptions({ layout: AppLayout })
 
-// Notificaciones
+// Notificaciones mejoradas
 const notyf = new Notyf({
   duration: 4000,
   position: { x: 'right', y: 'top' },
   types: [
     { type: 'success', background: '#10b981', icon: false },
     { type: 'error', background: '#ef4444', icon: false },
-    { type: 'warning', background: '#f59e0b', icon: false }
+    { type: 'warning', background: '#f59e0b', icon: false },
+    { type: 'info', background: '#3b82f6', icon: false }
   ]
 })
 
@@ -36,21 +37,29 @@ const props = defineProps({
   sorting: { type: Object, default: () => ({ sort_by: 'created_at', sort_direction: 'desc' }) },
 })
 
-// Estado UI
+// Estado UI mejorado
 const showModal = ref(false)
 const modalMode = ref('details')
 const selectedHerramienta = ref(null)
 const selectedId = ref(null)
 const showImageModal = ref(false)
 const selectedImage = ref('')
+const viewMode = ref('table') // 'table' o 'cards'
+const showFilters = ref(false)
+const isLoading = ref(false)
 
-// Filtros
+// Filtros avanzados
 const searchTerm = ref(props.filters?.search ?? '')
 const sortBy = ref('created_at-desc')
 const filtroEstado = ref('')
+const filtroCategoria = ref('')
+const filtroTecnico = ref('')
+const filtroCondicion = ref('')
+const fechaDesde = ref('')
+const fechaHasta = ref('')
 
-// Paginación
-const perPage = ref(10)
+// Paginación mejorada
+const perPage = ref(50)
 
 // Header config
 const headerConfig = {
@@ -113,13 +122,10 @@ const herramientasDocumentos = computed(() => {
     const estadoInfo = estadosHerramientas[h.estado] || estadosHerramientas['disponible']
     const categoriaLabel = h.categoriaHerramienta?.nombre || 'Sin Categoría'
 
-    // Calcular indicadores de alerta
-    const necesitaAtencion = h.requiere_mantenimiento ||
-                            (h.ultimo_estado && h.ultimo_estado.porcentaje_desgaste > 70) ||
-                            (h.estado === 'mantenimiento')
-
-    const diasParaMantenimiento = h.dias_para_proximo_mantenimiento
-    const alertaMantenimiento = diasParaMantenimiento !== null && diasParaMantenimiento <= 7
+    // Calcular indicadores de alerta (simplificado)
+    const necesitaAtencion = h.requiere_mantenimiento || (h.estado === 'mantenimiento')
+    const diasParaMantenimiento = h.dias_para_mantenimiento || null
+    const alertaMantenimiento = false // Temporalmente deshabilitado
 
     return {
       id: h.id,
@@ -134,50 +140,107 @@ const herramientasDocumentos = computed(() => {
       necesitaAtencion,
       alertaMantenimiento,
       diasParaMantenimiento,
-      porcentajeDesgaste: h.ultimo_estado?.porcentaje_desgaste || 0,
-      prioridadMantenimiento: h.ultimo_estado?.prioridad_mantenimiento || 'baja',
-      vidaUtilRestante: h.porcentaje_vida_util ? (100 - h.porcentaje_vida_util) : null,
+      porcentajeDesgaste: 0, // Temporalmente simplificado
+      prioridadMantenimiento: 'baja', // Temporalmente simplificado
+      vidaUtilRestante: null, // Temporalmente simplificado
       raw: h
     }
   })
 })
 
-// Handlers
+// Handlers mejorados con debounce
+let searchTimeout = null
+
 function handleSearchChange(newSearch) {
   searchTerm.value = newSearch
-  router.get(route('herramientas.index'), {
-    search: newSearch,
-    sort_by: sortBy.value.split('-')[0],
-    sort_direction: sortBy.value.split('-')[1] || 'desc',
-    filtro_estado: filtroEstado.value,
-    per_page: perPage.value,
-    page: 1
-  }, { preserveState: true, preserveScroll: true })
+  clearTimeout(searchTimeout)
+  searchTimeout = setTimeout(() => {
+    applyFilters()
+  }, 300)
 }
 
 function handleEstadoChange(newEstado) {
   filtroEstado.value = newEstado
-  router.get(route('herramientas.index'), {
-    search: searchTerm.value,
-    sort_by: sortBy.value.split('-')[0],
-    sort_direction: sortBy.value.split('-')[1] || 'desc',
-    filtro_estado: newEstado,
-    per_page: perPage.value,
-    page: 1
-  }, { preserveState: true, preserveScroll: true })
+  applyFilters()
 }
 
 function handleSortChange(newSort) {
   sortBy.value = newSort
-  router.get(route('herramientas.index'), {
+  applyFilters()
+}
+
+function handleCategoriaChange(newCategoria) {
+  filtroCategoria.value = newCategoria
+  applyFilters()
+}
+
+function handleTecnicoChange(newTecnico) {
+  filtroTecnico.value = newTecnico
+  applyFilters()
+}
+
+function handleCondicionChange(newCondicion) {
+  filtroCondicion.value = newCondicion
+  applyFilters()
+}
+
+// Función centralizada para aplicar filtros
+function applyFilters() {
+  isLoading.value = true
+  const params = {
     search: searchTerm.value,
-    sort_by: newSort.split('-')[0],
-    sort_direction: newSort.split('-')[1] || 'desc',
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc',
     filtro_estado: filtroEstado.value,
+    filtro_categoria: filtroCategoria.value,
+    filtro_tecnico: filtroTecnico.value,
+    filtro_condicion: filtroCondicion.value,
+    fecha_desde: fechaDesde.value,
+    fecha_hasta: fechaHasta.value,
     per_page: perPage.value,
     page: 1
-  }, { preserveState: true, preserveScroll: true })
+  }
+
+  // Remover parámetros vacíos
+  Object.keys(params).forEach(key => {
+    if (!params[key]) delete params[key]
+  })
+
+  router.get(route('herramientas.index'), params, {
+    preserveState: true,
+    preserveScroll: true,
+    onFinish: () => {
+      isLoading.value = false
+    }
+  })
 }
+
+// Limpiar filtros
+function clearFilters() {
+  searchTerm.value = ''
+  filtroEstado.value = ''
+  filtroCategoria.value = ''
+  filtroTecnico.value = ''
+  filtroCondicion.value = ''
+  fechaDesde.value = ''
+  fechaHasta.value = ''
+  sortBy.value = 'created_at-desc'
+  applyFilters()
+}
+
+// Cambiar modo de vista
+function toggleViewMode() {
+  viewMode.value = viewMode.value === 'table' ? 'cards' : 'table'
+  localStorage.setItem('herramientas_view_mode', viewMode.value)
+}
+
+// Cargar preferencias del usuario
+onMounted(() => {
+  const savedViewMode = localStorage.getItem('herramientas_view_mode')
+  if (savedViewMode) {
+    viewMode.value = savedViewMode
+  }
+})
 
 const verDetalles = (doc) => {
   selectedHerramienta.value = doc.raw
@@ -322,7 +385,8 @@ const recibirHerramienta = (herramienta) => {
 }
 
 const verAsignaciones = (herramienta) => {
-  router.visit(route('herramientas.asignaciones.index', { search: herramienta.numero_serie }))
+  // Temporalmente deshabilitado - redirigir a asignaciones generales
+  router.visit(route('herramientas.asignaciones.index'))
 }
 
 // Funciones para estados
@@ -336,8 +400,8 @@ const verEstados = (herramienta) => {
 
 // Funciones para historial
 const verHistorial = (herramienta) => {
-  // Por ahora redirigir a asignaciones que incluyen el historial
-  router.visit(route('herramientas.asignaciones.index', { search: herramienta.numero_serie }))
+  // Temporalmente deshabilitado - redirigir a asignaciones generales
+  router.visit(route('herramientas.asignaciones.index'))
 }
 
 // Funciones para modal
@@ -374,11 +438,13 @@ const inspeccionarHerramientaModal = (herramienta) => {
 }
 
 const verHistorialModal = (herramienta) => {
-  router.visit(route('herramientas.asignaciones.index', { search: herramienta.numero_serie }))
+  // Temporalmente deshabilitado - redirigir a asignaciones generales
+  router.visit(route('herramientas.asignaciones.index'))
   showModal.value = false
 }
 
-const handleTecnicoChange = (event) => {
+// Función para manejar cambio de técnico en el modal de asignación
+const handleTecnicoChangeModal = (event) => {
   tecnicoSeleccionado.value = event.target.value
 }
 
@@ -481,90 +547,147 @@ const obtenerLabelEstado = (estado) => {
   <Head title="Herramientas" />
   <div class="herramientas-index min-h-screen bg-gray-50">
     <div class="max-w-8xl mx-auto px-6 py-8">
-      <!-- Header -->
-      <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-8 mb-6">
-        <div class="flex flex-col lg:flex-row gap-8 items-start lg:items-center justify-between">
-          <!-- Izquierda -->
-          <div class="flex flex-col gap-6 w-full lg:w-auto">
-            <div class="flex items-center gap-3">
-              <h1 class="text-2xl font-bold text-slate-900">Herramientas</h1>
+      <!-- Header Mejorado -->
+      <div class="bg-white border border-slate-200 rounded-xl shadow-sm mb-6">
+        <!-- Título y acciones principales -->
+        <div class="p-6 border-b border-gray-100">
+          <div class="flex flex-col lg:flex-row gap-6 items-start lg:items-center justify-between">
+            <!-- Izquierda: Título y botón principal -->
+            <div class="flex items-center gap-4">
+              <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                </svg>
+              </div>
+              <div>
+                <h1 class="text-2xl font-bold text-slate-900">Gestión de Herramientas</h1>
+                <p class="text-sm text-slate-600 mt-1">Administra y controla el inventario de herramientas</p>
+              </div>
             </div>
 
-            <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <!-- Derecha: Controles de vista y acciones -->
+            <div class="flex items-center gap-3">
+              <!-- Toggle de vista -->
+              <div class="flex items-center bg-gray-100 rounded-lg p-1">
+                <button
+                  @click="viewMode = 'table'"
+                  :class="viewMode === 'table' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'"
+                  class="px-3 py-2 rounded-md text-sm font-medium transition-all duration-200"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 6h18m-9 8h9" />
+                  </svg>
+                </button>
+                <button
+                  @click="viewMode = 'cards'"
+                  :class="viewMode === 'cards' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'"
+                  class="px-3 py-2 rounded-md text-sm font-medium transition-all duration-200"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                  </svg>
+                </button>
+              </div>
+
+              <!-- Botón de filtros -->
+              <button
+                @click="showFilters = !showFilters"
+                :class="showFilters ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-gray-50 text-gray-700 border-gray-200'"
+                class="inline-flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition-all duration-200"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.414A1 1 0 013 6.707V4z" />
+                </svg>
+                <span class="text-sm font-medium">Filtros</span>
+                <span v-if="showFilters" class="w-2 h-2 bg-blue-500 rounded-full"></span>
+              </button>
+
+              <!-- Botón principal -->
               <Link
                 :href="route('herramientas.create')"
-                class="inline-flex items-center gap-2.5 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg"
+                class="inline-flex items-center gap-2.5 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl"
               >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                 </svg>
-                <span>{{ headerConfig.createButtonText }}</span>
+                <span>Nueva Herramienta</span>
               </Link>
-
-              <Link
-                :href="route('herramientas.asignaciones.index')"
-                class="inline-flex items-center gap-2 px-4 py-3 bg-purple-50 text-purple-700 rounded-xl hover:bg-purple-100 transition-all duration-200 border border-purple-200"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                <span class="text-sm font-medium">Asignaciones</span>
-              </Link>
-
-              <Link
-                :href="route('herramientas.asignaciones-masivas.index')"
-                class="inline-flex items-center gap-2 px-4 py-3 bg-indigo-50 text-indigo-700 rounded-xl hover:bg-indigo-100 transition-all duration-200 border border-indigo-200"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-                <span class="text-sm font-medium">Asign. Masivas</span>
-              </Link>
-
-              <Link
-                :href="route('herramientas.tecnicos-herramientas.index')"
-                class="inline-flex items-center gap-2 px-4 py-3 bg-teal-50 text-teal-700 rounded-xl hover:bg-teal-100 transition-all duration-200 border border-teal-200"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                </svg>
-                <span class="text-sm font-medium">Por Técnico</span>
-              </Link>
-
-              <Link
-                :href="route('herramientas.estados.index')"
-                class="inline-flex items-center gap-2 px-4 py-3 bg-yellow-50 text-yellow-700 rounded-xl hover:bg-yellow-100 transition-all duration-200 border border-yellow-200"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <span class="text-sm font-medium">Estados</span>
-              </Link>
-
-              <Link
-                :href="route('herramientas.estados.reporte-atencion')"
-                class="inline-flex items-center gap-2 px-4 py-3 bg-red-50 text-red-700 rounded-xl hover:bg-red-100 transition-all duration-200 border border-red-200"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-                <span class="text-sm font-medium">Alertas</span>
-              </Link>
-
-              <button
-                @click="exportHerramientas"
-                class="inline-flex items-center gap-2 px-4 py-3 bg-green-50 text-green-700 rounded-xl hover:bg-green-100 transition-all duration-200 border border-green-200"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                </svg>
-                <span class="text-sm font-medium">Exportar</span>
-              </button>
             </div>
+          </div>
+        </div>
 
-            <!-- Estadísticas con barras de progreso -->
-            <div class="flex flex-wrap items-center gap-4 text-sm">
+        <!-- Navegación rápida -->
+        <div class="px-6 py-4 bg-gray-50 border-b border-gray-100">
+          <div class="flex flex-wrap gap-2">
+            <!-- Enlaces comentados temporalmente para evitar errores 404 -->
+            <!--
+            <Link
+              :href="route('herramientas.asignaciones.index')"
+              class="inline-flex items-center gap-2 px-3 py-2 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-all duration-200 border border-purple-200 text-sm"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              <span>Asignaciones</span>
+            </Link>
+
+            <Link
+              :href="route('herramientas.asignaciones-masivas.index')"
+              class="inline-flex items-center gap-2 px-3 py-2 bg-white text-indigo-700 rounded-lg hover:bg-indigo-50 transition-all duration-200 border border-indigo-200 text-sm"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              <span>Asign. Masivas</span>
+            </Link>
+
+            <Link
+              :href="route('herramientas.tecnicos-herramientas.index')"
+              class="inline-flex items-center gap-2 px-3 py-2 bg-white text-teal-700 rounded-lg hover:bg-teal-50 transition-all duration-200 border border-teal-200 text-sm"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+              </svg>
+              <span>Por Técnico</span>
+            </Link>
+
+            <Link
+              :href="route('herramientas.estados.index')"
+              class="inline-flex items-center gap-2 px-3 py-2 bg-white text-yellow-700 rounded-lg hover:bg-yellow-50 transition-all duration-200 border border-yellow-200 text-sm"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span>Estados</span>
+            </Link>
+
+            <Link
+              :href="route('herramientas.estados.reporte-atencion')"
+              class="inline-flex items-center gap-2 px-3 py-2 bg-white text-red-700 rounded-lg hover:bg-red-50 transition-all duration-200 border border-red-200 text-sm"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              <span>Alertas</span>
+            </Link>
+            -->
+
+            <button
+              @click="exportHerramientas"
+              class="inline-flex items-center gap-2 px-3 py-2 bg-white text-green-700 rounded-lg hover:bg-green-50 transition-all duration-200 border border-green-200 text-sm"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+              </svg>
+              <span>Exportar</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Estadísticas con barras de progreso -->
+        <div class="px-6 py-4">
+          <div class="flex flex-wrap items-center gap-4 text-sm">
               <div class="flex items-center gap-2 px-4 py-3 bg-slate-50 rounded-xl border border-slate-200">
                 <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -659,47 +782,51 @@ const obtenerLabelEstado = (estado) => {
                   <span class="text-xs text-orange-600 font-medium">{{ estadisticas.enMantenimientoPorcentaje }}%</span>
                 </div>
               </div>
-            </div>
           </div>
+        </div>
 
-          <!-- Derecha: Filtros -->
-          <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto lg:flex-shrink-0">
+        <!-- Filtros principales -->
+        <div class="px-6 py-4 border-b border-gray-100">
+          <div class="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
             <!-- Búsqueda -->
-            <div class="relative">
+            <div class="relative flex-1 max-w-md">
               <input
                 v-model="searchTerm"
                 @input="handleSearchChange($event.target.value)"
                 type="text"
                 :placeholder="headerConfig.searchPlaceholder"
-                class="w-full sm:w-64 lg:w-80 pl-4 pr-10 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+                class="w-full pl-4 pr-10 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
               />
               <svg class="absolute right-3 top-3.5 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
 
-            <!-- Estado -->
-            <select
-              v-model="filtroEstado"
-              @change="handleEstadoChange($event.target.value)"
-              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-            >
-              <option value="">Todos los Estados</option>
-              <option value="asignada">Asignadas</option>
-              <option value="sin_asignar">Sin Asignar</option>
-            </select>
+            <!-- Filtros -->
+            <div class="flex flex-wrap gap-3">
+              <!-- Estado -->
+              <select
+                v-model="filtroEstado"
+                @change="handleEstadoChange($event.target.value)"
+                class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+              >
+                <option value="">Todos los Estados</option>
+                <option value="asignada">Asignadas</option>
+                <option value="sin_asignar">Sin Asignar</option>
+              </select>
 
-            <!-- Orden -->
-            <select
-              v-model="sortBy"
-              @change="handleSortChange($event.target.value)"
-              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-            >
-              <option value="created_at-desc">Más Recientes</option>
-              <option value="created_at-asc">Más Antiguos</option>
-              <option value="nombre-asc">Nombre A-Z</option>
-              <option value="nombre-desc">Nombre Z-A</option>
-            </select>
+              <!-- Orden -->
+              <select
+                v-model="sortBy"
+                @change="handleSortChange($event.target.value)"
+                class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+              >
+                <option value="created_at-desc">Más Recientes</option>
+                <option value="created_at-asc">Más Antiguos</option>
+                <option value="nombre-asc">Nombre A-Z</option>
+                <option value="nombre-desc">Nombre Z-A</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
@@ -869,9 +996,9 @@ const obtenerLabelEstado = (estado) => {
                 class="border border-gray-300 rounded-md text-sm py-1 px-2 bg-white"
               >
                 <option value="10">10</option>
-                <option value="15">15</option>
                 <option value="25">25</option>
                 <option value="50">50</option>
+                <option value="100">100</option>
               </select>
             </div>
 
@@ -1207,7 +1334,7 @@ const obtenerLabelEstado = (estado) => {
                 <div class="relative">
                   <select
                     id="tecnico-select"
-                    @change="handleTecnicoChange"
+                    @change="handleTecnicoChangeModal"
                     class="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900"
                   >
                     <option value="">Selecciona un técnico...</option>

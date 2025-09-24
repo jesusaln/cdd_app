@@ -193,9 +193,84 @@
             <NavLink href="/tecnicos" icon="user-cog" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Técnicos' : null">
               Técnicos
             </NavLink>
-            <NavLink href="/herramientas" icon="toolbox" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Herramientas' : null">
-              Herramientas
-            </NavLink>
+
+            <!-- Herramientas - Menú expandido -->
+            <div class="space-y-1">
+              <NavLink href="/herramientas" icon="toolbox" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Herramientas' : null">
+                Herramientas
+              </NavLink>
+
+              <!-- Submenu de herramientas (solo visible cuando no está colapsado) -->
+              <div v-show="!props.isSidebarCollapsed" class="ml-4 space-y-1">
+                <!-- Enlaces comentados temporalmente para evitar errores 404 -->
+                <!--
+                <NavLink
+                  href="/herramientas/asignaciones-masivas"
+                  icon="users"
+                  :collapsed="false"
+                  class="text-sm"
+                  :title="null"
+                >
+                  <span class="text-gray-300">Asignaciones Masivas</span>
+                </NavLink>
+
+                <NavLink
+                  href="/herramientas/tecnicos-herramientas"
+                  icon="clipboard-list"
+                  :collapsed="false"
+                  class="text-sm"
+                  :title="null"
+                >
+                  <span class="text-gray-300">Control por Técnico</span>
+                </NavLink>
+
+                <NavLink
+                  href="/herramientas/asignaciones"
+                  icon="exchange-alt"
+                  :collapsed="false"
+                  class="text-sm"
+                  :title="null"
+                >
+                  <span class="text-gray-300">Asignaciones</span>
+                </NavLink>
+
+                <NavLink
+                  href="/herramientas/estados"
+                  icon="clipboard-list"
+                  :collapsed="false"
+                  class="text-sm"
+                  :title="null"
+                >
+                  <span class="text-gray-300">Estados</span>
+                </NavLink>
+                -->
+                <div class="text-xs text-gray-500 px-3 py-2">
+                  Funcionalidades disponibles próximamente
+                </div>
+              </div>
+
+              <!-- Enlaces rápidos cuando está colapsado -->
+              <div v-show="props.isSidebarCollapsed" class="space-y-1">
+                <!-- Enlaces comentados temporalmente para evitar errores 404 -->
+                <!--
+                <NavLink
+                  href="/herramientas/asignaciones-masivas"
+                  icon="users"
+                  :collapsed="true"
+                  :title="'Asignaciones Masivas'"
+                >
+                </NavLink>
+
+                <NavLink
+                  href="/herramientas/tecnicos-herramientas"
+                  icon="clipboard-list"
+                  :collapsed="true"
+                  :title="'Control por Técnico'"
+                >
+                </NavLink>
+                -->
+              </div>
+            </div>
           </ul>
         </div>
 

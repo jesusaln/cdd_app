@@ -27,9 +27,7 @@ class HerramientaController extends Controller
         // Construir query con filtros
         $query = Herramienta::with([
             'tecnico',
-            'categoriaHerramienta',
-            'detallesAsignacionesMasivas.asignacionMasiva',
-            'estados' => function($q) { $q->latest('fecha_inspeccion'); }
+            'categoriaHerramienta'
         ]);
 
         // Filtro por búsqueda
@@ -55,19 +53,14 @@ class HerramientaController extends Controller
         }
 
         // Paginación del lado del servidor
-        $perPage = min((int) $request->input('per_page', 10), 50);
+        $perPage = min((int) $request->input('per_page', 50), 100);
         $herramientas = $query->orderBy('created_at', 'desc')->paginate($perPage)->appends($request->query());
 
         // Estadísticas mejoradas
         $totalHerramientas = Herramienta::count();
         $herramientasAsignadas = Herramienta::whereNotNull('tecnico_id')->count();
         $herramientasSinAsignar = $totalHerramientas - $herramientasAsignadas;
-        $herramientasEnAsignacionMasiva = Herramienta::whereHas('detallesAsignacionesMasivas', function($q) {
-            $q->where('estado_individual', 'asignada')
-              ->whereHas('asignacionMasiva', function($aq) {
-                  $aq->where('estado', 'activa');
-              });
-        })->count();
+        $herramientasEnAsignacionMasiva = 0; // Temporalmente simplificado
 
         $tecnicos = Tecnico::select('id', 'nombre', 'apellido')->get();
         $categorias = CategoriaHerramienta::activas()->select('id', 'nombre', 'slug')->get();
@@ -80,7 +73,6 @@ class HerramientaController extends Controller
                 'total' => $totalHerramientas,
                 'asignadas' => $herramientasAsignadas,
                 'sin_asignar' => $herramientasSinAsignar,
-                'en_asignacion_masiva' => $herramientasEnAsignacionMasiva,
             ],
             'filters' => $request->only(['search', 'filtro_estado']),
             'sorting' => ['sort_by' => 'created_at', 'sort_direction' => 'desc'],
