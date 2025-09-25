@@ -322,7 +322,7 @@
                   </button>
 
                   <button
-                    v-if="config.acciones.editar && doc.estado !== 'cancelado'"
+                    v-if="config.acciones.editar && (doc.estado === 'borrador' || doc.estado === 'pendiente')"
                     @click="onEditar(doc.id)"
                     class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 hover:text-amber-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-1"
                     title="Editar"
@@ -392,9 +392,9 @@
                   </button>
 
 
-                  <!-- Cancelar Orden (solo órdenes de compra no canceladas) -->
+                  <!-- Cancelar Orden (solo órdenes de compra no canceladas y no procesadas) -->
                   <button
-                    v-if="tipo === 'ordenescompra' && ['pendiente', 'enviado_a_proveedor', 'convertida'].includes(doc.estado)"
+                    v-if="tipo === 'ordenescompra' && ['pendiente', 'enviado_a_proveedor'].includes(doc.estado)"
                     @click="onCancelarOrden(doc)"
                     class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-orange-50 text-orange-600 hover:bg-orange-100 hover:text-orange-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:ring-offset-1"
                     title="Cancelar Orden"
@@ -588,6 +588,7 @@ const config = computed(() => {
         'borrador': { label: 'Borrador', classes: 'bg-gray-100 text-gray-700', color: 'bg-gray-400' },
         'pendiente': { label: 'Pendiente', classes: 'bg-yellow-100 text-yellow-700', color: 'bg-yellow-400' },
         'confirmado': { label: 'Confirmado', classes: 'bg-blue-100 text-blue-700', color: 'bg-blue-400' },
+        'procesada': { label: 'Procesada', classes: 'bg-blue-100 text-blue-700', color: 'bg-blue-400' },
         'en_preparacion': { label: 'En Preparación', classes: 'bg-orange-100 text-orange-700', color: 'bg-orange-400' },
         'listo_entrega': { label: 'Listo para Entrega', classes: 'bg-purple-100 text-purple-700', color: 'bg-purple-400' },
         'entregado': { label: 'Entregado', classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
@@ -598,7 +599,7 @@ const config = computed(() => {
       titulo: 'Órdenes de Compra',
       mostrarCampoExtra: true,
       campoExtra: { key: 'numero_orden', label: 'N° Orden' },
-      acciones: { editar: true, duplicar: true, imprimir: true, eliminar: true },
+      acciones: { editar: true, duplicar: true, imprimir: true, eliminar: false },
       estados: {
         'borrador': { label: 'Borrador', classes: 'bg-gray-100 text-gray-700', color: 'bg-gray-400' },
         'pendiente': { label: 'Pendiente', classes: 'bg-yellow-100 text-yellow-700', color: 'bg-yellow-400' },

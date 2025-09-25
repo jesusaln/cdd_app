@@ -294,6 +294,19 @@ class CompraController extends Controller
                 $producto->save();
             }
 
+            // Si la compra tiene una orden de compra asociada, resetearla a pendiente
+            if ($compra->orden_compra_id) {
+                $ordenCompra = $compra->ordenCompra;
+                if ($ordenCompra) {
+                    $ordenCompra->update([
+                        'estado' => 'pendiente',
+                        'fecha_recepcion' => null,
+                        'observaciones' => ($ordenCompra->observaciones ? $ordenCompra->observaciones . "\n\n" : '') .
+                            '*** COMPRA ELIMINADA - ORDEN RESETEADA *** ' . now()->format('d/m/Y H:i')
+                    ]);
+                }
+            }
+
             $compra->delete();
         });
 

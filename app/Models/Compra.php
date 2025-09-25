@@ -19,6 +19,7 @@ class Compra extends Model
 
     protected $fillable = [
         'proveedor_id',
+        'orden_compra_id',
         'numero_compra',
         'fecha_compra',
         'subtotal',
@@ -57,6 +58,12 @@ class Compra extends Model
         )->withPivot('cantidad', 'precio', 'descuento');
     }
 
+    /** Relación con orden de compra */
+    public function ordenCompra(): BelongsTo
+    {
+        return $this->belongsTo(OrdenCompra::class);
+    }
+
     // Relaciones de "culpables"
     public function createdBy()
     {
@@ -85,6 +92,8 @@ class Compra extends Model
 
     public static function generarNumero(): string
     {
-        return 'C0001';
+        $ultimo = self::orderBy('id', 'desc')->first();
+        $numero = $ultimo ? intval(substr($ultimo->numero_compra, 1)) + 1 : 1;
+        return 'C' . str_pad($numero, 4, '0', STR_PAD_LEFT);
     }
 }

@@ -9,6 +9,7 @@ enum EstadoCompra: string
     case Rechazada = 'rechazada';
     case Recibida = 'recibida';
     case Recibido = 'recibido';
+    case Procesada = 'procesada';
     case Cancelada = 'cancelada';
     case Devuelto = 'devuelto';
     case Borrador = 'borrador';
@@ -21,6 +22,7 @@ enum EstadoCompra: string
             self::Rechazada => 'Rechazada',
             self::Recibida => 'Recibida',
             self::Recibido => 'Recibido',
+            self::Procesada => 'Procesada',
             self::Cancelada => 'Cancelada',
             self::Devuelto => 'Devuelto',
             self::Borrador => 'Borrador',
@@ -35,6 +37,7 @@ enum EstadoCompra: string
             self::Rechazada => 'red',
             self::Recibida => 'green',
             self::Recibido => 'green',
+            self::Procesada => 'blue',
             self::Cancelada => 'red',
             self::Devuelto => 'orange',
             self::Borrador => 'yellow',

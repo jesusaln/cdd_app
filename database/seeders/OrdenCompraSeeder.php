@@ -32,11 +32,38 @@ class OrdenCompraSeeder extends Seeder
                 'fecha_entrega_esperada' => now()->addDays(15),
                 'prioridad' => 'media',
                 'direccion_entrega' => 'Sucursal Central, Calle Principal 123',
-                'terminos_pago' => '30 días',
+                'terminos_pago' => '30_dias',
                 'metodo_pago' => 'transferencia',
                 'descuento_general' => 250.00,
-                'observaciones' => 'Orden de prueba inicial',
+                'observaciones' => 'Orden de prueba inicial - Pendiente',
                 'estado' => 'pendiente',
+            ],
+            [
+                'proveedor_id' => $proveedores->skip(1)->first()->id ?? $proveedores->first()->id,
+                'numero_orden' => 'OC-002',
+                'fecha_orden' => now()->subDays(5),
+                'fecha_entrega_esperada' => now()->addDays(10),
+                'prioridad' => 'alta',
+                'direccion_entrega' => 'Sucursal Norte, Avenida Central 456',
+                'terminos_pago' => '15_dias',
+                'metodo_pago' => 'efectivo',
+                'descuento_general' => 0.00,
+                'observaciones' => 'Orden enviada al proveedor',
+                'estado' => 'enviado_a_proveedor',
+            ],
+            [
+                'proveedor_id' => $proveedores->skip(2)->first()->id ?? $proveedores->first()->id,
+                'numero_orden' => 'OC-003',
+                'fecha_orden' => now()->subDays(15),
+                'fecha_entrega_esperada' => now()->subDays(5),
+                'prioridad' => 'baja',
+                'direccion_entrega' => 'Sucursal Sur, Plaza Mayor 789',
+                'terminos_pago' => 'contado',
+                'metodo_pago' => 'tarjeta',
+                'descuento_general' => 100.00,
+                'observaciones' => 'Orden procesada - Mercancía recibida',
+                'estado' => 'convertida',
+                'fecha_recepcion' => now()->subDays(3),
             ]
         ];
 
@@ -122,12 +149,12 @@ class OrdenCompraSeeder extends Seeder
 
                 $orden = OrdenCompra::create([
                     'proveedor_id' => $proveedor->id,
-                    'numero_orden' => 'OC-' . str_pad($i + 2, 3, '0', STR_PAD_LEFT),
+                    'numero_orden' => 'OC-' . str_pad($i + 4, 3, '0', STR_PAD_LEFT),
                     'fecha_orden' => $fechaOrden,
                     'fecha_entrega_esperada' => $faker->dateTimeBetween($fechaOrden, '+30 days'),
                     'prioridad' => $faker->randomElement(['baja', 'media', 'alta', 'urgente']),
                     'direccion_entrega' => $faker->address(),
-                    'terminos_pago' => $faker->randomElement(['contado', '7 días', '15 días', '30 días', '60 días']),
+                    'terminos_pago' => $faker->randomElement(['contado', '15_dias', '30_dias', '45_dias', '60_dias']),
                     'metodo_pago' => $faker->randomElement(['efectivo', 'transferencia', 'cheque', 'tarjeta']),
                     'subtotal' => $subtotal,
                     'descuento_items' => 0, // Ya incluido en productos
@@ -135,7 +162,7 @@ class OrdenCompraSeeder extends Seeder
                     'iva' => $iva,
                     'total' => $total,
                     'observaciones' => $faker->optional(0.7)->sentence(),
-                    'estado' => $faker->randomElement(['pendiente', 'aprobada', 'enviada', 'recibida', 'cancelada']),
+                    'estado' => $faker->randomElement(['borrador', 'pendiente', 'enviado_a_proveedor', 'convertida', 'cancelada']),
                     'fecha_recepcion' => $faker->optional(0.3)->dateTimeBetween($fechaOrden, 'now'),
                 ]);
 
