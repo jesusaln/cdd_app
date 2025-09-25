@@ -27,9 +27,7 @@ class OrdenCompraController extends Controller
 
         $baseQuery = OrdenCompra::with([
             'proveedor',
-            'productos' => function ($q) {
-                $q->withPivot(['cantidad', 'precio', 'descuento', 'unidad_medida']);
-            },
+            'productos',
         ]);
 
         // Aplicar filtros
@@ -79,20 +77,20 @@ class OrdenCompraController extends Controller
 
         $baseQuery->orderBy($sortBy, $sortDirection === 'asc' ? 'asc' : 'desc');
 
-        $total = (clone $baseQuery)->count();
-        $ordenes = $baseQuery->forPage($page, $perPage)->get();
+        $paginator = $baseQuery->paginate($perPage, ['*'], 'page', $page);
+        $ordenes = collect($paginator->items());
 
         $transformed = $ordenes->map(function ($orden) {
-            $items = $orden->productos->map(function ($p) {
-                return [
-                    'id'           => $p->id,
-                    'nombre'       => $p->nombre ?? $p->descripcion ?? '',
-                    'cantidad'     => (int) ($p->pivot->cantidad ?? 0),
-                    'precio'       => (float) ($p->pivot->precio ?? 0),
-                    'descuento'    => (float) ($p->pivot->descuento ?? 0),
+            $orden->load('productos');
+            $orden->productos = $orden->productos->map(function ($p) {
+                return array_merge($p->toArray(), [
+                    'cantidad' => $p->pivot->cantidad ?? 0,
+                    'precio' => $p->pivot->precio ?? 0,
+                    'descuento' => $p->pivot->descuento ?? 0,
                     'unidad_medida' => $p->pivot->unidad_medida ?? '',
-                ];
+                ]);
             });
+            $items = $orden->productos;
 
             // Crear resumen de productos para tooltip
             $productosTooltip = $items->map(function ($item) {
@@ -158,7 +156,7 @@ class OrdenCompraController extends Controller
 
         $paginator = new LengthAwarePaginator(
             $transformed,
-            $total,
+            $paginator->total(),
             $perPage,
             $page,
             ['path' => $request->url(), 'pageName' => 'page']
@@ -354,9 +352,9 @@ class OrdenCompraController extends Controller
                 'nombre' => $producto->nombre,
                 'tipo' => 'producto',
                 'pivot' => [
-                    'cantidad' => $producto->pivot->cantidad,
-                    'precio' => $producto->pivot->precio,
-                    'descuento' => $producto->pivot->descuento ?? 0,
+                    'cantidad' => $producto->cantidad,
+                    'precio' => $producto->precio,
+                    'descuento' => $producto->descuento ?? 0,
                 ],
             ];
         });
@@ -400,10 +398,6 @@ class OrdenCompraController extends Controller
 
             // Mapea productos, añadiendo manejo de errores para pivots
             $items = $ordenCompra->productos->map(function ($producto) {
-                if (!$producto instanceof \App\Models\Producto || !$producto->pivot) {
-                    Log::error('Producto inválido o pivot faltante para el producto ID: ' . ($producto->id ?? 'null'));
-                    return null;
-                }
                 return [
                     'id' => $producto->id,
                     'nombre' => $producto->nombre,
@@ -412,13 +406,13 @@ class OrdenCompraController extends Controller
                     'precio_compra' => $producto->precio_compra ?? 0,
                     'tipo' => 'producto',
                     'pivot' => [
-                        'cantidad' => $producto->pivot->cantidad,
-                        'precio' => $producto->pivot->precio,
-                        'descuento' => $producto->pivot->descuento ?? 0,
-                        'unidad_medida' => $producto->pivot->unidad_medida ?? $producto->unidad_medida ?? '',
+                        'cantidad' => $producto->cantidad,
+                        'precio' => $producto->precio,
+                        'descuento' => $producto->descuento ?? 0,
+                        'unidad_medida' => $producto->unidad_medida ?? '',
                     ],
                 ];
-            })->filter(fn($item) => $item !== null); // Elimina cualquier ítem nulo si hubo errores
+            });
 
             // Recalcular totales basados en los items actuales para asegurar consistencia
             $totalesCalculados = $this->calcularTotalesDesdeItems($items, $ordenCompra->descuento_general ?? 0);

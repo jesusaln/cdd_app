@@ -21,15 +21,15 @@
            <div class="flex items-center justify-between">
              <h3 class="text-sm font-semibold text-gray-900">Productos</h3>
              <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full font-medium">
-               {{ hoveredDoc.productos?.length || 0 }}
+               {{ getProductosDelDoc(hoveredDoc)?.length || 0 }}
              </span>
            </div>
          </div>
 
          <div class="max-h-72 overflow-y-auto px-4 pb-4 custom-scrollbar">
-           <div v-if="hoveredDoc.productos?.length" class="space-y-2 pt-2">
+           <div v-if="getProductosDelDoc(hoveredDoc)?.length" class="space-y-2 pt-2">
              <div
-               v-for="(producto, index) in hoveredDoc.productos"
+               v-for="(producto, index) in getProductosDelDoc(hoveredDoc)"
                :key="index"
                class="group p-3 bg-gray-50/70 rounded-lg hover:bg-gray-100/70 hover:shadow-sm transition-all duration-150"
              >
@@ -250,11 +250,11 @@
               <td
                 v-if="config.mostrarProductos !== false"
                 class="px-6 py-4 relative"
-                @mouseenter="doc.productos?.length ? showProductTooltip(doc, $event) : null"
+                @mouseenter="getProductosDelDoc(doc)?.length ? showProductTooltip(doc, $event) : null"
                 @mouseleave="hideProductTooltip"
-                @mousemove="doc.productos?.length ? updateTooltipPosition($event) : null"
+                @mousemove="getProductosDelDoc(doc)?.length ? updateTooltipPosition($event) : null"
               >
-                <div class="flex items-center text-sm text-gray-600" :class="doc.productos?.length ? 'cursor-help hover:text-gray-800 transition-colors duration-150' : 'opacity-60'">
+                <div class="flex items-center text-sm text-gray-600" :class="getProductosDelDoc(doc)?.length ? 'cursor-help hover:text-gray-800 transition-colors duration-150' : 'opacity-60'">
                   <div class="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center mr-2 group-hover:bg-blue-100 transition-colors duration-150">
                     <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
@@ -265,7 +265,7 @@
                       />
                     </svg>
                   </div>
-                  <span class="font-medium">{{ doc.productos?.length || 0 }}</span>
+                  <span class="font-medium">{{ getProductosDelDoc(doc)?.length || 0 }}</span>
                   <span class="text-gray-400 ml-1">items</span>
                 </div>
               </td>
@@ -468,6 +468,12 @@ const emit = defineEmits([
 
 // Flags
 const isCompra = computed(() => props.tipo === 'compras' || props.tipo === 'ordenescompra');
+
+// Función para obtener productos del documento (items para ordenescompra, productos para otros)
+const getProductosDelDoc = (doc) => {
+  if (!doc) return [];
+  return props.tipo === 'ordenescompra' ? doc.items || [] : doc.productos || [];
+};
 
 // Tooltip
 const showTooltip = ref(false);
