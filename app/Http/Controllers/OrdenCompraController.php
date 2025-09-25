@@ -606,16 +606,31 @@ class OrdenCompraController extends Controller
 
             // Enviar correo al proveedor si tiene email
             if ($ordenCompra->proveedor && $ordenCompra->proveedor->email) {
+                // Modo de prueba: si está en producción y no hay configuración SMTP real, enviar a email de prueba
+                $emailDestino = $ordenCompra->proveedor->email;
+
+                // Si estamos en producción y queremos hacer pruebas, podemos forzar envío a un email de prueba
+                if (app()->environment('production') && config('mail.test_mode', false)) {
+                    $emailDestino = config('mail.test_email', 'test@example.com');
+                    Log::info('Modo prueba activado: enviando correo de prueba', [
+                        'orden_id' => $ordenCompra->id,
+                        'email_original' => $ordenCompra->proveedor->email,
+                        'email_prueba' => $emailDestino
+                    ]);
+                }
+
                 try {
-                    Mail::to($ordenCompra->proveedor->email)->send(new OrdenCompraEnviada($ordenCompra));
+                    Mail::to($emailDestino)->send(new OrdenCompraEnviada($ordenCompra));
                     Log::info('Correo de orden de compra enviado exitosamente', [
                         'orden_id' => $ordenCompra->id,
-                        'proveedor_email' => $ordenCompra->proveedor->email
+                        'proveedor_email' => $ordenCompra->proveedor->email,
+                        'email_enviado_a' => $emailDestino
                     ]);
                 } catch (\Exception $e) {
                     Log::error('Error al enviar correo de orden de compra', [
                         'orden_id' => $ordenCompra->id,
                         'proveedor_email' => $ordenCompra->proveedor->email,
+                        'email_enviado_a' => $emailDestino,
                         'error' => $e->getMessage()
                     ]);
                     // No fallar la operación si el correo no se puede enviar
