@@ -239,10 +239,14 @@ class OrdenCompraController extends Controller
         $proveedores = Proveedor::all();
         $productos = Producto::all();
 
+        // Obtener el próximo número de orden
+        $proximoNumero = OrdenCompra::getProximoNumero();
+
         // Renderiza la vista de creación de órdenes de compra con Inertia
         return Inertia::render('OrdenesCompra/Create', [
             'proveedores' => $proveedores,
             'productos' => $productos,
+            'proximoNumero' => $proximoNumero,
         ]);
     }
 

@@ -58,8 +58,24 @@ class OrdenCompra extends Model
     {
         static::creating(function (OrdenCompra $orden) {
             if (empty($orden->numero_orden)) {
-                $orden->numero_orden = 'OC0001';
+                $orden->numero_orden = self::getProximoNumero();
             }
         });
+    }
+
+    public static function getProximoNumero()
+    {
+        // Buscar el último número de orden
+        $ultimo = self::where('numero_orden', 'like', 'OC-%')
+            ->orderByRaw("CAST(SUBSTRING(numero_orden, 4) AS UNSIGNED) DESC")
+            ->first();
+
+        if ($ultimo) {
+            $numero = intval(substr($ultimo->numero_orden, 3)) + 1;
+        } else {
+            $numero = 1;
+        }
+
+        return 'OC-' . str_pad($numero, 3, '0', STR_PAD_LEFT);
     }
 }
