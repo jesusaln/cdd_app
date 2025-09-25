@@ -14,8 +14,10 @@
     <Teleport to="body">
       <div
         v-if="showTooltip && hoveredDoc"
-        class="fixed z-[9999] bg-white rounded-xl shadow-xl border border-gray-200/50 backdrop-blur-sm w-80 max-h-96 pointer-events-none transform transition-all duration-200 ease-out"
+        class="fixed z-[9999] bg-white rounded-xl shadow-xl border border-gray-200/50 backdrop-blur-sm w-80 max-h-96 pointer-events-auto transform transition-all duration-200 ease-out"
         :style="tooltipStyle"
+        @mouseenter="clearHideTimeout"
+        @mouseleave="hideProductTooltip"
       >
         <div class="p-4 border-b border-gray-100">
            <div class="flex items-center justify-between">
@@ -509,7 +511,7 @@ const tooltipStyle = computed(() => {
 });
 
 const showProductTooltip = (doc, event) => {
-   if (!doc?.productos?.length) return;
+   if (!getProductosDelDoc(doc)?.length) return;
    clearTimeout(tooltipTimeout);
    hoveredDoc.value = doc;
    updateTooltipPosition(event);
@@ -521,7 +523,11 @@ const hideProductTooltip = () => {
   tooltipTimeout = setTimeout(() => {
     showTooltip.value = false;
     hoveredDoc.value = null;
-  }, 150);
+  }, 300); // Aumenté el delay a 300ms para dar más tiempo
+};
+
+const clearHideTimeout = () => {
+  clearTimeout(tooltipTimeout);
 };
 
 const updateTooltipPosition = (event) => {
