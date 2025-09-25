@@ -303,7 +303,8 @@ function validarOrdenBasica(orden) {
   if (!orden.proveedor?.nombre_razon_social) {
     throw new Error('Datos del proveedor no encontrados')
   }
-  if (!Array.isArray(orden.items) || !orden.items.length) {
+  const productos = orden.productos || orden.items || [];
+  if (!Array.isArray(productos) || !productos.length) {
     throw new Error('Lista de productos no válida')
   }
   if (!orden.fecha_orden && !orden.created_at) {
@@ -328,7 +329,8 @@ const actualizarEstadoLocal = (id, nuevoEstado) => {
 function validarOrdenParaPDF(doc) {
   if (!doc.id) throw new Error('ID del documento no encontrado')
   if (!doc.proveedor?.nombre_razon_social) throw new Error('Datos del proveedor no encontrados')
-  if (!Array.isArray(doc.items) || !doc.items.length) {
+  const productos = doc.productos || doc.items || [];
+  if (!Array.isArray(productos) || !productos.length) {
     throw new Error('Lista de productos no válida')
   }
   if (!doc.fecha_orden) throw new Error('Fecha no especificada')

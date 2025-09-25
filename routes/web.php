@@ -383,4 +383,11 @@ Route::get('/reportes/productos/export', [ReporteController::class, 'exportarPro
     Route::get('/cfdi/timbrar-demo', [CfdiController::class, 'timbrarDemo']);
     Route::post('/cfdi/cancelar-demo', [CfdiController::class, 'cancelarDemo']);
     Route::post('/cfdi/estado-sat', [CfdiController::class, 'estadoSat']);
+
+    // =====================================================
+    // RUTA PARA REFRESCAR TOKEN CSRF
+    // =====================================================
+    Route::get('/csrf-token', function () {
+        return response()->json(['token' => csrf_token()]);
+    })->middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']);
 });

@@ -7,10 +7,12 @@ use App\Models\Proveedor;
 use App\Models\Producto;
 use App\Models\Compra; // <-- Importa el modelo Compra aquí
 use App\Enums\EstadoCompra;
+use App\Mail\OrdenCompraEnviada;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB; // Para transacciones de base de datos
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 class OrdenCompraController extends Controller
@@ -601,6 +603,29 @@ class OrdenCompraController extends Controller
             ]);
 
             DB::commit();
+
+            // Enviar correo al proveedor si tiene email
+            if ($ordenCompra->proveedor && $ordenCompra->proveedor->email) {
+                try {
+                    Mail::to($ordenCompra->proveedor->email)->send(new OrdenCompraEnviada($ordenCompra));
+                    Log::info('Correo de orden de compra enviado exitosamente', [
+                        'orden_id' => $ordenCompra->id,
+                        'proveedor_email' => $ordenCompra->proveedor->email
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('Error al enviar correo de orden de compra', [
+                        'orden_id' => $ordenCompra->id,
+                        'proveedor_email' => $ordenCompra->proveedor->email,
+                        'error' => $e->getMessage()
+                    ]);
+                    // No fallar la operación si el correo no se puede enviar
+                }
+            } else {
+                Log::warning('No se pudo enviar correo: proveedor sin email', [
+                    'orden_id' => $ordenCompra->id,
+                    'proveedor_id' => $ordenCompra->proveedor_id
+                ]);
+            }
 
             return redirect()->back()->with('success', 'Orden de compra enviada al proveedor exitosamente.');
         } catch (\Exception $e) {
