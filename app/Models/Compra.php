@@ -84,9 +84,8 @@ class Compra extends Model
             if (empty($compra->numero_compra)) {
                 $compra->numero_compra = static::generarNumero();
             }
-            if (empty($compra->estado)) {
-                $compra->estado = EstadoCompra::Borrador;
-            }
+            // Todas las compras se crean automáticamente como procesadas
+            $compra->estado = EstadoCompra::Procesada;
         });
     }
 

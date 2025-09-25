@@ -18,6 +18,14 @@ const props = defineProps({
   compras: {
     type: Array,
     default: () => []
+  },
+  stats: {
+    type: Object,
+    default: () => ({
+      total: 0,
+      procesadas: 0,
+      canceladas: 0
+    })
   }
 })
 
@@ -218,41 +226,13 @@ watch(totalPages, (newTotal) => {
   }
 })
 
-// Estadísticas calculadas
+// Estadísticas calculadas (usando datos del servidor)
 const estadisticas = computed(() => {
-  const stats = {
-    total: comprasOriginales.value.length,
-    recibidas: 0,
-    pendientes: 0,
-    borrador: 0,
-    aprobadas: 0,
-    canceladas: 0,
+  return {
+    total: props.stats.total || 0,
+    procesadas: props.stats.procesadas || 0,
+    canceladas: props.stats.canceladas || 0,
   }
-
-  comprasOriginales.value.forEach(c => {
-    switch (String(c.estado || '').toLowerCase()) {
-      case 'recibida':
-      case 'recibido':
-        stats.recibidas++
-        break
-      case 'pendiente':
-        stats.pendientes++
-        break
-      case 'borrador':
-        stats.borrador++
-        break
-      case 'aprobada':
-      case 'aprobado':
-        stats.aprobadas++
-        break
-      case 'cancelada':
-      case 'cancelado':
-        stats.canceladas++
-        break
-    }
-  })
-
-  return stats
 })
 
 const handleLimpiarFiltros = () => {
@@ -273,9 +253,9 @@ const updateSort = (newSort) => {
 /* =========================
    Validaciones y utilidades
 ========================= */
-function puedeRecibirCompra(compra) {
+function puedeCancelarCompra(compra) {
   if (!compra) return false
-  return compra.estado === 'aprobada' || compra.estado === 'aprobado'
+  return compra.estado === 'procesada' || compra.estado === 'procesado'
 }
 
 function validarCompra(compra) {
@@ -340,36 +320,6 @@ const editarFila = (id) => {
   editarCompra(id)
 }
 
-const duplicarCompra = async (compra) => {
-  try {
-    validarCompra(compra)
-
-    if (!confirm(`¿Duplicar compra #${compra.numero_compra || compra.id}?`)) {
-      return
-    }
-
-    loading.value = true
-
-    router.post(`/compras/${compra.id}/duplicate`, {}, {
-      onStart: () => {
-        notyf.success('Duplicando compra...')
-      },
-      onSuccess: () => {
-        notyf.success('Compra duplicada exitosamente')
-      },
-      onError: (errors) => {
-        console.error('Error al duplicar:', errors)
-        notyf.error('Error al duplicar la compra')
-      },
-      onFinish: () => {
-        loading.value = false
-      }
-    })
-  } catch (error) {
-    notyf.error(error.message)
-    loading.value = false
-  }
-}
 
 const imprimirCompra = async (compra) => {
   try {
@@ -510,10 +460,7 @@ const crearNuevaCompra = () => {
       <!-- Header de filtros y estadísticas -->
       <UniversalHeader
         :total="estadisticas.total"
-        :recibidas="estadisticas.recibidas"
-        :aprobadas="estadisticas.aprobadas"
-        :pendientes="estadisticas.pendientes"
-        :borrador="estadisticas.borrador"
+        :procesadas="estadisticas.procesadas"
         :canceladas="estadisticas.canceladas"
         v-model:search-term="searchTerm"
         v-model:sort-by="sortBy"
@@ -558,7 +505,6 @@ const crearNuevaCompra = () => {
           :filtro-estado="filtroEstado"
           @ver-detalles="verDetalles"
           @editar="editarCompra"
-          @duplicar="duplicarCompra"
           @imprimir="imprimirCompra"
           @eliminar="confirmarEliminacion"
           @sort="updateSort"
@@ -635,7 +581,6 @@ const crearNuevaCompra = () => {
       @confirm-delete="eliminarCompra"
       @imprimir="imprimirFila"
       @editar="editarFila"
-      @recibir-compra="recibirCompra"
     />
 
     <!-- Loading overlay -->

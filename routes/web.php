@@ -167,7 +167,6 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::put('/servicios/{servicio}/toggle', [ServicioController::class, 'toggle'])->name('servicios.toggle');
     Route::resource('usuarios', UserController::class)->names('usuarios');
     Route::resource('compras', CompraController::class)->names('compras');
-    Route::post('/compras/{compra}/duplicate', [CompraController::class, 'duplicate'])->name('compras.duplicate');
     Route::post('/compras/{id}/cancel', [CompraController::class, 'cancel'])->name('compras.cancel');
 // =====================================================
 // RUTAS DE REPORTES ORGANIZADAS

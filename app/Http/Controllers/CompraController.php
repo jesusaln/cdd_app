@@ -33,7 +33,18 @@ class CompraController extends Controller
             });
             return $compra;
         });
-        return Inertia::render('Compras/Index', ['compras' => $compras]);
+
+        // Estadísticas para el frontend
+        $stats = [
+            'total' => $compras->count(),
+            'procesadas' => $compras->where('estado', EstadoCompra::Procesada)->count(),
+            'canceladas' => $compras->where('estado', EstadoCompra::Cancelada)->count(),
+        ];
+
+        return Inertia::render('Compras/Index', [
+            'compras' => $compras,
+            'stats' => $stats
+        ]);
     }
 
     public function create()
@@ -70,11 +81,13 @@ class CompraController extends Controller
                 $total += $subtotal - $descuentoMonto;
             }
 
+            // Crear compra (automáticamente se marca como procesada en el modelo)
             $compra = Compra::create([
                 'proveedor_id' => $validatedData['proveedor_id'],
                 'total' => $total,
             ]);
 
+            // Procesar productos y aumentar inventario
             foreach ($validatedData['productos'] as $productoData) {
                 $producto = Producto::findOrFail($productoData['id']);
                 $cantidad = $productoData['cantidad'];
@@ -84,6 +97,7 @@ class CompraController extends Controller
                 $descuentoMonto = $subtotal * ($descuento / 100);
                 $subtotalFinal = $subtotal - $descuentoMonto;
 
+                // Aumentar stock automáticamente al crear la compra
                 $producto->stock += $cantidad;
                 $producto->save();
 
@@ -100,7 +114,7 @@ class CompraController extends Controller
             }
         });
 
-        return redirect()->route('compras.index')->with('success', 'Compra creada exitosamente.');
+        return redirect()->route('compras.index')->with('success', 'Compra procesada exitosamente.');
     }
 
     public function show($id)
@@ -143,7 +157,13 @@ class CompraController extends Controller
 
     public function update(Request $request, $id)
     {
-        $compra = Compra::findOrFail($id);
+        $compra = Compra::with('productos')->findOrFail($id);
+
+        // Solo se pueden editar compras procesadas
+        if ($compra->estado !== EstadoCompra::Procesada) {
+            return redirect()->back()->with('error', 'Solo se pueden editar compras procesadas.');
+        }
+
         $validatedData = $this->validateCompraRequest($request);
 
         DB::transaction(function () use ($compra, $validatedData) {
@@ -210,81 +230,19 @@ class CompraController extends Controller
     }
 
     /**
-     * Cancel the specified resource (soft cancel).
+     * Cancelar la compra y disminuir inventario
      */
     public function cancel($id)
     {
-        $compra = Compra::findOrFail($id);
-
-        // Permitir cancelar en cualquier estado excepto ya devuelto
-        if ($compra->estado === EstadoCompra::Devuelto) {
-            return Redirect::back()->with('error', 'La compra ya está devuelta');
-        }
-
-        // Actualizar estado a devuelto y registrar quién lo canceló
-        $compra->update([
-            'estado' => EstadoCompra::Devuelto,
-            'deleted_by' => Auth::id(),
-            'deleted_at' => now()
-        ]);
-
-        return Redirect::route('compras.index')
-            ->with('success', 'Compra devuelta exitosamente');
-    }
-
-    /**
-     * Duplicar una compra.
-     */
-    public function duplicate(Request $request, $id)
-    {
-        $original = Compra::with('proveedor', 'productos')->findOrFail($id);
-
-        try {
-            return DB::transaction(function () use ($original) {
-                // Replicar EXCLUYENDO campos problemáticos
-                $nueva = $original->replicate([
-                    'numero_compra', // ← evita duplicar el mismo número
-                    'created_at',
-                    'updated_at',
-                    'estado',
-                ]);
-
-                // Estado nuevo (borrador) y número único
-                $nueva->estado = EstadoCompra::Borrador;
-                $nueva->numero_compra = Compra::generarNumero();
-                $nueva->created_at = now();
-                $nueva->updated_at = now();
-
-                $nueva->save();
-
-                // Duplicar ítems (crea el FK compra_id automáticamente)
-                foreach ($original->productos as $item) {
-                    $nueva->productos()->create([
-                        'comprable_id'    => $item->comprable_id,
-                        'comprable_type'  => $item->comprable_type,
-                        'cantidad'        => $item->cantidad,
-                        'precio'          => $item->precio,
-                        'descuento'       => $item->descuento,
-                        'subtotal'        => $item->subtotal,
-                        'descuento_monto' => $item->descuento_monto,
-                    ]);
-                }
-
-                return Redirect::route('compras.index')
-                    ->with('success', 'Compra duplicada correctamente.');
-            });
-        } catch (\Throwable $e) {
-            DB::rollBack();
-            Log::error('Error duplicando compra: ' . $e->getMessage(), ['id' => $id]);
-            return Redirect::back()->with('error', 'Error al duplicar la compra.');
-        }
-    }
-
-    public function destroy($id)
-    {
         $compra = Compra::with('productos')->findOrFail($id);
 
+        // Solo se puede cancelar si está procesada
+        if ($compra->estado !== EstadoCompra::Procesada) {
+            return Redirect::back()->with('error', 'Solo se pueden cancelar compras procesadas');
+        }
+
         DB::transaction(function () use ($compra) {
+            // Disminuir inventario de todos los productos
             foreach ($compra->productos as $item) {
                 $producto = $item->comprable;
                 $producto->stock -= $item->cantidad;
@@ -294,22 +252,27 @@ class CompraController extends Controller
                 $producto->save();
             }
 
-            // Si la compra tiene una orden de compra asociada, resetearla a pendiente
-            if ($compra->orden_compra_id) {
-                $ordenCompra = $compra->ordenCompra;
-                if ($ordenCompra) {
-                    $ordenCompra->update([
-                        'estado' => 'pendiente',
-                        'fecha_recepcion' => null,
-                        'observaciones' => ($ordenCompra->observaciones ? $ordenCompra->observaciones . "\n\n" : '') .
-                            '*** COMPRA ELIMINADA - ORDEN RESETEADA *** ' . now()->format('d/m/Y H:i')
-                    ]);
-                }
-            }
-
-            $compra->delete();
+            // Cambiar estado a cancelado
+            $compra->update([
+                'estado' => EstadoCompra::Cancelada,
+            ]);
         });
 
-        return redirect()->route('compras.index')->with('success', 'Compra eliminada exitosamente.');
+        return Redirect::route('compras.index')
+            ->with('success', 'Compra cancelada exitosamente');
+    }
+
+
+    public function destroy($id)
+    {
+        $compra = Compra::findOrFail($id);
+
+        // Si ya está cancelada, no hacer nada
+        if ($compra->estado === EstadoCompra::Cancelada) {
+            return redirect()->route('compras.index')->with('error', 'La compra ya está cancelada.');
+        }
+
+        // Usar el método cancel para mantener consistencia
+        return $this->cancel($id);
     }
 }
