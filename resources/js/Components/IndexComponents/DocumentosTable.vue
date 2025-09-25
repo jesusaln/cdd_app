@@ -469,10 +469,10 @@ const emit = defineEmits([
 // Flags
 const isCompra = computed(() => props.tipo === 'compras' || props.tipo === 'ordenescompra');
 
-// Función para obtener productos del documento (items para ordenescompra, productos para otros)
+// Función para obtener productos del documento
 const getProductosDelDoc = (doc) => {
   if (!doc) return [];
-  return props.tipo === 'ordenescompra' ? doc.items || [] : doc.productos || [];
+  return doc.productos || doc.items || [];
 };
 
 // Tooltip

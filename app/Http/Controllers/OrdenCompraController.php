@@ -118,7 +118,7 @@ class OrdenCompraController extends Controller
                     'nombre_razon_social' => $orden->proveedor->nombre_razon_social,
                     'rfc'                 => $orden->proveedor->rfc ?? null,
                 ] : null,
-                'items'              => $items,
+                'productos'           => $items,
                 'productos_count'    => $items->count(),
                 'productos_tooltip'  => $productosTooltip ?: 'Sin productos',
                 'subtotal'           => (float) ($orden->subtotal ?? 0),
@@ -350,15 +350,15 @@ class OrdenCompraController extends Controller
         $ordenCompra = OrdenCompra::with(['proveedor', 'productos'])->findOrFail($id);
 
         // Mapea productos (solo productos, sin servicios)
-        $items = $ordenCompra->productos->map(function ($producto) {
+        $productos = $ordenCompra->productos->map(function ($producto) {
             return [
                 'id' => $producto->id,
                 'nombre' => $producto->nombre,
                 'tipo' => 'producto',
                 'pivot' => [
-                    'cantidad' => $producto->cantidad,
-                    'precio' => $producto->precio,
-                    'descuento' => $producto->descuento ?? 0,
+                    'cantidad' => $producto->pivot->cantidad,
+                    'precio' => $producto->pivot->precio,
+                    'descuento' => $producto->pivot->descuento ?? 0,
                 ],
             ];
         });
@@ -382,7 +382,7 @@ class OrdenCompraController extends Controller
                 'total' => $ordenCompra->total,
                 'observaciones' => $ordenCompra->observaciones,
                 'estado' => $ordenCompra->estado,
-                'items' => $items,
+                'productos' => $productos,
                 'created_at' => $ordenCompra->created_at->format('d/m/Y H:i'),
             ],
         ]);
@@ -401,29 +401,29 @@ class OrdenCompraController extends Controller
             $ordenCompra = OrdenCompra::with(['proveedor', 'productos'])->findOrFail($id);
 
             // Mapea productos, añadiendo manejo de errores para pivots
-            $items = $ordenCompra->productos->map(function ($producto) {
+            $productos = $ordenCompra->productos->map(function ($producto) {
                 return [
                     'id' => $producto->id,
                     'nombre' => $producto->nombre,
                     'descripcion' => $producto->descripcion,
-                    'precio' => $producto->precio_venta ?? $producto->precio ?? 0,
+                    'precio' => $producto->pivot->precio ?? 0,
                     'precio_compra' => $producto->precio_compra ?? 0,
                     'tipo' => 'producto',
                     'pivot' => [
-                        'cantidad' => $producto->cantidad,
-                        'precio' => $producto->precio,
-                        'descuento' => $producto->descuento ?? 0,
-                        'unidad_medida' => $producto->unidad_medida ?? '',
+                        'cantidad' => $producto->pivot->cantidad ?? 0,
+                        'precio' => $producto->pivot->precio ?? 0,
+                        'descuento' => $producto->pivot->descuento ?? 0,
+                        'unidad_medida' => $producto->pivot->unidad_medida ?? '',
                     ],
                 ];
             });
 
-            // Recalcular totales basados en los items actuales para asegurar consistencia
-            $totalesCalculados = $this->calcularTotalesDesdeItems($items, $ordenCompra->descuento_general ?? 0);
+            // Recalcular totales basados en los productos actuales para asegurar consistencia
+            $totalesCalculados = $this->calcularTotalesDesdeItems($productos, $ordenCompra->descuento_general ?? 0);
 
             // Obtiene todos los proveedores y productos para los selectores/búsquedas en el frontend
             $proveedores = Proveedor::all();
-            $productos = Producto::all();
+            $productosAll = Producto::all();
 
             // Renderiza la vista de edición de órdenes de compra
             return Inertia::render('OrdenesCompra/Edit', [
@@ -445,10 +445,10 @@ class OrdenCompraController extends Controller
                     'total' => $totalesCalculados['total'],
                     'observaciones' => $ordenCompra->observaciones,
                     'estado' => $ordenCompra->estado,
-                    'items' => $items,
+                    'productos' => $productos,
                 ],
                 'proveedores' => $proveedores,
-                'productos' => $productos,
+                'productos' => $productosAll,
             ]);
         } catch (\Exception $e) {
             Log::error('Error en OrdenCompraController@edit: ' . $e->getMessage());

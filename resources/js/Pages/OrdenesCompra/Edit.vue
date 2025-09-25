@@ -1,7 +1,8 @@
 <!-- Resources/js/Pages/OrdenesCompra/Edit.vue -->
 <template>
-  <Head title="Editar Orden de Compra" />
-  <div class="ordenes-compra-edit min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+  <div>
+    <Head title="Editar Orden de Compra" />
+    <div class="ordenes-compra-edit min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
     <div class="max-w-6xl mx-auto">
       <!-- Header -->
       <Header
@@ -36,11 +37,11 @@
             <div>
               <label for="numero_orden" class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
                 Número de Orden *
-                <span class="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                <span class="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
                   <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                   </svg>
-                  Generado automáticamente
+                  Automático
                 </span>
               </label>
               <div class="relative">
@@ -48,9 +49,8 @@
                   id="numero_orden"
                   v-model="form.numero_orden"
                   type="text"
-                  class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Ej: OC20250101001"
-                  required
+                  class="w-full bg-gray-50 text-gray-500 cursor-not-allowed border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  readonly
                 />
                 <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                   <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -60,11 +60,10 @@
               </div>
               <div class="mt-2 flex items-center gap-2">
                 <p class="text-xs text-gray-500">
-                  Este número ha sido generado automáticamente para evitar duplicados
+                  Este número es fijo para esta orden de compra
                 </p>
                 <button
                   @click="copiarNumeroOrden"
-                  type="button"
                   class="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded hover:bg-gray-200 transition-colors"
                   title="Copiar número de orden"
                 >
@@ -373,7 +372,7 @@
         <BotonesAccion
           :back-url="route('ordenescompra.index')"
           :is-processing="form.processing"
-          :can-submit="form.numero_orden && form.proveedor_id && selectedProducts.length > 0"
+          :can-submit="form.proveedor_id && selectedProducts.length > 0"
           :button-text="form.processing ? 'Actualizando...' : 'Actualizar Orden de Compra'"
           @limpiar="limpiarFormulario"
         />
@@ -412,6 +411,7 @@
       />
     </div>
   </div>
+</div>
 </template>
 
 <script setup>
@@ -513,21 +513,11 @@ const formatearFecha = (fecha) => {
   }
 };
 
-// Función para generar número de orden automáticamente
-const generarNumeroOrden = () => {
-  const fecha = new Date();
-  const year = fecha.getFullYear();
-  const month = String(fecha.getMonth() + 1).padStart(2, '0');
-  const day = String(fecha.getDate()).padStart(2, '0');
-  const timestamp = Date.now().toString().slice(-4); // Últimos 4 dígitos del timestamp
-
-  return `OC${year}${month}${day}${timestamp}`;
-};
 
 // Función para inicializar el formulario con datos de la orden
 const inicializarFormulario = () => {
   if (props.ordenCompra) {
-    form.numero_orden = props.ordenCompra.numero_orden || generarNumeroOrden();
+    form.numero_orden = props.ordenCompra.numero_orden || '';
     form.fecha_orden = formatearFecha(props.ordenCompra.fecha_orden) || formatearFecha(new Date());
     form.fecha_entrega_esperada = formatearFecha(props.ordenCompra.fecha_entrega_esperada);
     form.prioridad = props.ordenCompra.prioridad || 'media';
@@ -544,7 +534,7 @@ const inicializarFormulario = () => {
 
   } else {
     // Si no hay datos de ordenCompra, generar valores por defecto
-    form.numero_orden = generarNumeroOrden();
+    form.numero_orden = '';
     form.fecha_orden = formatearFecha(new Date());
     form.fecha_entrega_esperada = '';
     form.prioridad = 'media';
@@ -580,7 +570,7 @@ const mostrarInfoFechas = () => {
 
 // Función para copiar el número de orden al portapapeles
 const copiarNumeroOrden = async () => {
-  const numeroACopiar = form.numero_orden.trim() || generarNumeroOrden();
+  const numeroACopiar = form.numero_orden.trim();
 
   try {
     await navigator.clipboard.writeText(numeroACopiar);
@@ -650,10 +640,10 @@ const setFechaRapida = (tipo) => {
 
 // Funciones principales
 const handlePreview = () => {
-  if (proveedorSeleccionado.value && selectedProducts.value.length > 0 && form.numero_orden) {
+  if (proveedorSeleccionado.value && selectedProducts.value.length > 0) {
     mostrarVistaPrevia.value = true;
   } else {
-    showNotification('Completa el número de orden, selecciona un proveedor y al menos un producto', 'error');
+    showNotification('Selecciona un proveedor y al menos un producto', 'error');
   }
 };
 
@@ -677,21 +667,26 @@ const agregarProducto = (item) => {
   }
 
   // Solo permitir productos, no servicios
-  const itemEntry = { id: item.id, tipo: 'producto' };
   const exists = selectedProducts.value.some(
     (entry) => entry.id === item.id && entry.tipo === 'producto'
   );
 
   if (!exists) {
+    const itemEntry = {
+      id: item.id,
+      tipo: 'producto',
+      nombre: item.nombre,
+      descripcion: item.descripcion || '',
+      precio: item.precio_compra || 0,
+      precio_compra: item.precio_compra || 0
+    };
     selectedProducts.value.push(itemEntry);
     const key = `producto-${item.id}`;
     quantities.value[key] = 1;
-
-    // Solo productos, usar precio_compra
-    const precio = typeof item.precio_compra === 'number' ? item.precio_compra : 0;
-    prices.value[key] = precio;
+    prices.value[key] = item.precio_compra || 0;
     discounts.value[key] = 0;
     calcularTotal();
+    saveState();
     showNotification(`Producto añadido: ${item.nombre || item.descripcion || 'Producto'}`);
   } else {
     showNotification('Este producto ya está en la lista', 'info');
@@ -751,14 +746,14 @@ const totales = computed(() => {
 
   const descuentoGeneral = parseFloat(form.descuento_general) || 0;
   const subtotalConDescuentos = Math.max(0, subtotal - descuentoItems);
-  const subtotalConDescuentoGeneral = Math.max(0, subtotalConDescuentos - (subtotalConDescuentos * descuentoGeneral / 100));
+  const subtotalConDescuentoGeneral = Math.max(0, subtotalConDescuentos - descuentoGeneral);
   const iva = subtotalConDescuentoGeneral * 0.16;
   const total = subtotalConDescuentoGeneral + iva;
 
   return {
     subtotal: parseFloat(subtotal.toFixed(2)),
     descuentoItems: parseFloat(descuentoItems.toFixed(2)),
-    descuentoGeneral: parseFloat((subtotalConDescuentos * descuentoGeneral / 100).toFixed(2)),
+    descuentoGeneral: descuentoGeneral,
     subtotalConDescuentos: parseFloat(subtotalConDescuentoGeneral.toFixed(2)),
     iva: parseFloat(iva.toFixed(2)),
     total: parseFloat(total.toFixed(2)),
@@ -773,11 +768,6 @@ const calcularTotal = () => {
 };
 
 const validarDatos = () => {
-  if (!form.numero_orden.trim()) {
-    showNotification('Ingresa el número de orden', 'error');
-    return false;
-  }
-
   if (!form.fecha_orden) {
     showNotification('Fecha de orden no disponible', 'error');
     return false;
@@ -879,8 +869,8 @@ const limpiarFormulario = () => {
 
 // Función para inicializar productos existentes
 const inicializarProductosExistentes = () => {
-  if (props.ordenCompra?.items && Array.isArray(props.ordenCompra.items)) {
-    props.ordenCompra.items.forEach((item, index) => {
+  if (props.ordenCompra?.productos && Array.isArray(props.ordenCompra.productos)) {
+    props.ordenCompra.productos.forEach((item, index) => {
       // Verificar si es un producto (por tipo o por pivot)
       const isProduct = item.tipo === 'producto' ||
                        item.pivot?.item_type === 'App\\Models\\Producto' ||
@@ -955,7 +945,7 @@ onMounted(() => {
 
 // Watcher para props.ordenCompra en caso de que llegue tarde
 watch(() => props.ordenCompra, (nuevaOrden) => {
-  if (nuevaOrden && !form.numero_orden) {
+  if (nuevaOrden && !form.fecha_orden) {
     inicializarFormulario();
     inicializarProveedor();
     inicializarProductosExistentes();

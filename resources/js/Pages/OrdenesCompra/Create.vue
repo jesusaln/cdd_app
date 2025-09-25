@@ -660,14 +660,14 @@ const totales = computed(() => {
 
   const descuentoGeneral = parseFloat(form.descuento_general) || 0;
   const subtotalConDescuentos = Math.max(0, subtotal - descuentoItems);
-  const subtotalConDescuentoGeneral = Math.max(0, subtotalConDescuentos - (subtotalConDescuentos * descuentoGeneral / 100));
+  const subtotalConDescuentoGeneral = Math.max(0, subtotalConDescuentos - descuentoGeneral);
   const iva = subtotalConDescuentoGeneral * 0.16;
   const total = subtotalConDescuentoGeneral + iva;
 
   return {
     subtotal: parseFloat(subtotal.toFixed(2)),
     descuentoItems: parseFloat(descuentoItems.toFixed(2)),
-    descuentoGeneral: parseFloat((subtotalConDescuentos * descuentoGeneral / 100).toFixed(2)),
+    descuentoGeneral: descuentoGeneral,
     subtotalConDescuentos: parseFloat(subtotalConDescuentoGeneral.toFixed(2)),
     iva: parseFloat(iva.toFixed(2)),
     total: parseFloat(total.toFixed(2)),
