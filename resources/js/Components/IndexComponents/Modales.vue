@@ -764,8 +764,6 @@ const emit = defineEmits([
   'close',
   'confirm-delete',
   'confirm-duplicate',
-  'confirm-receive',
-  'confirmar-recepcion',
   'marcar-urgente',
   'recibir-compra',
   'imprimir',
@@ -774,6 +772,9 @@ const emit = defineEmits([
   'enviar-a-venta',
   'enviarVenta',
   'enviarCotizacion',
+  'confirmar-recepcion',
+  'enviarOrden',
+  'recibirOrden',
   // Acciones para equipos
   'renovar', 'suspender', 'reactivar',
   'cambiar-estado', 'programar-mantenimiento',
@@ -1030,3 +1031,6 @@ const onDuplicar= () => emit('confirm-duplicate')
 .modal-enter-to,
 .modal-leave-from { opacity: 1; transform: scale(1); }
 </style>
+
+
+

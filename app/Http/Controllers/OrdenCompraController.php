@@ -169,7 +169,7 @@ class OrdenCompraController extends Controller
             'total' => OrdenCompra::count(),
             'pendientes' => OrdenCompra::where('estado', 'pendiente')->count(),
             'aprobadas' => OrdenCompra::where('estado', 'aprobada')->count(),
-            'enviadas' => OrdenCompra::where('estado', 'enviada')->count(),
+            'enviadas' => OrdenCompra::whereIn('estado', ['enviada', 'enviado_a_proveedor'])->count(),
             'recibidas' => OrdenCompra::where('estado', 'recibida')->count(),
             'canceladas' => OrdenCompra::where('estado', 'cancelada')->count(),
         ];
@@ -183,7 +183,7 @@ class OrdenCompraController extends Controller
             'cancelada' => 'Cancelada',
             // Estados del sistema (por compatibilidad)
             'borrador' => 'Borrador',
-            'enviado_a_compra' => 'Enviado a Compra',
+            'enviado_a_proveedor' => 'Enviado a Proveedor',
             'convertida' => 'Recibida',
         ];
 
@@ -597,7 +597,7 @@ class OrdenCompraController extends Controller
             }
 
             $ordenCompra->update([
-                'estado' => 'enviado_a_compra',
+                'estado' => 'enviado_a_proveedor',
                 'observaciones' => ($ordenCompra->observaciones ? $ordenCompra->observaciones . "\n\n" : '') .
                     '*** ORDEN ENVIADA AL PROVEEDOR *** ' . now()->format('d/m/Y H:i')
             ]);
@@ -630,8 +630,8 @@ class OrdenCompraController extends Controller
                 }
             ])->findOrFail($id);
 
-            // Solo se puede recibir si está enviada a compra
-            if ($ordenCompra->estado !== 'enviado_a_compra') {
+            // Solo se puede recibir si está enviada a proveedor
+            if ($ordenCompra->estado !== 'enviado_a_proveedor') {
                 return redirect()->back()->with('error', 'Solo se puede recibir mercancía de órdenes enviadas al proveedor.');
             }
 
@@ -715,7 +715,6 @@ class OrdenCompraController extends Controller
                         'descuento' => $descuento,
                         'subtotal' => $subtotalFinal,
                         'descuento_monto' => $descuentoMonto,
-                        'unidad_medida' => $unidadMedida,
                     ]);
                 }
             }
@@ -731,11 +730,25 @@ class OrdenCompraController extends Controller
 
             DB::commit();
 
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Mercancía recibida exitosamente. Compra #' . $compra->id . ' creada y stock actualizado.',
+                    'compra_id' => $compra->id
+                ]);
+            }
+
             return redirect()->route('compras.index')
                 ->with('success', 'Mercancía recibida exitosamente. Compra #' . $compra->id . ' creada y stock actualizado.');
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error al recibir mercancía: ' . $e->getMessage());
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Error al procesar la recepción de mercancía: ' . $e->getMessage()
+                ], 500);
+            }
             return redirect()->back()->with('error', 'Error al procesar la recepción de mercancía.');
         }
     }
@@ -861,11 +874,11 @@ class OrdenCompraController extends Controller
         try {
             $ordenCompra = OrdenCompra::with('productos')->findOrFail($id);
 
-            // Solo se puede cancelar si está en estado pendiente, enviada a compra o convertida
-            if (!in_array($ordenCompra->estado, ['pendiente', 'enviado_a_compra', 'convertida'])) {
+            // Solo se puede cancelar si está en estado pendiente, enviada a proveedor o convertida
+            if (!in_array($ordenCompra->estado, ['pendiente', 'enviado_a_proveedor', 'convertida'])) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Solo se pueden cancelar órdenes en estado pendiente, enviada a compra o procesada'
+                    'message' => 'Solo se pueden cancelar órdenes en estado pendiente, enviada a proveedor o procesada'
                 ], 400);
             }
 
@@ -932,8 +945,8 @@ class OrdenCompraController extends Controller
             // Validar transiciones de estado permitidas
             $transicionesPermitidas = [
                 'borrador' => ['pendiente', 'cancelada'],
-                'pendiente' => ['enviado_a_compra', 'cancelada'], // Solo puede enviarse al proveedor o cancelarse
-                'enviado_a_compra' => ['convertida', 'cancelada'], // Puede recibir mercancía o cancelarse
+                'pendiente' => ['enviado_a_proveedor', 'cancelada'], // Solo puede enviarse al proveedor o cancelarse
+                'enviado_a_proveedor' => ['convertida', 'cancelada'], // Puede recibir mercancía o cancelarse
                 'convertida' => ['cancelada'], // Solo se puede cancelar una vez procesada (revertirá inventario)
                 'cancelada' => [] // Estado final
             ];

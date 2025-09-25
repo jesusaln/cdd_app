@@ -352,7 +352,7 @@
                   </button>
 
                   <button
-                    v-if="config.acciones.imprimir && doc.estado !== 'cancelado' && tipo !== 'cotizaciones' && tipo !== 'pedidos' && tipo !== 'ventas'"
+                    v-if="config.acciones.imprimir && doc.estado !== 'cancelado' && tipo !== 'cotizaciones' && tipo !== 'pedidos' && tipo !== 'ventas' && tipo !== 'ordenescompra' && tipo !== 'compras'"
                     @click="onImprimir(doc)"
                     class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 hover:text-purple-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:ring-offset-1"
                     title="Imprimir"
@@ -371,12 +371,22 @@
                     <font-awesome-icon icon="check-circle" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
                   </button>
 
-                  <!-- Procesar Compra (órdenes de compra pendientes o enviadas a compra) -->
+                  <!-- Enviar a Compra (solo órdenes pendientes) -->
                   <button
-                    v-if="tipo === 'ordenescompra' && ['pendiente', 'enviado_a_compra'].includes(doc.estado)"
+                    v-if="tipo === 'ordenescompra' && doc.estado === 'pendiente'"
                     @click="onEnviarCompra(doc)"
+                    class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-1"
+                    title="Enviar orden al proveedor"
+                  >
+                    <font-awesome-icon icon="paper-plane" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
+                  </button>
+
+                  <!-- Recibir Mercancía (solo órdenes enviadas a proveedor) -->
+                  <button
+                    v-if="tipo === 'ordenescompra' && doc.estado === 'enviado_a_proveedor'"
+                    @click="onRecibirOrden(doc)"
                     class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-1"
-                    :title="doc.estado === 'pendiente' ? 'Procesar Compra (actualizará inventario y creará registro de compra)' : 'Procesar Compra (actualizará inventario)'"
+                    title="Recibir mercancía y crear registro de compra"
                   >
                     <font-awesome-icon icon="shopping-cart" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
                   </button>
@@ -384,7 +394,7 @@
 
                   <!-- Cancelar Orden (solo órdenes de compra no canceladas) -->
                   <button
-                    v-if="tipo === 'ordenescompra' && ['pendiente', 'enviado_a_compra', 'convertida'].includes(doc.estado)"
+                    v-if="tipo === 'ordenescompra' && ['pendiente', 'enviado_a_proveedor', 'convertida'].includes(doc.estado)"
                     @click="onCancelarOrden(doc)"
                     class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-orange-50 text-orange-600 hover:bg-orange-100 hover:text-orange-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:ring-offset-1"
                     title="Cancelar Orden"
@@ -453,7 +463,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits([
-  'ver-detalles','editar','eliminar','duplicar','imprimir','sort','enviar-venta','enviar-pedido','marcar-pagado','enviar-compra','cancelar-orden'
+  'ver-detalles','editar','eliminar','duplicar','imprimir','sort','enviar-venta','enviar-pedido','marcar-pagado','enviar-compra','recibir-orden','cancelar-orden'
 ]);
 
 // Flags
@@ -592,7 +602,7 @@ const config = computed(() => {
       estados: {
         'borrador': { label: 'Borrador', classes: 'bg-gray-100 text-gray-700', color: 'bg-gray-400' },
         'pendiente': { label: 'Pendiente', classes: 'bg-yellow-100 text-yellow-700', color: 'bg-yellow-400' },
-        'enviado_a_compra': { label: 'Enviada a Compra', classes: 'bg-blue-100 text-blue-700', color: 'bg-blue-400' },
+        'enviado_a_proveedor': { label: 'Enviado a Proveedor', classes: 'bg-blue-100 text-blue-700', color: 'bg-blue-400' },
         'convertida': { label: 'Procesada', classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
         'cancelada': { label: 'Cancelada', classes: 'bg-red-100 text-red-700', color: 'bg-red-400' }
       }
@@ -804,6 +814,7 @@ const onEnviarVenta = (doc) => emit('enviar-venta', doc);
 const onEnviarPedido = (doc) => emit('enviar-pedido', doc);
 const onMarcarPagado = (doc) => emit('marcar-pagado', doc);
 const onEnviarCompra = (doc) => emit('enviar-compra', doc);
+const onRecibirOrden = (doc) => emit('recibir-orden', doc);
 const onConvertirCompra = (doc) => emit('convertir-compra', doc);
 const onCancelarOrden = (doc) => emit('cancelar-orden', doc);
 

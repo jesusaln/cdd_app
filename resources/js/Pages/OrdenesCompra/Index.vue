@@ -234,6 +234,7 @@ const estadisticas = computed(() => {
     switch (String(o.estado || '').toLowerCase()) {
       case 'enviada':
       case 'enviado':
+      case 'enviado_a_proveedor':
         stats.enviadas++
         break
       case 'recibida':
@@ -311,6 +312,19 @@ function validarOrdenBasica(orden) {
   return true
 }
 
+const actualizarEstadoLocal = (id, nuevoEstado) => {
+  const indice = ordenesOriginales.value.findIndex(o => o.id === id)
+  if (indice !== -1) {
+    ordenesOriginales.value[indice] = {
+      ...ordenesOriginales.value[indice],
+      estado: nuevoEstado
+    }
+  }
+
+  if (fila.value?.id === id) {
+    fila.value = { ...fila.value, estado: nuevoEstado }
+  }
+}
 function validarOrdenParaPDF(doc) {
   if (!doc.id) throw new Error('ID del documento no encontrado')
   if (!doc.proveedor?.nombre_razon_social) throw new Error('Datos del proveedor no encontrados')
@@ -463,34 +477,39 @@ const eliminarOrden = async () => {
   }
 }
 
-// Estado para enviar orden
-const isSendingOrden = ref(false)
-
-const enviarOrden = async (ordenData) => {
+const enviarOrden = (ordenData) => {
   try {
     const doc = ordenData?.id ? ordenData : fila.value
     validarOrdenBasica(doc)
 
     loading.value = true
-    notyf.success('Enviando orden...')
 
-    const { data } = await axios.post(`/ordenescompra/${doc.id}/enviar`, {
-      forzarReenvio: !!ordenData?.forzarReenvio
+    router.post(`/ordenescompra/${doc.id}/enviar-compra`, {}, {
+      preserveScroll: true,
+      onSuccess: (page) => {
+        const flash = page?.props?.flash || {}
+
+        if (flash.error) {
+          notyf.error(flash.error)
+          return
+        }
+
+        const mensaje = flash.success || 'Orden enviada al proveedor'
+        notyf.success(mensaje)
+        actualizarEstadoLocal(doc.id, 'enviado_a_proveedor')
+        showModal.value = false
+      },
+      onError: (errors) => {
+        const firstError = Object.values(errors || {})[0]
+        notyf.error(firstError || 'Error al enviar la orden a compra')
+      },
+      onFinish: () => {
+        loading.value = false
+      }
     })
-
-    if (!data?.success) throw new Error(data?.error || 'No se pudo enviar la orden')
-
-    // Actualiza estado local
-    const i = ordenesOriginales.value.findIndex(o => o.id === doc.id)
-    if (i !== -1) ordenesOriginales.value[i] = { ...ordenesOriginales.value[i], estado: 'enviada' }
-
-    showModal.value = false
-    notyf.success(data.message || 'Orden enviada exitosamente')
-
   } catch (err) {
     console.error(err)
-    notyf.error(err.response?.data?.error || err.response?.data?.message || err.message || 'Error al enviar orden')
-  } finally {
+    notyf.error(err.message || 'Error al enviar la orden a compra')
     loading.value = false
   }
 }
@@ -506,7 +525,7 @@ const recibirOrden = async (ordenData) => {
     loading.value = true
     notyf.success('Recibiendo orden...')
 
-    const { data } = await axios.post(`/ordenescompra/${doc.id}/recibir`, {
+    const { data } = await axios.post(`/ordenescompra/${doc.id}/recibir-mercancia`, {
       forzarReenvio: !!ordenData?.forzarReenvio
     })
 
@@ -593,6 +612,7 @@ const crearNuevaOrden = () => {
           @duplicar="duplicarOrden"
           @imprimir="imprimirOrden"
           @eliminar="confirmarEliminacion"
+          @enviar-compra="enviarOrden"
           @enviar-orden="enviarOrden"
           @recibir-orden="recibirOrden"
           @sort="updateSort"

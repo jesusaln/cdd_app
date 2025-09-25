@@ -292,7 +292,7 @@ function validarCompraBasica(compra) {
   if (!compra.proveedor?.nombre_razon_social) {
     throw new Error('Datos del proveedor no encontrados')
   }
-  if (!Array.isArray(compra.items) || !compra.items.length) {
+  if (!Array.isArray(compra.productos) || !compra.productos.length) {
     throw new Error('Lista de productos no válida')
   }
   if (!compra.fecha && !compra.created_at) {
@@ -303,8 +303,8 @@ function validarCompraBasica(compra) {
 
 function validarCompraParaPDF(doc) {
   if (!doc.id) throw new Error('ID del documento no encontrado')
-  if (!doc.proveedor?.nombre_razon_social) throw new Error('Datos del proveedor no encontrados')
-  if (!Array.isArray(doc.items) || !doc.items.length) {
+  if (!doc.cliente?.nombre_razon_social) throw new Error('Datos del cliente no encontrados')
+  if (!Array.isArray(doc.productos) || !doc.productos.length) {
     throw new Error('Lista de productos no válida')
   }
   if (!doc.fecha) throw new Error('Fecha no especificada')
@@ -375,6 +375,8 @@ const imprimirCompra = async (compra) => {
   try {
     const doc = {
       ...compra,
+      cliente: compra.proveedor, // Mapear proveedor a cliente para el PDF
+      productos: compra.productos,   // Mapear productos para el PDF
       fecha: compra.fecha || compra.created_at || new Date().toISOString()
     }
 

@@ -1,0 +1,89 @@
+diff --git a/resources/js/Components/IndexComponents/Modales.vue b/resources/js/Components/IndexComponents/Modales.vue
+--- a/resources/js/Components/IndexComponents/Modales.vue
++++ b/resources/js/Components/IndexComponents/Modales.vue
+@@
+-const emit = defineEmits([
+-  'close',
+-  'confirm-delete',
+-  'confirm-duplicate',
+-  'confirm-receive',
+-  'confirmar-recepcion',
+-  'marcar-urgente',
+-  'recibir-compra',
+-  'imprimir',
+-  'editar',
+-  'enviar-pedido',
+-  'enviar-a-venta',
+-  'enviarVenta',
+-  'enviarCotizacion',
+-  // Acciones para equipos
++const emit = defineEmits([
++  'close',
++  'confirm-delete',
++  'confirm-duplicate',
++  'marcar-urgente',
++  'recibir-compra',
++  'imprimir',
++  'editar',
++  'enviar-pedido',
++  'enviar-a-venta',
++  'enviarVenta',
++  'enviarCotizacion',
++  'enviar-orden',
++  'recibir-orden',
++  // Acciones para equipos
+@@
+-            <template v-if="isOrdenesCompra">
+-              <button
+-                v-if="selected?.estado !== 'cancelado' && selected?.estado !== 'enviada'"
+-                @click="emit('confirmar-recepcion', selected)"
+-                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+-              >
+-                Enviar a Compra
+-              </button>
+-              <button
+-                v-if="selected?.estado !== 'cancelado' && !selected?.urgente"
+-                @click="emit('marcar-urgente', selected)"
+-                class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+-              >
+-                Marcar como Urgente
+-              </button>
+-            </template>
++            <template v-if="isOrdenesCompra">
++              <button
++                v-if="puedeEnviarOrden"
++                @click="emit('enviar-orden', selected)"
++                class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
++              >
++                Enviar a Compra
++              </button>
++              <button
++                v-if="puedeRecibirOrden"
++                @click="emit('recibir-orden', selected)"
++                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
++              >
++                Recibir Mercancia
++              </button>
++              <button
++                v-if="puedeMarcarUrgente"
++                @click="emit('marcar-urgente', selected)"
++                class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
++              >
++                Marcar como Urgente
++              </button>
++            </template>
+@@
+-// Verificaciones de estado para flujos
+-const yaEnviado = computed(() => ['enviado_pedido','convertido_pedido'].includes(props.selected?.estado))
+-const yaConvertidoAVenta = computed(() => ['enviado_venta','facturado','pagado','convertido_venta'].includes(props.selected?.estado))
+-const yaRecibida = computed(() => ['recibido','recibida'].includes(props.selected?.estado))
++// Verificaciones de estado para flujos
++const estadoDocumento = computed(() => String(props.selected?.estado || '').toLowerCase())
++const tieneSeleccion = computed(() => !!(props.selected && (props.selected.id ?? props.selected.numero_orden ?? props.selected.estado)))
++
++const yaEnviado = computed(() => ['enviado_pedido','convertido_pedido'].includes(estadoDocumento.value))
++const yaConvertidoAVenta = computed(() => ['enviado_venta','facturado','pagado','convertido_venta'].includes(estadoDocumento.value))
++const yaRecibida = computed(() => ['recibido','recibida','convertida'].includes(estadoDocumento.value))
++const puedeEnviarOrden = computed(() => isOrdenesCompra.value && tieneSeleccion.value && ['pendiente','borrador'].includes(estadoDocumento.value))
++const puedeRecibirOrden = computed(() => isOrdenesCompra.value && tieneSeleccion.value && ['enviado_a_compra'].includes(estadoDocumento.value))
++const puedeMarcarUrgente = computed(() => isOrdenesCompra.value && tieneSeleccion.value && estadoDocumento.value !== 'cancelada' && !props.selected?.urgente)

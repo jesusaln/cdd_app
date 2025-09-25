@@ -18,7 +18,21 @@ class CompraController extends Controller
 {
     public function index()
     {
-        $compras = Compra::with('proveedor', 'productos')->get();
+        $compras = Compra::with('proveedor', 'productos')->get()->map(function ($compra) {
+            $compra->productos = $compra->productos->map(function ($producto) {
+                return [
+                    'id' => $producto->id,
+                    'nombre' => $producto->nombre,
+                    'descripcion' => $producto->descripcion,
+                    'cantidad' => $producto->pivot->cantidad,
+                    'precio' => $producto->pivot->precio,
+                    'descuento' => $producto->pivot->descuento,
+                    'subtotal' => $producto->pivot->subtotal,
+                    'descuento_monto' => $producto->pivot->descuento_monto,
+                ];
+            });
+            return $compra;
+        });
         return Inertia::render('Compras/Index', ['compras' => $compras]);
     }
 
@@ -92,12 +106,36 @@ class CompraController extends Controller
     public function show($id)
     {
         $compra = Compra::with('proveedor', 'productos')->findOrFail($id);
+        $compra->productos = $compra->productos->map(function ($producto) {
+            return [
+                'id' => $producto->id,
+                'nombre' => $producto->nombre,
+                'descripcion' => $producto->descripcion,
+                'cantidad' => $producto->pivot->cantidad,
+                'precio' => $producto->pivot->precio,
+                'descuento' => $producto->pivot->descuento,
+                'subtotal' => $producto->pivot->subtotal,
+                'descuento_monto' => $producto->pivot->descuento_monto,
+            ];
+        });
         return Inertia::render('Compras/Show', ['compra' => $compra]);
     }
 
     public function edit($id)
     {
         $compra = Compra::with('proveedor', 'productos')->findOrFail($id);
+        $compra->productos = $compra->productos->map(function ($producto) {
+            return [
+                'id' => $producto->id,
+                'nombre' => $producto->nombre,
+                'descripcion' => $producto->descripcion,
+                'cantidad' => $producto->pivot->cantidad,
+                'precio' => $producto->pivot->precio,
+                'descuento' => $producto->pivot->descuento,
+                'subtotal' => $producto->pivot->subtotal,
+                'descuento_monto' => $producto->pivot->descuento_monto,
+            ];
+        });
         $proveedores = Proveedor::all();
         $productos = Producto::all();
         return Inertia::render('Compras/Edit', ['compra' => $compra, 'proveedores' => $proveedores, 'productos' => $productos]);
