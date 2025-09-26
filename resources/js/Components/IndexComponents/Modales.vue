@@ -1041,7 +1041,7 @@ const config = computed(() => {
       titulo: 'Compra',
       mostrarCampoExtra: true,
       campoExtra: { key: 'numero_compra', label: 'N° Compra' },
-      acciones: { editar: true, imprimir: true, enviarPedido: false, enviarAVenta: false, recibirCompra: true },
+      acciones: { editar: true, imprimir: true, enviarPedido: false, enviarAVenta: false, recibirCompra: false },
       estados: baseEstados({
         borrador: { label: 'Borrador', classes: 'bg-gray-100 text-gray-800', color: 'bg-gray-400' },
         pendiente: { label: 'Pendiente', classes: 'bg-yellow-100 text-yellow-800', color: 'bg-yellow-400' },
