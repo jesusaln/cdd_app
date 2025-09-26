@@ -66,13 +66,23 @@ const notyf = new Notyf({
 })
 
 /* =========================
-   Estado local y modal
+    Estado local y modal
 ========================= */
 const showModal = ref(false)
 const fila = ref(null)
 const modalMode = ref('details')
 const selectedId = ref(null)
 const loading = ref(false)
+
+/* =========================
+    Funciones del modal
+========================= */
+const closeModal = () => {
+  showModal.value = false
+  fila.value = null
+  selectedId.value = null
+  modalMode.value = 'details'
+}
 
 /* =========================
     Filtros, orden y datos
@@ -273,6 +283,18 @@ const verDetalles = (compra) => {
   }
 }
 
+const abrirModalDetalles = (compra) => {
+  fila.value = compra
+  modalMode.value = 'details'
+  showModal.value = true
+}
+
+const abrirModalConfirmacion = (id) => {
+  selectedId.value = id
+  modalMode.value = 'confirm'
+  showModal.value = true
+}
+
 const editarCompra = (id) => {
   try {
     const compraId = id || fila.value?.id
@@ -323,10 +345,7 @@ const imprimirFila = () => {
 const confirmarEliminacion = (id) => {
   try {
     if (!id) throw new Error('ID de compra no válido')
-
-    selectedId.value = id
-    modalMode.value = 'confirm'
-    showModal.value = true
+    abrirModalConfirmacion(id)
   } catch (error) {
     notyf.error(error.message)
   }
@@ -344,12 +363,14 @@ const eliminarCompra = async () => {
       },
       onSuccess: () => {
         notyf.success('Compra cancelada exitosamente')
+        closeModal() // Cerrar el modal inmediatamente
         // Recargar la página para actualizar los datos del servidor
-        router.reload()
+        setTimeout(() => router.reload(), 100)
       },
       onError: (errors) => {
         console.error('Error al cancelar:', errors)
         notyf.error('Error al cancelar la compra')
+        closeModal() // Cerrar el modal incluso en error
       },
       onFinish: () => {
         loading.value = false
@@ -358,6 +379,7 @@ const eliminarCompra = async () => {
   } catch (error) {
     notyf.error(error.message)
     loading.value = false
+    closeModal() // Cerrar el modal en caso de error
   }
 }
 
@@ -493,7 +515,7 @@ const crearNuevaCompra = () => {
       tipo="compras"
       :selected="fila || {}"
       :auditoria="auditoriaForModal"
-      @close="() => { showModal = false; fila = null; selectedId = null }"
+      @close="closeModal"
       @confirm-delete="eliminarCompra"
       @imprimir="imprimirFila"
       @editar="editarFila"
