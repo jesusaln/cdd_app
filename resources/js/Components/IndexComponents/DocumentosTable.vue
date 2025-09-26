@@ -842,7 +842,7 @@ const getColspan = () => {
    let count = 4; // Fecha, Cliente/Proveedor, Estado, Acciones (siempre presentes)
 
    if (config.value.mostrarCampoExtra) count++;
-   if (config.value.mostrarTotal !== false) count++;
+   if (config.value.mostrarTotal !== false) count++; // Total
    if (config.value.mostrarProductos !== false) count++;
 
    return count;

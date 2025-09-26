@@ -85,19 +85,11 @@
             <span>Descuentos por Items:</span>
             <span class="font-semibold">-${{ totals.descuentoItems.toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}</span>
           </div>
-          <div class="flex justify-between items-center">
-            <span class="text-gray-700">Descuento General:</span>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              :value="descuentoGeneral"
-              @input="updateDescuentoGeneral"
-              class="w-24 px-2 py-1 text-right border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="0.00"
-            />
+          <div v-if="totals.descuentoGeneral > 0" class="flex justify-between items-center text-red-600">
+            <span>Descuento General:</span>
+            <span class="font-semibold">-${{ totals.descuentoGeneral.toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}</span>
           </div>
-          <div v-if="(totals.descuentoItems > 0 || descuentoGeneral > 0)" class="flex justify-between items-center text-gray-700">
+          <div v-if="(totals.descuentoItems > 0 || totals.descuentoGeneral > 0)" class="flex justify-between items-center text-gray-700">
             <span>Subtotal con descuentos:</span>
             <span class="font-semibold">${{ totals.subtotalConDescuentos.toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}</span>
           </div>
@@ -158,21 +150,12 @@ const props = defineProps({
   depositoGarantia: {
     type: [Number, String],
     default: 0
-  },
-  descuentoGeneral: {
-    type: [Number, String],
-    default: 0
   }
 });
 
-const emit = defineEmits(['toggle-margin-calculator', 'update:descuento-general']);
+const emit = defineEmits(['toggle-margin-calculator']);
 
 const toggleMarginCalculator = () => {
   emit('toggle-margin-calculator');
-};
-
-const updateDescuentoGeneral = (event) => {
-  const value = parseFloat(event.target.value) || 0;
-  emit('update:descuento-general', value);
 };
 </script>

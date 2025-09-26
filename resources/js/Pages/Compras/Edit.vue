@@ -211,6 +211,40 @@
             </div>
           </div>
 
+          <!-- Descuento General -->
+          <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div class="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4">
+              <h2 class="text-lg font-semibold text-white flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                </svg>
+                Descuento General
+              </h2>
+            </div>
+            <div class="p-6">
+              <div class="space-y-4">
+                <div>
+                  <label for="descuento_general" class="block text-sm font-medium text-gray-700 mb-2">
+                    Descuento General ($)
+                  </label>
+                  <input
+                    id="descuento_general"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    v-model="form.descuento_general"
+                    :disabled="cargandoDatos"
+                    class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-red-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    placeholder="0.00"
+                  />
+                  <p class="mt-1 text-xs text-gray-500">
+                    Este descuento se aplica al subtotal después de los descuentos por item
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Totales -->
           <Totales
             :show-margin-calculator="false"
@@ -218,7 +252,6 @@
             :totals="totales"
             :item-count="selectedProducts.length"
             :total-quantity="Object.values(quantities).reduce((sum, qty) => sum + (qty || 0), 0)"
-            @update:descuento-general="val => form.descuento_general = val"
           />
 
           <!-- Botones -->
