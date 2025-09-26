@@ -77,7 +77,8 @@ class OrdenCompraController extends Controller
             $sortBy = 'created_at';
         }
 
-        $baseQuery->orderBy($sortBy, $sortDirection === 'asc' ? 'asc' : 'desc');
+        $baseQuery->orderBy($sortBy, $sortDirection === 'asc' ? 'asc' : 'desc')
+                  ->orderBy('id', 'desc');
 
         $paginator = $baseQuery->paginate($perPage, ['*'], 'page', $page);
         $ordenes = collect($paginator->items());

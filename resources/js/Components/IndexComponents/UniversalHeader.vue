@@ -649,7 +649,7 @@ const getIconPath = (iconName) => icons[iconName] || icons.document;
 
           <!-- Pendientes (solo para módulos que no tienen secciones específicas) -->
           <div
-            v-if="finalConfig.module !== 'servicios' && finalConfig.module !== 'clientes' && finalConfig.module !== 'productos' && finalConfig.module !== 'herramientas' && finalConfig.module !== 'compras'"
+            v-if="finalConfig.module !== 'servicios' && finalConfig.module !== 'clientes' && finalConfig.module !== 'productos' && finalConfig.module !== 'herramientas' && finalConfig.module !== 'compras' && finalConfig.module !== 'ordenescompra' && finalConfig.module !== 'cotizaciones' && finalConfig.module !== 'pedidos' && finalConfig.module !== 'ventas'"
             :class="getColorClasses(finalConfig.estadisticas.pendientes.color).bg + ' ' + getColorClasses(finalConfig.estadisticas.pendientes.color).border"
             class="group flex items-center gap-2 px-4 py-3 rounded-xl border flex-shrink-0 hover:shadow-sm transition-all duration-200 cursor-default"
             :title="finalConfig.estadisticas.pendientes.description"
