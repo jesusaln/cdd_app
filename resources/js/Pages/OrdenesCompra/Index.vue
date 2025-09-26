@@ -222,39 +222,22 @@ watch(totalPages, (newTotal) => {
 const estadisticas = computed(() => {
   const stats = {
     total: ordenesOriginales.value.length,
-    enviadas: 0,
-    recibidas: 0,
     pendientes: 0,
-    borrador: 0,
-    aprobadas: 0,
+    enviadas: 0,
+    procesadas: 0,
     canceladas: 0,
   }
 
   ordenesOriginales.value.forEach(o => {
-    switch (String(o.estado || '').toLowerCase()) {
-      case 'enviada':
-      case 'enviado':
-      case 'enviado_a_proveedor':
-        stats.enviadas++
-        break
-      case 'recibida':
-      case 'recibido':
-        stats.recibidas++
-        break
-      case 'pendiente':
-        stats.pendientes++
-        break
-      case 'borrador':
-        stats.borrador++
-        break
-      case 'aprobada':
-      case 'aprobado':
-        stats.aprobadas++
-        break
-      case 'cancelada':
-      case 'cancelado':
-        stats.canceladas++
-        break
+    const estado = String(o.estado || '').toLowerCase()
+    if (estado.includes('pendiente')) {
+      stats.pendientes++
+    } else if (estado.includes('enviado')) {
+      stats.enviadas++
+    } else if (estado.includes('procesada') || estado.includes('convertida')) {
+      stats.procesadas++
+    } else if (estado.includes('cancelada') || estado.includes('cancelado')) {
+      stats.canceladas++
     }
   })
 
@@ -540,6 +523,11 @@ const recibirOrden = async (ordenData) => {
     showModal.value = false
     notyf.success(data.message || 'Orden recibida exitosamente')
 
+    // Redirigir a la página de compras
+    setTimeout(() => {
+      router.visit('/compras')
+    }, 1500)
+
   } catch (err) {
     console.error(err)
     notyf.error(err.response?.data?.error || err.response?.data?.message || err.message || 'Error al recibir orden')
@@ -562,11 +550,9 @@ const crearNuevaOrden = () => {
       <!-- Header de filtros y estadísticas -->
       <UniversalHeader
         :total="estadisticas.total"
-        :enviadas="estadisticas.enviadas"
-        :recibidas="estadisticas.recibidas"
-        :aprobadas="estadisticas.aprobadas"
         :pendientes="estadisticas.pendientes"
-        :borrador="estadisticas.borrador"
+        :enviadas="estadisticas.enviadas"
+        :procesadas="estadisticas.procesadas"
         :canceladas="estadisticas.canceladas"
         v-model:search-term="searchTerm"
         v-model:sort-by="sortBy"

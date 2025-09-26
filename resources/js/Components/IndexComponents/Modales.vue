@@ -547,6 +547,10 @@
                   <span class="text-gray-600">Subtotal:</span>
                   <span class="font-medium">${{ formatearMoneda(selected.subtotal || 0) }}</span>
                 </div>
+                <div v-if="(selected.descuento_items || 0) > 0" class="flex justify-between">
+                  <span class="text-gray-600">Descuentos por Items:</span>
+                  <span class="font-medium text-red-600">-${{ formatearMoneda(selected.descuento_items || 0) }}</span>
+                </div>
                 <div v-if="(selected.descuento_general || 0) > 0" class="flex justify-between">
                   <span class="text-gray-600">Descuento General:</span>
                   <span class="font-medium text-red-600">-${{ formatearMoneda(selected.descuento_general || 0) }}</span>

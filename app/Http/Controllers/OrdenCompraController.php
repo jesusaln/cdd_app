@@ -715,6 +715,10 @@ class OrdenCompraController extends Controller
             $compra = Compra::create([
                 'proveedor_id' => $ordenCompra->proveedor_id,
                 'orden_compra_id' => $ordenCompra->id,
+                'subtotal' => $ordenCompra->subtotal,
+                'descuento_general' => $ordenCompra->descuento_general,
+                'descuento_items' => $ordenCompra->descuento_items,
+                'iva' => $ordenCompra->iva,
                 'total' => $ordenCompra->total,
                 'estado' => EstadoCompra::Procesada,
             ]);
