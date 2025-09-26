@@ -539,6 +539,33 @@
             </div>
             <p v-else-if="!isEquipos && !isClientes && !isOrdenesCompra" class="text-sm text-gray-600">No hay productos asociados.</p>
 
+            <!-- Totales para órdenes de compra -->
+            <div v-if="isOrdenesCompra && selected.productos?.length" class="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <h4 class="text-sm font-medium text-gray-900 mb-3">Resumen de Orden de Compra</h4>
+              <div class="space-y-2 text-sm">
+                <div class="flex justify-between">
+                  <span class="text-gray-600">Subtotal:</span>
+                  <span class="font-medium">${{ formatearMoneda(selected.subtotal || 0) }}</span>
+                </div>
+                <div v-if="(selected.descuento_items || 0) > 0" class="flex justify-between">
+                  <span class="text-gray-600">Descuentos por Items:</span>
+                  <span class="font-medium text-red-600">-${{ formatearMoneda(selected.descuento_items || 0) }}</span>
+                </div>
+                <div v-if="(selected.descuento_general || 0) > 0" class="flex justify-between">
+                  <span class="text-gray-600">Descuento General:</span>
+                  <span class="font-medium text-red-600">-${{ formatearMoneda(selected.descuento_general || 0) }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-gray-600">IVA (16%):</span>
+                  <span class="font-medium">${{ formatearMoneda(selected.iva || 0) }}</span>
+                </div>
+                <div class="flex justify-between border-t border-gray-300 pt-2">
+                  <span class="text-gray-900 font-semibold">Total:</span>
+                  <span class="text-gray-900 font-bold">${{ formatearMoneda(selected.total || 0) }}</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Totales para compras -->
             <div v-if="isCompras && selected.productos?.length" class="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
               <h4 class="text-sm font-medium text-gray-900 mb-3">Resumen de Compra</h4>

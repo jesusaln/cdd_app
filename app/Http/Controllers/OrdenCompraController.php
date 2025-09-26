@@ -711,15 +711,41 @@ class OrdenCompraController extends Controller
                 }
             }
 
+            // Calcular totales basados en los productos de la orden de compra
+            $subtotal = 0;
+            $descuentoItems = 0;
+            $descuentoGeneral = $ordenCompra->descuento_general ?? 0;
+
+            foreach ($ordenCompra->productos as $producto) {
+                $cantidad = $producto->pivot->cantidad;
+                $precio = $producto->pivot->precio;
+                $descuento = $producto->pivot->descuento ?? 0;
+
+                $subtotalProducto = $cantidad * $precio;
+                $descuentoMonto = $subtotalProducto * ($descuento / 100);
+
+                $subtotal += $subtotalProducto;
+                $descuentoItems += $descuentoMonto;
+            }
+
+            // Aplicar descuento general
+            $subtotalDespuesDescuentoGeneral = $subtotal - $descuentoItems - $descuentoGeneral;
+
+            // Calcular IVA (16%)
+            $iva = $subtotalDespuesDescuentoGeneral * 0.16;
+
+            // Total final
+            $total = $subtotalDespuesDescuentoGeneral + $iva;
+
             // Crea la compra
             $compra = Compra::create([
                 'proveedor_id' => $ordenCompra->proveedor_id,
                 'orden_compra_id' => $ordenCompra->id,
-                'subtotal' => $ordenCompra->subtotal,
-                'descuento_general' => $ordenCompra->descuento_general,
-                'descuento_items' => $ordenCompra->descuento_items,
-                'iva' => $ordenCompra->iva,
-                'total' => $ordenCompra->total,
+                'subtotal' => $subtotal,
+                'descuento_general' => $descuentoGeneral,
+                'descuento_items' => $descuentoItems,
+                'iva' => $iva,
+                'total' => $total,
                 'estado' => EstadoCompra::Procesada,
             ]);
 
