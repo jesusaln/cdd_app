@@ -41,16 +41,52 @@
                                     <th class="px-4 py-2 text-right text-sm font-medium text-gray-500">Precio</th>
                                     <th class="px-4 py-2 text-right text-sm font-medium text-gray-500">Descuento</th>
                                     <th class="px-4 py-2 text-right text-sm font-medium text-gray-500">Subtotal</th>
+                                    <th class="px-4 py-2 text-center text-sm font-medium text-gray-500">Stock Antes</th>
+                                    <th class="px-4 py-2 text-center text-sm font-medium text-gray-500">Stock Después</th>
+                                    <th class="px-4 py-2 text-center text-sm font-medium text-gray-500">Diferencia</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-200">
                                 <tr v-for="item in items" :key="item.id">
-                                    <td class="px-4 py-3 text-sm">{{ item.nombre }}</td>
+                                    <td class="px-4 py-3 text-sm">
+                                        <div>
+                                            <div class="font-medium">{{ item.nombre }}</div>
+                                            <div v-if="item.descripcion" class="text-xs text-gray-500 mt-1">{{ item.descripcion }}</div>
+                                        </div>
+                                    </td>
                                     <td class="px-4 py-3 text-sm text-right">{{ item.cantidad }}</td>
                                     <td class="px-4 py-3 text-sm text-right">${{ item.precio.toFixed(2) }}</td>
                                     <td class="px-4 py-3 text-sm text-right">{{ item.descuento }}%</td>
                                     <td class="px-4 py-3 text-sm text-right">
-                                        ${{ (item.cantidad * item.precio * (1 - item.descuento / 100)).toFixed(2) }}
+                                        ${{ ((item.cantidad * item.precio) * (1 - item.descuento / 100)).toFixed(2) }}
+                                    </td>
+                                    <td class="px-4 py-3 text-sm text-center">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                            {{ item.stock_antes }}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3 text-sm text-center">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                            {{ item.stock_despues }}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3 text-sm text-center">
+                                        <span
+                                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                                            :class="{
+                                                'bg-green-100 text-green-800': item.diferencia_stock > 0,
+                                                'bg-red-100 text-red-800': item.diferencia_stock < 0,
+                                                'bg-gray-100 text-gray-800': item.diferencia_stock === 0
+                                            }"
+                                        >
+                                            <svg v-if="item.diferencia_stock > 0" class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M5.293 7.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L6.707 7.707a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                                            </svg>
+                                            <svg v-else-if="item.diferencia_stock < 0" class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M14.707 12.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L9 14.586V3a1 1 0 012 0v11.586l2.293-2.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                            </svg>
+                                            {{ item.diferencia_stock > 0 ? '+' : '' }}{{ item.diferencia_stock }}
+                                        </span>
                                     </td>
                                 </tr>
                             </tbody>
@@ -73,14 +109,6 @@
                 <!-- Acciones -->
                 <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                     <div class="p-6 flex flex-wrap gap-3">
-                        <button
-                            v-if="canReceive"
-                            @click="mostrarVistaPrevia = true"
-                            class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
-                        >
-                            Recibir Compra
-                        </button>
-
                         <Link
                             v-if="canEdit"
                             :href="route('compras.edit', compra.id)"
@@ -154,23 +182,26 @@ const props = defineProps({
 });
 
 // Totales
-const subtotal = computed(() => props.compra.subtotal || 0);
-const descuentoGeneral = computed(() => props.compra.descuento_general || 0);
-const iva = computed(() => props.compra.iva || 0);
-const total = computed(() => props.compra.total || 0);
+const subtotal = computed(() => parseFloat(props.compra.subtotal) || 0);
+const descuentoGeneral = computed(() => parseFloat(props.compra.descuento_general) || 0);
+const iva = computed(() => parseFloat(props.compra.iva) || 0);
+const total = computed(() => parseFloat(props.compra.total) || 0);
 
 // Items
 const items = computed(() => {
-    if (!props.compra.items || !Array.isArray(props.compra.items)) {
+    if (!props.compra.productos || !Array.isArray(props.compra.productos)) {
         return [];
     }
-    return props.compra.items.map(item => ({
-        id: item.comprable_id,
-        nombre: item.comprable?.nombre || 'Sin nombre',
-        tipo: item.comprable_type === 'App\\Models\\Producto' ? 'producto' : 'servicio',
-        cantidad: item.cantidad,
-        precio: item.precio,
-        descuento: item.descuento || 0
+    return props.compra.productos.map(item => ({
+        id: item.id,
+        nombre: item.nombre || 'Sin nombre',
+        descripcion: item.descripcion || '',
+        cantidad: parseInt(item.cantidad) || 0,
+        precio: parseFloat(item.precio) || 0,
+        descuento: parseFloat(item.descuento) || 0,
+        stock_antes: parseInt(item.stock_antes) || 0,
+        stock_despues: parseInt(item.stock_despues) || 0,
+        diferencia_stock: parseInt(item.diferencia_stock) || 0
     }));
 });
 

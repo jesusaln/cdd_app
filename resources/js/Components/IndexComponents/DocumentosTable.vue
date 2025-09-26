@@ -201,7 +201,7 @@
               :key="doc.id"
               :class="[
                 'group hover:bg-gray-50/60 transition-all duration-150 hover:shadow-sm',
-                doc.estado === 'cancelado' ? 'opacity-50' : ''
+                (doc.estado === 'cancelado' || doc.estado === 'cancelada') ? 'opacity-50' : ''
               ]"
             >
               <!-- Fecha -->
@@ -354,7 +354,7 @@
                   </button>
 
                   <button
-                    v-if="config.acciones.imprimir && doc.estado !== 'cancelado' && tipo !== 'cotizaciones' && tipo !== 'pedidos' && tipo !== 'ventas' && tipo !== 'ordenescompra' && tipo !== 'compras'"
+                    v-if="config.acciones.imprimir && doc.estado !== 'cancelado' && doc.estado !== 'cancelada' && tipo !== 'cotizaciones' && tipo !== 'pedidos' && tipo !== 'ventas' && tipo !== 'ordenescompra' && tipo !== 'compras'"
                     @click="onImprimir(doc)"
                     class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 hover:text-purple-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:ring-offset-1"
                     title="Imprimir"
@@ -442,6 +442,7 @@
 
 <script setup>
 import { computed, ref } from 'vue';
+import { router } from '@inertiajs/vue3';
 
 const props = defineProps({
   documentos: { type: Array, default: () => [] },
@@ -604,7 +605,7 @@ const config = computed(() => {
         'en_preparacion': { label: 'En Preparación', classes: 'bg-orange-100 text-orange-700', color: 'bg-orange-400' },
         'listo_entrega': { label: 'Listo para Entrega', classes: 'bg-purple-100 text-purple-700', color: 'bg-purple-400' },
         'entregado': { label: 'Entregado', classes: 'bg-green-100 text-green-700', color: 'bg-green-400' },
-        'cancelado': { label: 'Cancelado', classes: 'bg-red-100 text-red-700', color: 'bg-red-400' }
+        'cancelada': { label: 'Cancelada', classes: 'bg-red-100 text-red-700', color: 'bg-red-400' }
       }
     },
     ordenescompra: {

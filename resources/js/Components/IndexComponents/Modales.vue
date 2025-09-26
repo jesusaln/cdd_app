@@ -217,6 +217,30 @@
                 </p>
               </div>
 
+              <!-- COMPRAS -->
+              <div v-else-if="isCompras">
+                <p class="text-sm text-gray-600">
+                  <strong>Proveedor:</strong> {{ selected.proveedor?.nombre_razon_social || 'Sin proveedor' }}
+                </p>
+                <p class="text-sm text-gray-600" v-if="selected.proveedor?.email">
+                  <strong>Email:</strong> {{ selected.proveedor.email }}
+                </p>
+                <p class="text-sm text-gray-600">
+                  <strong>Fecha:</strong>
+                  {{ formatearFecha(selected.created_at || selected.fecha) }}
+                </p>
+                <p class="text-sm text-gray-600">
+                  <strong>Estado:</strong>
+                  <span
+                    :class="obtenerClasesEstado(selected.estado)"
+                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                  >
+                    <span class="w-1.5 h-1.5 rounded-full mr-1.5" :class="obtenerColorPuntoEstado(selected.estado)"></span>
+                    {{ obtenerLabelEstado(selected.estado) }}
+                  </span>
+                </p>
+              </div>
+
               <!-- CLIENTES -->
               <div v-else-if="isClientes">
                 <p class="text-sm text-gray-600">
@@ -423,7 +447,7 @@
             </div>
 
             <!-- Tabla de productos (no aplica a equipos ni clientes) -->
-            <div v-if="!isEquipos && !isClientes && !isOrdenesCompra && selected.productos?.length" class="mt-4">
+            <div v-if="!isEquipos && !isClientes && selected.productos?.length" class="mt-4">
               <h4 class="text-sm font-medium text-gray-900 mb-2">Productos</h4>
               <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
@@ -447,6 +471,16 @@
                       <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                         Subtotal
                       </th>
+                      <!-- Columnas adicionales para compras -->
+                      <th v-if="isCompras" class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        Stock Antes
+                      </th>
+                      <th v-if="isCompras" class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        Stock Después
+                      </th>
+                      <th v-if="isCompras" class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        Diferencia
+                      </th>
                     </tr>
                   </thead>
                   <tbody class="bg-white divide-y divide-gray-200">
@@ -464,11 +498,39 @@
                         ${{ formatearMoneda(producto.precio) }}
                       </td>
                       <td class="px-4 py-2 text-sm text-gray-600">
-                        <!-- Si manejas descuento como % cámbialo a {{ (producto.descuento || 0) + '%' }} -->
                         ${{ formatearMoneda(producto.descuento || 0) }}
                       </td>
                       <td class="px-4 py-2 text-sm text-gray-600">
-                        ${{ formatearMoneda((producto.cantidad || 0) * (producto.precio || 0) - (producto.descuento || 0)) }}
+                        ${{ formatearMoneda(producto.subtotal || ((producto.cantidad || 0) * (producto.precio || 0) * (1 - (producto.descuento || 0) / 100))) }}
+                      </td>
+                      <!-- Columnas adicionales para compras -->
+                      <td v-if="isCompras" class="px-4 py-2 text-sm text-gray-600">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          {{ producto.stock_antes || 0 }}
+                        </span>
+                      </td>
+                      <td v-if="isCompras" class="px-4 py-2 text-sm text-gray-600">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          {{ producto.stock_despues || 0 }}
+                        </span>
+                      </td>
+                      <td v-if="isCompras" class="px-4 py-2 text-sm text-gray-600">
+                        <span
+                          class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                          :class="{
+                            'bg-green-100 text-green-800': (producto.diferencia_stock || 0) > 0,
+                            'bg-red-100 text-red-800': (producto.diferencia_stock || 0) < 0,
+                            'bg-gray-100 text-gray-800': (producto.diferencia_stock || 0) === 0
+                          }"
+                        >
+                          <svg v-if="(producto.diferencia_stock || 0) > 0" class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M5.293 7.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L6.707 7.707a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                          </svg>
+                          <svg v-else-if="(producto.diferencia_stock || 0) < 0" class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M14.707 12.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L9 14.586V3a1 1 0 012 0v11.586l2.293-2.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                          </svg>
+                          {{ (producto.diferencia_stock || 0) > 0 ? '+' : '' }}{{ producto.diferencia_stock || 0 }}
+                        </span>
                       </td>
                     </tr>
                   </tbody>
@@ -476,6 +538,29 @@
               </div>
             </div>
             <p v-else-if="!isEquipos && !isClientes && !isOrdenesCompra" class="text-sm text-gray-600">No hay productos asociados.</p>
+
+            <!-- Totales para compras -->
+            <div v-if="isCompras && selected.productos?.length" class="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <h4 class="text-sm font-medium text-gray-900 mb-3">Resumen de Compra</h4>
+              <div class="space-y-2 text-sm">
+                <div class="flex justify-between">
+                  <span class="text-gray-600">Subtotal:</span>
+                  <span class="font-medium">${{ formatearMoneda(selected.subtotal || 0) }}</span>
+                </div>
+                <div v-if="(selected.descuento_general || 0) > 0" class="flex justify-between">
+                  <span class="text-gray-600">Descuento General:</span>
+                  <span class="font-medium text-red-600">-${{ formatearMoneda(selected.descuento_general || 0) }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-gray-600">IVA (16%):</span>
+                  <span class="font-medium">${{ formatearMoneda(selected.iva || 0) }}</span>
+                </div>
+                <div class="flex justify-between border-t border-gray-300 pt-2">
+                  <span class="text-gray-900 font-semibold">Total:</span>
+                  <span class="text-gray-900 font-bold">${{ formatearMoneda(selected.total || 0) }}</span>
+                </div>
+              </div>
+            </div>
           </div>
           <div v-else class="text-sm text-gray-600">No hay datos disponibles.</div>
 
