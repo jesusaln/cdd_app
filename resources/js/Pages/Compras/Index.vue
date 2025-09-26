@@ -16,8 +16,8 @@ defineOptions({ layout: AppLayout })
 
 const props = defineProps({
   compras: {
-    type: Array,
-    default: () => []
+    type: Object,
+    default: () => ({ data: [] })
   },
   stats: {
     type: Object,
@@ -25,6 +25,29 @@ const props = defineProps({
       total: 0,
       procesadas: 0,
       canceladas: 0
+    })
+  },
+  filters: {
+    type: Object,
+    default: () => ({})
+  },
+  sorting: {
+    type: Object,
+    default: () => ({
+      sort_by: 'created_at',
+      sort_direction: 'desc',
+      allowed_sorts: ['created_at', 'total', 'estado']
+    })
+  },
+  pagination: {
+    type: Object,
+    default: () => ({
+      current_page: 1,
+      last_page: 1,
+      per_page: 10,
+      total: 0,
+      from: 0,
+      to: 0
     })
   }
 })
@@ -52,12 +75,12 @@ const selectedId = ref(null)
 const loading = ref(false)
 
 /* =========================
-   Filtros, orden y datos
+    Filtros, orden y datos
 ========================= */
-const searchTerm = ref('')
-const sortBy = ref('fecha-desc')
-const filtroEstado = ref('')
-const comprasOriginales = ref([...props.compras])
+const searchTerm = ref(props.filters.search || '')
+const sortBy = ref(`${props.sorting.sort_by}-${props.sorting.sort_direction}`)
+const filtroEstado = ref(props.filters.estado || '')
+const comprasOriginales = ref([...(props.compras?.data || [])])
 
 /* =========================
    Auditoría segura para el modal
@@ -78,87 +101,21 @@ const auditoriaForModal = computed(() => {
 })
 
 /* =========================
-   Filtrado y ordenamiento
+    Filtrado y ordenamiento (paginación del servidor)
 ========================= */
 const comprasFiltradas = computed(() => {
-  let result = [...comprasOriginales.value]
-
-  // Aplicar filtro de búsqueda
-  if (searchTerm.value.trim()) {
-    const search = searchTerm.value.toLowerCase().trim()
-    result = result.filter(compra => {
-      const proveedor = compra.proveedor?.nombre_razon_social?.toLowerCase() || ''
-      const numero = String(compra.numero_compra || compra.id || '').toLowerCase()
-      const estado = compra.estado?.toLowerCase() || ''
-
-      return proveedor.includes(search) ||
-             numero.includes(search) ||
-             estado.includes(search)
-    })
-  }
-
-  // Aplicar filtro de estado
-  if (filtroEstado.value) {
-    result = result.filter(compra => compra.estado === filtroEstado.value)
-  }
-
-  // Aplicar ordenamiento
-  if (sortBy.value) {
-    const [field, order] = sortBy.value.split('-')
-    const isDesc = order === 'desc'
-
-    result.sort((a, b) => {
-      let valueA, valueB
-
-      switch (field) {
-        case 'fecha':
-          valueA = new Date(a.fecha || a.created_at || 0)
-          valueB = new Date(b.fecha || b.created_at || 0)
-          break
-        case 'proveedor':
-          valueA = a.proveedor?.nombre_razon_social || ''
-          valueB = b.proveedor?.nombre_razon_social || ''
-          break
-        case 'total':
-          valueA = parseFloat(a.total || 0)
-          valueB = parseFloat(b.total || 0)
-          break
-        case 'estado':
-          valueA = a.estado || ''
-          valueB = b.estado || ''
-          break
-        default:
-          valueA = a[field] || ''
-          valueB = b[field] || ''
-      }
-
-      if (valueA < valueB) return isDesc ? 1 : -1
-      if (valueA > valueB) return isDesc ? -1 : 1
-      return 0
-    })
-  }
-
-  return result
+  return props.compras?.data || []
 })
 
 /* =========================
-   Paginación
+    Paginación (del servidor)
 ========================= */
-const currentPage = ref(1)
-const itemsPerPage = ref(10)
-
-const totalPages = computed(() => {
-  const filtered = comprasFiltradas.value
-  return Math.ceil((filtered?.length || 0) / itemsPerPage.value)
-})
+const currentPage = computed(() => props.pagination.current_page)
+const itemsPerPage = computed(() => props.pagination.per_page)
+const totalPages = computed(() => props.pagination.last_page)
 
 const paginatedCompras = computed(() => {
-  const filtered = comprasFiltradas.value
-  if (!filtered || !Array.isArray(filtered)) return []
-
-  const start = (currentPage.value - 1) * itemsPerPage.value
-  const end = start + itemsPerPage.value
-  return filtered.slice(start, end)
+  return comprasFiltradas.value
 })
 
 const visiblePages = computed(() => {
@@ -191,39 +148,50 @@ const visiblePages = computed(() => {
 
 const goToPage = (page) => {
   if (page >= 1 && page <= totalPages.value) {
-    currentPage.value = page
+    updateFilters({ page })
   }
 }
 
 const nextPage = () => {
   if (currentPage.value < totalPages.value) {
-    currentPage.value++
+    updateFilters({ page: currentPage.value + 1 })
   }
 }
 
 const prevPage = () => {
   if (currentPage.value > 1) {
-    currentPage.value--
+    updateFilters({ page: currentPage.value - 1 })
   }
+}
+
+// Función para actualizar filtros y recargar datos
+const updateFilters = (newFilters = {}) => {
+  const params = {
+    search: searchTerm.value,
+    estado: filtroEstado.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1],
+    page: 1,
+    per_page: itemsPerPage.value,
+    ...newFilters
+  }
+
+  router.get('/compras', params, {
+    preserveState: true,
+    replace: true
+  })
 }
 
 // Watchers para props y filtros
 watch(() => props.compras, (newVal) => {
-  if (Array.isArray(newVal)) {
-    comprasOriginales.value = [...newVal]
+  if (newVal && newVal.data && Array.isArray(newVal.data)) {
+    comprasOriginales.value = [...newVal.data]
   }
 }, { deep: true, immediate: true })
 
-// Resetear página al cambiar filtros
-watch([searchTerm, filtroEstado], () => {
-  currentPage.value = 1
-})
-
-// Ajustar página si se queda sin elementos después de eliminar
-watch(totalPages, (newTotal) => {
-  if (currentPage.value > newTotal && newTotal > 0) {
-    currentPage.value = newTotal
-  }
+// Aplicar filtros al cambiar valores
+watch([searchTerm, filtroEstado, sortBy], () => {
+  updateFilters()
 })
 
 // Estadísticas calculadas (usando datos del servidor)
@@ -237,16 +205,16 @@ const estadisticas = computed(() => {
 
 const handleLimpiarFiltros = () => {
   searchTerm.value = ''
-  sortBy.value = 'fecha-desc'
+  sortBy.value = 'created_at-desc'
   filtroEstado.value = ''
-  currentPage.value = 1
+  updateFilters({ page: 1 })
   notyf.success('Filtros limpiados correctamente')
 }
 
 const updateSort = (newSort) => {
   if (newSort && typeof newSort === 'string') {
     sortBy.value = newSort
-    currentPage.value = 1
+    updateFilters({ page: 1 })
   }
 }
 
@@ -255,7 +223,7 @@ const updateSort = (newSort) => {
 ========================= */
 function puedeCancelarCompra(compra) {
   if (!compra) return false
-  return compra.estado === 'procesada' || compra.estado === 'procesado'
+  return compra.estado === 'procesada'
 }
 
 function validarCompra(compra) {
@@ -374,22 +342,10 @@ const eliminarCompra = async () => {
       onStart: () => {
         notyf.success('Cancelando compra...')
       },
-      onSuccess: (response) => {
+      onSuccess: () => {
         notyf.success('Compra cancelada exitosamente')
-
-        // Actualizar datos locales
-        const index = comprasOriginales.value.findIndex(c => c.id === selectedId.value)
-        if (index !== -1) {
-          comprasOriginales.value[index] = {
-            ...comprasOriginales.value[index],
-            estado: 'cancelado',
-            eliminado_por: response?.data?.eliminado_por || 'Usuario actual',
-            deleted_at: new Date().toISOString()
-          }
-        }
-
-        showModal.value = false
-        selectedId.value = null
+        // Recargar la página para actualizar los datos del servidor
+        router.reload()
       },
       onError: (errors) => {
         console.error('Error al cancelar:', errors)
@@ -405,46 +361,6 @@ const eliminarCompra = async () => {
   }
 }
 
-// Estado para recibir compra
-const isReceivingCompra = ref(false)
-
-/**
- * Recibir una compra
- * @param {Object} compraData - La compra (opcional; si no viene, toma `fila.value`)
- */
-const recibirCompra = async (compraData, { redirectTo = 'index' } = {}) => {
-  try {
-    const docRaw = compraData?.id ? compraData : fila.value
-    validarCompraBasica(docRaw)
-
-    const doc = { ...docRaw, fecha: docRaw.fecha || docRaw.created_at || new Date().toISOString() }
-
-    loading.value = true
-    notyf.success('Recibiendo compra...')
-
-    const { data } = await axios.post(`/compras/${doc.id}/recibir`, {
-      forzarReenvio: !!compraData?.forzarReenvio
-    })
-
-    if (!data?.success) throw new Error(data?.error || 'No se pudo recibir la compra')
-
-    // Actualiza estado local
-    const i = comprasOriginales.value.findIndex(c => c.id === doc.id)
-    if (i !== -1) comprasOriginales.value[i] = { ...comprasOriginales.value[i], estado: 'recibida' }
-
-    showModal.value = false
-    notyf.success(data.message || 'Compra recibida exitosamente')
-
-    // Ir al index de compras
-    router.visit(route ? route('compras.index') : '/compras')
-
-  } catch (err) {
-    console.error(err)
-    notyf.error(err.response?.data?.error || err.response?.data?.message || err.message || 'Error al recibir compra')
-  } finally {
-    loading.value = false
-  }
-}
 
 const crearNuevaCompra = () => {
   router.visit('/compras/create')
@@ -476,21 +392,21 @@ const crearNuevaCompra = () => {
       <!-- Información de paginación -->
       <div class="flex justify-between items-center mb-4 text-sm text-gray-600">
         <div>
-          Mostrando {{ (currentPage - 1) * itemsPerPage + 1 }} -
-          {{ Math.min(currentPage * itemsPerPage, comprasFiltradas.length) }}
-          de {{ comprasFiltradas.length }} compras
+          Mostrando {{ props.pagination.from }} -
+          {{ props.pagination.to }}
+          de {{ props.pagination.total }} compras
         </div>
         <div class="flex items-center space-x-2">
           <span>Elementos por página:</span>
           <select
-            v-model="itemsPerPage"
-            @change="currentPage = 1"
+            :value="props.pagination.per_page"
+            @change="updateFilters({ per_page: $event.target.value, page: 1 })"
             class="border border-gray-300 rounded px-2 py-1 text-sm"
           >
             <option value="10">10</option>
+            <option value="15">15</option>
             <option value="25">25</option>
             <option value="50">50</option>
-            <option value="100">100</option>
           </select>
         </div>
       </div>

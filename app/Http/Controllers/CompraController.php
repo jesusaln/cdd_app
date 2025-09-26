@@ -13,37 +13,122 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Inertia\Inertia;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class CompraController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $compras = Compra::with('proveedor', 'productos')->get()->map(function ($compra) {
-            $compra->productos = $compra->productos->map(function ($producto) {
-                return [
-                    'id' => $producto->id,
-                    'nombre' => $producto->nombre,
-                    'descripcion' => $producto->descripcion,
-                    'cantidad' => $producto->pivot->cantidad,
-                    'precio' => $producto->pivot->precio,
-                    'descuento' => $producto->pivot->descuento,
-                    'subtotal' => $producto->pivot->subtotal,
-                    'descuento_monto' => $producto->pivot->descuento_monto,
-                ];
+        $perPage = (int) ($request->integer('per_page') ?: 10);
+        $page    = max(1, (int) $request->get('page', 1));
+
+        $baseQuery = Compra::with([
+            'proveedor',
+            'productos',
+        ]);
+
+        // Aplicar filtros
+        if ($search = trim($request->get('search', ''))) {
+            $baseQuery->where(function ($query) use ($search) {
+                $query->where('numero_compra', 'like', "%{$search}%")
+                      ->orWhere('id', 'like', "%{$search}%")
+                      ->orWhereHas('proveedor', function ($q) use ($search) {
+                          $q->where('nombre_razon_social', 'like', "%{$search}%")
+                            ->orWhere('rfc', 'like', "%{$search}%");
+                      })
+                      ->orWhereHas('productos', function ($q) use ($search) {
+                          $q->where('nombre', 'like', "%{$search}%")
+                            ->orWhere('descripcion', 'like', "%{$search}%");
+                      });
             });
-            return $compra;
+        }
+
+        if ($request->filled('estado')) {
+            $baseQuery->where('estado', $request->estado);
+        }
+
+        // Ordenamiento
+        $sortBy = $request->get('sort_by', 'created_at');
+        $sortDirection = $request->get('sort_direction', 'desc');
+
+        $allowedSorts = ['created_at', 'total', 'estado'];
+        if (!in_array($sortBy, $allowedSorts)) {
+            $sortBy = 'created_at';
+        }
+
+        $baseQuery->orderBy($sortBy, $sortDirection === 'asc' ? 'asc' : 'desc');
+
+        $paginator = $baseQuery->paginate($perPage, ['*'], 'page', $page);
+        $compras = collect($paginator->items());
+
+        $transformed = $compras->map(function ($compra) {
+            $compra->load('productos');
+            $compra->productos = $compra->productos->map(function ($p) {
+                return array_merge($p->toArray(), [
+                    'cantidad' => $p->pivot->cantidad ?? 0,
+                    'precio' => $p->pivot->precio ?? 0,
+                    'descuento' => $p->pivot->descuento ?? 0,
+                    'subtotal' => $p->pivot->subtotal ?? 0,
+                    'descuento_monto' => $p->pivot->descuento_monto ?? 0,
+                ]);
+            });
+            $items = $compra->productos;
+
+            // Crear resumen de productos para tooltip
+            $productosTooltip = $items->map(function ($item) {
+                return $item['nombre'] . ' (' . $item['cantidad'] . ' ' . 'u' . ')';
+            })->join(', ');
+
+            return [
+                'id' => $compra->id,
+                'numero_compra' => $compra->numero_compra ?? 'N/A',
+                'proveedor' => $compra->proveedor ? [
+                    'id' => $compra->proveedor->id,
+                    'nombre_razon_social' => $compra->proveedor->nombre_razon_social,
+                    'rfc' => $compra->proveedor->rfc ?? null,
+                ] : null,
+                'productos' => $items,
+                'productos_count' => $items->count(),
+                'productos_tooltip' => $productosTooltip ?: 'Sin productos',
+                'total' => (float) ($compra->total ?? 0),
+                'estado' => $compra->estado ?? 'procesada',
+                'created_at' => optional($compra->created_at)->format('Y-m-d H:i:s'),
+                'fecha' => optional($compra->created_at)->format('Y-m-d'),
+            ];
         });
 
-        // Estadísticas para el frontend
+        $paginator = new LengthAwarePaginator(
+            $transformed,
+            $paginator->total(),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'pageName' => 'page']
+        );
+
+        // Estadísticas para el dashboard
         $stats = [
-            'total' => $compras->count(),
-            'procesadas' => $compras->where('estado', EstadoCompra::Procesada)->count(),
-            'canceladas' => $compras->where('estado', EstadoCompra::Cancelada)->count(),
+            'total' => Compra::count(),
+            'procesadas' => Compra::where('estado', EstadoCompra::Procesada)->count(),
+            'canceladas' => Compra::where('estado', EstadoCompra::Cancelada)->count(),
         ];
 
         return Inertia::render('Compras/Index', [
-            'compras' => $compras,
-            'stats' => $stats
+            'compras' => $paginator,
+            'stats' => $stats,
+            'filters' => $request->only(['search', 'estado']),
+            'sorting' => [
+                'sort_by' => $sortBy,
+                'sort_direction' => $sortDirection,
+                'allowed_sorts' => $allowedSorts,
+            ],
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $perPage,
+                'total' => $paginator->total(),
+                'from' => $paginator->firstItem(),
+                'to' => $paginator->lastItem(),
+            ],
         ]);
     }
 
@@ -242,13 +327,32 @@ class CompraController extends Controller
         }
 
         DB::transaction(function () use ($compra) {
+            // Verificar si los productos han sido vendidos
+            $productosVendidos = [];
+            foreach ($compra->productos as $item) {
+                $producto = $item->comprable;
+                $stockActual = $producto->stock;
+                $cantidadComprada = $item->cantidad;
+
+                // Si el stock actual es menor que la cantidad comprada,
+                // significa que se han vendido productos de esta compra
+                if ($stockActual < $cantidadComprada) {
+                    $productosVendidos[] = $producto->nombre;
+                }
+            }
+
+            // Si hay productos vendidos, no permitir la cancelación
+            if (!empty($productosVendidos)) {
+                throw new \Exception(
+                    'No se puede cancelar la compra porque los siguientes productos ya han sido vendidos: ' .
+                    implode(', ', $productosVendidos)
+                );
+            }
+
             // Disminuir inventario de todos los productos
             foreach ($compra->productos as $item) {
                 $producto = $item->comprable;
                 $producto->stock -= $item->cantidad;
-                if ($producto->stock < 0) {
-                    throw new \Exception("El stock del producto '{$producto->nombre}' no puede ser negativo.");
-                }
                 $producto->save();
             }
 
@@ -256,10 +360,26 @@ class CompraController extends Controller
             $compra->update([
                 'estado' => EstadoCompra::Cancelada,
             ]);
+
+            // Si la compra viene de una orden de compra (OCC-), cambiar la orden a pendiente
+            if ($compra->orden_compra_id) {
+                $ordenCompra = \App\Models\OrdenCompra::find($compra->orden_compra_id);
+                if ($ordenCompra) {
+                    $ordenCompra->update([
+                        'estado' => 'pendiente',
+                        'observaciones' => ($ordenCompra->observaciones ? $ordenCompra->observaciones . "\n\n" : '') .
+                            '*** COMPRA CANCELADA - ORDEN REGRESADA A PENDIENTE *** ' . now()->format('d/m/Y H:i')
+                    ]);
+                }
+            }
         });
 
-        return Redirect::route('compras.index')
-            ->with('success', 'Compra cancelada exitosamente');
+        $mensaje = 'Compra cancelada exitosamente.';
+        if ($compra->orden_compra_id) {
+            $mensaje .= ' La orden de compra asociada ha sido regresada a estado pendiente.';
+        }
+
+        return Redirect::route('compras.index')->with('success', $mensaje);
     }
 
 

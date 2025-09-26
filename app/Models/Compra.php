@@ -82,17 +82,25 @@ class Compra extends Model
     {
         static::creating(function (Compra $compra) {
             if (empty($compra->numero_compra)) {
-                $compra->numero_compra = static::generarNumero();
+                $compra->numero_compra = static::generarNumero($compra->orden_compra_id);
             }
             // Todas las compras se crean automáticamente como procesadas
             $compra->estado = EstadoCompra::Procesada;
         });
     }
 
-    public static function generarNumero(): string
+    public static function generarNumero($ordenCompraId = null): string
     {
-        $ultimo = self::orderBy('id', 'desc')->first();
-        $numero = $ultimo ? intval(substr($ultimo->numero_compra, 1)) + 1 : 1;
-        return 'C' . str_pad($numero, 4, '0', STR_PAD_LEFT);
+        if ($ordenCompraId) {
+            // Numeración para compras que vienen de órdenes de compra
+            $ultimo = self::whereNotNull('orden_compra_id')->orderBy('id', 'desc')->first();
+            $numero = $ultimo ? intval(substr($ultimo->numero_compra, 4)) + 1 : 1;
+            return 'OCC-' . str_pad($numero, 4, '0', STR_PAD_LEFT);
+        } else {
+            // Numeración para compras directas
+            $ultimo = self::whereNull('orden_compra_id')->orderBy('id', 'desc')->first();
+            $numero = $ultimo ? intval(substr($ultimo->numero_compra, 1)) + 1 : 1;
+            return 'C' . str_pad($numero, 4, '0', STR_PAD_LEFT);
+        }
     }
 }
