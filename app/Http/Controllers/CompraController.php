@@ -108,6 +108,7 @@ class CompraController extends Controller
                 'productos_count' => $items->count(),
                 'productos_tooltip' => $productosTooltip ?: 'Sin productos',
                 'subtotal' => (float) ($compra->subtotal ?? 0),
+                'descuento_items' => (float) ($compra->descuento_items ?? 0),
                 'descuento_general' => (float) ($compra->descuento_general ?? 0),
                 'iva' => (float) ($compra->iva ?? 0),
                 'total' => (float) ($compra->total ?? 0),
@@ -283,6 +284,7 @@ class CompraController extends Controller
 
         // Asegurar que los valores numéricos sean float
         $compra->subtotal = (float) $compra->subtotal;
+        $compra->descuento_items = (float) $compra->descuento_items;
         $compra->descuento_general = (float) $compra->descuento_general;
         $compra->iva = (float) $compra->iva;
         $compra->total = (float) $compra->total;
