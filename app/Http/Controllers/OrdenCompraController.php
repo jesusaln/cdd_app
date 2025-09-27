@@ -25,7 +25,6 @@ class OrdenCompraController extends Controller
     public function index(Request $request)
     {
         $perPage = (int) ($request->integer('per_page') ?: 10);
-        $page    = max(1, (int) $request->get('page', 1));
 
         $baseQuery = OrdenCompra::with([
             'proveedor',
@@ -80,12 +79,12 @@ class OrdenCompraController extends Controller
         $baseQuery->orderBy($sortBy, $sortDirection === 'asc' ? 'asc' : 'desc')
                   ->orderBy('id', 'desc');
 
-        $paginator = $baseQuery->paginate($perPage, ['*'], 'page', $page);
-        $ordenes = collect($paginator->items());
+        $ordenes = $baseQuery->paginate($perPage)->appends($request->query());
 
-        $transformed = $ordenes->map(function ($orden) {
-            $orden->load('productos');
-            $orden->productos = $orden->productos->map(function ($p) {
+        // Transformar la colección del paginator
+        $collection = collect($ordenes->items())->map(function ($orden) {
+            // Asegurarse de trabajar con colecciones para productos
+            $orden->productos = collect($orden->productos)->map(function ($p) {
                 return array_merge($p->toArray(), [
                     'cantidad' => $p->pivot->cantidad ?? 0,
                     'precio' => $p->pivot->precio ?? 0,
@@ -157,12 +156,18 @@ class OrdenCompraController extends Controller
             ];
         });
 
-        $paginator = new LengthAwarePaginator(
-            $transformed,
-            $paginator->total(),
-            $perPage,
-            $page,
-            ['path' => $request->url(), 'pageName' => 'page']
+        // Reemplaza la colección interna del paginador por la colección transformada
+        // Algunos analizadores o versiones no reconocen setCollection; en su lugar creamos
+        // un nuevo LengthAwarePaginator con la colección transformada y conservamos metadata.
+        $ordenes = new LengthAwarePaginator(
+            $collection,
+            $ordenes->total(),
+            $ordenes->perPage(),
+            $ordenes->currentPage(),
+            [
+                'path' => $request->url(),
+                'query' => $request->query(),
+            ]
         );
 
         // Estadísticas para el dashboard (usando estados de BD)
@@ -209,7 +214,7 @@ class OrdenCompraController extends Controller
         ];
 
         return Inertia::render('OrdenesCompra/Index', [
-            'ordenesCompra' => $paginator,
+            'ordenesCompra' => $ordenes,
             'stats' => $stats,
             'estadoLabels' => $estadoLabels,
             'filterOptions' => $filterOptions,
@@ -220,12 +225,12 @@ class OrdenCompraController extends Controller
                 'allowed_sorts' => $allowedSorts,
             ],
             'pagination' => [
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
+                'current_page' => $ordenes->currentPage(),
+                'last_page' => $ordenes->lastPage(),
                 'per_page' => $perPage,
-                'total' => $paginator->total(),
-                'from' => $paginator->firstItem(),
-                'to' => $paginator->lastItem(),
+                'total' => $ordenes->total(),
+                'from' => $ordenes->firstItem(),
+                'to' => $ordenes->lastItem(),
             ],
         ]);
     }

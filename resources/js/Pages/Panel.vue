@@ -159,8 +159,13 @@
               class="text-base bg-gray-50 p-3 rounded-md"
             >
               <div class="font-medium">{{ orden.proveedor ?? 'Proveedor N/D' }}</div>
-              <div class="text-sm text-gray-600">Total: ${{ money(orden.total) }}</div>
-              <div class="text-sm text-gray-600">Fecha esperada: {{ orden.fecha_recepcion ?? 'N/D' }}</div>
+              <div class="text-sm text-gray-600">Prioridad: <span :class="getPrioridadClass(orden.prioridad)">{{ orden.prioridad ?? 'N/D' }}</span></div>
+              <div class="text-sm text-gray-600">Fecha esperada: {{ orden.fecha_esperada ?? 'N/D' }}</div>
+              <div v-if="orden.dias_retraso !== null" class="text-sm">
+                <span :class="getRetrasoClass(orden.dias_retraso)">
+                  {{ orden.dias_retraso > 0 ? `${orden.dias_retraso} ${orden.dias_retraso === 1 ? 'día' : 'días'} de retraso` : 'En tiempo' }}
+                </span>
+              </div>
             </li>
           </ul>
         </div>
@@ -325,6 +330,30 @@ const money = (val) => {
     : '0.00'
 }
 
+const getPrioridadClass = (prioridad) => {
+  switch (prioridad) {
+    case 'urgente':
+      return 'text-red-600 font-semibold'
+    case 'alta':
+      return 'text-orange-600 font-medium'
+    case 'media':
+      return 'text-yellow-600'
+    case 'baja':
+      return 'text-green-600'
+    default:
+      return 'text-gray-600'
+  }
+}
+
+const getRetrasoClass = (diasRetraso) => {
+  if (diasRetraso === 0) {
+    return 'text-green-600'
+  } else if (diasRetraso > 0) {
+    return 'text-red-600 font-semibold'
+  }
+  return 'text-gray-600'
+}
+
 // ===== Fallbacks defensivos
 const productosBajoStockNombresSafe = computed(() =>
   Array.isArray(props.productosBajoStockNombres) ? props.productosBajoStockNombres : []
@@ -344,7 +373,7 @@ const clientesHref = '/clientes'
 const productosHref = '/productos'
 const productosLowHref = '/productos?stock=low'
 const proveedoresHref = '/proveedores'
-const ordenesPendientesHref = '/ordenes-compra?estado=pendiente'
+const ordenesPendientesHref = '/ordenescompra?estado=pendiente'
 const citasHref = '/citas'
 const mantenimientosHref = '/mantenimientos'
 </script>

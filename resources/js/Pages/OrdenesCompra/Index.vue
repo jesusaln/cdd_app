@@ -18,6 +18,14 @@ const props = defineProps({
   ordenesCompra: {
     type: Object,
     default: () => ({ data: [] })
+  },
+  pagination: {
+    type: Object,
+    default: () => ({})
+  },
+  stats: {
+    type: Object,
+    default: () => ({})
   }
 })
 
@@ -70,93 +78,12 @@ const auditoriaForModal = computed(() => {
 })
 
 /* =========================
-   Filtrado y ordenamiento
+    Paginación del servidor
 ========================= */
-const ordenesFiltradas = computed(() => {
-  let result = [...ordenesOriginales.value]
-
-  // Aplicar filtro de búsqueda
-  if (searchTerm.value.trim()) {
-    const search = searchTerm.value.toLowerCase().trim()
-    result = result.filter(orden => {
-      const proveedor = orden.proveedor?.nombre_razon_social?.toLowerCase() || ''
-      const numero = String(orden.numero_orden || orden.id || '').toLowerCase()
-      const estado = orden.estado?.toLowerCase() || ''
-
-      return proveedor.includes(search) ||
-             numero.includes(search) ||
-             estado.includes(search)
-    })
-  }
-
-  // Aplicar filtro de estado
-  if (filtroEstado.value) {
-    result = result.filter(orden => orden.estado === filtroEstado.value)
-  }
-
-  // Aplicar ordenamiento
-  if (sortBy.value) {
-    const [field, order] = sortBy.value.split('-')
-    const isDesc = order === 'desc'
-
-    result.sort((a, b) => {
-      let valueA, valueB
-
-      switch (field) {
-        case 'fecha':
-          valueA = new Date(a.fecha_orden || a.created_at || 0)
-          valueB = new Date(b.fecha_orden || b.created_at || 0)
-          break
-        case 'proveedor':
-          valueA = a.proveedor?.nombre_razon_social || ''
-          valueB = b.proveedor?.nombre_razon_social || ''
-          break
-        case 'total':
-          valueA = parseFloat(a.total || 0)
-          valueB = parseFloat(b.total || 0)
-          break
-        case 'estado':
-          valueA = a.estado || ''
-          valueB = b.estado || ''
-          break
-        default:
-          valueA = a[field] || ''
-          valueB = b[field] || ''
-      }
-
-      if (valueA < valueB) return isDesc ? 1 : -1
-      if (valueA > valueB) return isDesc ? -1 : 1
-      return 0
-    })
-  }
-
-  return result
-})
-
-/* =========================
-   Paginación
-========================= */
-const currentPage = ref(1)
-const itemsPerPage = ref(10)
-
-const totalPages = computed(() => {
-  const filtered = ordenesFiltradas.value
-  return Math.ceil((filtered?.length || 0) / itemsPerPage.value)
-})
-
-const paginatedOrdenes = computed(() => {
-  const filtered = ordenesFiltradas.value
-  if (!filtered || !Array.isArray(filtered)) return []
-
-  const start = (currentPage.value - 1) * itemsPerPage.value
-  const end = start + itemsPerPage.value
-  return filtered.slice(start, end)
-})
-
 const visiblePages = computed(() => {
   const pages = []
-  const total = totalPages.value
-  const current = currentPage.value
+  const total = props.pagination.last_page || 1
+  const current = props.pagination.current_page || 1
 
   if (total <= 7) {
     for (let i = 1; i <= total; i++) {
@@ -182,81 +109,97 @@ const visiblePages = computed(() => {
 })
 
 const goToPage = (page) => {
-  if (page >= 1 && page <= totalPages.value) {
-    currentPage.value = page
+  const query = {
+    page,
+    search: searchTerm.value,
+    estado: filtroEstado.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc'
   }
+  router.visit('/ordenescompra', { data: query })
 }
 
 const nextPage = () => {
-  if (currentPage.value < totalPages.value) {
-    currentPage.value++
+  if (props.pagination.current_page < props.pagination.last_page) {
+    goToPage(props.pagination.current_page + 1)
   }
 }
 
 const prevPage = () => {
-  if (currentPage.value > 1) {
-    currentPage.value--
+  if (props.pagination.current_page > 1) {
+    goToPage(props.pagination.current_page - 1)
   }
 }
 
-// Watchers para props y filtros
+// Watchers para actualizar datos locales
 watch(() => props.ordenesCompra, (newVal) => {
   if (newVal && newVal.data && Array.isArray(newVal.data)) {
     ordenesOriginales.value = [...newVal.data]
   }
 }, { deep: true, immediate: true })
 
-// Resetear página al cambiar filtros
-watch([searchTerm, filtroEstado], () => {
-  currentPage.value = 1
-})
-
-// Ajustar página si se queda sin elementos después de eliminar
-watch(totalPages, (newTotal) => {
-  if (currentPage.value > newTotal && newTotal > 0) {
-    currentPage.value = newTotal
-  }
-})
-
-// Estadísticas calculadas
+// Estadísticas del servidor
 const estadisticas = computed(() => {
-  const stats = {
-    total: ordenesOriginales.value.length,
+  return props.stats || {
+    total: 0,
     pendientes: 0,
     enviadas: 0,
     procesadas: 0,
     canceladas: 0,
   }
-
-  ordenesOriginales.value.forEach(o => {
-    const estado = String(o.estado || '').toLowerCase()
-    if (estado.includes('pendiente')) {
-      stats.pendientes++
-    } else if (estado.includes('enviado')) {
-      stats.enviadas++
-    } else if (estado.includes('procesada') || estado.includes('convertida')) {
-      stats.procesadas++
-    } else if (estado.includes('cancelada') || estado.includes('cancelado')) {
-      stats.canceladas++
-    }
-  })
-
-  return stats
 })
 
 const handleLimpiarFiltros = () => {
   searchTerm.value = ''
   sortBy.value = 'fecha-desc'
   filtroEstado.value = ''
-  currentPage.value = 1
+  router.visit('/ordenescompra')
   notyf.success('Filtros limpiados correctamente')
 }
 
 const updateSort = (newSort) => {
   if (newSort && typeof newSort === 'string') {
     sortBy.value = newSort
-    currentPage.value = 1
+    const query = {
+      sort_by: newSort.split('-')[0],
+      sort_direction: newSort.split('-')[1] || 'desc',
+      search: searchTerm.value,
+      estado: filtroEstado.value
+    }
+    router.visit('/ordenescompra', { data: query })
   }
+}
+
+const changePerPage = (event) => {
+  const perPage = event.target.value
+  const query = {
+    per_page: perPage,
+    search: searchTerm.value,
+    estado: filtroEstado.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc'
+  }
+  router.visit('/ordenescompra', { data: query })
+}
+
+const handleSearch = () => {
+  const query = {
+    search: searchTerm.value,
+    estado: filtroEstado.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc'
+  }
+  router.visit('/ordenescompra', { data: query })
+}
+
+const handleFilter = () => {
+  const query = {
+    search: searchTerm.value,
+    estado: filtroEstado.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc'
+  }
+  router.visit('/ordenescompra', { data: query })
 }
 
 /* =========================
@@ -563,20 +506,22 @@ const crearNuevaOrden = () => {
           searchPlaceholder: 'Buscar por proveedor, número...'
         }"
         @limpiar-filtros="handleLimpiarFiltros"
+        @search="handleSearch"
+        @filter="handleFilter"
       />
 
       <!-- Información de paginación -->
       <div class="flex justify-between items-center mb-4 text-sm text-gray-600">
         <div>
-          Mostrando {{ (currentPage - 1) * itemsPerPage + 1 }} -
-          {{ Math.min(currentPage * itemsPerPage, ordenesFiltradas.length) }}
-          de {{ ordenesFiltradas.length }} órdenes
+          Mostrando {{ props.pagination.from || 0 }} -
+          {{ props.pagination.to || 0 }}
+          de {{ props.pagination.total || 0 }} órdenes
         </div>
         <div class="flex items-center space-x-2">
           <span>Elementos por página:</span>
           <select
-            v-model="itemsPerPage"
-            @change="currentPage = 1"
+            :value="props.pagination.per_page || 10"
+            @change="changePerPage"
             class="border border-gray-300 rounded px-2 py-1 text-sm"
           >
             <option value="10">10</option>
@@ -590,7 +535,7 @@ const crearNuevaOrden = () => {
       <!-- Tabla de documentos -->
       <div class="mt-6">
         <DocumentosTable
-          :documentos="paginatedOrdenes"
+          :documentos="props.ordenesCompra.data || []"
           tipo="ordenescompra"
           :search-term="searchTerm"
           :sort-by="sortBy"
@@ -608,10 +553,10 @@ const crearNuevaOrden = () => {
       </div>
 
       <!-- Controles de paginación -->
-      <div v-if="totalPages > 1" class="flex justify-center items-center space-x-2 mt-6">
+      <div v-if="props.pagination.last_page > 1" class="flex justify-center items-center space-x-2 mt-6">
         <button
           @click="prevPage"
-          :disabled="currentPage === 1"
+          :disabled="props.pagination.current_page === 1"
           class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Anterior
@@ -619,7 +564,7 @@ const crearNuevaOrden = () => {
 
         <div class="flex space-x-1">
           <!-- Primera página (solo si no está en visiblePages) -->
-          <template v-if="!visiblePages.includes(1) && totalPages > 7">
+          <template v-if="!visiblePages.includes(1) && props.pagination.last_page > 7">
             <button
               @click="goToPage(1)"
               class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
@@ -636,7 +581,7 @@ const crearNuevaOrden = () => {
             @click="goToPage(page)"
             :class="[
               'px-3 py-2 text-sm font-medium border border-gray-300 rounded-md',
-              page === currentPage
+              page === props.pagination.current_page
                 ? 'bg-blue-500 text-white border-blue-500'
                 : 'text-gray-700 bg-white hover:bg-gray-50'
             ]"
@@ -645,20 +590,20 @@ const crearNuevaOrden = () => {
           </button>
 
           <!-- Última página (solo si no está en visiblePages) -->
-          <template v-if="!visiblePages.includes(totalPages) && totalPages > 7">
+          <template v-if="!visiblePages.includes(props.pagination.last_page) && props.pagination.last_page > 7">
             <span class="px-3 py-2 text-sm text-gray-500">...</span>
             <button
-              @click="goToPage(totalPages)"
+              @click="goToPage(props.pagination.last_page)"
               class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
             >
-              {{ totalPages }}
+              {{ props.pagination.last_page }}
             </button>
           </template>
         </div>
 
         <button
           @click="nextPage"
-          :disabled="currentPage === totalPages"
+          :disabled="props.pagination.current_page === props.pagination.last_page"
           class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Siguiente

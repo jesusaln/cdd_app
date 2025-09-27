@@ -45,7 +45,7 @@ class PanelController extends Controller
         $productosBajoStockNombres = $productosBajoStock->pluck('nombre')->toArray();
 
         // Órdenes de Compra Pendientes
-        $ordenesPendientes = OrdenCompra::with('proveedor')
+        $ordenesPendientes = OrdenCompra::with(['proveedor', 'productos'])
             ->where('estado', 'pendiente')
             ->orderBy('created_at', 'desc')
             ->get();
@@ -54,12 +54,30 @@ class PanelController extends Controller
 
         // Formatear las órdenes pendientes para el frontend
         $ordenesPendientesDetalles = $ordenesPendientes->map(function ($orden) {
+            // Intentar calcular total basado en productos
+            $totalCalculado = $this->calcularTotalOrden($orden);
+            $total = $totalCalculado['total'] > 0 ? $totalCalculado['total'] : ($orden->total ?? 0);
+
+            // Calcular días de retraso
+            $diasRetraso = null;
+            if ($orden->fecha_entrega_esperada) {
+                $fechaEsperada = Carbon::parse($orden->fecha_entrega_esperada);
+                $hoy = Carbon::now('America/Hermosillo');
+                if ($hoy->greaterThan($fechaEsperada)) {
+                    $diasRetraso = (int) ceil($fechaEsperada->diffInDays($hoy));
+                } else {
+                    $diasRetraso = 0; // No retrasada
+                }
+            }
+
             return [
                 'id' => $orden->id,
                 'proveedor' => $orden->proveedor ? $orden->proveedor->nombre_razon_social : 'Proveedor no especificado',
-                'total' => number_format($orden->total, 2),
+                'total' => number_format($total, 2),
+                'prioridad' => $orden->prioridad,
+                'dias_retraso' => $diasRetraso,
                 'fecha_creacion' => Carbon::parse($orden->created_at)->format('d/m/Y'),
-                'fecha_recepcion' => $orden->fecha_recepcion ? Carbon::parse($orden->fecha_recepcion)->format('d/m/Y') : 'No especificada',
+                'fecha_esperada' => $orden->fecha_entrega_esperada ? Carbon::parse($orden->fecha_entrega_esperada)->format('d/m/Y') : 'No especificada',
             ];
         })->toArray();
 
@@ -149,5 +167,43 @@ class PanelController extends Controller
             'mantenimientosCriticosCount' => $mantenimientosCriticosCount,
             'mantenimientosCriticosDetalles' => $mantenimientosCriticosDetalles,
         ]);
+    }
+
+    /**
+     * Calcula los totales de una orden de compra basada en sus productos
+     */
+    private function calcularTotalOrden($orden)
+    {
+        $subtotal = 0;
+        $descuentoItems = 0;
+
+        foreach ($orden->productos as $producto) {
+            $cantidad = (float) ($producto->pivot->cantidad ?? 0);
+            $precio = (float) ($producto->pivot->precio ?? 0);
+            $descuento = (float) ($producto->pivot->descuento ?? 0);
+
+            $subtotalItem = $cantidad * $precio;
+            $descuentoItem = ($subtotalItem * $descuento) / 100;
+
+            $subtotal += $subtotalItem;
+            $descuentoItems += $descuentoItem;
+        }
+
+        // Aplicar descuento general
+        $descuentoGeneral = (float) ($orden->descuento_general ?? 0);
+        $subtotalDespuesDescuentoGeneral = $subtotal - $descuentoItems - $descuentoGeneral;
+
+        // Calcular IVA (16%)
+        $iva = $subtotalDespuesDescuentoGeneral * 0.16;
+
+        // Total final
+        $total = $subtotalDespuesDescuentoGeneral + $iva;
+
+        return [
+            'subtotal' => round($subtotal, 2),
+            'descuento_items' => round($descuentoItems, 2),
+            'iva' => round($iva, 2),
+            'total' => round($total, 2),
+        ];
     }
 }

@@ -3,9 +3,12 @@
 namespace Tests\Feature;
 
 use Tests\TestCase;
+use App\Models\User;
 use App\Models\OrdenCompra;
 use App\Models\Proveedor;
 use App\Models\Producto;
+use App\Models\Categoria;
+use App\Models\Marca;
 use App\Models\Compra;
 use App\Models\CompraItem;
 use App\Mail\OrdenCompraEnviada;
@@ -17,15 +20,33 @@ class OrdenCompraTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected $user;
     protected $proveedor;
     protected $producto1;
     protected $producto2;
+    protected $categoria;
+    protected $marca;
 
     protected function setUp(): void
     {
         parent::setUp();
 
+        $this->user = User::factory()->create();
+        $this->actingAs($this->user);
+
         // Crear datos de prueba básicos sin dependencias complejas
+        $this->categoria = Categoria::create([
+            'nombre' => 'Categoria Test',
+            'descripcion' => 'Descripción categoria test',
+            'activo' => true,
+        ]);
+
+        $this->marca = Marca::create([
+            'nombre' => 'Marca Test',
+            'descripcion' => 'Descripción marca test',
+            'activo' => true,
+        ]);
+
         $this->proveedor = Proveedor::create([
             'nombre_razon_social' => 'Proveedor Test S.A.',
             'tipo_persona' => 'moral',
@@ -44,19 +65,22 @@ class OrdenCompraTest extends TestCase
             'activo' => true,
         ]);
 
-        // Crear productos sin dependencias de categoria/marca/almacen para simplificar
+        // Crear productos con categoria y marca
         $this->producto1 = Producto::create([
             'nombre' => 'Producto Test 1',
             'descripcion' => 'Descripción del producto test 1',
             'codigo' => 'TEST001',
             'codigo_barras' => '1234567890123',
-            'categoria_id' => null,
-            'marca_id' => null,
+            'categoria_id' => $this->categoria->id,
+            'marca_id' => $this->marca->id,
             'proveedor_id' => $this->proveedor->id,
             'almacen_id' => null,
+            'stock' => 50,
+            'stock_minimo' => 10,
             'precio_compra' => 100.00,
             'precio_venta' => 150.00,
-            'stock' => 50,
+            'impuesto' => 16.00,
+            'unidad_medida' => 'pieza',
             'tipo_producto' => 'fisico',
             'estado' => 'activo',
         ]);
@@ -66,13 +90,16 @@ class OrdenCompraTest extends TestCase
             'descripcion' => 'Descripción del producto test 2',
             'codigo' => 'TEST002',
             'codigo_barras' => '9876543210987',
-            'categoria_id' => null,
-            'marca_id' => null,
+            'categoria_id' => $this->categoria->id,
+            'marca_id' => $this->marca->id,
             'proveedor_id' => $this->proveedor->id,
             'almacen_id' => null,
+            'stock' => 30,
+            'stock_minimo' => 5,
             'precio_compra' => 200.00,
             'precio_venta' => 300.00,
-            'stock' => 30,
+            'impuesto' => 16.00,
+            'unidad_medida' => 'pieza',
             'tipo_producto' => 'fisico',
             'estado' => 'activo',
         ]);
