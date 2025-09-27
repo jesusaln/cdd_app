@@ -494,8 +494,8 @@ const crearNuevaOrden = () => {
       <UniversalHeader
         :total="estadisticas.total"
         :pendientes="estadisticas.pendientes"
-        :enviadas="estadisticas.enviadas"
-        :procesadas="estadisticas.procesadas"
+        :enviadas-a-proveedor="estadisticas.enviadas_a_proveedor"
+        :recibidas="estadisticas.recibidas"
         :canceladas="estadisticas.canceladas"
         v-model:search-term="searchTerm"
         v-model:sort-by="sortBy"

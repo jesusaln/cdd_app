@@ -175,7 +175,7 @@ class OrdenCompraController extends Controller
             'total' => OrdenCompra::count(),
             'pendientes' => OrdenCompra::where('estado', 'pendiente')->count(),
             'aprobadas' => OrdenCompra::where('estado', 'aprobada')->count(),
-            'enviadas' => OrdenCompra::whereIn('estado', ['enviada', 'enviado_a_proveedor'])->count(),
+            'enviadas_a_proveedor' => OrdenCompra::where('estado', 'enviado_a_proveedor')->count(),
             'recibidas' => OrdenCompra::where('estado', 'recibida')->count(),
             'canceladas' => OrdenCompra::where('estado', 'cancelada')->count(),
         ];
@@ -185,11 +185,11 @@ class OrdenCompraController extends Controller
             'pendiente' => 'Pendiente',
             'aprobada' => 'Aprobada',
             'enviada' => 'Enviada',
+            'enviado_a_proveedor' => 'Enviado a Proveedor',
             'recibida' => 'Recibida',
             'cancelada' => 'Cancelada',
             // Estados del sistema (por compatibilidad)
             'borrador' => 'Borrador',
-            'enviado_a_proveedor' => 'Enviado a Proveedor',
             'convertida' => 'Recibida',
         ];
 
