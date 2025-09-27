@@ -1,6 +1,6 @@
 <!-- /resources/js/Pages/OrdenesCompra/Index.vue -->
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { router, Head } from '@inertiajs/vue3'
 import axios from 'axios'
 import { Notyf } from 'notyf'
@@ -8,9 +8,7 @@ import 'notyf/notyf.min.css'
 
 import { generarPDF } from '@/Utils/pdfGenerator'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import UniversalHeader from '@/Components/IndexComponents/UniversalHeader.vue'
-import DocumentosTable from '@/Components/IndexComponents/DocumentosTable.vue'
-import Modal from '@/Components/IndexComponents/Modales.vue'
+import { Link } from '@inertiajs/vue3'
 
 defineOptions({ layout: AppLayout })
 
@@ -43,13 +41,17 @@ const notyf = new Notyf({
 })
 
 /* =========================
-   Estado local y modal
-========================= */
+    Estado local y modal
+ ========================= */
 const showModal = ref(false)
 const fila = ref(null)
 const modalMode = ref('details')
 const selectedId = ref(null)
 const loading = ref(false)
+
+// Variables para UniversalHeader
+const searchInput = ref(null)
+const isSearchFocused = ref(false)
 
 /* =========================
    Filtros, orden y datos
@@ -138,14 +140,34 @@ watch(() => props.ordenesCompra, (newVal) => {
   }
 }, { deep: true, immediate: true })
 
-// Estadísticas del servidor
+// Watcher para debuggear estadísticas
+watch(() => props.stats, (newStats) => {
+  if (newStats) {
+    console.log('🔄 Estadísticas actualizadas:', newStats);
+    console.log('📊 Total:', newStats.total);
+    console.log('⏳ Pendientes:', newStats.pendientes);
+    console.log('✈️ Enviadas:', newStats.enviadas_a_proveedor);
+    console.log('✅ Procesadas:', newStats.procesadas);
+    console.log('❌ Canceladas:', newStats.canceladas);
+  }
+}, { deep: true, immediate: true })
+
+// Estadísticas del servidor (mapeo EXACTO con el backend)
 const estadisticas = computed(() => {
-  return props.stats || {
-    total: 0,
-    pendientes: 0,
-    enviadas: 0,
-    procesadas: 0,
-    canceladas: 0,
+  const stats = props.stats || {};
+
+  // Debug: mostrar qué está llegando del backend
+  console.log('📊 Estadísticas recibidas del backend:', stats);
+
+  // Mapeo correcto: el backend ahora envía 'procesadas' como las órdenes convertidas
+  console.log('📈 Procesadas recibidas del backend:', stats.procesadas);
+
+  return {
+    total: stats.total || 0,
+    pendientes: stats.pendientes || 0,
+    enviadas_a_proveedor: stats.enviadas_a_proveedor || 0,
+    procesadas: stats.procesadas || 0,
+    canceladas: stats.canceladas || 0,
   }
 })
 
@@ -382,7 +404,7 @@ const eliminarOrden = async () => {
         if (index !== -1) {
           ordenesOriginales.value[index] = {
             ...ordenesOriginales.value[index],
-            estado: 'cancelado',
+            estado: 'cancelada',
             eliminado_por: response?.data?.eliminado_por || 'Usuario actual',
             deleted_at: new Date().toISOString()
           }
@@ -461,7 +483,7 @@ const recibirOrden = async (ordenData) => {
 
     // Actualiza estado local
     const i = ordenesOriginales.value.findIndex(o => o.id === doc.id)
-    if (i !== -1) ordenesOriginales.value[i] = { ...ordenesOriginales.value[i], estado: 'recibida' }
+    if (i !== -1) ordenesOriginales.value[i] = { ...ordenesOriginales.value[i], estado: 'procesada' }
 
     showModal.value = false
     notyf.success(data.message || 'Orden recibida exitosamente')
@@ -482,6 +504,417 @@ const recibirOrden = async (ordenData) => {
 const crearNuevaOrden = () => {
   router.visit('/ordenescompra/create')
 }
+
+// Funciones para UniversalHeader
+const focusSearch = () => { searchInput.value?.focus(); }
+const handleSearchFocus = () => { isSearchFocused.value = true; }
+const handleSearchBlur  = () => { isSearchFocused.value = false; }
+
+const handleKeydown = (event) => {
+  if ((event.ctrlKey || event.metaKey) && event.key === 'k') { event.preventDefault(); focusSearch(); }
+  if (event.key === 'Escape' && isSearchFocused.value) searchTerm.value = '';
+}
+
+const hayFiltrosActivos = computed(() => !!searchTerm.value || !!filtroEstado.value)
+
+const limpiarFiltros = () => {
+  searchTerm.value = ''
+  sortBy.value = 'fecha-desc'
+  filtroEstado.value = ''
+  handleLimpiarFiltros()
+}
+
+// Iconos para UniversalHeader
+const icons = {
+  document: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+  'document-text': 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+  'paper-airplane': 'M12 19l9 2-9-18-9 18 9-2zm0 0v-8',
+  'check-circle': 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+  'x-circle': 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z',
+  clock: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+  plus: 'M12 4v16m8-8H4',
+  search: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
+  x: 'M6 18L18 6M6 6l12 12',
+  'filter-x': 'M6 18L18 6M6 6l12 12',
+  'chevron-down': 'M19 9l-7 7-7-7',
+  'arrow-down': 'M19 14l-7 7m0 0l-7-7m7 7V3',
+  'arrow-up': 'M5 10l7-7m0 0l7 7m-7-7v18',
+  'currency-dollar': 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1',
+  'sort-ascending': 'M3 4h6m0 0l4-4m-4 4l4 4M3 8h11m-11 4h14m-14 4h11m-11 4h6',
+  'sort-descending': 'M3 4h14m-14 4h11m-11 4h6m0 0l-4 4m4-4l4-4M3 16h11m-11 4h14',
+  export: 'M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z',
+  import: 'M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10',
+  loading: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15',
+  identification: 'M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2',
+  'status-online': 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z'
+}
+
+const colorClasses = {
+  green:  { text: 'text-emerald-600', bg: 'bg-emerald-50',  border: 'border-emerald-200', ring: 'ring-emerald-500/20' },
+  blue:   { text: 'text-blue-600',    bg: 'bg-blue-50',     border: 'border-blue-200',    ring: 'ring-blue-500/20' },
+  yellow: { text: 'text-amber-600',   bg: 'bg-amber-50',    border: 'border-amber-200',   ring: 'ring-amber-500/20' },
+  orange: { text: 'text-orange-600',  bg: 'bg-orange-50',   border: 'border-orange-200',  ring: 'ring-orange-500/20' },
+  red:    { text: 'text-red-600',     bg: 'bg-red-50',      border: 'border-red-200',     ring: 'ring-red-500/20' },
+  slate:  { text: 'text-slate-600',   bg: 'bg-slate-50',    border: 'border-slate-200',   ring: 'ring-slate-500/20' },
+  indigo: { text: 'text-indigo-600',  bg: 'bg-indigo-50',   border: 'border-indigo-200',  ring: 'ring-indigo-500/20' },
+  emerald:{ text: 'text-emerald-600', bg: 'bg-emerald-50',  border: 'border-emerald-200', ring: 'ring-emerald-500/20' },
+  gray:   { text: 'text-gray-600',    bg: 'bg-gray-50',     border: 'border-gray-200',    ring: 'ring-gray-500/20' }
+}
+
+const getColorClasses = (color) => colorClasses[color] || colorClasses.slate
+
+const formatNumber = (num, tipo = 'number') => {
+  if (tipo === 'currency') return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(num);
+  return new Intl.NumberFormat('es-ES').format(num);
+}
+
+const getIconPath = (iconName) => icons[iconName] || icons.document
+
+// Estadísticas con porcentajes para órdenes de compra (cálculo mejorado)
+const estadisticasConPorcentaje = computed(() => {
+  const total = estadisticas.value.total || 1; // evita división por cero
+  const procesadasValue = estadisticas.value.procesadas || 0;
+
+  console.log('🔢 Cálculo de porcentajes:', {
+    total,
+    procesadasValue,
+    porcentaje: Math.round((procesadasValue / total) * 100)
+  });
+
+  return {
+    pendientes: { ...{ label: 'Pendientes', icon: 'clock', color: 'yellow', description: 'Órdenes pendientes' }, porcentaje: Math.round(((estadisticas.value.pendientes || 0) / total) * 100) },
+    enviadas_a_proveedor: { ...{ label: 'Enviadas a Proveedor', icon: 'paper-plane', color: 'blue', description: 'Órdenes enviadas a proveedor' }, porcentaje: Math.round(((estadisticas.value.enviadas_a_proveedor || 0) / total) * 100) },
+    procesadas: { ...{ label: 'Procesadas', icon: 'check-circle', color: 'green', description: 'Órdenes procesadas' }, porcentaje: Math.round((procesadasValue / total) * 100) },
+    canceladas: { ...{ label: 'Canceladas', icon: 'x-circle', color: 'red', description: 'Órdenes canceladas' }, porcentaje: Math.round(((estadisticas.value.canceladas || 0) / total) * 100) },
+  };
+})
+
+// Variables para DocumentosTable
+const showTooltip = ref(false)
+const hoveredDoc = ref(null)
+const tooltipPosition = ref({ x: 0, y: 0 })
+let tooltipTimeout = null
+
+// Función para obtener productos del documento (mejorada)
+const getProductosDelDoc = (doc) => {
+  if (!doc) return [];
+  const productos = doc.productos || doc.items || [];
+
+  // Validar que sea un array y tenga elementos válidos
+  if (!Array.isArray(productos)) return [];
+  if (!productos.length) return [];
+
+  // Filtrar productos válidos
+  return productos.filter(p =>
+    p &&
+    (p.nombre || p.descripcion) &&
+    (p.cantidad > 0 || p.cantidad !== null)
+  );
+}
+
+// Tooltip optimizado (igual que DocumentosTable)
+const showProductTooltip = (doc, event) => {
+  if (!getProductosDelDoc(doc)?.length) return;
+  clearTimeout(tooltipTimeout);
+  hoveredDoc.value = doc;
+  updateTooltipPosition(event);
+  tooltipTimeout = setTimeout(() => { showTooltip.value = true; }, 500);
+}
+
+const hideProductTooltip = () => {
+  clearTimeout(tooltipTimeout);
+  tooltipTimeout = setTimeout(() => {
+    showTooltip.value = false;
+    hoveredDoc.value = null;
+  }, 300);
+}
+
+const clearHideTimeout = () => {
+  clearTimeout(tooltipTimeout);
+}
+
+const updateTooltipPosition = (event) => {
+  tooltipPosition.value = { x: event.clientX, y: event.clientY };
+}
+
+// Tooltip style computed
+const tooltipStyle = computed(() => {
+  const OFFSET = 20, TOOLTIP_WIDTH = 320, TOOLTIP_HEIGHT = 384, VIEWPORT_PADDING = 16;
+  const { w, h } = getViewport();
+
+  let x = tooltipPosition.value.x + OFFSET;
+  let y = tooltipPosition.value.y - (TOOLTIP_HEIGHT / 2);
+
+  if (x + TOOLTIP_WIDTH > w - VIEWPORT_PADDING) x = tooltipPosition.value.x - TOOLTIP_WIDTH - OFFSET;
+  if (x < VIEWPORT_PADDING) x = VIEWPORT_PADDING;
+  if (y < VIEWPORT_PADDING) y = VIEWPORT_PADDING;
+  else if (y + TOOLTIP_HEIGHT > h - VIEWPORT_PADDING) y = h - TOOLTIP_HEIGHT - VIEWPORT_PADDING;
+
+  return {
+    left: `${x}px`,
+    top: `${y}px`,
+    transform: showTooltip.value ? 'scale(1) translateY(0)' : 'scale(0.95) translateY(-10px)',
+    opacity: showTooltip.value ? '1' : '0'
+  };
+})
+
+const getViewport = () => {
+  if (typeof window === 'undefined') return { w: 1280, h: 800 };
+  return { w: window.innerWidth, h: window.innerHeight };
+}
+
+// Cache de formatos para mejor rendimiento (igual que DocumentosTable)
+const formatCache = new Map();
+
+const formatearFecha = (date) => {
+  if (!date) return 'Fecha no disponible';
+  const cacheKey = `fecha-${date}`;
+  if (formatCache.has(cacheKey)) return formatCache.get(cacheKey);
+
+  try {
+    const time = new Date(date).getTime();
+    if (Number.isNaN(time)) return 'Fecha inválida';
+    const formatted = new Date(time).toLocaleDateString('es-MX', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+    formatCache.set(cacheKey, formatted);
+    return formatted;
+  } catch {
+    return 'Fecha inválida';
+  }
+}
+
+const formatearHora = (date) => {
+  if (!date) return '';
+  const cacheKey = `hora-${date}`;
+  if (formatCache.has(cacheKey)) return formatCache.get(cacheKey);
+
+  try {
+    const time = new Date(date).getTime();
+    if (Number.isNaN(time)) return '';
+    const formatted = new Date(time).toLocaleTimeString('es-MX', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    formatCache.set(cacheKey, formatted);
+    return formatted;
+  } catch {
+    return '';
+  }
+}
+
+const formatearMoneda = (num) => {
+  const value = parseFloat(num);
+  const safe = Number.isFinite(value) ? value : 0;
+  const cacheKey = `moneda-${safe}`;
+  if (formatCache.has(cacheKey)) return formatCache.get(cacheKey);
+
+  const formatted = new Intl.NumberFormat('es-MX', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(safe);
+  formatCache.set(cacheKey, formatted);
+  return formatted;
+}
+
+// Configuración de estados para órdenes de compra (EXACTAMENTE igual que DocumentosTable)
+const configEstados = {
+  'borrador': {
+    label: 'Borrador',
+    classes: 'bg-gray-100 text-gray-700',
+    color: 'bg-gray-400'
+  },
+  'pendiente': {
+    label: 'Pendiente',
+    classes: 'bg-yellow-100 text-yellow-700',
+    color: 'bg-yellow-400'
+  },
+  'enviado_a_proveedor': {
+    label: 'Enviado a Proveedor',
+    classes: 'bg-blue-100 text-blue-700',
+    color: 'bg-blue-400'
+  },
+  'convertida': {
+    label: 'Procesada',
+    classes: 'bg-green-100 text-green-700',
+    color: 'bg-green-400'
+  },
+  'cancelada': {
+    label: 'Cancelada',
+    classes: 'bg-red-100 text-red-700',
+    color: 'bg-red-400'
+  }
+};
+
+const obtenerClasesEstado = (estado) => {
+  return configEstados[estado]?.classes || 'bg-gray-100 text-gray-700';
+}
+
+const obtenerColorPuntoEstado = (estado) => {
+  return configEstados[estado]?.color || 'bg-gray-400';
+}
+
+const obtenerLabelEstado = (estado) => {
+  return configEstados[estado]?.label || 'Pendiente';
+}
+
+// Configuración de filtros y búsqueda mejorada
+const configFiltros = {
+  searchFields: ['proveedor.nombre_razon_social', 'items.nombre', 'numero_orden', 'id'],
+  estados: Object.keys(configEstados),
+  sortOptions: [
+    { field: 'fecha', label: 'Fecha' },
+    { field: 'proveedor', label: 'Proveedor' },
+    { field: 'numero_orden', label: 'Número de Orden' },
+    { field: 'total', label: 'Total' },
+    { field: 'estado', label: 'Estado' }
+  ]
+};
+
+// Items filtrados y ordenados (optimizado)
+const items = computed(() => {
+  if (!Array.isArray(props.ordenesCompra.data)) {
+    console.warn('⚠️ Órdenes de compra no es un array:', props.ordenesCompra.data);
+    return [];
+  }
+
+  let filtered = props.ordenesCompra.data.slice();
+
+  // Filtro de búsqueda
+  if (searchTerm.value) {
+    const term = searchTerm.value.toLowerCase().trim();
+    filtered = filtered.filter(doc => {
+      return configFiltros.searchFields.some(field => {
+        const value = field.split('.').reduce((obj, key) => obj?.[key], doc);
+        return (value || '').toString().toLowerCase().includes(term);
+      });
+    });
+  }
+
+  // Filtro de estado
+  if (filtroEstado.value) {
+    filtered = filtered.filter(doc => doc.estado === filtroEstado.value);
+  }
+
+  // Ordenamiento optimizado
+  if (sortBy.value) {
+    const [field, direction] = sortBy.value.split('-');
+
+    filtered.sort((a, b) => {
+      let aVal, bVal;
+
+      switch (field) {
+        case 'fecha':
+          aVal = new Date(a.created_at || a.fecha).getTime() || 0;
+          bVal = new Date(b.created_at || b.fecha).getTime() || 0;
+          break;
+        case 'proveedor':
+          aVal = (a.proveedor?.nombre_razon_social || '').toLowerCase();
+          bVal = (b.proveedor?.nombre_razon_social || '').toLowerCase();
+          break;
+        case 'numero_orden':
+          aVal = (a.numero_orden || a.id || '').toString().toLowerCase();
+          bVal = (b.numero_orden || b.id || '').toString().toLowerCase();
+          break;
+        case 'total':
+          aVal = parseFloat(a.total) || 0;
+          bVal = parseFloat(b.total) || 0;
+          break;
+        case 'estado':
+          aVal = obtenerLabelEstado(a.estado).toLowerCase();
+          bVal = obtenerLabelEstado(b.estado).toLowerCase();
+          break;
+        default:
+          aVal = (a[field] || '').toString().toLowerCase();
+          bVal = (b[field] || '').toString().toLowerCase();
+      }
+
+      const comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+      return direction === 'desc' ? -comparison : comparison;
+    });
+  }
+
+  return filtered;
+});
+
+// Sort function
+const onSort = (field) => {
+  const current = sortBy.value.startsWith(field) ? sortBy.value : `${field}-desc`;
+  const newOrder = current === `${field}-desc` ? `${field}-asc` : `${field}-desc`;
+  updateSort(newOrder);
+}
+
+// Funciones para Modal
+const modalRef = ref(null)
+
+// Estados de confirmación
+const showConfirmReenvioPedido = ref(false)
+const showConfirmReenvioVenta  = ref(false)
+
+// Focus management
+const focusFirst = () => { try { modalRef.value?.focus() } catch {} }
+watch(() => showModal, (v) => { if (v) setTimeout(focusFirst, 0) })
+
+// Cerrar con tecla ESC también desde window
+const onKey = (e) => { if (e.key === 'Escape' && showModal.value) onClose() }
+onMounted(() => window.addEventListener('keydown', onKey))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
+
+// Emits comunes para modal
+const onCancel  = () => { showModal.value = false; fila.value = null; selectedId.value = null; }
+const onConfirm = () => { eliminarOrden() }
+const onClose   = () => { showModal.value = false; fila.value = null; selectedId.value = null; }
+const onImprimirFila = () => { if (fila.value) { imprimirOrden(fila.value) } }
+const onEditarFila = () => { editarOrden(fila.value?.id) }
+
+// Helper functions
+const isNumber = (n) => Number.isFinite(parseFloat(n))
+
+const obtenerPrecio = (producto) => {
+  if (!producto) return 0;
+  const p = parseFloat(producto.precio ?? producto.precio_venta ?? producto.pv ?? 0);
+  return Number.isFinite(p) ? p : 0;
+}
+
+// Función de debug para probar estadísticas
+const testEstadisticas = () => {
+  console.log('🧪 TEST ESTADÍSTICAS:');
+  console.log('Props stats:', props.stats);
+  console.log('Estadísticas calculadas:', estadisticas.value);
+  console.log('Estadísticas con porcentaje:', estadisticasConPorcentaje.value);
+
+  // Test manual de mapeo
+  const testStats = {
+    total: 10,
+    pendientes: 3,
+    enviadas_a_proveedor: 2,
+    procesadas: 4,
+    canceladas: 1
+  };
+
+  console.log('Test con datos manuales:', testStats);
+}
+
+// Validaciones mejoradas
+const validarDocumento = (doc) => {
+  if (!doc?.id) {
+    throw new Error('ID del documento no encontrado');
+  }
+  if (!doc.proveedor?.nombre_razon_social) {
+    throw new Error('Datos del proveedor no encontrados');
+  }
+  const productos = getProductosDelDoc(doc);
+  if (!Array.isArray(productos) || !productos.length) {
+    throw new Error('Lista de productos no válida');
+  }
+  return true;
+}
+
+const validarEstado = (estado) => {
+  return configEstados[estado] !== undefined;
+}
 </script>
 
 <template>
@@ -491,24 +924,250 @@ const crearNuevaOrden = () => {
     <!-- Contenido principal -->
     <div class="max-w-8xl mx-auto px-6 py-8">
       <!-- Header de filtros y estadísticas -->
-      <UniversalHeader
-        :total="estadisticas.total"
-        :pendientes="estadisticas.pendientes"
-        :enviadas-a-proveedor="estadisticas.enviadas_a_proveedor"
-        :recibidas="estadisticas.recibidas"
-        :canceladas="estadisticas.canceladas"
-        v-model:search-term="searchTerm"
-        v-model:sort-by="sortBy"
-        v-model:filtro-estado="filtroEstado"
-        :config="{
-          module: 'ordenescompra',
-          createButtonText: 'Nueva Orden de Compra',
-          searchPlaceholder: 'Buscar por proveedor, número...'
-        }"
-        @limpiar-filtros="handleLimpiarFiltros"
-        @search="handleSearch"
-        @filter="handleFilter"
-      />
+      <div
+        class="bg-white border border-slate-200 rounded-xl shadow-sm p-8 mb-6 transition-all duration-300 hover:shadow-lg"
+        @keydown="handleKeydown"
+        tabindex="-1"
+      >
+        <div class="flex flex-col lg:flex-row gap-8 items-start lg:items-center justify-between">
+          <!-- Izquierda: Título, crear y estadísticas -->
+          <div class="flex flex-col gap-6 w-full lg:w-auto">
+            <div class="flex items-center gap-3">
+              <h1 class="text-2xl font-bold text-slate-900">Órdenes de Compra</h1>
+              <div v-if="loading" class="animate-spin w-5 h-5 text-blue-500">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath('loading')" />
+                </svg>
+              </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+              <Link
+                :href="'/ordenescompra/create'"
+                :class="{
+                  'opacity-50 cursor-not-allowed pointer-events-none': false,
+                  'hover:from-blue-700 hover:via-blue-700 hover:to-blue-800 hover:scale-[1.02] hover:shadow-xl': true
+                }"
+                class="group inline-flex items-center gap-2.5 px-6 py-3 bg-gradient-to-r from-blue-600 via-blue-600 to-blue-700 text-white font-semibold rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 active:scale-[0.98] transition-all duration-200 shadow-lg flex-shrink-0"
+              >
+                <svg :class="{ 'animate-spin': loading, 'group-hover:rotate-90': !loading && !false }" class="w-5 h-5 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5">
+                  <path :d="loading ? getIconPath('loading') : getIconPath('plus')" />
+                </svg>
+                <span class="tracking-wide">{{ loading ? 'Cargando...' : 'Nueva Orden de Compra' }}</span>
+              </Link>
+            </div>
+
+            <!-- Estadísticas con porcentajes -->
+            <div class="flex flex-wrap items-center gap-4 text-sm">
+              <!-- Total -->
+              <div class="group flex items-center gap-2 px-4 py-3 bg-slate-50 rounded-xl border border-slate-200 flex-shrink-0 hover:bg-slate-100 transition-all duration-200 cursor-default" :title="'Total de órdenes de compra'.description">
+                <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath('Total'.icon)" />
+                </svg>
+                <span class="font-medium text-slate-700">Total:</span>
+                <span class="font-bold text-slate-900 text-lg">{{ formatNumber(estadisticas.total) }}</span>
+                <!-- Botón de debug temporal -->
+                <button v-if="false" @click="testEstadisticas" class="ml-2 px-2 py-1 bg-red-500 text-white text-xs rounded">
+                  Test
+                </button>
+              </div>
+
+              <!-- Pendientes -->
+              <div
+                :class="'bg-yellow-50 border-yellow-200'"
+                class="group flex items-center gap-2 px-4 py-3 rounded-xl border flex-shrink-0 hover:shadow-sm transition-all duration-200 cursor-default"
+                :title="'Órdenes pendientes'.description"
+              >
+                <svg :class="'text-yellow-600'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath('Pendientes'.icon)" />
+                </svg>
+                <span class="font-medium text-slate-700">Pendientes:</span>
+                <span :class="'text-yellow-600'" class="font-bold text-lg">{{ formatNumber(estadisticas.pendientes || 0) }}</span>
+                <span v-if="estadisticas.total > 0" :class="'text-yellow-600'" class="text-xs font-medium opacity-75">
+                  ({{ estadisticasConPorcentaje.pendientes?.porcentaje || 0 }}%)
+                </span>
+              </div>
+
+              <!-- Enviadas a Proveedor (igual que UniversalHeader) -->
+              <div
+                :class="'bg-blue-50 border-blue-200'"
+                class="group flex items-center gap-2 px-4 py-3 rounded-xl border flex-shrink-0 hover:shadow-sm transition-all duration-200 cursor-default"
+                :title="'Órdenes enviadas a proveedor'.description"
+              >
+                <svg :class="'text-blue-600'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath('Enviadas a Proveedor'.icon)" />
+                </svg>
+                <span class="font-medium text-slate-700">Enviadas a Proveedor:</span>
+                <span :class="'text-blue-600'" class="font-bold text-lg">{{ formatNumber(estadisticas.enviadas_a_proveedor || 0) }}</span>
+                <span v-if="estadisticas.total > 0" :class="'text-blue-600'" class="text-xs font-medium opacity-75">
+                  ({{ estadisticasConPorcentaje.enviadas_a_proveedor?.porcentaje || 0 }}%)
+                </span>
+              </div>
+
+              <!-- Procesadas -->
+              <div
+                :class="'bg-green-50 border-green-200'"
+                class="group flex items-center gap-2 px-4 py-3 rounded-xl border flex-shrink-0 hover:shadow-sm transition-all duration-200 cursor-default"
+                :title="'Órdenes procesadas'.description"
+              >
+                <svg :class="'text-green-600'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath('Procesadas'.icon)" />
+                </svg>
+                <span class="font-medium text-slate-700">Procesadas:</span>
+                <span :class="'text-green-600'" class="font-bold text-lg">{{ formatNumber(estadisticas.procesadas || 0) }}</span>
+                <span v-if="estadisticas.total > 0" :class="'text-green-600'" class="text-xs font-medium opacity-75">
+                  ({{ estadisticasConPorcentaje.procesadas?.porcentaje || 0 }}%)
+                </span>
+                <!-- Debug info (remover en producción) -->
+                <span v-if="false" class="text-xs text-red-500 ml-2">
+                  {{ estadisticas.procesadas }}/{{ estadisticas.total }} ({{ estadisticasConPorcentaje.procesadas?.porcentaje }}%)
+                </span>
+              </div>
+
+              <!-- Canceladas -->
+              <div
+                :class="'bg-red-50 border-red-200'"
+                class="group flex items-center gap-2 px-4 py-3 rounded-xl border flex-shrink-0 hover:shadow-sm transition-all duration-200 cursor-default"
+                :title="'Órdenes canceladas'.description"
+              >
+                <svg :class="'text-red-600'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath('Canceladas'.icon)" />
+                </svg>
+                <span class="font-medium text-slate-700">Canceladas:</span>
+                <span :class="'text-red-600'" class="font-bold text-lg">{{ formatNumber(estadisticas.canceladas || 0) }}</span>
+                <span v-if="estadisticas.total > 0" :class="'text-red-600'" class="text-xs font-medium opacity-75">
+                  ({{ estadisticasConPorcentaje.canceladas?.porcentaje || 0 }}%)
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Derecha: Búsqueda y filtros -->
+          <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto lg:flex-shrink-0 lg:min-w-0">
+            <!-- Búsqueda -->
+            <div class="relative group">
+              <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <svg :class="{ 'text-blue-500': isSearchFocused, 'text-slate-400': !isSearchFocused }" class="w-4 h-4 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath('search')" />
+                </svg>
+              </div>
+              <input
+                ref="searchInput"
+                :value="searchTerm"
+                @input="$emit('update:searchTerm', $event.target.value)"
+                @focus="handleSearchFocus"
+                @blur="handleSearchBlur"
+                type="text"
+                :placeholder="'Buscar por proveedor, número...'"
+                :disabled="false"
+                :class="{
+                  'border-blue-500 ring-4 ring-blue-500/10 bg-blue-50/50': isSearchFocused,
+                  'border-slate-300': !isSearchFocused,
+                  'opacity-50 cursor-not-allowed': false
+                }"
+                class="w-full sm:w-64 lg:w-80 pl-11 pr-20 py-3 border rounded-xl bg-white text-slate-900 placeholder-slate-400 focus:outline-none transition-all duration-200"
+              />
+
+              <div v-if="!searchTerm && !isSearchFocused && !false" class="absolute inset-y-0 right-12 flex items-center pointer-events-none">
+                <kbd class="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-xs font-mono text-slate-400 bg-slate-100 rounded border border-slate-200">
+                  <span class="text-xs">⌘</span>K
+                </kbd>
+              </div>
+
+              <Transition enter-active-class="transition-all duration-200" enter-from-class="opacity-0 scale-90" enter-to-class="opacity-100 scale-100" leave-active-class="transition-all duration-150" leave-from-class="opacity-100 scale-100" leave-to-class="opacity-0 scale-90">
+                <button
+                  v-if="searchTerm"
+                  @click="$emit('update:searchTerm', '')"
+                  class="absolute inset-y-0 right-4 flex items-center text-slate-400 hover:text-slate-600 focus:text-blue-500 focus:outline-none transition-colors duration-200 p-1 rounded-md hover:bg-slate-100"
+                  title="Limpiar búsqueda (Esc)"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath('x')" />
+                  </svg>
+                </button>
+              </Transition>
+            </div>
+
+            <!-- Orden -->
+            <div class="relative flex-shrink-0">
+              <select
+                :value="sortBy"
+                @change="$emit('update:sortBy', $event.target.value)"
+                :disabled="false"
+                :class="{ 'opacity-50 cursor-not-allowed': false, 'hover:bg-slate-50 cursor-pointer': true }"
+                class="appearance-none w-full sm:w-auto px-4 py-3 pr-10 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+              >
+                <option v-for="option in [
+                  { value: 'fecha-desc', label: 'Más Recientes', icon: 'arrow-down' },
+                  { value: 'fecha-asc', label: 'Más Antiguos', icon: 'arrow-up' },
+                  { value: 'total-desc', label: 'Mayor Monto', icon: 'currency-dollar' },
+                  { value: 'total-asc', label: 'Menor Monto', icon: 'currency-dollar' },
+                  { value: 'proveedor-asc', label: 'Proveedor A-Z', icon: 'sort-ascending' },
+                  { value: 'proveedor-desc', label: 'Proveedor Z-A', icon: 'sort-descending' }
+                ]" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
+              </select>
+              <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath('chevron-down')" />
+                </svg>
+              </div>
+            </div>
+
+            <!-- Estado -->
+            <div class="relative flex-shrink-0">
+              <select
+                :value="filtroEstado"
+                @change="$emit('update:filtroEstado', $event.target.value)"
+                :disabled="false"
+                :class="{
+                  'border-blue-500 bg-blue-50/50 text-blue-700': filtroEstado && !false,
+                  'border-slate-300': !filtroEstado || false,
+                  'opacity-50 cursor-not-allowed': false,
+                  'hover:bg-slate-50 cursor-pointer': true
+                }"
+                class="appearance-none w-full sm:w-auto px-4 py-3 pr-10 border rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+              >
+                <option v-for="estado in [
+                  { value: '', label: 'Todos los Estados', color: 'slate' },
+                  { value: 'pendiente', label: 'Pendientes', color: 'yellow' },
+                  { value: 'enviado_a_proveedor', label: 'Enviadas a Proveedor', color: 'blue' },
+                  { value: 'procesada', label: 'Procesadas', color: 'green' },
+                  { value: 'cancelada', label: 'Canceladas', color: 'red' }
+                ]" :key="estado.value" :value="estado.value">
+                  {{ estado.label }}
+                </option>
+              </select>
+              <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath('chevron-down')" />
+                </svg>
+              </div>
+              <div v-if="filtroEstado" class="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-white"></div>
+            </div>
+
+            <!-- Limpiar filtros -->
+            <Transition enter-active-class="transition-all duration-300" enter-from-class="opacity-0 scale-90 translate-x-4" enter-to-class="opacity-100 scale-100 translate-x-0" leave-active-class="transition-all duration-200" leave-from-class="opacity-100 scale-100 translate-x-0" leave-to-class="opacity-0 scale-90 translate-x-4">
+              <button
+                v-if="hayFiltrosActivos"
+                @click="limpiarFiltros"
+                :disabled="false"
+                class="group relative inline-flex items-center gap-2 px-4 py-3 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 hover:text-slate-700 focus:outline-none focus:ring-4 focus:ring-slate-500/10 transition-all duration-200 whitespace-nowrap border border-slate-200 flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Limpiar todos los filtros"
+              >
+                <svg class="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath('filter-x')" />
+                </svg>
+                <span class="font-medium">Limpiar</span>
+                <div class="absolute -top-1 -right-1 min-w-[1.25rem] h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center px-1">
+                  {{ (searchTerm ? 1 : 0) + (filtroEstado ? 1 : 0) }}
+                </div>
+              </button>
+            </Transition>
+          </div>
+        </div>
+      </div>
 
       <!-- Información de paginación -->
       <div class="flex justify-between items-center mb-4 text-sm text-gray-600">
@@ -534,22 +1193,305 @@ const crearNuevaOrden = () => {
 
       <!-- Tabla de documentos -->
       <div class="mt-6">
-        <DocumentosTable
-          :documentos="props.ordenesCompra.data || []"
-          tipo="ordenescompra"
-          :search-term="searchTerm"
-          :sort-by="sortBy"
-          :filtro-estado="filtroEstado"
-          @ver-detalles="verDetalles"
-          @editar="editarOrden"
-          @duplicar="duplicarOrden"
-          @imprimir="imprimirOrden"
-          @eliminar="confirmarEliminacion"
-          @enviar-compra="enviarOrden"
-          @enviar-orden="enviarOrden"
-          @recibir-orden="recibirOrden"
-          @sort="updateSort"
-        />
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <!-- Header -->
+          <div class="bg-gradient-to-r from-gray-50 to-gray-100/50 px-6 py-4 border-b border-gray-200/60">
+            <div class="flex items-center justify-between">
+              <h2 class="text-lg font-semibold text-gray-900 tracking-tight">Órdenes de Compra</h2>
+              <div class="text-sm text-gray-600 bg-white/70 px-3 py-1 rounded-full border border-gray-200/50">
+                {{ items.length }} de {{ props.pagination.total || 0 }} órdenes de compra
+              </div>
+            </div>
+          </div>
+
+          <!-- Table -->
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200/60">
+              <thead class="bg-gray-50/60">
+                <tr>
+                  <!-- Fecha -->
+                  <th
+                    class="group px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100/60 transition-colors duration-150"
+                    @click="onSort('fecha')"
+                  >
+                    <div class="flex items-center space-x-1">
+                      <span>Fecha</span>
+                      <svg
+                        v-if="sortBy.startsWith('fecha')"
+                        :class="['w-4 h-4 transition-transform duration-200', sortBy === 'fecha-desc' ? 'rotate-180' : '']"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </th>
+
+                  <!-- Proveedor -->
+                  <th
+                    class="group px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100/60 transition-colors duration-150"
+                    @click="onSort('proveedor')"
+                  >
+                    <div class="flex items-center space-x-1">
+                      <span>Proveedor</span>
+                      <svg
+                        v-if="sortBy.startsWith('proveedor')"
+                        :class="['w-4 h-4 transition-transform duration-200', sortBy === 'proveedor-desc' ? 'rotate-180' : '']"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </th>
+
+                  <!-- N° Orden -->
+                  <th
+                    class="group px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100/60 transition-colors duration-150"
+                    @click="onSort('numero_orden')"
+                  >
+                    <div class="flex items-center space-x-1">
+                      <span>N° Orden</span>
+                      <svg
+                        v-if="sortBy.startsWith('numero_orden')"
+                        :class="['w-4 h-4 transition-transform duration-200', sortBy === 'numero_orden-desc' ? 'rotate-180' : '']"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </th>
+
+                  <!-- Total -->
+                  <th
+                    class="group px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100/60 transition-colors duration-150"
+                    @click="onSort('total')"
+                  >
+                    <div class="flex items-center space-x-1">
+                      <span>Total</span>
+                      <svg
+                        v-if="sortBy.startsWith('total')"
+                        :class="['w-4 h-4 transition-transform duration-200', sortBy === 'total-desc' ? 'rotate-180' : '']"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </th>
+
+                  <!-- Productos -->
+                  <th
+                    class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider"
+                  >
+                    Productos
+                  </th>
+
+                  <!-- Estado -->
+                  <th
+                    class="group px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100/60 transition-colors duration-150"
+                    @click="onSort('estado')"
+                  >
+                    <div class="flex items-center space-x-1">
+                      <span>Estado</span>
+                      <svg
+                        v-if="sortBy.startsWith('estado')"
+                        :class="['w-4 h-4 transition-transform duration-200', sortBy === 'estado-desc' ? 'rotate-180' : '']"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </th>
+
+                  <!-- Acciones -->
+                  <th class="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Acciones
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody class="bg-white divide-y divide-gray-200/40">
+                <template v-if="items.length > 0">
+                  <tr
+                    v-for="doc in items"
+                    :key="doc.id"
+                    :class="[
+                      'group hover:bg-gray-50/60 transition-all duration-150 hover:shadow-sm',
+                      doc.estado === 'cancelada' ? 'opacity-50' : ''
+                    ]"
+                  >
+                    <!-- Fecha -->
+                    <td class="px-6 py-4">
+                      <div class="flex flex-col space-y-0.5">
+                        <div class="text-sm font-medium text-gray-900">
+                          {{ formatearFecha(doc.created_at || doc.fecha) }}
+                        </div>
+                        <div class="text-xs text-gray-500">
+                          {{ formatearHora(doc.created_at || doc.fecha) }}
+                        </div>
+                      </div>
+                    </td>
+
+                    <!-- Proveedor -->
+                    <td class="px-6 py-4">
+                      <div class="flex flex-col space-y-0.5">
+                        <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800">
+                          {{ doc.proveedor?.nombre_razon_social || 'Sin proveedor' }}
+                        </div>
+                        <div v-if="doc.proveedor?.email" class="text-xs text-gray-500 truncate max-w-48">
+                          {{ doc.proveedor?.email }}
+                        </div>
+                      </div>
+                    </td>
+
+                    <!-- N° Orden -->
+                    <td class="px-6 py-4">
+                      <div class="text-sm font-mono font-medium text-gray-700 bg-gray-100/60 px-2 py-1 rounded-md inline-block">
+                        {{ doc.numero_orden || 'N/A' }}
+                      </div>
+                    </td>
+
+                    <!-- Total -->
+                    <td class="px-6 py-4">
+                      <div class="text-sm font-semibold text-gray-900">
+                        <template v-if="typeof doc.total !== 'undefined' && doc.total !== null">
+                          ${{ formatearMoneda(doc.total) }}
+                        </template>
+                        <template v-else>-</template>
+                      </div>
+                    </td>
+
+                    <!-- Productos -->
+                    <td
+                      class="px-6 py-4 relative"
+                      @mouseenter="getProductosDelDoc(doc)?.length ? showProductTooltip(doc, $event) : null"
+                      @mouseleave="hideProductTooltip"
+                      @mousemove="getProductosDelDoc(doc)?.length ? updateTooltipPosition($event) : null"
+                    >
+                      <div class="flex items-center text-sm text-gray-600" :class="getProductosDelDoc(doc)?.length ? 'cursor-help hover:text-gray-800 transition-colors duration-150' : 'opacity-60'">
+                        <div class="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center mr-2 group-hover:bg-blue-100 transition-colors duration-150">
+                          <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                            />
+                          </svg>
+                        </div>
+                        <span class="font-medium">{{ getProductosDelDoc(doc)?.length || 0 }}</span>
+                        <span class="text-gray-400 ml-1">items</span>
+                      </div>
+                    </td>
+
+                    <!-- Estado -->
+                    <td class="px-6 py-4">
+                      <span
+                        :class="obtenerClasesEstado(doc.estado)"
+                        class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150 hover:shadow-sm"
+                      >
+                        <span
+                          class="w-2 h-2 rounded-full mr-2 transition-all duration-150"
+                          :class="obtenerColorPuntoEstado(doc.estado)"
+                        ></span>
+                        {{ obtenerLabelEstado(doc.estado) }}
+                      </span>
+                    </td>
+
+                    <!-- Acciones -->
+                    <td class="px-6 py-4">
+                      <div class="flex items-center justify-end space-x-1">
+                        <button
+                          @click="verDetalles(doc)"
+                          class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-1"
+                          title="Ver detalles"
+                        >
+                          <svg class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        </button>
+
+                        <button
+                          v-if="doc.estado === 'borrador' || doc.estado === 'pendiente'"
+                          @click="editarOrden(doc.id)"
+                          class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 hover:text-amber-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-1"
+                          title="Editar"
+                        >
+                          <svg class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+
+                        <!-- Enviar a Compra (solo órdenes pendientes) -->
+                        <button
+                          v-if="doc.estado === 'pendiente'"
+                          @click="enviarOrden(doc)"
+                          class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-1"
+                          title="Enviar orden al proveedor"
+                        >
+                          <svg class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                          </svg>
+                        </button>
+
+                        <!-- Recibir Mercancía (solo órdenes enviadas a proveedor) -->
+                        <button
+                          v-if="doc.estado === 'enviado_a_proveedor'"
+                          @click="recibirOrden(doc)"
+                          class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-1"
+                          title="Recibir mercancía y crear registro de compra"
+                        >
+                          <svg class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                          </svg>
+                        </button>
+
+                        <!-- Cancelar Orden (solo órdenes de compra no canceladas y no procesadas) -->
+                        <button
+                          v-if="['pendiente', 'enviado_a_proveedor'].includes(doc.estado)"
+                          @click="confirmarEliminacion(doc.id)"
+                          class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-orange-50 text-orange-600 hover:bg-orange-100 hover:text-orange-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:ring-offset-1"
+                          title="Cancelar Orden"
+                        >
+                          <svg class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+
+                      </div>
+                    </td>
+                  </tr>
+                </template>
+
+                <!-- Empty State -->
+                <tr v-else>
+                  <td :colspan="7" class="px-6 py-16 text-center">
+                    <div class="flex flex-col items-center space-y-4">
+                      <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                        <svg class="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <div class="space-y-1">
+                        <p class="text-gray-700 font-medium">No hay órdenes de compra</p>
+                        <p class="text-sm text-gray-500">Los documentos aparecerán aquí cuando se creen</p>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <!-- Controles de paginación -->
@@ -612,19 +1554,319 @@ const crearNuevaOrden = () => {
     </div>
 
     <!-- Modal de detalles / confirmación -->
-    <Modal
-      :show="showModal"
-      :mode="modalMode"
-      tipo="ordenescompra"
-      :selected="fila || {}"
-      :auditoria="auditoriaForModal"
-      @close="() => { showModal = false; fila = null; selectedId = null }"
-      @confirm-delete="eliminarOrden"
-      @imprimir="imprimirFila"
-      @editar="editarFila"
-      @enviar-orden="enviarOrden"
-      @recibir-orden="recibirOrden"
-    />
+    <Transition name="modal">
+      <div
+        v-if="showModal"
+        class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+        @click.self="onClose"
+      >
+        <div
+          :class="{
+            'max-w-md': modalMode === 'confirm' || modalMode === 'confirm-duplicate',
+            'max-w-4xl': modalMode === 'details'
+          }"
+          class="bg-white rounded-lg shadow-xl w-full max-h-[90vh] overflow-y-auto p-6 outline-none"
+          role="dialog"
+          aria-modal="true"
+          :aria-label="`Modal de Orden de Compra`"
+          tabindex="-1"
+          ref="modalRef"
+          @keydown.esc.prevent="onClose"
+        >
+          <!-- Modo: Confirmación de eliminación -->
+          <div v-if="modalMode === 'confirm'" class="text-center">
+            <div class="w-12 h-12 mx-auto bg-red-100 rounded-full flex items-center justify-center mb-4">
+              <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+                />
+              </svg>
+            </div>
+            <h3 class="text-lg font-medium mb-2">
+              ¿Eliminar orden de compra?
+            </h3>
+            <p class="text-gray-600 mb-6">
+              Esta acción no se puede deshacer.
+            </p>
+            <div class="flex gap-3">
+              <button
+                @click="onCancel"
+                class="flex-1 px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                @click="onConfirm"
+                class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+
+          <!-- Modo: Detalles -->
+          <div v-else-if="modalMode === 'details'" class="space-y-4">
+            <h3 class="text-lg font-medium mb-1 flex items-center gap-2">
+              Detalles de Orden de Compra
+              <span v-if="fila?.id" class="text-sm text-gray-500">#{{ fila.id }}</span>
+            </h3>
+
+            <!-- Auditoría -->
+            <div v-if="auditoriaForModal" class="mt-2 p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <h4 class="text-sm font-semibold text-gray-800 mb-3">Auditoría</h4>
+              <div class="grid md:grid-cols-3 gap-3 text-sm">
+                <div>
+                  <span class="text-gray-500">Creado por:</span>
+                  <div class="font-medium text-gray-900">
+                    {{ auditoriaForModal.creado_por || '—' }}
+                  </div>
+                  <div class="text-gray-500">
+                    {{ formatearFecha(auditoriaForModal.creado_en) || '—' }}
+                  </div>
+                </div>
+                <div>
+                  <span class="text-gray-500">Actualizado por:</span>
+                  <div class="font-medium text-gray-900">
+                    {{ auditoriaForModal.actualizado_por || '—' }}
+                  </div>
+                  <div class="text-gray-500">
+                    {{ formatearFecha(auditoriaForModal.actualizado_en) || '—' }}
+                  </div>
+                </div>
+                <div v-if="auditoriaForModal.eliminado_en">
+                  <span class="text-gray-500">Eliminado por:</span>
+                  <div class="font-medium text-gray-900">
+                    {{ auditoriaForModal.eliminado_por || '—' }}
+                  </div>
+                  <div class="text-gray-500">
+                    {{ formatearFecha(auditoriaForModal.eliminado_en) || '—' }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="fila" class="space-y-4">
+              <!-- Información general -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- Columna izquierda -->
+                <div>
+                  <p class="text-sm text-gray-600">
+                    <strong>Proveedor:</strong> {{ fila.proveedor?.nombre_razon_social || 'Sin proveedor' }}
+                  </p>
+                  <p class="text-sm text-gray-600" v-if="fila.proveedor?.email">
+                    <strong>Email:</strong> {{ fila.proveedor.email }}
+                  </p>
+                  <p class="text-sm text-gray-600" v-if="fila.proveedor?.telefono">
+                    <strong>Teléfono:</strong> {{ fila.proveedor.telefono }}
+                  </p>
+                  <p class="text-sm text-gray-600">
+                    <strong>Fecha de creación:</strong>
+                    {{ formatearFecha(fila.created_at) }}
+                  </p>
+                  <p class="text-sm text-gray-600">
+                    <strong>Estado:</strong>
+                    <span
+                      :class="obtenerClasesEstado(fila.estado)"
+                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                    >
+                      <span
+                        class="w-1.5 h-1.5 rounded-full mr-1.5"
+                        :class="obtenerColorPuntoEstado(fila.estado)"
+                      ></span>
+                      {{ obtenerLabelEstado(fila.estado) }}
+                    </span>
+                  </p>
+                </div>
+
+                <!-- Columna derecha -->
+                <div>
+                  <p v-if="fila.numero_orden" class="text-sm text-gray-600">
+                    <strong>N° Orden:</strong>
+                    {{ fila.numero_orden }}
+                  </p>
+
+                  <p v-if="isNumber(fila.total)" class="text-sm text-gray-600">
+                    <strong>Total:</strong> ${{ formatearMoneda(fila.total) }}
+                  </p>
+
+                  <p class="text-sm text-gray-600">
+                    <strong>Productos:</strong>
+                    {{ fila.productos?.length || 0 }} items
+                  </p>
+                </div>
+              </div>
+
+              <!-- Tabla de productos mejorada -->
+              <div v-if="getProductosDelDoc(fila)?.length" class="mt-4">
+                <h4 class="text-sm font-medium text-gray-900 mb-2">Productos</h4>
+                <div class="overflow-x-auto">
+                  <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                      <tr>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                          Nombre
+                        </th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                          Cantidad
+                        </th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                          Precio
+                        </th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                          Subtotal
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                      <tr v-for="(producto, index) in getProductosDelDoc(fila)" :key="producto.id || `${producto.nombre}-${index}`">
+                        <td class="px-4 py-2 text-sm text-gray-900">
+                          {{ producto.nombre || 'Sin nombre' }}
+                        </td>
+                        <td class="px-4 py-2 text-sm text-gray-600">
+                          {{ producto.cantidad || 0 }}
+                        </td>
+                        <td class="px-4 py-2 text-sm text-gray-600">
+                          ${{ formatearMoneda(obtenerPrecio(producto)) }}
+                        </td>
+                        <td class="px-4 py-2 text-sm text-gray-600">
+                          ${{ formatearMoneda((producto.cantidad || 0) * obtenerPrecio(producto)) }}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <p v-else class="text-sm text-gray-600">No hay productos asociados.</p>
+
+              <!-- Totales para órdenes de compra -->
+              <div v-if="fila.productos?.length" class="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <h4 class="text-sm font-medium text-gray-900 mb-3">Resumen de Orden de Compra</h4>
+                <div class="space-y-2 text-sm">
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Subtotal:</span>
+                    <span class="font-medium">${{ formatearMoneda(fila.subtotal || 0) }}</span>
+                  </div>
+                  <div v-if="(fila.descuento_items || 0) > 0" class="flex justify-between">
+                    <span class="text-gray-600">Descuentos por Items:</span>
+                    <span class="font-medium text-red-600">-${{ formatearMoneda(fila.descuento_items || 0) }}</span>
+                  </div>
+                  <div v-if="(fila.descuento_general || 0) > 0" class="flex justify-between">
+                    <span class="text-gray-600">Descuento General:</span>
+                    <span class="font-medium text-red-600">-${{ formatearMoneda(fila.descuento_general || 0) }}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">IVA (16%):</span>
+                    <span class="font-medium">${{ formatearMoneda(fila.iva || 0) }}</span>
+                  </div>
+                  <div class="flex justify-between border-t border-gray-300 pt-2">
+                    <span class="text-gray-900 font-semibold">Total:</span>
+                    <span class="text-gray-900 font-bold">${{ formatearMoneda(fila.total || 0) }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="text-sm text-gray-600">No hay datos disponibles.</div>
+
+            <!-- Botones de acción -->
+            <div class="flex flex-wrap justify-end gap-2 mt-6">
+              <button
+                v-if="fila?.estado !== 'cancelado'"
+                @click="enviarOrden(fila)"
+                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Enviar a Proveedor
+              </button>
+              <button
+                v-if="fila?.estado !== 'cancelado'"
+                @click="imprimirFila"
+                class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                Imprimir
+              </button>
+              <button
+                v-if="['borrador', 'pendiente'].includes(fila?.estado)"
+                @click="editarFila"
+                class="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+              >
+                Editar
+              </button>
+              <button
+                @click="onClose"
+                class="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400 transition-colors"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Tooltip para productos -->
+    <Teleport to="body">
+      <div
+        v-if="showTooltip && hoveredDoc"
+        class="fixed z-[9999] bg-white rounded-xl shadow-xl border border-gray-200/50 backdrop-blur-sm w-80 max-h-96 pointer-events-auto transform transition-all duration-200 ease-out"
+        :style="tooltipStyle"
+        @mouseenter="clearHideTimeout"
+        @mouseleave="hideProductTooltip"
+      >
+        <div class="p-4 border-b border-gray-100">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-gray-900">Productos</h3>
+            <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full font-medium">
+              {{ getProductosDelDoc(hoveredDoc)?.length || 0 }}
+            </span>
+          </div>
+        </div>
+
+        <div class="max-h-72 overflow-y-auto px-4 pb-4 custom-scrollbar">
+          <div v-if="getProductosDelDoc(hoveredDoc)?.length" class="space-y-2 pt-2">
+            <div
+              v-for="(producto, index) in getProductosDelDoc(hoveredDoc)"
+              :key="index"
+              class="group p-3 bg-gray-50/70 rounded-lg hover:bg-gray-100/70 hover:shadow-sm transition-all duration-150"
+            >
+              <div class="flex items-start justify-between">
+                <div class="flex-1 min-w-0 mr-3">
+                  <p class="text-sm font-medium text-gray-900 truncate group-hover:text-gray-800">
+                    {{ producto.nombre || 'Sin nombre' }}
+                  </p>
+                  <div class="flex items-center mt-1.5 space-x-2 text-xs">
+                    <span class="text-gray-600 bg-white/60 px-2 py-0.5 rounded-md">
+                      {{ producto.cantidad || 0 }} und
+                    </span>
+                    <span class="text-gray-400">•</span>
+                    <span class="text-gray-600">
+                      ${{ formatearMoneda(producto.precio || 0) }}
+                    </span>
+                  </div>
+                  <p v-if="producto.descripcion" class="text-xs text-gray-500 mt-1.5 line-clamp-2">
+                    {{ producto.descripcion }}
+                  </p>
+                </div>
+                <div class="text-right flex-shrink-0">
+                  <p class="text-sm font-semibold text-gray-900">
+                    ${{ formatearMoneda((producto.cantidad || 0) * (producto.precio || 0)) }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="text-center py-8">
+            <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
+              <svg class="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m0 0V9a2 2 0 012-2h2m2 2v4" />
+              </svg>
+            </div>
+            <p class="text-sm text-gray-500">Sin productos registrados</p>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- Loading overlay -->
     <div v-if="loading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -663,4 +1905,33 @@ const crearNuevaOrden = () => {
 .ordenes-compra-index > * {
   animation: fadeIn 0.3s ease-out;
 }
+
+/* Estilos para DocumentosTable */
+.custom-scrollbar { scrollbar-width: thin; scrollbar-color: #d1d5db #f3f4f6; }
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: #f3f4f6; border-radius: 3px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+.line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4; }
+
+@media (prefers-contrast: high) {
+  .bg-gray-50 { background-color: #f9fafb; }
+  .border-gray-200 { border-color: #d1d5db; }
+}
+
+button:focus-visible { outline: 2px solid; outline-offset: 2px; }
+
+@media (hover: none) {
+  .hover\:bg-gray-50:hover { background-color: transparent; }
+  .group:hover { transform: none; }
+}
+
+/* Estilos para Modal */
+.modal-enter-active,
+.modal-leave-active { transition: opacity 0.25s ease, transform 0.25s ease; }
+.modal-enter-from,
+.modal-leave-to { opacity: 0; transform: scale(0.97); }
+.modal-enter-to,
+.modal-leave-from { opacity: 1; transform: scale(1); }
 </style>

@@ -35,15 +35,15 @@ class OrdenCompraController extends Controller
         if ($search = trim($request->get('search', ''))) {
             $baseQuery->where(function ($query) use ($search) {
                 $query->where('numero_orden', 'like', "%{$search}%")
-                      ->orWhere('observaciones', 'like', "%{$search}%")
-                      ->orWhereHas('proveedor', function ($q) use ($search) {
-                          $q->where('nombre_razon_social', 'like', "%{$search}%")
+                    ->orWhere('observaciones', 'like', "%{$search}%")
+                    ->orWhereHas('proveedor', function ($q) use ($search) {
+                        $q->where('nombre_razon_social', 'like', "%{$search}%")
                             ->orWhere('rfc', 'like', "%{$search}%");
-                      })
-                      ->orWhereHas('productos', function ($q) use ($search) {
-                          $q->where('nombre', 'like', "%{$search}%")
+                    })
+                    ->orWhereHas('productos', function ($q) use ($search) {
+                        $q->where('nombre', 'like', "%{$search}%")
                             ->orWhere('descripcion', 'like', "%{$search}%");
-                      });
+                    });
             });
         }
 
@@ -77,7 +77,7 @@ class OrdenCompraController extends Controller
         }
 
         $baseQuery->orderBy($sortBy, $sortDirection === 'asc' ? 'asc' : 'desc')
-                  ->orderBy('id', 'desc');
+            ->orderBy('id', 'desc');
 
         $ordenes = $baseQuery->paginate($perPage)->appends($request->query());
 
@@ -174,7 +174,7 @@ class OrdenCompraController extends Controller
         $stats = [
             'total' => OrdenCompra::count(),
             'pendientes' => OrdenCompra::where('estado', 'pendiente')->count(),
-            'aprobadas' => OrdenCompra::where('estado', 'aprobada')->count(),
+            'procesadas' => OrdenCompra::where('estado', 'convertida')->count(),
             'enviadas_a_proveedor' => OrdenCompra::where('estado', 'enviado_a_proveedor')->count(),
             'recibidas' => OrdenCompra::where('estado', 'recibida')->count(),
             'canceladas' => OrdenCompra::where('estado', 'cancelada')->count(),
@@ -183,7 +183,7 @@ class OrdenCompraController extends Controller
         // Etiquetas para estados (coincidiendo con BD)
         $estadoLabels = [
             'pendiente' => 'Pendiente',
-            'aprobada' => 'Aprobada',
+            'procesada' => 'Procesada',
             'enviada' => 'Enviada',
             'enviado_a_proveedor' => 'Enviado a Proveedor',
             'recibida' => 'Recibida',
@@ -683,11 +683,13 @@ class OrdenCompraController extends Controller
 
             foreach ($ordenCompra->productos as $producto) {
                 // Validar que los datos esenciales del pivot estén presentes
-                if (!$producto->pivot ||
+                if (
+                    !$producto->pivot ||
                     !isset($producto->pivot->cantidad) ||
                     !isset($producto->pivot->precio) ||
                     $producto->pivot->cantidad <= 0 ||
-                    $producto->pivot->precio <= 0) {
+                    $producto->pivot->precio <= 0
+                ) {
                     Log::error('Datos de pivot faltantes o inválidos para producto ID: ' . $producto->id . ' en orden ID: ' . $ordenCompra->id, [
                         'pivot_data' => $producto->pivot ? $producto->pivot->toArray() : null,
                         'cantidad' => $producto->pivot->cantidad ?? null,
@@ -987,7 +989,6 @@ class OrdenCompraController extends Controller
                 'message' => 'Orden de compra cancelada exitosamente',
                 'estado' => $ordenCompra->estado
             ]);
-
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error al cancelar orden de compra: ' . $e->getMessage());
@@ -1044,7 +1045,6 @@ class OrdenCompraController extends Controller
                 'message' => "Estado cambiado de '{$estadoAnterior}' a '{$nuevoEstado}'",
                 'estado' => $ordenCompra->estado
             ]);
-
         } catch (\Exception $e) {
             Log::error('Error al cambiar estado de orden de compra: ' . $e->getMessage());
             return response()->json([
