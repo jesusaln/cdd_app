@@ -1110,7 +1110,7 @@ class ReporteController extends Controller
         $usuarioId = $request->get('usuario_id');
         $tipo = $request->get('tipo'); // login, logout, create, update, delete
 
-        $bitacorasQuery = BitacoraActividad::with('user')
+        $bitacorasQuery = BitacoraActividad::with('usuario')
             ->whereBetween('created_at', [$fechaInicio . ' 00:00:00', $fechaFin . ' 23:59:59']);
 
         if ($usuarioId) {
@@ -1124,7 +1124,7 @@ class ReporteController extends Controller
         $bitacoras = $bitacorasQuery->orderBy('created_at', 'desc')->get()->map(function ($bitacora) {
             return [
                 'id' => $bitacora->id,
-                'usuario' => $bitacora->user?->name,
+                'usuario' => $bitacora->usuario?->name,
                 'tipo' => $bitacora->tipo,
                 'descripcion' => $bitacora->descripcion,
                 'modelo' => $bitacora->modelo,

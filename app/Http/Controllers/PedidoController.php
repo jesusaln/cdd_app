@@ -13,6 +13,7 @@ use App\Enums\EstadoPedido;
 use App\Enums\EstadoVenta;
 use App\Enums\EstadoCotizacion;
 use App\Services\MarginService;
+use App\Services\InventarioService;
 use App\Models\SatEstado;
 use App\Models\SatRegimenFiscal;
 use App\Models\SatUsoCfdi;
@@ -27,6 +28,13 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 class PedidoController extends Controller
 {
     use AuthorizesRequests;
+
+    private InventarioService $inventarioService;
+
+    public function __construct(InventarioService $inventarioService)
+    {
+        $this->inventarioService = $inventarioService;
+    }
 
     /**
      * Display a listing of the resource.
@@ -508,8 +516,21 @@ class PedidoController extends Controller
                         ], 400);
                     }
 
-                    // Reservar inventario
+                    // Nota: Las reservas necesitan extensión del InventarioService para trazabilidad completa
+                    // Por ahora mantenemos la lógica directa pero registramos el movimiento
                     $producto->increment('reservado', $item->cantidad);
+
+                    // Registrar movimiento de reserva (tipo especial para trazabilidad)
+                    $this->inventarioService->registrarMovimiento(
+                        $producto,
+                        'entrada', // Usamos entrada pero con motivo especial de reserva
+                        $item->cantidad,
+                        'Reserva por pedido confirmado',
+                        'Pedido #' . $pedido->id,
+                        Auth::id(),
+                        ['pedido_id' => $pedido->id, 'tipo_operacion' => 'reserva']
+                    );
+
                     Log::info("Inventario reservado para producto {$producto->id}", [
                         'producto_id' => $producto->id,
                         'pedido_id' => $pedido->id,
@@ -568,7 +589,20 @@ class PedidoController extends Controller
                     if ($item->pedible_type === Producto::class) {
                         $producto = Producto::find($item->pedible_id);
                         if ($producto && $producto->reservado >= $item->cantidad) {
+                            // Nota: Las reservas necesitan extensión del InventarioService para trazabilidad completa
                             $producto->decrement('reservado', $item->cantidad);
+
+                            // Registrar movimiento de liberación de reserva
+                            $this->inventarioService->registrarMovimiento(
+                                $producto,
+                                'salida', // Usamos salida pero con motivo especial de liberación de reserva
+                                $item->cantidad,
+                                'Liberación de reserva por cancelación de pedido',
+                                'Pedido #' . $pedido->id,
+                                Auth::id(),
+                                ['pedido_id' => $pedido->id, 'tipo_operacion' => 'liberacion_reserva']
+                            );
+
                             Log::info("Reserva liberada para producto {$producto->id}", [
                                 'producto_id' => $producto->id,
                                 'pedido_id' => $pedido->id,
@@ -899,7 +933,20 @@ class PedidoController extends Controller
 
                         // Consumir reservas
                         if ($producto->reservado >= $cantidadRestante) {
+                            // Nota: Las reservas necesitan extensión del InventarioService para trazabilidad completa
                             $producto->decrement('reservado', $cantidadRestante);
+
+                            // Registrar movimiento de consumo de reserva
+                            $this->inventarioService->registrarMovimiento(
+                                $producto,
+                                'salida',
+                                $cantidadRestante,
+                                'Consumo de reserva por conversión pedido a venta',
+                                'Pedido #' . $pedido->id . ' → Venta #' . $venta->id,
+                                Auth::id(),
+                                ['pedido_id' => $pedido->id, 'venta_id' => $venta->id, 'tipo_operacion' => 'consumo_reserva']
+                            );
+
                             Log::info("Reserva consumida para producto {$producto->id} (pedido → venta)", [
                                 'producto_id' => $producto->id,
                                 'pedido_id' => $pedido->id,
@@ -915,7 +962,28 @@ class PedidoController extends Controller
                             $producto->decrement('reservado', $consumirReserva);
                             $cantidadRestante -= $consumirReserva;
 
-                            $producto->decrement('stock', $cantidadRestante);
+                            // Registrar consumo parcial de reserva
+                            $this->inventarioService->registrarMovimiento(
+                                $producto,
+                                'salida',
+                                $consumirReserva,
+                                'Consumo parcial de reserva por conversión pedido a venta',
+                                'Pedido #' . $pedido->id . ' → Venta #' . $venta->id,
+                                Auth::id(),
+                                ['pedido_id' => $pedido->id, 'venta_id' => $venta->id, 'tipo_operacion' => 'consumo_reserva_parcial']
+                            );
+
+                            // Reducir stock físico para cantidad restante
+                            $this->inventarioService->registrarMovimiento(
+                                $producto,
+                                'salida',
+                                $cantidadRestante,
+                                'Venta directa por conversión pedido a venta (sin reserva)',
+                                'Pedido #' . $pedido->id . ' → Venta #' . $venta->id,
+                                Auth::id(),
+                                ['pedido_id' => $pedido->id, 'venta_id' => $venta->id, 'tipo_operacion' => 'venta_sin_reserva']
+                            );
+
                             Log::info("Reserva parcial y stock reducido para producto {$producto->id} (pedido → venta)", [
                                 'producto_id' => $producto->id,
                                 'pedido_id' => $pedido->id,

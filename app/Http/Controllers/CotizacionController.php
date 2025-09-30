@@ -14,6 +14,7 @@ use App\Models\Servicio;
 use App\Models\CotizacionItem;
 use App\Enums\EstadoCotizacion;
 use App\Services\MarginService;
+use App\Services\InventarioService;
 use App\Models\SatEstado;
 use App\Models\SatRegimenFiscal;
 use App\Models\SatUsoCfdi;
@@ -28,6 +29,13 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 class CotizacionController extends Controller
 {
     use AuthorizesRequests;
+
+    private InventarioService $inventarioService;
+
+    public function __construct(InventarioService $inventarioService)
+    {
+        $this->inventarioService = $inventarioService;
+    }
 
     /**
      * Display a listing of the resource.
@@ -606,7 +614,20 @@ class CotizacionController extends Controller
                         'cantidad' => $item->cantidad,
                         'precio' => $item->precio,
                     ]);
-                    Producto::find($id)?->decrement('stock', $item->cantidad);
+
+                    // Registrar salida de inventario por conversión de cotización a venta
+                    $producto = Producto::find($id);
+                    if ($producto) {
+                        $this->inventarioService->registrarMovimiento(
+                            $producto,
+                            'salida',
+                            $item->cantidad,
+                            'Venta directa desde cotización',
+                            'Cotización #' . $cotizacion->id . ' → Venta #' . $venta->id,
+                            Auth::id(),
+                            ['cotizacion_id' => $cotizacion->id, 'venta_id' => $venta->id]
+                        );
+                    }
                 } elseif ($class === Servicio::class) {
                     $venta->servicios()->attach($id, [
                         'cantidad' => $item->cantidad,
@@ -796,7 +817,20 @@ class CotizacionController extends Controller
                             ], 400);
                         }
 
+                        // Nota: Las reservas necesitan extensión del InventarioService para trazabilidad completa
                         $producto->increment('reservado', $item->cantidad);
+
+                        // Registrar movimiento de reserva por conversión de cotización a pedido
+                        $this->inventarioService->registrarMovimiento(
+                            $producto,
+                            'entrada', // Usamos entrada pero con motivo especial de reserva
+                            $item->cantidad,
+                            'Reserva automática por conversión cotización a pedido',
+                            'Cotización #' . $cotizacion->id . ' → Pedido #' . $pedido->id,
+                            Auth::id(),
+                            ['cotizacion_id' => $cotizacion->id, 'pedido_id' => $pedido->id, 'tipo_operacion' => 'reserva_automatica']
+                        );
+
                         Log::info("Inventario reservado automáticamente al enviar cotización a pedido", [
                             'producto_id' => $producto->id,
                             'pedido_id' => $pedido->id,

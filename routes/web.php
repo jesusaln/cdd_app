@@ -37,6 +37,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\CfdiController;
 use App\Http\Controllers\ReporteTecnicoController;
 use App\Http\Controllers\ReportesDashboardController;
+use App\Http\Controllers\ReporteMovimientosController;
 use App\Http\Controllers\AsignacionHerramientaController;
 use App\Http\Controllers\EstadoHerramientaController;
 use App\Http\Controllers\AsignacionMasivaController;
@@ -199,6 +200,11 @@ Route::get('/reportes/productos', [ReporteController::class, 'productos'])->name
 Route::get('/reportes/proveedores', [ReporteController::class, 'proveedores'])->name('reportes.proveedores');
 Route::get('/reportes/empleados', [ReporteController::class, 'empleados'])->name('reportes.empleados');
 Route::get('/reportes/auditoria', [ReporteController::class, 'auditoria'])->name('reportes.auditoria');
+
+// Reporte de movimientos de inventario
+Route::get('/reportes/movimientos-inventario', [ReporteMovimientosController::class, 'index'])->name('reportes.movimientos-inventario');
+Route::get('/reportes/movimientos-inventario/{id}', [ReporteMovimientosController::class, 'show'])->name('reportes.movimientos-inventario.show');
+Route::get('/reportes/movimientos-inventario-export', [ReporteMovimientosController::class, 'export'])->name('reportes.movimientos-inventario.export');
 
 // Exportaciones
 Route::get('/reportes/clientes/export', [ReporteController::class, 'exportarClientes'])->name('reportes.clientes.export');

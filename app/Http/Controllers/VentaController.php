@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\Tecnico;
 use App\Enums\EstadoVenta;
 use App\Services\MarginService;
+use App\Services\InventarioService;
 use App\Models\SatEstado;
 use App\Models\SatRegimenFiscal;
 use App\Models\SatUsoCfdi;
@@ -19,11 +20,19 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class VentaController extends Controller
 {
     use AuthorizesRequests;
+
+    private InventarioService $inventarioService;
+
+    public function __construct(InventarioService $inventarioService)
+    {
+        $this->inventarioService = $inventarioService;
+    }
 
     /**
      * Display a listing of the resource.
@@ -294,7 +303,16 @@ class VentaController extends Controller
 
                     // Si queda cantidad por consumir, reducir stock físico
                     if ($cantidadRestante > 0) {
-                        $modelo->decrement('stock', $cantidadRestante);
+                        // Registrar salida de inventario por venta
+                        $this->inventarioService->registrarMovimiento(
+                            $modelo,
+                            'salida',
+                            $cantidadRestante,
+                            'Venta realizada',
+                            'Venta #' . $venta->id,
+                            Auth::id(),
+                            ['venta_id' => $venta->id]
+                        );
                         Log::info("Stock reducido para producto {$modelo->id}", [
                             'producto_id' => $modelo->id,
                             'cantidad_reducida' => $cantidadRestante,
@@ -692,7 +710,15 @@ class VentaController extends Controller
                     if ($producto) {
                         if ($venta->pagado) {
                             // Si la venta estaba pagada, devolver al stock físico
-                            $producto->increment('stock', $item->cantidad);
+                            $this->inventarioService->registrarMovimiento(
+                                $producto,
+                                'entrada',
+                                $item->cantidad,
+                                'Cancelación de venta pagada',
+                                'Venta #' . $venta->id,
+                                Auth::id(),
+                                ['venta_id' => $venta->id, 'tipo_cancelacion' => 'pagada']
+                            );
                             Log::info("Stock devuelto para producto {$producto->id} (venta pagada cancelada)", [
                                 'producto_id' => $producto->id,
                                 'venta_id' => $venta->id,
@@ -701,7 +727,8 @@ class VentaController extends Controller
                                 'stock_actual' => $producto->stock
                             ]);
                         } else {
-                            // Si la venta no estaba pagada, devolver a reservas
+                            // Si la venta no estaba pagada, devolver a reservas (esto requiere lógica especial)
+                            // Nota: El servicio actual no maneja reservas, esto necesitaría extensión
                             $producto->increment('reservado', $item->cantidad);
                             Log::info("Reserva devuelta para producto {$producto->id} (venta no pagada cancelada)", [
                                 'producto_id' => $producto->id,
