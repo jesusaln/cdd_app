@@ -46,6 +46,44 @@ Aplicación desarrollada con Vue.js para la gestión y administración de inform
     npm run serve
     ```
 
+## Testing
+
+### Comandos de Test
+
+Para ejecutar tests con datos frescos (recomendado para desarrollo):
+
+```bash
+# Usando comandos directos de PHP
+php artisan migrate:fresh --seed && php artisan test --filter=Cliente
+
+# Usando npm scripts
+npm run test:fresh && npm run test:cliente
+```
+
+### Tests Disponibles
+
+- **ClienteControllerTest**: Tests de integración para el controlador de clientes
+- **CrudTest**: Tests básicos de CRUD para clientes
+- **ModelTest**: Tests del modelo Cliente
+- **SchemaTest**: Tests de estructura de base de datos
+
+### Funcionalidades del Módulo de Clientes
+
+#### ✅ Características Implementadas
+
+- **Autocompletado de Dirección**: Al ingresar un código postal válido, se autocompletan automáticamente:
+  - Estado (clave SAT)
+  - Municipio
+  - Lista de colonias disponibles
+- **Validaciones Avanzadas**: CFDI 4.0, RFC único, email en minúsculas
+- **Valores por Defecto**: Estado "SON" (Sonora), Uso CFDI "G03" (Gastos en general)
+- **Teléfono de 10 Dígitos**: Validación estricta de exactamente 10 números
+- **Soft Deletes**: Eliminación suave con posibilidad de restaurar
+- **Sistema de Permisos**: Control de acceso granular
+- **Integración Facturapi**: Sincronización automática con servicio de facturación
+- **UX Optimizada**: Botón cambiar estado solo en modal (no en tabla principal)
+- **Props Vue Corregidos**: Eliminados warnings de atributos no heredados
+
 ## Uso
 
 -   Accede a `http://localhost:8080` en tu navegador.

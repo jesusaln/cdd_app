@@ -13,6 +13,16 @@ class ModelTest extends TestCase
     use DatabaseTransactions; // Ahora usa transacciones
     //use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Ejecutar seeders necesarios para catálogos SAT
+        $this->seed([
+            \Database\Seeders\DatabaseSeeder::class,
+        ]);
+    }
+
     public function test_tiene_los_campos_fillable_correctos()
     {
         $cliente = new Cliente();
@@ -20,9 +30,16 @@ class ModelTest extends TestCase
 
         $expected = [
             'nombre_razon_social',
+            'tipo_persona',
+            'tipo_identificacion',
+            'identificacion',
+            'curp',
             'rfc',
             'regimen_fiscal',
             'uso_cfdi',
+            'domicilio_fiscal_cp',
+            'residencia_fiscal',
+            'num_reg_id_trib',
             'email',
             'telefono',
             'calle',
@@ -33,9 +50,11 @@ class ModelTest extends TestCase
             'municipio',
             'estado',
             'pais',
-            'tipo_persona',
             'activo',
             'notas',
+            'facturapi_customer_id',
+            'cfdi_default_use',
+            'payment_form_default',
         ];
 
         sort($expected);

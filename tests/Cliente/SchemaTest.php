@@ -11,6 +11,16 @@ class SchemaTest extends TestCase
 {
     use DatabaseTransactions;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Ejecutar seeders necesarios para catálogos SAT
+        $this->seed([
+            \Database\Seeders\DatabaseSeeder::class,
+        ]);
+    }
+
     public function test_tabla_clientes_tiene_estructura_esperada(): void
     {
         $this->assertTrue(Schema::hasTable('clientes'), 'La tabla "clientes" debería existir.');

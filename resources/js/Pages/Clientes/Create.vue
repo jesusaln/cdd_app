@@ -89,6 +89,7 @@
                type="email"
                id="email"
                v-model="form.email"
+               @blur="normalizeEmail"
                autocomplete="new-password"
                placeholder="correo@ejemplo.com"
 
@@ -112,7 +113,10 @@
                id="telefono"
                autocomplete="new-password"
                v-model="form.telefono"
-               placeholder="Opcional"
+               @input="validateTelefono"
+               maxlength="10"
+               placeholder="10 dígitos (opcional)"
+               pattern="[0-9]{10}"
 
                :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
@@ -536,41 +540,7 @@ const isDevelopment = ref(import.meta.env?.DEV || false)
 const availableColonias = ref([])
 const showAutoCompleteMessage = ref(false)
 
-// Mapeo de nombres de estados a claves SAT
-const estadoMapping = {
-  'Aguascalientes': 'AGU',
-  'Baja California': 'BCN',
-  'Baja California Sur': 'BCS',
-  'Campeche': 'CAM',
-  'Chihuahua': 'CHH',
-  'Chiapas': 'CHP',
-  'Ciudad de México': 'CMX',
-  'Coahuila': 'COA',
-  'Colima': 'COL',
-  'Durango': 'DUR',
-  'Guerrero': 'GRO',
-  'Guanajuato': 'GUA',
-  'Hidalgo': 'HID',
-  'Jalisco': 'JAL',
-  'Estado de México': 'MEX',
-  'Michoacán': 'MIC',
-  'Morelos': 'MOR',
-  'Nayarit': 'NAY',
-  'Nuevo León': 'NLE',
-  'Oaxaca': 'OAX',
-  'Puebla': 'PUE',
-  'Querétaro': 'QUE',
-  'Quintana Roo': 'ROO',
-  'Sinaloa': 'SIN',
-  'San Luis Potosí': 'SLP',
-  'Sonora': 'SON',
-  'Tabasco': 'TAB',
-  'Tamaulipas': 'TAM',
-  'Tlaxcala': 'TLA',
-  'Veracruz': 'VER',
-  'Yucatán': 'YUC',
-  'Zacatecas': 'ZAC'
-}
+// Estados se obtienen de la API, no necesitamos mapeo local
 
 // Inicializa form con valores por defecto seguros
 const initFormData = () => ({
@@ -581,14 +551,14 @@ const initFormData = () => ({
   rfc: props.cliente?.rfc || '',
   curp: props.cliente?.curp || '',                 // <<< NUEVO
   regimen_fiscal: props.cliente?.regimen_fiscal || '',
-  uso_cfdi: props.cliente?.uso_cfdi || '',
+  uso_cfdi: props.cliente?.uso_cfdi || 'G03', // G03 - Gastos en general por defecto
   calle: props.cliente?.calle || '',
   numero_exterior: props.cliente?.numero_exterior || '',
   numero_interior: props.cliente?.numero_interior || '',
   colonia: props.cliente?.colonia || '',
   codigo_postal: props.cliente?.codigo_postal || '',
   municipio: props.cliente?.municipio || '',
-  estado: props.cliente?.estado || '',
+  estado: props.cliente?.estado || 'SON', // Sonora por defecto
   pais: 'MX',
 })
 
@@ -738,11 +708,10 @@ const onCpInput = async (event) => {
       const data = response.data
 
       // AUTOCOMPLETAR ESTADO Y MUNICIPIO
-      // Estado: convertir nombre completo a clave SAT (3 letras)
+      // Estado: usar clave SAT directamente si viene del API
       if (data.estado) {
-        const estadoClave = estadoMapping[data.estado] || data.estado
-        form.estado = estadoClave
-        console.log('Estado autocompletado:', data.estado, '->', estadoClave)
+        form.estado = data.estado // Ya viene como clave SAT (AGU, SON, etc.)
+        console.log('Estado autocompletado:', data.estado)
       }
 
       // Municipio: autocompletar siempre
@@ -806,6 +775,21 @@ const toUpper = (campo) => {
     form[campo] = form[campo].toUpperCase().trim()
     if (form[campo] && form.errors[campo]) form.clearErrors(campo)
   }
+}
+
+const normalizeEmail = () => {
+  if (form.email && typeof form.email === 'string') {
+    form.email = form.email.toLowerCase().trim()
+    if (form.email && form.errors.email) form.clearErrors('email')
+  }
+}
+
+const validateTelefono = (event) => {
+  const value = event.target ? event.target.value : event
+  // Solo permitir números y limitar a 10 dígitos
+  const cleaned = String(value).replace(/\D/g, '').slice(0, 10)
+  form.telefono = cleaned
+  if (form.telefono && form.errors.telefono) form.clearErrors('telefono')
 }
 
 // Acciones

@@ -1,7 +1,8 @@
 <template>
-  <Head title="Panel" />
+  <div>
+    <Head title="Panel" />
 
-  <div class="container mx-auto px-6 py-10">
+    <div class="container mx-auto px-6 py-10">
     <!-- Tarjetas de Resumen -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8">
       <!-- Clientes -->
@@ -179,6 +180,44 @@
         </PanLink>
         </div>
 
+        <!-- Alerta de Órdenes de Compra Enviadas -->
+        <div
+          v-if="ordenesEnviadasDetallesSafe.length > 0"
+          class="bg-white p-6 rounded-2xl shadow-lg border-l-8 border-green-500 flex flex-col justify-between items-start text-left"
+        >
+          <div class="w-full">
+            <div class="flex items-center mb-4">
+              <FontAwesomeIcon :icon="['fas', 'paper-plane']" class="h-8 w-8 text-green-600 mr-3" />
+              <h3 class="text-2xl font-extrabold text-gray-900">Órdenes de Compra Enviadas</h3>
+            </div>
+            <p class="text-base text-gray-700 mb-4">
+              Tienes <strong>{{ n(ordenesEnviadasDetallesSafe.length) }} orden(es) de compra enviada(s)</strong> a proveedores esperando confirmación.
+            </p>
+
+            <h4 class="text-lg font-bold text-gray-800 mb-2">Últimas órdenes enviadas:</h4>
+            <ul class="text-gray-700 space-y-2 list-none">
+              <li
+                v-for="orden in ordenesEnviadasDetallesSafe"
+                :key="`env-${orden.id ?? orden.proveedor ?? Math.random()}`"
+                class="text-base bg-gray-50 p-3 rounded-md"
+              >
+                <div class="font-medium">{{ orden.proveedor ?? 'Proveedor N/D' }}</div>
+                <div class="text-sm text-gray-600">Total: ${{ orden.total ?? 'N/D' }}</div>
+                <div class="text-sm text-gray-600">Fecha envío: {{ orden.fecha_envio ?? 'N/D' }}</div>
+                <div class="text-sm text-gray-600">Fecha esperada: {{ orden.fecha_esperada ?? 'N/D' }}</div>
+              </li>
+            </ul>
+          </div>
+          <PanLink
+            :href="ordenesEnviadasHref"
+            class="mt-6 px-6 py-2 bg-green-500 text-white font-semibold rounded-lg shadow hover:bg-green-600 transition-colors duration-300 transform hover:scale-105 list-none"
+            aria-label="Ver órdenes de compra enviadas"
+          >
+            Ver Órdenes Enviadas
+            <FontAwesomeIcon :icon="['fas', 'arrow-right']" class="ml-2" />
+          </PanLink>
+        </div>
+
         <!-- Alerta de Mantenimientos Críticos -->
         <div
           v-if="mantenimientosVencidosCount > 0 || mantenimientosCriticosCount > 0"
@@ -286,6 +325,7 @@
         <FontAwesomeIcon :icon="['fas', 'arrow-right']" class="ml-2" />
       </PanLink>
     </div>
+    </div>
   </div>
 </template>
 
@@ -310,6 +350,8 @@ const props = defineProps({
   proveedoresCount: { type: Number, default: 0 },
   proveedoresPedidosPendientesCount: { type: Number, default: 0 },
   ordenesPendientesDetalles: { type: Array, default: () => [] },
+  ordenesEnviadasCount: { type: Number, default: 0 },
+  ordenesEnviadasDetalles: { type: Array, default: () => [] },
 
   citasCount: { type: Number, default: 0 },
   citasHoyCount: { type: Number, default: 0 },
@@ -361,6 +403,9 @@ const productosBajoStockNombresSafe = computed(() =>
 const ordenesPendientesDetallesSafe = computed(() =>
   Array.isArray(props.ordenesPendientesDetalles) ? props.ordenesPendientesDetalles : []
 )
+const ordenesEnviadasDetallesSafe = computed(() =>
+  Array.isArray(props.ordenesEnviadasDetalles) ? props.ordenesEnviadasDetalles : []
+)
 const citasHoyDetallesSafe = computed(() =>
   Array.isArray(props.citasHoyDetalles) ? props.citasHoyDetalles : []
 )
@@ -374,6 +419,7 @@ const productosHref = '/productos'
 const productosLowHref = '/productos?stock=low'
 const proveedoresHref = '/proveedores'
 const ordenesPendientesHref = '/ordenescompra?estado=pendiente'
+const ordenesEnviadasHref = '/ordenescompra?estado=enviado_a_proveedor'
 const citasHref = '/citas'
 const mantenimientosHref = '/mantenimientos'
 </script>

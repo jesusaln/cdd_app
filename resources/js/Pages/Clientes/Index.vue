@@ -32,6 +32,12 @@ const props = defineProps({
   stats: { type: Object, default: () => ({}) },
   filters: { type: Object, default: () => ({}) },
   sorting: { type: Object, default: () => ({ sort_by: 'created_at', sort_direction: 'desc' }) },
+  // Props globales de Inertia
+  auth: { type: Object, default: () => ({}) },
+  jetstream: { type: Object, default: () => ({}) },
+  errorBags: { type: Object, default: () => ({}) },
+  errors: { type: Object, default: () => ({}) },
+  flash: { type: Object, default: () => ({}) },
 })
 
 // Estado UI
@@ -68,23 +74,12 @@ const estadisticas = computed(() => ({
   inactivosPorcentaje: props.stats?.inactivos > 0 ? Math.round((props.stats.inactivos / props.stats.total) * 100) : 0
 }))
 
-// Mapeo de estados SAT
-const estadoMapping = {
-  'AGU': 'Aguascalientes', 'BCN': 'Baja California', 'BCS': 'Baja California Sur',
-  'CAM': 'Campeche', 'CHH': 'Chihuahua', 'CHP': 'Chiapas', 'CMX': 'Ciudad de México',
-  'COA': 'Coahuila', 'COL': 'Colima', 'DUR': 'Durango', 'GRO': 'Guerrero',
-  'GUA': 'Guanajuato', 'HID': 'Hidalgo', 'JAL': 'Jalisco', 'MEX': 'Estado de México',
-  'MIC': 'Michoacán', 'MOR': 'Morelos', 'NAY': 'Nayarit', 'NLE': 'Nuevo León',
-  'OAX': 'Oaxaca', 'PUE': 'Puebla', 'QUE': 'Querétaro', 'ROO': 'Quintana Roo',
-  'SIN': 'Sinaloa', 'SLP': 'San Luis Potosí', 'SON': 'Sonora', 'TAB': 'Tabasco',
-  'TAM': 'Tamaulipas', 'TLA': 'Tlaxcala', 'VER': 'Veracruz', 'YUC': 'Yucatán',
-  'ZAC': 'Zacatecas'
-}
+// Estados se obtienen de la API, no necesitamos mapeo local
 
 // Transformación de datos
 const clientesDocumentos = computed(() => {
   return clientesData.value.map(c => {
-    const estadoNombre = estadoMapping[c.estado] || c.estado
+    const estadoNombre = c.estado_nombre || c.estado || 'Estado desconocido'
     const direccion = [
       c.calle, c.numero_exterior, c.numero_interior, c.colonia,
       c.codigo_postal, c.municipio, estadoNombre, c.pais
@@ -427,11 +422,6 @@ const obtenerLabelEstado = (estado) => {
                     <button @click="editarCliente(cliente.id)" class="w-8 h-8 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-colors duration-150" title="Editar">
                       <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                    <button @click="toggleCliente(cliente.id)" class="w-8 h-8 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors duration-150" title="Cambiar estado">
-                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                       </svg>
                     </button>
                     <button @click="confirmarEliminacion(cliente.id)" class="w-8 h-8 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors duration-150" title="Eliminar">

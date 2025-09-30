@@ -140,4 +140,87 @@ class Cita extends Model
     {
         return $this->belongsTo(Tecnico::class);
     }
+
+    /**
+     * Verificar si la cita puede ser modificada
+     */
+    public function puedeSerModificada(): bool
+    {
+        // No permitir modificar citas completadas con más de 7 días
+        if ($this->estado === self::ESTADO_COMPLETADO) {
+            return now()->diffInDays($this->updated_at) < 7;
+        }
+
+        // No permitir modificar citas canceladas
+        if ($this->estado === self::ESTADO_CANCELADO) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Verificar si la cita puede ser eliminada
+     */
+    public function puedeSerEliminada(): bool
+    {
+        // No permitir eliminar citas completadas con menos de 30 días
+        if ($this->estado === self::ESTADO_COMPLETADO) {
+            return now()->diffInDays($this->created_at) >= 30;
+        }
+
+        // No permitir eliminar citas en proceso
+        if ($this->estado === self::ESTADO_EN_PROCESO) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Obtener el siguiente estado válido
+     */
+    public function getSiguientesEstadosValidos(): array
+    {
+        return match($this->estado) {
+            self::ESTADO_PENDIENTE => [self::ESTADO_EN_PROCESO, self::ESTADO_CANCELADO],
+            self::ESTADO_EN_PROCESO => [self::ESTADO_COMPLETADO, self::ESTADO_CANCELADO],
+            self::ESTADO_COMPLETADO => [], // No se puede cambiar de completado
+            self::ESTADO_CANCELADO => [self::ESTADO_PENDIENTE], // Solo se puede reactivar
+            default => []
+        };
+    }
+
+    /**
+     * Cambiar estado de la cita
+     */
+    public function cambiarEstado(string $nuevoEstado): bool
+    {
+        $estadosValidos = $this->getSiguientesEstadosValidos();
+
+        if (!in_array($nuevoEstado, $estadosValidos)) {
+            return false;
+        }
+
+        $this->estado = $nuevoEstado;
+        $this->save();
+
+        return true;
+    }
+
+    /**
+     * Verificar si hay conflicto de horario
+     */
+    public static function hayConflictoHorario(int $tecnicoId, string $fechaHora, ?int $excludeId = null): bool
+    {
+        $query = self::where('tecnico_id', $tecnicoId)
+            ->where('fecha_hora', $fechaHora)
+            ->where('estado', '!=', self::ESTADO_CANCELADO);
+
+        if ($excludeId) {
+            $query->where('id', '!=', $excludeId);
+        }
+
+        return $query->exists();
+    }
 }

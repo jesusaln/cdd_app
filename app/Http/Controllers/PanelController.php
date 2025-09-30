@@ -52,6 +52,31 @@ class PanelController extends Controller
 
         $proveedoresPedidosPendientesCount = $ordenesPendientes->count();
 
+        // Órdenes de Compra Enviadas
+        $ordenesEnviadas = OrdenCompra::with(['proveedor', 'productos'])
+            ->where('estado', 'enviado_a_proveedor')
+            ->orderBy('created_at', 'desc')
+            ->take(10) // Mostrar hasta 10 órdenes enviadas
+            ->get();
+
+        $ordenesEnviadasCount = $ordenesEnviadas->count();
+
+        // Formatear las órdenes enviadas para el frontend
+        $ordenesEnviadasDetalles = $ordenesEnviadas->map(function ($orden) {
+            // Intentar calcular total basado en productos
+            $totalCalculado = $this->calcularTotalOrden($orden);
+            $total = $totalCalculado['total'] > 0 ? $totalCalculado['total'] : ($orden->total ?? 0);
+
+            return [
+                'id' => $orden->id,
+                'proveedor' => $orden->proveedor ? $orden->proveedor->nombre_razon_social : 'Proveedor no especificado',
+                'total' => number_format($total, 2),
+                'prioridad' => $orden->prioridad,
+                'fecha_envio' => Carbon::parse($orden->updated_at)->format('d/m/Y'), // Fecha de envío aproximada
+                'fecha_esperada' => $orden->fecha_entrega_esperada ? Carbon::parse($orden->fecha_entrega_esperada)->format('d/m/Y') : 'No especificada',
+            ];
+        })->toArray();
+
         // Formatear las órdenes pendientes para el frontend
         $ordenesPendientesDetalles = $ordenesPendientes->map(function ($orden) {
             // Intentar calcular total basado en productos
@@ -158,6 +183,8 @@ class PanelController extends Controller
             'proveedoresCount' => $proveedoresCount,
             'proveedoresPedidosPendientesCount' => $proveedoresPedidosPendientesCount,
             'ordenesPendientesDetalles' => $ordenesPendientesDetalles, // Nuevo campo
+            'ordenesEnviadasCount' => $ordenesEnviadasCount,
+            'ordenesEnviadasDetalles' => $ordenesEnviadasDetalles, // Nuevo campo
             'citasCount' => $citasCount,
             'citasHoyCount' => $citasHoyCount,
             'citasHoyDetalles' => $citasHoyDetalles,

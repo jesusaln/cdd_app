@@ -21,6 +21,18 @@ class CategoriaSeeder extends Seeder
                 'descripcion' => 'Dispositivos electrónicos y accesorios'
             ],
             [
+                'nombre' => 'Herramientas',
+                'descripcion' => 'Herramientas y equipos de trabajo'
+            ],
+            [
+                'nombre' => 'Accesorios',
+                'descripcion' => 'Accesorios y complementos'
+            ],
+            [
+                'nombre' => 'Repuestos',
+                'descripcion' => 'Piezas de repuesto y componentes'
+            ],
+            [
                 'nombre' => 'Oficina',
                 'descripcion' => 'Artículos de papelería y oficina'
             ]

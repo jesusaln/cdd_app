@@ -115,6 +115,18 @@ class CitaController extends Controller
                 $validated['fecha_hora']
             );
 
+            // Verificar límite de citas por día para el técnico
+            $this->verificarLimiteCitasPorDia(
+                $validated['tecnico_id'],
+                $validated['fecha_hora']
+            );
+
+            // Verificar que el cliente no tenga múltiples citas activas
+            $this->verificarCitasClienteActivas(
+                $validated['cliente_id'],
+                $validated['fecha_hora']
+            );
+
             // Guardar archivos y obtener sus rutas
             $filePaths = $this->saveFiles($request, ['foto_equipo', 'foto_hoja_servicio', 'foto_identificacion']);
 
@@ -283,6 +295,12 @@ class CitaController extends Controller
 
             return response()->json(['message' => 'Cita eliminada exitosamente.']);
 
+        } catch (ValidationException $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Error de validación.',
+                'errors' => $e->errors()
+            ], 422);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error al eliminar cita API: ' . $e->getMessage());
@@ -344,5 +362,61 @@ class CitaController extends Controller
             }
         }
         return $filePaths;
+    }
+
+    /**
+     * Verificar límite de citas por día para un técnico
+     */
+    private function verificarLimiteCitasPorDia(int $tecnicoId, string $fechaHora): void
+    {
+        $fecha = Carbon::parse($fechaHora)->toDateString();
+        $inicioDia = Carbon::parse($fecha)->startOfDay();
+        $finDia = Carbon::parse($fecha)->endOfDay();
+
+        $citasEnDia = Cita::where('tecnico_id', $tecnicoId)
+            ->whereBetween('fecha_hora', [$inicioDia, $finDia])
+            ->where('estado', '!=', Cita::ESTADO_CANCELADO)
+            ->count();
+
+        // Límite de 8 citas por día
+        if ($citasEnDia >= 8) {
+            throw ValidationException::withMessages([
+                'fecha_hora' => 'El técnico ya tiene el máximo de 8 citas programadas para este día.'
+            ]);
+        }
+    }
+
+    /**
+     * Verificar que el cliente no tenga múltiples citas activas
+     */
+    private function verificarCitasClienteActivas(int $clienteId, string $fechaHora): void
+    {
+        $fecha = Carbon::parse($fechaHora);
+
+        // Verificar si el cliente tiene más de 2 citas activas en los próximos 7 días
+        $citasActivas = Cita::where('cliente_id', $clienteId)
+            ->whereIn('estado', ['pendiente', 'en_proceso'])
+            ->where('fecha_hora', '>=', now())
+            ->where('fecha_hora', '<=', now()->addDays(7))
+            ->count();
+
+        if ($citasActivas >= 2) {
+            throw ValidationException::withMessages([
+                'cliente_id' => 'El cliente ya tiene múltiples citas activas. Complete las citas existentes antes de programar nuevas.'
+            ]);
+        }
+
+        // Verificar si hay conflicto de horario el mismo día
+        $citasMismoDia = Cita::where('cliente_id', $clienteId)
+            ->whereDate('fecha_hora', $fecha->toDateString())
+            ->where('estado', '!=', Cita::ESTADO_CANCELADO)
+            ->where('fecha_hora', '!=', $fechaHora)
+            ->count();
+
+        if ($citasMismoDia > 0) {
+            throw ValidationException::withMessages([
+                'fecha_hora' => 'El cliente ya tiene una cita programada para este día.'
+            ]);
+        }
     }
 }

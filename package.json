@@ -7,7 +7,11 @@
     "ionic:build": "npm run build",
     "ionic:serve": "npm run dev",
     "laravel": "php artisan serve",
-    "start": "concurrently \"npm run laravel\" \"npm run dev\""
+    "start": "concurrently \"npm run laravel\" \"npm run dev\"",
+    "test": "php artisan test",
+    "test:cliente": "php artisan test --filter=Cliente",
+    "test:fresh": "php artisan migrate:fresh --seed",
+    "test:cliente:fresh": "php artisan migrate:fresh --seed && php artisan test --filter=Cliente"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.4.3",

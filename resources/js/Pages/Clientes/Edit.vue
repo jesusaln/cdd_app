@@ -1,11 +1,11 @@
 <template>
-  <Head :title="`Editar Cliente: ${cliente.nombre_razon_social}`" />
+  <Head title="Editar Cliente" />
   <div class="max-w-4xl mx-auto p-4">
     <div class="bg-white shadow-sm rounded-lg p-6">
       <div class="flex items-center justify-between mb-6">
         <div>
           <h1 class="text-2xl font-semibold text-gray-800">Editar Cliente</h1>
-          <p class="text-sm text-gray-600 mt-1">{{ cliente.nombre_razon_social }}</p>
+
         </div>
         <div class="text-sm text-gray-500">
           Campos obligatorios marcados con <span class="text-red-500">*</span>
@@ -73,7 +73,7 @@
                type="email"
                id="email"
                v-model="form.email"
-               @blur="() => validateEmail(form.email)"
+               @blur="() => { normalizeEmail(); validateEmail(form.email); }"
                placeholder="correo@ejemplo.com"
                autocomplete="new-password"
                :class="[
@@ -95,7 +95,10 @@
                 type="tel"
                 id="telefono"
                 v-model="form.telefono"
-                placeholder="Opcional"
+                @input="validateTelefono"
+                maxlength="10"
+                placeholder="10 dígitos (opcional)"
+                pattern="[0-9]{10}"
                 autocomplete="tel-national"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
@@ -534,7 +537,7 @@
 <script setup>
 import { Head, Link, useForm } from '@inertiajs/vue3'
 import axios from 'axios'
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
 defineOptions({ layout: AppLayout })
@@ -548,23 +551,23 @@ const showSuccessMessage = ref(false)
 const isDevelopment = ref(import.meta.env?.DEV || false)
 const availableColonias = ref([])
 
-// Mapeo de nombres de estados a claves SAT
+// Mapeo de estados mexicanos con códigos SAT
 const estadoMapping = {
   'Aguascalientes': 'AGU',
   'Baja California': 'BCN',
   'Baja California Sur': 'BCS',
   'Campeche': 'CAM',
-  'Chihuahua': 'CHH',
   'Chiapas': 'CHP',
-  'Ciudad de México': 'CMX',
+  'Chihuahua': 'CHH',
   'Coahuila': 'COA',
   'Colima': 'COL',
+  'Ciudad de México': 'CDMX',
   'Durango': 'DUR',
-  'Guerrero': 'GRO',
   'Guanajuato': 'GUA',
+  'Guerrero': 'GRO',
   'Hidalgo': 'HID',
   'Jalisco': 'JAL',
-  'Estado de México': 'MEX',
+  'México': 'MEX',
   'Michoacán': 'MIC',
   'Morelos': 'MOR',
   'Nayarit': 'NAY',
@@ -573,8 +576,8 @@ const estadoMapping = {
   'Puebla': 'PUE',
   'Querétaro': 'QUE',
   'Quintana Roo': 'ROO',
-  'Sinaloa': 'SIN',
   'San Luis Potosí': 'SLP',
+  'Sinaloa': 'SIN',
   'Sonora': 'SON',
   'Tabasco': 'TAB',
   'Tamaulipas': 'TAM',
@@ -593,19 +596,62 @@ const initFormData = () => ({
   rfc: props.cliente?.rfc || '',
   curp: props.cliente?.curp || '',
   regimen_fiscal: props.cliente?.regimen_fiscal || '',
-  uso_cfdi: props.cliente?.uso_cfdi || '',
+  uso_cfdi: props.cliente?.uso_cfdi || 'G03', // G03 - Gastos en general por defecto
   calle: props.cliente?.calle || '',
   numero_exterior: props.cliente?.numero_exterior || '',
   numero_interior: props.cliente?.numero_interior || '',
   colonia: props.cliente?.colonia || '',
   codigo_postal: props.cliente?.codigo_postal || '',
   municipio: props.cliente?.municipio || '',
-  estado: props.cliente?.estado || '',
+  estado: props.cliente?.estado || 'SON', // Sonora por defecto
   pais: props.cliente?.pais || 'MX',
   activo: props.cliente?.activo ?? true,
 })
 
 const form = useForm(initFormData())
+
+// Cargar colonias disponibles cuando el componente se monte
+onMounted(async () => {
+  const codigoPostal = form.codigo_postal
+  if (codigoPostal && codigoPostal.length === 5) {
+    try {
+      const response = await fetch(`/api/cp/${codigoPostal}`)
+      if (response.ok) {
+        const data = await response.json()
+        availableColonias.value = data.colonias || []
+
+        // Si la colonia del cliente existe en las colonias disponibles, mantenerla seleccionada
+        if (form.colonia && data.colonias && data.colonias.includes(form.colonia)) {
+          // La colonia ya está correctamente seleccionada
+        } else if (data.colonias && data.colonias.length === 1) {
+          // Si solo hay una colonia disponible, seleccionarla automáticamente
+          form.colonia = data.colonias[0]
+        } else if (form.colonia && data.colonias) {
+          // Intentar encontrar una coincidencia aproximada (ignorando mayúsculas/minúsculas y espacios)
+          const coloniaCliente = form.colonia.toLowerCase().trim()
+          const coincidencia = data.colonias.find(colonia =>
+            colonia.toLowerCase().trim() === coloniaCliente ||
+            colonia.toLowerCase().trim().includes(coloniaCliente) ||
+            coloniaCliente.includes(colonia.toLowerCase().trim())
+          )
+
+          if (coincidencia) {
+            // Si encontramos una coincidencia aproximada, usar esa
+            form.colonia = coincidencia
+          } else {
+            // Si no hay coincidencia, mantener la colonia actual pero agregarla a las opciones disponibles
+            console.warn('Colonia del cliente no encontrada en el código postal, manteniendo valor actual:', form.colonia)
+            // No limpiamos el campo, permitimos que el usuario mantenga la colonia actual
+            // Pero necesitamos asegurarnos de que aparezca en el select
+            availableColonias.value = [form.colonia, ...data.colonias]
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('Error al cargar colonias en edición:', error)
+    }
+  }
+})
 
 const hasGlobalErrors = computed(() => Object.keys(form.errors).length > 0)
 
@@ -772,11 +818,9 @@ const onCpInput = async (event) => {
       if (response.ok) {
         const data = await response.json()
 
-        // Estado: forzar CLAVE SAT (3)
+        // Estado: usar clave SAT directamente si viene del API
         if (data.estado) {
-          // si viene como "Sonora", conviértelo a "SON"
-          const clave = estadoMapping[data.estado] || data.estado  // si ya viene "SON", la deja
-          form.estado = clave
+          form.estado = data.estado // Ya viene como clave SAT (AGU, SON, etc.)
         }
 
         form.municipio = data.municipio
@@ -786,14 +830,35 @@ const onCpInput = async (event) => {
         }
 
         // Poblar lista de colonias disponibles
-        availableColonias.value = data.colonias || []
+        const coloniasDisponibles = data.colonias || []
+        availableColonias.value = coloniasDisponibles
 
         // Si solo hay una colonia, la seleccionamos automáticamente
-        if (data.colonias && data.colonias.length === 1) {
-          form.colonia = data.colonias[0]
-        } else if (data.colonias && data.colonias.length > 1) {
-          // Si hay múltiples colonias, limpiar selección actual
-          form.colonia = ''
+        if (coloniasDisponibles.length === 1) {
+          form.colonia = coloniasDisponibles[0]
+        } else if (coloniasDisponibles.length > 1) {
+          // Si hay múltiples colonias, intentar mantener la colonia actual si existe en la lista
+          if (form.colonia && coloniasDisponibles.includes(form.colonia)) {
+            // La colonia actual está disponible, mantenerla seleccionada
+          } else if (form.colonia) {
+            // Intentar encontrar una coincidencia aproximada
+            const coloniaCliente = form.colonia.toLowerCase().trim()
+            const coincidencia = coloniasDisponibles.find(colonia =>
+              colonia.toLowerCase().trim() === coloniaCliente ||
+              colonia.toLowerCase().trim().includes(coloniaCliente) ||
+              coloniaCliente.includes(colonia.toLowerCase().trim())
+            )
+
+            if (coincidencia) {
+              form.colonia = coincidencia
+            } else {
+              // Si no hay coincidencia, limpiar selección actual
+              form.colonia = ''
+            }
+          } else {
+            // No había colonia seleccionada, limpiar el campo
+            form.colonia = ''
+          }
         }
 
         // Limpiar errores de campos autocompletados
@@ -826,15 +891,68 @@ const toUpper = (campo) => {
   }
 }
 
+const normalizeEmail = () => {
+  if (form.email && typeof form.email === 'string') {
+    form.email = form.email.toLowerCase().trim()
+    if (form.email && form.errors.email) form.clearErrors('email')
+  }
+}
+
+const validateTelefono = (event) => {
+  const value = event.target ? event.target.value : event
+  // Solo permitir números y limitar a 10 dígitos
+  const cleaned = String(value).replace(/\D/g, '').slice(0, 10)
+  form.telefono = cleaned
+  if (form.telefono && form.errors.telefono) form.clearErrors('telefono')
+}
+
 // Funciones principales
-const resetForm = () => {
+const resetForm = async () => {
   const originalData = initFormData()
   Object.keys(originalData).forEach(key => {
     form[key] = originalData[key]
   })
   form.clearErrors()
   showSuccessMessage.value = false
-  availableColonias.value = []
+
+  // Recargar colonias disponibles después de restaurar
+  const codigoPostal = form.codigo_postal
+  if (codigoPostal && codigoPostal.length === 5) {
+    try {
+      const response = await fetch(`/api/cp/${codigoPostal}`)
+      if (response.ok) {
+        const data = await response.json()
+        const coloniasDisponibles = data.colonias || []
+
+        // Aplicar la misma lógica mejorada para manejar colonias no encontradas
+        if (form.colonia && !coloniasDisponibles.includes(form.colonia)) {
+          const coloniaCliente = form.colonia.toLowerCase().trim()
+          const coincidencia = coloniasDisponibles.find(colonia =>
+            colonia.toLowerCase().trim() === coloniaCliente ||
+            colonia.toLowerCase().trim().includes(coloniaCliente) ||
+            coloniaCliente.includes(colonia.toLowerCase().trim())
+          )
+
+          if (coincidencia) {
+            form.colonia = coincidencia
+            availableColonias.value = coloniasDisponibles
+          } else {
+            // Mantener la colonia actual y agregarla a las opciones disponibles
+            availableColonias.value = [form.colonia, ...coloniasDisponibles]
+          }
+        } else {
+          availableColonias.value = coloniasDisponibles
+        }
+      } else {
+        availableColonias.value = []
+      }
+    } catch (error) {
+      console.warn('Error al recargar colonias en resetForm:', error)
+      availableColonias.value = []
+    }
+  } else {
+    availableColonias.value = []
+  }
 }
 
 const onCurpInput = (event) => {

@@ -150,8 +150,8 @@ class CitaController extends Controller
     }
 
     /**
-     * Almacenar una nueva cita en la base de datos.
-     */
+      * Almacenar una nueva cita en la base de datos.
+      */
     public function store(Request $request)
     {
         // Validar los datos recibidos con mejoras
@@ -181,14 +181,14 @@ class CitaController extends Controller
             'problema_reportado' => 'nullable|string|max:1000',
             'estado' => 'required|string|in:pendiente,en_proceso,completado,cancelado',
             'evidencias' => 'nullable|string|max:2000',
-            'foto_equipo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
-            'foto_hoja_servicio' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
-            'foto_identificacion' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+            'foto_equipo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'foto_hoja_servicio' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'foto_identificacion' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
         ], [
             'tecnico_id.required' => 'Debe seleccionar un técnico.',
             'cliente_id.required' => 'Debe seleccionar un cliente.',
             'fecha_hora.after' => 'La fecha debe ser posterior a la actual.',
-            '*.max:5120' => 'La imagen no debe superar los 5MB.',
+            '*.max:2048' => 'La imagen no debe superar los 2MB.',
         ]);
 
         try {
@@ -197,6 +197,18 @@ class CitaController extends Controller
             // Verificar disponibilidad del técnico
             $this->verificarDisponibilidadTecnico(
                 $validated['tecnico_id'],
+                $validated['fecha_hora']
+            );
+
+            // Verificar límite de citas por día para el técnico
+            $this->verificarLimiteCitasPorDia(
+                $validated['tecnico_id'],
+                $validated['fecha_hora']
+            );
+
+            // Verificar que el cliente no tenga múltiples citas activas
+            $this->verificarCitasClienteActivas(
+                $validated['cliente_id'],
                 $validated['fecha_hora']
             );
 
@@ -286,6 +298,22 @@ class CitaController extends Controller
                     $validated['fecha_hora'] ?? $cita->fecha_hora,
                     $cita->id
                 );
+
+                // Verificar límite de citas por día si cambió la fecha
+                if (isset($validated['fecha_hora'])) {
+                    $this->verificarLimiteCitasPorDia(
+                        $validated['tecnico_id'],
+                        $validated['fecha_hora']
+                    );
+                }
+            }
+
+            // Verificar citas activas del cliente si cambió la fecha
+            if (isset($validated['cliente_id']) && $validated['cliente_id'] != $cita->cliente_id) {
+                $this->verificarCitasClienteActivas(
+                    $validated['cliente_id'],
+                    $validated['fecha_hora'] ?? $cita->fecha_hora
+                );
             }
 
             // Guardar archivos y obtener sus rutas (conservando los archivos existentes si no se suben nuevos)
@@ -369,12 +397,15 @@ class CitaController extends Controller
     }
 
     /**
-     * Eliminar una cita existente.
-     */
+      * Eliminar una cita existente.
+      */
     public function destroy(Cita $cita)
     {
         try {
             DB::beginTransaction();
+
+            // Verificar si se puede eliminar la cita
+            $this->verificarPuedeEliminar($cita);
 
             // Eliminar archivos asociados
             $archivos = [
@@ -506,6 +537,85 @@ class CitaController extends Controller
         } catch (Exception $e) {
             Log::error('Error en exportación de citas: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Error al exportar las citas.');
+        }
+    }
+
+    /**
+     * Verificar límite de citas por día para un técnico
+     */
+    private function verificarLimiteCitasPorDia(int $tecnicoId, string $fechaHora): void
+    {
+        $fecha = Carbon::parse($fechaHora)->toDateString();
+        $inicioDia = Carbon::parse($fecha)->startOfDay();
+        $finDia = Carbon::parse($fecha)->endOfDay();
+
+        $citasEnDia = Cita::where('tecnico_id', $tecnicoId)
+            ->whereBetween('fecha_hora', [$inicioDia, $finDia])
+            ->where('estado', '!=', 'cancelado')
+            ->count();
+
+        // Límite de 8 citas por día
+        if ($citasEnDia >= 8) {
+            throw ValidationException::withMessages([
+                'fecha_hora' => 'El técnico ya tiene el máximo de 8 citas programadas para este día.'
+            ]);
+        }
+    }
+
+    /**
+     * Verificar que el cliente no tenga múltiples citas activas
+     */
+    private function verificarCitasClienteActivas(int $clienteId, string $fechaHora): void
+    {
+        $fecha = Carbon::parse($fechaHora);
+
+        // Verificar si el cliente tiene más de 2 citas activas en los próximos 7 días
+        $citasActivas = Cita::where('cliente_id', $clienteId)
+            ->whereIn('estado', ['pendiente', 'en_proceso'])
+            ->where('fecha_hora', '>=', now())
+            ->where('fecha_hora', '<=', now()->addDays(7))
+            ->count();
+
+        if ($citasActivas >= 2) {
+            throw ValidationException::withMessages([
+                'cliente_id' => 'El cliente ya tiene múltiples citas activas. Complete las citas existentes antes de programar nuevas.'
+            ]);
+        }
+
+        // Verificar si hay conflicto de horario el mismo día
+        $citasMismoDia = Cita::where('cliente_id', $clienteId)
+            ->whereDate('fecha_hora', $fecha->toDateString())
+            ->where('estado', '!=', 'cancelado')
+            ->where('fecha_hora', '!=', $fechaHora)
+            ->count();
+
+        if ($citasMismoDia > 0) {
+            throw ValidationException::withMessages([
+                'fecha_hora' => 'El cliente ya tiene una cita programada para este día.'
+            ]);
+        }
+    }
+
+    /**
+     * Verificar si se puede eliminar la cita (sin relaciones críticas)
+     */
+    private function verificarPuedeEliminar(Cita $cita): void
+    {
+        // No permitir eliminar citas completadas con menos de 30 días de antigüedad
+        if ($cita->estado === Cita::ESTADO_COMPLETADO) {
+            $diasDesdeCreacion = now()->diffInDays($cita->created_at);
+            if ($diasDesdeCreacion < 30) {
+                throw ValidationException::withMessages([
+                    'cita' => 'No se pueden eliminar citas completadas con menos de 30 días de antigüedad por políticas de auditoría.'
+                ]);
+            }
+        }
+
+        // Verificar si la cita está en proceso (solo permitir cancelación)
+        if ($cita->estado === Cita::ESTADO_EN_PROCESO) {
+            throw ValidationException::withMessages([
+                'cita' => 'No se puede eliminar una cita en proceso. Solo se puede cancelar.'
+            ]);
         }
     }
 }

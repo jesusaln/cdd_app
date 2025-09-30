@@ -21,6 +21,9 @@ class CompraSeeder extends Seeder
             return; // No hay proveedores, no podemos crear compras
         }
 
+        // Obtener categorías existentes
+        $categorias = \App\Models\Categoria::all();
+
         // Crear algunas compras de ejemplo
         $compras = [
             [
@@ -28,9 +31,9 @@ class CompraSeeder extends Seeder
                 'estado' => 'procesada',
                 'notas' => 'Compra inicial de productos básicos',
                 'productos' => [
-                    ['nombre' => 'Producto A', 'cantidad' => 50, 'precio_unitario' => 10.00, 'categoria' => 'Electrónicos'],
-                    ['nombre' => 'Producto B', 'cantidad' => 30, 'precio_unitario' => 25.00, 'categoria' => 'Herramientas'],
-                    ['nombre' => 'Producto C', 'cantidad' => 20, 'precio_unitario' => 15.00, 'categoria' => 'Accesorios'],
+                    ['nombre' => 'Producto A', 'cantidad' => 50, 'precio_unitario' => 10.00, 'categoria' => $categorias->random()->nombre],
+                    ['nombre' => 'Producto B', 'cantidad' => 30, 'precio_unitario' => 25.00, 'categoria' => $categorias->random()->nombre],
+                    ['nombre' => 'Producto C', 'cantidad' => 20, 'precio_unitario' => 15.00, 'categoria' => $categorias->random()->nombre],
                 ]
             ],
             [
@@ -39,8 +42,8 @@ class CompraSeeder extends Seeder
                 'estado' => 'procesada',
                 'notas' => 'Compra de repuestos',
                 'productos' => [
-                    ['nombre' => 'Repuesto X', 'cantidad' => 40, 'precio_unitario' => 8.00, 'categoria' => 'Repuestos'],
-                    ['nombre' => 'Repuesto Y', 'cantidad' => 25, 'precio_unitario' => 12.00, 'categoria' => 'Repuestos'],
+                    ['nombre' => 'Repuesto X', 'cantidad' => 40, 'precio_unitario' => 8.00, 'categoria' => $categorias->random()->nombre],
+                    ['nombre' => 'Repuesto Y', 'cantidad' => 25, 'precio_unitario' => 12.00, 'categoria' => $categorias->random()->nombre],
                 ]
             ],
             [

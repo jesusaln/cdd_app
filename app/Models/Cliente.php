@@ -6,12 +6,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use OwenIt\Auditing\Auditable as AuditableTrait;
 use OwenIt\Auditing\Contracts\Auditable as AuditableContract;
 
 class Cliente extends Model implements AuditableContract
 {
-    use HasFactory, AuditableTrait;
+    use HasFactory, AuditableTrait, SoftDeletes;
 
     protected $table = 'clientes';
 
@@ -52,6 +53,7 @@ class Cliente extends Model implements AuditableContract
 
     protected $attributes = [
         'activo' => true,
+        'uso_cfdi' => 'G03', // G03 - Gastos en general por defecto
         // 'pais' se deja sin valor por defecto para permitir extranjeros
     ];
 
@@ -81,6 +83,9 @@ class Cliente extends Model implements AuditableContract
             if (is_null($cliente->activo)) {
                 $cliente->activo = true;
             }
+            if (empty($cliente->uso_cfdi)) {
+                $cliente->uso_cfdi = 'G03'; // G03 - Gastos en general por defecto
+            }
             // No forzar país a MX para permitir clientes extranjeros
         });
     }
@@ -91,27 +96,27 @@ class Cliente extends Model implements AuditableContract
 
     public function cotizaciones(): HasMany
     {
-        return $this->hasMany(Cotizacion::class);
+        return $this->hasMany(Cotizacion::class)->withTrashed();
     }
 
     public function ventas(): HasMany
     {
-        return $this->hasMany(Venta::class);
+        return $this->hasMany(Venta::class)->withTrashed();
     }
 
     public function facturas(): HasMany
     {
-        return $this->hasMany(Factura::class);
+        return $this->hasMany(Factura::class)->withTrashed();
     }
 
     public function pedidos(): HasMany
     {
-        return $this->hasMany(Pedido::class);
+        return $this->hasMany(Pedido::class)->withTrashed();
     }
 
     public function rentas(): HasMany
     {
-        return $this->hasMany(Renta::class);
+        return $this->hasMany(Renta::class)->withTrashed();
     }
 
     // ------------------------------------------------------------------

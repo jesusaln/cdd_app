@@ -22,6 +22,7 @@ use Facturapi\Facturapi;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ClientesExport;
+use Illuminate\Support\Facades\Gate;
 
 
 
@@ -29,6 +30,24 @@ class ClienteController extends Controller
 {
     private const ITEMS_PER_PAGE = 10;
     private const CACHE_TTL = 60;
+
+    // Constantes para validaciones y valores por defecto
+    private const DEFAULT_COUNTRY = 'MX';
+    private const RFC_GENERIC_FOREIGN = 'XEXX010101000';
+    private const MIN_SEARCH_LENGTH = 2;
+    private const MAX_SEARCH_LIMIT = 50;
+    private const VALID_SORT_FIELDS = ['nombre_razon_social', 'rfc', 'email', 'created_at', 'activo'];
+    private const VALID_SORT_DIRECTIONS = ['asc', 'desc'];
+    private const DEFAULT_SORT_BY = 'created_at';
+    private const DEFAULT_SORT_DIRECTION = 'desc';
+
+    // Estados de registros relacionados que bloquean eliminación
+    private const BLOCKING_STATES = [
+        'cotizaciones' => ['cancelada'],
+        'ventas' => ['cancelada'],
+        'pedidos' => ['cancelado'],
+        'rentas' => ['finalizada']
+    ];
 
     // ========================= Helpers de catálogos (DB + Cache) =========================
     private function getTiposPersona(): array
@@ -166,7 +185,13 @@ class ClienteController extends Controller
     // En tu ClienteController (o trait/repo)
     private function buildSearchQuery(Request $request)
     {
-        $q = \App\Models\Cliente::query()->with(['estadoSat', 'regimen', 'uso']);
+        // Optimizar carga de relaciones - solo cargar las necesarias
+        $withRelations = [];
+        if ($request->input('include_relations', false)) {
+            $withRelations = ['estadoSat', 'regimen', 'uso'];
+        }
+
+        $q = \App\Models\Cliente::query()->with($withRelations);
 
         if ($s = trim((string) $request->input('search', ''))) {
             // Use FULLTEXT search if available and query is long enough
@@ -222,11 +247,28 @@ class ClienteController extends Controller
         $collection = $paginator->getCollection();
 
         $collection->transform(function ($cliente) {
+            // Solo calcular nombres si las relaciones están cargadas
             $cliente->tipo_persona_nombre   = $this->getTipoPersonaNombre($cliente->tipo_persona);
-            $cliente->regimen_fiscal_nombre = $cliente->regimen?->descripcion ?? $this->getRegimenFiscalNombre($cliente->regimen_fiscal);
-            $cliente->uso_cfdi_nombre       = $cliente->uso?->descripcion ?? $this->getUsoCFDINombre($cliente->uso_cfdi);
-            $cliente->estado_nombre         = $cliente->estadoSat?->nombre ?? $this->getEstadoNombre($cliente->estado);
-            $cliente->estado_texto          = $cliente->activo ? 'Activo' : 'Inactivo';
+
+            if ($cliente->relationLoaded('regimen')) {
+                $cliente->regimen_fiscal_nombre = $cliente->regimen?->descripcion ?? $this->getRegimenFiscalNombre($cliente->regimen_fiscal);
+            } else {
+                $cliente->regimen_fiscal_nombre = $this->getRegimenFiscalNombre($cliente->regimen_fiscal);
+            }
+
+            if ($cliente->relationLoaded('uso')) {
+                $cliente->uso_cfdi_nombre = $cliente->uso?->descripcion ?? $this->getUsoCFDINombre($cliente->uso_cfdi);
+            } else {
+                $cliente->uso_cfdi_nombre = $this->getUsoCFDINombre($cliente->uso_cfdi);
+            }
+
+            if ($cliente->relationLoaded('estadoSat')) {
+                $cliente->estado_nombre = $cliente->estadoSat?->nombre ?? $this->getEstadoNombre($cliente->estado);
+            } else {
+                $cliente->estado_nombre = $this->getEstadoNombre($cliente->estado);
+            }
+
+            $cliente->estado_texto = $cliente->activo ? 'Activo' : 'Inactivo';
             return $cliente;
         });
 
@@ -253,7 +295,7 @@ class ClienteController extends Controller
                 $isDuplicate = $existingRfc && (!$clienteId || $existingRfc != $clienteId);
 
                 if ($isDuplicate) {
-                    if ($value === 'XAXX010101000') {
+                    if ($value === self::RFC_GENERIC_FOREIGN) {
                         $fail('Ya existe el cliente genérico. No se pueden crear múltiples clientes con RFC genérico.');
                     } else {
                         $fail('El RFC ya está registrado.');
@@ -295,7 +337,7 @@ class ClienteController extends Controller
             'regimen_fiscal'      => $this->getRegimenFiscalValidationRules(),
             'uso_cfdi'            => 'required|string|exists:sat_usos_cfdi,clave',
             'email'               => ['required', 'email:rfc,dns', 'max:255'],
-            'telefono'            => 'nullable|string|max:20|regex:/^[0-9+\-\s()]+$/',
+            'telefono'            => 'nullable|string|size:10|regex:/^[0-9]{10}$/',
             'calle'               => 'required|string|max:255',
             'numero_exterior'     => 'required|string|max:20',
             'numero_interior'     => 'nullable|string|max:20',
@@ -303,7 +345,7 @@ class ClienteController extends Controller
             'codigo_postal'       => 'required|string|size:5|regex:/^[0-9]{5}$/',
             'municipio'           => 'required|string|max:255',
             'estado'              => "required|string|size:3|in:$estadosCsv", // clave SAT (3 letras)
-            'pais'                => 'required|string|in:MX',
+            'pais'                => 'required|string|in:' . self::DEFAULT_COUNTRY,
             'notas'               => 'nullable|string|max:1000',
             'activo'              => 'boolean',
         ];
@@ -324,7 +366,8 @@ class ClienteController extends Controller
             'uso_cfdi.exists'              => 'El uso de CFDI seleccionado no es válido.',
             'email.required'               => 'El email es obligatorio.',
             'email.email'                  => 'El email debe tener un formato válido.',
-            'telefono.regex'               => 'El teléfono solo debe contener números, espacios, paréntesis, guiones y el signo +.',
+            'telefono.size'                => 'El teléfono debe tener exactamente 10 dígitos.',
+            'telefono.regex'               => 'El teléfono debe contener solo números (10 dígitos).',
             'calle.required'               => 'La calle es obligatoria.',
             'numero_exterior.required'     => 'El número exterior es obligatorio.',
             'colonia.required'             => 'La colonia es obligatoria.',
@@ -335,7 +378,7 @@ class ClienteController extends Controller
             'estado.required'              => 'El estado es obligatorio.',
             'estado.in'                    => 'El estado seleccionado no es válido.',
             'pais.required'                => 'El país es obligatorio.',
-            'pais.in'                      => 'El país debe ser MX.',
+            'pais.in'                      => 'El país debe ser ' . self::DEFAULT_COUNTRY . '.',
             'notas.max'                    => 'Las notas no pueden exceder 1000 caracteres.',
         ];
     }
@@ -350,18 +393,75 @@ class ClienteController extends Controller
         return $c;
     }
 
+    /**
+     * Crear respuesta de error para operaciones de cliente
+     */
+    private function handleClienteError(string $message, array $context = []): \Illuminate\Http\RedirectResponse
+    {
+        Log::error($message, $context);
+        return redirect()->route('clientes.index')->with('error', $message);
+    }
+
+    /**
+     * Crear respuesta de éxito para operaciones de cliente
+     */
+    private function handleClienteSuccess(string $message): \Illuminate\Http\RedirectResponse
+    {
+        return redirect()->route('clientes.index')->with('success', $message);
+    }
+
+    /**
+     * Preparar datos de cliente para Facturapi
+     */
+    private function prepareFacturapiData(Cliente $cliente, array $data = null): array
+    {
+        $useData = $data !== null;
+
+        $nombre = $useData ? ($data['nombre_razon_social'] ?? $cliente->nombre_razon_social) : $cliente->nombre_razon_social;
+        $email = $useData ? ($data['email'] ?? $cliente->email) : $cliente->email;
+        $rfc = $useData ? ($data['rfc'] ?? $cliente->rfc) : $cliente->rfc;
+        $codigo_postal = $useData ? ($data['codigo_postal'] ?? $cliente->codigo_postal) : $cliente->codigo_postal;
+        $municipio = $useData ? ($data['municipio'] ?? $cliente->municipio) : $cliente->municipio;
+        $estado = $useData ? ($data['estado'] ?? $cliente->estado) : $cliente->estado;
+        $uso_cfdi = $useData ? ($data['uso_cfdi'] ?? $cliente->uso_cfdi) : $cliente->uso_cfdi;
+
+        $calle = $useData ? ($data['calle'] ?? $cliente->calle) : $cliente->calle;
+        $numero_exterior = $useData ? ($data['numero_exterior'] ?? $cliente->numero_exterior) : $cliente->numero_exterior;
+        $numero_interior = $useData ? ($data['numero_interior'] ?? $cliente->numero_interior) : $cliente->numero_interior;
+        $colonia = $useData ? ($data['colonia'] ?? $cliente->colonia) : $cliente->colonia;
+
+        $address1 = trim(implode(' ', array_filter([
+            $calle,
+            $numero_exterior,
+            $numero_interior ? "Int. {$numero_interior}" : null,
+            $colonia,
+            $municipio
+        ])));
+
+        return [
+            'name' => $nombre,
+            'email' => $email,
+            'rfc' => $rfc,
+            'address1' => $address1,
+            'postal_code' => $codigo_postal,
+            'city' => $municipio,
+            'state' => $estado,
+            'country' => 'MX',
+            'cfdi_use' => $uso_cfdi,
+        ];
+    }
+
     // ============================= CRUD =============================
     public function index(Request $request)
     {
         try {
             $query = $this->buildSearchQuery($request);
 
-            $sortBy        = $request->get('sort_by', 'created_at');
-            $sortDirection = $request->get('sort_direction', 'desc');
-            $validSort     = ['nombre_razon_social', 'rfc', 'email', 'created_at', 'activo'];
+            $sortBy        = $request->get('sort_by', self::DEFAULT_SORT_BY);
+            $sortDirection = $request->get('sort_direction', self::DEFAULT_SORT_DIRECTION);
 
-            if (!in_array($sortBy, $validSort)) $sortBy = 'created_at';
-            if (!in_array($sortDirection, ['asc', 'desc'])) $sortDirection = 'desc';
+            if (!in_array($sortBy, self::VALID_SORT_FIELDS)) $sortBy = self::DEFAULT_SORT_BY;
+            if (!in_array($sortDirection, self::VALID_SORT_DIRECTIONS)) $sortDirection = self::DEFAULT_SORT_DIRECTION;
 
             $query->orderBy($sortBy, $sortDirection);
 
@@ -422,8 +522,10 @@ class ClienteController extends Controller
                     ->toArray(),
             ],
             'cliente' => [ // valores por defecto
-                'tipo_persona' => '',
+                'tipo_persona' => 'fisica',
                 'pais' => 'MX',
+                'estado' => 'SON', // Sonora por defecto
+                'uso_cfdi' => 'G03', // G03 - Gastos en general
             ],
         ]);
     }
@@ -439,9 +541,21 @@ class ClienteController extends Controller
             $data['rfc']                 = strtoupper(trim($data['rfc']));
             $data['email']               = strtolower(trim($data['email']));
             $data['nombre_razon_social'] = trim($data['nombre_razon_social']);
-            $data['pais']                = 'MX'; // Forzado
+            $data['pais']                = self::DEFAULT_COUNTRY; // Forzado
+
+            // Establecer domicilio_fiscal_cp igual al codigo_postal para CFDI 4.0
+            $data['domicilio_fiscal_cp'] = $data['codigo_postal'];
 
             $cliente = Cliente::create($data);
+
+            // Validar que el cliente tenga datos completos para CFDI
+            $erroresCfdi = $cliente->validarParaCfdi();
+            if (!empty($erroresCfdi)) {
+                DB::rollBack();
+                throw ValidationException::withMessages([
+                    'cfdi' => 'El cliente no cumple con los requisitos para facturación CFDI: ' . implode(', ', $erroresCfdi)
+                ]);
+            }
 
             // Crear notificaciones directamente (sistema simplificado)
             try {
@@ -484,6 +598,7 @@ class ClienteController extends Controller
     public function show(Cliente $cliente)
     {
         try {
+            // Optimizar carga de relaciones - solo cargar las necesarias para mostrar
             $cliente->load(['regimen', 'uso', 'estadoSat']);
             $cliente = $this->formatClienteForView($cliente);
             return Inertia::render('Clientes/Show', ['cliente' => $cliente]);
@@ -499,6 +614,7 @@ class ClienteController extends Controller
     public function edit(Cliente $cliente)
     {
         try {
+            // Optimizar carga de relaciones - solo cargar las necesarias para editar
             $cliente->load(['regimen', 'uso', 'estadoSat']);
             $cliente = $this->formatClienteForView($cliente);
 
@@ -527,14 +643,27 @@ class ClienteController extends Controller
             $data['rfc']                 = strtoupper(trim($data['rfc']));
             $data['email']               = strtolower(trim($data['email']));
             $data['nombre_razon_social'] = trim($data['nombre_razon_social']);
-            $data['pais']                = 'MX';
+            $data['pais']                = self::DEFAULT_COUNTRY;
+
+            // Establecer domicilio_fiscal_cp igual al codigo_postal para CFDI 4.0
+            $data['domicilio_fiscal_cp'] = $data['codigo_postal'];
+
+            // Actualizar datos primero
+            $cliente->update($data);
+
+            // Validar que el cliente actualizado tenga datos completos para CFDI
+            $erroresCfdi = $cliente->fresh()->validarParaCfdi();
+            if (!empty($erroresCfdi)) {
+                DB::rollBack();
+                throw ValidationException::withMessages([
+                    'cfdi' => 'El cliente no cumple con los requisitos para facturación CFDI: ' . implode(', ', $erroresCfdi)
+                ]);
+            }
 
             // Integrar o actualizar en Facturapi si es necesario
             if (empty($cliente->facturapi_customer_id) || $this->shouldUpdateFacturapi($cliente, $data)) {
                 $this->createOrUpdateFacturapiCustomer($cliente, $data);
             }
-
-            $cliente->update($data);
 
             DB::commit();
 
@@ -564,19 +693,38 @@ class ClienteController extends Controller
     public function destroy(Cliente $cliente)
     {
         try {
+            // Verificar permisos de eliminación
+            Gate::authorize('delete', $cliente);
+
+            // Verificar relaciones antes de eliminar
+            $relaciones = $this->verificarRelacionesCliente($cliente);
+
+            if (!empty($relaciones)) {
+                return redirect()->back()->with('error',
+                    'No se puede eliminar el cliente porque tiene registros relacionados: ' .
+                    implode(', ', $relaciones) . '. ' .
+                    'Elimine o transfiera estos registros primero.'
+                );
+            }
+
             DB::beginTransaction();
-            $cliente->delete();
+            $cliente->delete(); // Ahora usa soft delete
             DB::commit();
+
             Log::info('Cliente eliminado', ['cliente_id' => $cliente->id]);
             return redirect()->route('clientes.index')->with('success', 'Cliente eliminado correctamente');
+
         } catch (ModelNotFoundException $e) {
             DB::rollBack();
             Log::warning('Cliente no encontrado para eliminación', ['id' => request()->route('cliente')]);
             return redirect()->route('clientes.index')->with('error', 'Cliente no encontrado.');
         } catch (Exception $e) {
             DB::rollBack();
-            Log::error('Error al eliminar cliente: ' . $e->getMessage(), ['cliente_id' => $cliente->id ?? 'N/A', 'trace' => $e->getTraceAsString()]);
-            return redirect()->back()->with('error', 'No se pudo eliminar el cliente. Verifique relaciones.');
+            Log::error('Error al eliminar cliente: ' . $e->getMessage(), [
+                'cliente_id' => $cliente->id ?? 'N/A',
+                'trace' => $e->getTraceAsString()
+            ]);
+            return redirect()->back()->with('error', 'Error interno al eliminar el cliente.');
         }
     }
 
@@ -610,7 +758,7 @@ class ClienteController extends Controller
             if (!preg_match('/^[A-ZÑ&]{3,4}[0-9]{6}[A-Z0-9]{3}$/', $rfc)) {
                 return response()->json(['success' => false, 'exists' => false, 'message' => 'Formato de RFC inválido'], 422);
             }
-            if ($rfc === 'XAXX010101000') {
+            if ($rfc === self::RFC_GENERIC_FOREIGN) {
                 return response()->json(['success' => true, 'exists' => false, 'message' => 'RFC genérico válido']);
             }
 
@@ -681,10 +829,10 @@ class ClienteController extends Controller
     {
         try {
             $query = trim($request->input('q', ''));
-            $limit = min((int) $request->input('limit', 10), 50);
+            $limit = min((int) $request->input('limit', 10), self::MAX_SEARCH_LIMIT);
 
-            if (mb_strlen($query) < 2) {
-                return response()->json(['success' => false, 'message' => 'Mínimo 2 caracteres para búsqueda'], 422);
+            if (mb_strlen($query) < self::MIN_SEARCH_LENGTH) {
+                return response()->json(['success' => false, 'message' => 'Mínimo ' . self::MIN_SEARCH_LENGTH . ' caracteres para búsqueda'], 422);
             }
 
             $clientes = Cliente::where('activo', true)
@@ -716,6 +864,9 @@ class ClienteController extends Controller
     public function export(Request $request)
     {
         try {
+            // Verificar permisos de exportación
+            Gate::authorize('export', Cliente::class);
+
             $query    = $this->buildSearchQuery($request);
             $clientes = $query->get();
 
@@ -791,6 +942,9 @@ class ClienteController extends Controller
     public function stats(): JsonResponse
     {
         try {
+            // Verificar permisos de estadísticas
+            Gate::authorize('stats', Cliente::class);
+
             $stats = Cache::remember('clientes_stats', 5, function () {
                 return [
                     'total'            => Cliente::count(),
@@ -845,53 +999,20 @@ class ClienteController extends Controller
     private function createOrUpdateFacturapiCustomer(Cliente $cliente, array $data = null): void
     {
         try {
-            $facturapi = new Facturapi(config('facturapi.api_key'));
+            // Verificar que la configuración de Facturapi esté disponible
+            $apiKey = config('facturapi.api_key');
+            if (empty($apiKey)) {
+                Log::warning('Facturapi API key not configured', ['cliente_id' => $cliente->id]);
+                return;
+            }
 
-            $useData = $data !== null;
-
-            $nombre = $useData ? ($data['nombre_razon_social'] ?? $cliente->nombre_razon_social) : $cliente->nombre_razon_social;
-            $email = $useData ? ($data['email'] ?? $cliente->email) : $cliente->email;
-            $rfc = $useData ? ($data['rfc'] ?? $cliente->rfc) : $cliente->rfc;
-            $codigo_postal = $useData ? ($data['codigo_postal'] ?? $cliente->codigo_postal) : $cliente->codigo_postal;
-            $municipio = $useData ? ($data['municipio'] ?? $cliente->municipio) : $cliente->municipio;
-            $estado = $useData ? ($data['estado'] ?? $cliente->estado) : $cliente->estado;
-            $pais = 'MX';
-            $uso_cfdi = $useData ? ($data['uso_cfdi'] ?? $cliente->uso_cfdi) : $cliente->uso_cfdi;
-
-            $calle = $useData ? ($data['calle'] ?? $cliente->calle) : $cliente->calle;
-            $numero_exterior = $useData ? ($data['numero_exterior'] ?? $cliente->numero_exterior) : $cliente->numero_exterior;
-            $numero_interior = $useData ? ($data['numero_interior'] ?? $cliente->numero_interior) : $cliente->numero_interior;
-            $colonia = $useData ? ($data['colonia'] ?? $cliente->colonia) : $cliente->colonia;
-
-            $address1 = trim(implode(' ', array_filter([
-                $calle,
-                $numero_exterior,
-                $numero_interior ? "Int. {$numero_interior}" : null,
-                $colonia,
-                $municipio
-            ])));
-
-            $customerData = [
-                'name' => $nombre,
-                'email' => $email,
-                'rfc' => $rfc,
-                'address1' => $address1,
-                'postal_code' => $codigo_postal,
-                'city' => $municipio,
-                'state' => $estado,
-                'country' => $pais,
-                'cfdi_use' => $uso_cfdi,
-            ];
+            $facturapi = new Facturapi($apiKey);
+            $customerData = $this->prepareFacturapiData($cliente, $data);
 
             if ($cliente->facturapi_customer_id) {
-                // Update existing
-                $customer = $facturapi->customers->update($cliente->facturapi_customer_id, $customerData);
-                Log::info('Facturapi customer updated', ['customer_id' => $cliente->facturapi_customer_id]);
+                $this->updateFacturapiCustomer($facturapi, $cliente, $customerData);
             } else {
-                // Create new
-                $customer = $facturapi->customers->create($customerData);
-                $cliente->update(['facturapi_customer_id' => $customer->id]);
-                Log::info('Facturapi customer created', ['customer_id' => $customer->id]);
+                $this->createFacturapiCustomer($facturapi, $cliente, $customerData);
             }
         } catch (\Exception $e) {
             Log::error('Error integrating with Facturapi', [
@@ -899,7 +1020,51 @@ class ClienteController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            // No throw, allow save without Facturapi if API down
+            // No lanzar excepción, permitir que el cliente se guarde sin sincronización
+        }
+    }
+
+    /**
+     * Update existing customer in Facturapi
+     */
+    private function updateFacturapiCustomer(Facturapi $facturapi, Cliente $cliente, array $customerData): void
+    {
+        try {
+            $customer = $facturapi->customers->update($cliente->facturapi_customer_id, $customerData);
+            Log::info('Facturapi customer updated successfully', [
+                'cliente_id' => $cliente->id,
+                'customer_id' => $cliente->facturapi_customer_id
+            ]);
+        } catch (\Exception $updateError) {
+            Log::error('Error updating Facturapi customer', [
+                'cliente_id' => $cliente->id,
+                'customer_id' => $cliente->facturapi_customer_id,
+                'error' => $updateError->getMessage(),
+                'trace' => $updateError->getTraceAsString()
+            ]);
+            // No lanzar excepción, permitir que el cliente se guarde sin sincronización
+        }
+    }
+
+    /**
+     * Create new customer in Facturapi
+     */
+    private function createFacturapiCustomer(Facturapi $facturapi, Cliente $cliente, array $customerData): void
+    {
+        try {
+            $customer = $facturapi->customers->create($customerData);
+            $cliente->update(['facturapi_customer_id' => $customer->id]);
+            Log::info('Facturapi customer created successfully', [
+                'cliente_id' => $cliente->id,
+                'customer_id' => $customer->id
+            ]);
+        } catch (\Exception $createError) {
+            Log::error('Error creating Facturapi customer', [
+                'cliente_id' => $cliente->id,
+                'error' => $createError->getMessage(),
+                'trace' => $createError->getTraceAsString()
+            ]);
+            // No lanzar excepción, permitir que el cliente se guarde sin sincronización
         }
     }
 
@@ -915,5 +1080,40 @@ class ClienteController extends Controller
             }
         }
         return false;
+    }
+
+    /**
+     * Verificar si el cliente tiene relaciones activas que impidan su eliminación
+     */
+    private function verificarRelacionesCliente(Cliente $cliente): array
+    {
+        $relaciones = [];
+
+        // Verificar cotizaciones (cualquier estado, incluyendo eliminadas)
+        if ($cliente->cotizaciones()->count() > 0) {
+            $relaciones[] = 'cotizaciones';
+        }
+
+        // Verificar ventas (cualquier estado, incluyendo eliminadas)
+        if ($cliente->ventas()->count() > 0) {
+            $relaciones[] = 'ventas';
+        }
+
+        // Verificar pedidos (cualquier estado, incluyendo eliminados)
+        if ($cliente->pedidos()->count() > 0) {
+            $relaciones[] = 'pedidos';
+        }
+
+        // Verificar facturas (cualquier factura emitida)
+        if ($cliente->facturas()->count() > 0) {
+            $relaciones[] = 'facturas emitidas';
+        }
+
+        // Verificar rentas (cualquier estado, incluyendo eliminadas)
+        if ($cliente->rentas()->count() > 0) {
+            $relaciones[] = 'rentas';
+        }
+
+        return $relaciones;
     }
 }
