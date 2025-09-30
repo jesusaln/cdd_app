@@ -5,52 +5,88 @@ namespace App\Services;
 use App\Models\InventarioMovimiento;
 use App\Models\Producto;
 use App\Models\User;
+use Illuminate\Database\DatabaseManager;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
+use RuntimeException;
 
 class InventarioService
 {
-    /**
-     * Registra un movimiento de inventario y ajusta el stock del producto.
-     *
-     * @param Producto $producto
-     * @param string $tipo 'entrada' o 'salida'
-     * @param int $cantidad
-     * @param string $motivo
-     * @param string|null $referencia
-     * @param int $userId
-     * @param array|null $metadatos
-     * @return InventarioMovimiento
-     */
-    public function registrarMovimiento(
-        Producto $producto,
-        string $tipo,
-        int $cantidad,
-        string $motivo,
-        ?string $referencia = null,
-        int $userId,
-        ?array $metadatos = null
-    ): InventarioMovimiento {
-        return DB::transaction(function () use ($producto, $tipo, $cantidad, $motivo, $referencia, $userId, $metadatos) {
-            // Crear el movimiento
-            $movimiento = InventarioMovimiento::create([
+    public function __construct(private readonly DatabaseManager $db)
+    {
+    }
+
+    public function entrada(Producto $producto, int $cantidad, array $contexto = []): InventarioMovimiento
+    {
+        return $this->ajustar($producto, InventarioMovimiento::TIPO_ENTRADA, $cantidad, $contexto);
+    }
+
+    public function salida(Producto $producto, int $cantidad, array $contexto = []): InventarioMovimiento
+    {
+        return $this->ajustar($producto, InventarioMovimiento::TIPO_SALIDA, $cantidad, $contexto);
+    }
+
+    protected function ajustar(Producto $producto, string $tipo, int $cantidad, array $contexto = []): InventarioMovimiento
+    {
+        if (!in_array($tipo, [InventarioMovimiento::TIPO_ENTRADA, InventarioMovimiento::TIPO_SALIDA], true)) {
+            throw new InvalidArgumentException('Tipo de movimiento inválido.');
+        }
+
+        if ($cantidad <= 0) {
+            throw new InvalidArgumentException('La cantidad del movimiento debe ser mayor que cero.');
+        }
+
+        return $this->db->transaction(function () use ($producto, $tipo, $cantidad, $contexto) {
+            $producto->refresh();
+            $stockAnterior = (int) $producto->stock;
+
+            $nuevoStock = $stockAnterior;
+            if ($tipo === InventarioMovimiento::TIPO_ENTRADA) {
+                $nuevoStock = $stockAnterior + $cantidad;
+            } else {
+                $nuevoStock = $stockAnterior - $cantidad;
+                if ($nuevoStock < 0) {
+                    throw new RuntimeException("Stock insuficiente para el producto '{$producto->nombre}'.");
+                }
+            }
+
+            $producto->forceFill(['stock' => $nuevoStock])->save();
+
+            $referencia = Arr::get($contexto, 'referencia');
+            $userId = Arr::get($contexto, 'user_id');
+            if (!$userId && $this->usuarioAutenticado()) {
+                $userId = Auth::id();
+            }
+
+            $movimientoData = [
                 'producto_id' => $producto->id,
                 'tipo' => $tipo,
                 'cantidad' => $cantidad,
-                'motivo' => $motivo,
-                'referencia' => $referencia,
+                'stock_anterior' => $stockAnterior,
+                'stock_posterior' => $nuevoStock,
+                'motivo' => Arr::get($contexto, 'motivo'),
                 'user_id' => $userId,
-                'metadatos' => $metadatos,
-            ]);
+                'detalles' => Arr::get($contexto, 'detalles'),
+            ];
 
-            // Ajustar el stock del producto
-            if ($tipo === 'entrada') {
-                $producto->increment('stock', $cantidad);
-            } elseif ($tipo === 'salida') {
-                $producto->decrement('stock', $cantidad);
+            if ($referencia) {
+                $movimientoData['referencia_type'] = get_class($referencia);
+                $movimientoData['referencia_id'] = $referencia->getKey();
             }
 
-            return $movimiento;
+            return InventarioMovimiento::create($movimientoData);
         });
+    }
+
+    protected function usuarioAutenticado(): bool
+    {
+        try {
+            return Auth::check();
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     /**

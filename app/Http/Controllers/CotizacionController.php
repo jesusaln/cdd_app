@@ -10,14 +10,14 @@ use App\Models\Venta;
 use App\Enums\EstadoPedido;
 use App\Models\Cliente;
 use App\Models\Producto;
-use App\Models\Servicio;
-use App\Models\CotizacionItem;
 use App\Enums\EstadoCotizacion;
-use App\Services\MarginService;
-use App\Services\InventarioService;
+use App\Models\CotizacionItem;
+use App\Models\Servicio;
 use App\Models\SatEstado;
 use App\Models\SatRegimenFiscal;
 use App\Models\SatUsoCfdi;
+use App\Services\InventarioService;
+use App\Services\MarginService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -77,7 +77,7 @@ class CotizacionController extends Controller
 
                     // Fechas
                     'fecha'       => optional($cotizacion->created_at)->format('Y-m-d'),
-                    'created_at'  => $createdAtIso,   // ← “nunca modificar” (ISO)
+                    'created_at'  => $createdAtIso,   // ← "nunca modificar" (ISO)
                     'updated_at'  => $updatedAtIso,
 
                     // Cliente
@@ -130,7 +130,6 @@ class CotizacionController extends Controller
             'filters' => request()->only(['search', 'estado', 'fecha_inicio', 'fecha_fin']),
         ]);
     }
-
 
     /**
      * Show the form for creating a new resource.
@@ -543,7 +542,6 @@ class CotizacionController extends Controller
         return Redirect::route('cotizaciones.index')->with('success', $mensajeExito);
     }
 
-
     /**
      * Cancel the specified resource (soft cancel).
      */
@@ -615,18 +613,16 @@ class CotizacionController extends Controller
                         'precio' => $item->precio,
                     ]);
 
-                    // Registrar salida de inventario por conversión de cotización a venta
-                    $producto = Producto::find($id);
-                    if ($producto) {
-                        $this->inventarioService->registrarMovimiento(
-                            $producto,
-                            'salida',
-                            $item->cantidad,
-                            'Venta directa desde cotización',
-                            'Cotización #' . $cotizacion->id . ' → Venta #' . $venta->id,
-                            Auth::id(),
-                            ['cotizacion_id' => $cotizacion->id, 'venta_id' => $venta->id]
-                        );
+                    $productoVenta = Producto::find($id);
+                    if ($productoVenta) {
+                        app(InventarioService::class)->salida($productoVenta, $item->cantidad, [
+                            'motivo' => 'Conversión de cotización a venta',
+                            'referencia' => $venta,
+                            'detalles' => [
+                                'cotizacion_id' => $cotizacion->id,
+                                'cotizacion_item_id' => $item->id,
+                            ],
+                        ]);
                     }
                 } elseif ($class === Servicio::class) {
                     $venta->servicios()->attach($id, [
@@ -645,7 +641,6 @@ class CotizacionController extends Controller
             return Redirect::back()->with('error', 'Error al crear la venta');
         }
     }
-
 
     /**
      * Duplicar una cotización.
@@ -698,7 +693,6 @@ class CotizacionController extends Controller
         }
     }
 
-
     /**
      * Genera un numero_cotizacion único secuencial evitando colisiones.
      */
@@ -727,7 +721,6 @@ class CotizacionController extends Controller
         return $numero;
     }
 
-
     /**
      * Enviar a Pedido.
      * (Nota: la unificación completa de pivots se atiende en el paso #8)
@@ -754,7 +747,6 @@ class CotizacionController extends Controller
                     'requiere_confirmacion' => false
                 ], 400);
             }
-
 
             // Validar items
             if ($cotizacion->items->isEmpty()) {
@@ -821,15 +813,14 @@ class CotizacionController extends Controller
                         $producto->increment('reservado', $item->cantidad);
 
                         // Registrar movimiento de reserva por conversión de cotización a pedido
-                        $this->inventarioService->registrarMovimiento(
-                            $producto,
-                            'entrada', // Usamos entrada pero con motivo especial de reserva
-                            $item->cantidad,
-                            'Reserva automática por conversión cotización a pedido',
-                            'Cotización #' . $cotizacion->id . ' → Pedido #' . $pedido->id,
-                            Auth::id(),
-                            ['cotizacion_id' => $cotizacion->id, 'pedido_id' => $pedido->id, 'tipo_operacion' => 'reserva_automatica']
-                        );
+                        $this->inventarioService->entrada($producto, $item->cantidad, [
+                            'motivo' => 'Reserva automática por conversión cotización a pedido',
+                            'referencia' => $pedido,
+                            'detalles' => [
+                                'cotizacion_id' => $cotizacion->id,
+                                'tipo_operacion' => 'reserva_automatica'
+                            ],
+                        ]);
 
                         Log::info("Inventario reservado automáticamente al enviar cotización a pedido", [
                             'producto_id' => $producto->id,

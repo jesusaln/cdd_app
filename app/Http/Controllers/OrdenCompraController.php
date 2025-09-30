@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\OrdenCompra;
-use App\Models\Proveedor;
-use App\Models\Producto;
-use App\Models\Compra; // <-- Importa el modelo Compra aquí
 use App\Enums\EstadoCompra;
-use App\Mail\OrdenCompraEnviada;
+use App\Models\Compra; // <-- Importa el modelo Compra aquí
+use App\Models\OrdenCompra;
+use App\Models\Producto;
+use App\Models\Proveedor;
 use App\Services\InventarioService;
+use App\Mail\OrdenCompraEnviada;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
@@ -19,11 +19,8 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 class OrdenCompraController extends Controller
 {
-    private InventarioService $inventarioService;
-
-    public function __construct(InventarioService $inventarioService)
+    public function __construct(private readonly InventarioService $inventarioService)
     {
-        $this->inventarioService = $inventarioService;
     }
 
     /**
@@ -243,7 +240,6 @@ class OrdenCompraController extends Controller
             ],
         ]);
     }
-
 
     /**
      * Muestra el formulario para crear una nueva orden de compra.
@@ -715,16 +711,16 @@ class OrdenCompraController extends Controller
                     // Obtener unidad de medida del pivot o del modelo producto
                     $unidadMedida = $producto->pivot->unidad_medida ?? $prodModel->unidad_medida ?? '';
 
-                    // Registrar entrada de inventario por recepción de orden de compra
-                    $this->inventarioService->registrarMovimiento(
-                        $prodModel,
-                        'entrada',
-                        $cantidadRecibida,
-                        'Recepción de orden de compra',
-                        'Orden #' . $ordenCompra->id,
-                        Auth::id(),
-                        ['orden_compra_id' => $ordenCompra->id]
-                    );
+                    // Actualizar el stock del producto con registro de movimiento
+                    $this->inventarioService->entrada($prodModel, $cantidadRecibida, [
+                        'motivo' => 'Recepción de orden de compra',
+                        'referencia' => $ordenCompra,
+                        'detalles' => [
+                            'orden_compra_id' => $ordenCompra->id,
+                            'precio_unitario' => $precioUnitario,
+                            'unidad_medida' => $unidadMedida,
+                        ],
+                    ]);
 
                     $productosParaCompra[$producto->id] = [
                         'cantidad' => $cantidadRecibida,
@@ -955,7 +951,6 @@ class OrdenCompraController extends Controller
         }
     }
 
-
     /**
      * Cancela una orden de compra y revierte el inventario si es necesario
      *
@@ -983,16 +978,14 @@ class OrdenCompraController extends Controller
                         $cantidadARevertir = (int) $producto->pivot->cantidad;
                         $prodModel = Producto::find($producto->id);
                         if ($prodModel) {
-                            // Registrar salida por cancelación de orden de compra
-                            $this->inventarioService->registrarMovimiento(
-                                $prodModel,
-                                'salida',
-                                $cantidadARevertir,
-                                'Cancelación de orden de compra',
-                                'Orden #' . $ordenCompra->id,
-                                Auth::id(),
-                                ['orden_compra_id' => $ordenCompra->id, 'tipo_ajuste' => 'cancelacion']
-                            );
+                            // Decrementar el stock (revertir el incremento que se hizo al recibir mercancía)
+                            $this->inventarioService->salida($prodModel, $cantidadARevertir, [
+                                'motivo' => 'Cancelación de orden de compra convertida',
+                                'referencia' => $ordenCompra,
+                                'detalles' => [
+                                    'orden_compra_id' => $ordenCompra->id,
+                                ],
+                            ]);
                             Log::info("Stock revertido para producto ID {$producto->id}: -{$cantidadARevertir}");
                         }
                     }

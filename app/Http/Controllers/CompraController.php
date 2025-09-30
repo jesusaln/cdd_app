@@ -2,27 +2,23 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\EstadoCompra;
 use App\Models\Compra;
 use App\Models\CompraItem;
-use App\Models\Proveedor;
 use App\Models\Producto;
-use App\Enums\EstadoCompra;
+use App\Models\Proveedor;
 use App\Services\InventarioService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redirect;
 use Inertia\Inertia;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 class CompraController extends Controller
 {
-    private InventarioService $inventarioService;
-
-    public function __construct(InventarioService $inventarioService)
+    public function __construct(private readonly InventarioService $inventarioService)
     {
-        $this->inventarioService = $inventarioService;
     }
 
     public function index(Request $request)
@@ -231,16 +227,16 @@ class CompraController extends Controller
                 $descuentoMonto = $subtotal * ($descuento / 100);
                 $subtotalFinal = $subtotal - $descuentoMonto;
 
-                // Registrar entrada de inventario
-                $this->inventarioService->registrarMovimiento(
-                    $producto,
-                    'entrada',
-                    $cantidad,
-                    'Compra procesada',
-                    'Compra #' . $compra->id,
-                    Auth::id(),
-                    ['compra_id' => $compra->id]
-                );
+                // Aumentar stock automáticamente al crear la compra
+                $this->inventarioService->entrada($producto, $cantidad, [
+                    'motivo' => 'Compra procesada',
+                    'referencia' => $compra,
+                    'detalles' => [
+                        'precio_unitario' => $precio,
+                        'descuento' => $descuento,
+                        'subtotal' => $subtotalFinal,
+                    ],
+                ]);
 
                 CompraItem::create([
                     'compra_id' => $compra->id,
@@ -348,16 +344,14 @@ class CompraController extends Controller
                 if (!$producto) {
                     throw new \Exception("Producto con ID {$item->comprable_id} no encontrado");
                 }
-                // Registrar salida por ajuste de compra
-                $this->inventarioService->registrarMovimiento(
-                    $producto,
-                    'salida',
-                    $item->cantidad,
-                    'Ajuste por edición de compra',
-                    'Compra #' . $compra->id,
-                    Auth::id(),
-                    ['compra_id' => $compra->id, 'tipo_ajuste' => 'edicion']
-                );
+
+                $this->inventarioService->salida($producto, $item->cantidad, [
+                    'motivo' => 'Edición de compra: reversa de stock previo',
+                    'referencia' => $compra,
+                    'detalles' => [
+                        'compra_item_id' => $item->id,
+                    ],
+                ]);
             }
 
             // Calcular totales con descuentos
@@ -401,16 +395,16 @@ class CompraController extends Controller
             // Crear items nuevos y agregar al stock
             foreach ($validatedData['productos'] as $productoData) {
                 $producto = Producto::findOrFail($productoData['id']);
-                // Registrar entrada por nueva cantidad en compra editada
-                $this->inventarioService->registrarMovimiento(
-                    $producto,
-                    'entrada',
-                    $productoData['cantidad'],
-                    'Compra editada - nueva cantidad',
-                    'Compra #' . $compra->id,
-                    Auth::id(),
-                    ['compra_id' => $compra->id, 'tipo_ajuste' => 'edicion']
-                );
+
+                $this->inventarioService->entrada($producto, $productoData['cantidad'], [
+                    'motivo' => 'Edición de compra: stock actualizado',
+                    'referencia' => $compra,
+                    'detalles' => [
+                        'producto_id' => $productoData['id'],
+                        'precio_unitario' => $productoData['precio'],
+                        'descuento' => $productoData['descuento'] ?? 0,
+                    ],
+                ]);
 
                 $cantidad = $productoData['cantidad'];
                 $precio = $productoData['precio'];
@@ -481,16 +475,15 @@ class CompraController extends Controller
             // Disminuir inventario de todos los productos
             foreach ($compraItems as $item) {
                 $producto = Producto::find($item->comprable_id);
-                // Registrar salida por cancelación de compra
-                $this->inventarioService->registrarMovimiento(
-                    $producto,
-                    'salida',
-                    $item->cantidad,
-                    'Cancelación de compra',
-                    'Compra #' . $compra->id,
-                    Auth::id(),
-                    ['compra_id' => $compra->id, 'tipo_ajuste' => 'cancelacion']
-                );
+                if ($producto) {
+                    $this->inventarioService->salida($producto, $item->cantidad, [
+                        'motivo' => 'Cancelación de compra',
+                        'referencia' => $compra,
+                        'detalles' => [
+                            'compra_item_id' => $item->id,
+                        ],
+                    ]);
+                }
             }
 
             // Cambiar estado a cancelado
@@ -518,7 +511,6 @@ class CompraController extends Controller
 
         return Redirect::route('compras.index')->with('success', $mensaje);
     }
-
 
     public function destroy($id)
     {
