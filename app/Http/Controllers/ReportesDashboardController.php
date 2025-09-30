@@ -164,10 +164,13 @@ class ReportesDashboardController extends Controller
     public function indexTabs(Request $request)
     {
         // Obtener datos para las tabs
-        $ventas = Venta::with(['cliente', 'productos'])->get();
+        $ventas = Venta::with(['cliente', 'productos'])->get()->map(function ($venta) {
+            $venta->costo_total = $venta->calcularCostoTotal();
+            return $venta;
+        });
         $compras = Compra::with(['proveedor', 'productos'])->get();
         $inventario = Producto::with('categoria')->get();
-        $movimientos = []; // Aquí irían los movimientos de inventario
+        $movimientos = \App\Models\InventarioMovimiento::with(['producto', 'user'])->latest()->get();
 
         return Inertia::render('Reportes/Index', [
             'reportesVentas' => $ventas,

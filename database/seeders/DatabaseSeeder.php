@@ -9,32 +9,49 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            // 1) Catálogos base, PERO primero los SAT
+            // 1) Catálogos base
             RolesAndPermissionsSeeder::class,
             AlmacenSeeder::class,
             MarcaSeeder::class,
             CategoriaSeeder::class,
             ServicioSeeder::class,
-            ProveedorSeeder::class,
 
             // ✅ SAT primero (necesarios para clientes)
             SatRegimenesFiscalesSeeder::class,
             SatUsosCfdiSeeder::class,
             SatEstadosSeeder::class,
 
-            // 2) Ahora sí, dependientes
+            // 2) Proveedores (necesarios para compras)
+            ProveedorSeeder::class,
+
+            // 3) Compras (crean productos automáticamente)
+            CompraSeeder::class,
+
+            // 4) Clientes (para cotizaciones y ventas)
             ClienteSeeder::class,
-            ProductoSeeder::class,
-            OrdenCompraSeeder::class,
+
+            // 5) Técnicos (para asignaciones)
             TecnicoSeeder::class,
-            HerramientaSeeder::class,
-            EquipoSeeder::class,
-            CarroSeeder::class,
-            CitaSeeder::class,
+
+            // 6) Cotizaciones y pedidos (basados en productos existentes)
             CotizacionSeeder::class,
             CotizacionItemSeeder::class,
 
-            // 3) Datos que referencian usuarios/clientes/etc.
+            // 7) Órdenes de compra (pueden crear compras)
+            OrdenCompraSeeder::class,
+
+            // 8) Herramientas y equipos
+            HerramientaSeeder::class,
+            EquipoSeeder::class,
+
+            // 9) Carros y mantenimientos
+            CarroSeeder::class,
+            CitaSeeder::class,
+
+            // 10) Ventas (basadas en productos existentes)
+            VentaSeeder::class,
+
+            // 11) Datos que referencian usuarios/clientes/etc.
             BitacoraActividadSeeder::class,
         ]);
     }
