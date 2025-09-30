@@ -2,13 +2,18 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Models\Venta;
 use App\Http\Controllers\Controller;
+use App\Models\Venta;
+use App\Services\InventarioService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class VentaController extends Controller
 {
+    public function __construct(private readonly InventarioService $inventarioService)
+    {
+    }
+
     /**
      * Muestra una lista de todas las ventas en formato JSON.
      */
@@ -163,7 +168,14 @@ class VentaController extends Controller
                     // Descontar stock
                     $productoModel = \App\Models\Producto::find($item['id']);
                     if ($productoModel) {
-                        $productoModel->decrement('stock', $item['cantidad']);
+                        $this->inventarioService->salida($productoModel, $item['cantidad'], [
+                            'motivo' => 'Venta API creada',
+                            'referencia' => $venta,
+                            'detalles' => [
+                                'payload' => $item,
+                                'fuente' => 'api.ventas.store',
+                            ],
+                        ]);
                     }
                 } elseif ($item['tipo'] === 'servicio') {
                     $servicios[$item['id']] = [
@@ -202,7 +214,14 @@ class VentaController extends Controller
             // Revertir stock de productos previos
             foreach ($venta->productos as $producto) {
                 $pivot = $venta->productos()->where('producto_id', $producto->id)->first()->pivot;
-                $producto->increment('stock', $pivot->cantidad);
+                $this->inventarioService->entrada($producto, $pivot->cantidad, [
+                    'motivo' => 'Actualización de venta API (reversión)',
+                    'referencia' => $venta,
+                    'detalles' => [
+                        'fuente' => 'api.ventas.update',
+                        'producto_id' => $producto->id,
+                    ],
+                ]);
             }
 
             // Actualizar campos principales
@@ -230,7 +249,14 @@ class VentaController extends Controller
                         // Descontar stock
                         $productoModel = \App\Models\Producto::find($item['id']);
                         if ($productoModel) {
-                            $productoModel->decrement('stock', $item['cantidad']);
+                            $this->inventarioService->salida($productoModel, $item['cantidad'], [
+                                'motivo' => 'Actualización de venta API (aplicación)',
+                                'referencia' => $venta,
+                                'detalles' => [
+                                    'fuente' => 'api.ventas.update',
+                                    'payload' => $item,
+                                ],
+                            ]);
                         }
                     } elseif ($item['tipo'] === 'servicio') {
                         $servicios[$item['id']] = [
@@ -260,7 +286,14 @@ class VentaController extends Controller
             // Revertir stock de productos
             foreach ($venta->productos as $producto) {
                 $pivot = $venta->productos()->where('producto_id', $producto->id)->first()->pivot;
-                $producto->increment('stock', $pivot->cantidad);
+                $this->inventarioService->entrada($producto, $pivot->cantidad, [
+                    'motivo' => 'Eliminación de venta API',
+                    'referencia' => $venta,
+                    'detalles' => [
+                        'fuente' => 'api.ventas.destroy',
+                        'producto_id' => $producto->id,
+                    ],
+                ]);
             }
 
             $venta->productos()->detach();

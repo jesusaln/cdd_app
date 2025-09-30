@@ -2,16 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Pedido;
-use App\Models\PedidoItem;
-use App\Models\Cliente;
-use App\Models\Venta;
-use App\Models\VentaItem;
-use App\Models\Producto;
-use App\Models\Servicio;
+use App\Enums\EstadoCotizacion;
 use App\Enums\EstadoPedido;
 use App\Enums\EstadoVenta;
-use App\Enums\EstadoCotizacion;
+use App\Models\Cliente;
+use App\Models\Pedido;
+use App\Models\PedidoItem;
+use App\Models\Producto;
+use App\Models\Servicio;
+use App\Models\Venta;
+use App\Models\VentaItem;
+use App\Services\InventarioService;
 use App\Services\MarginService;
 use App\Models\SatEstado;
 use App\Models\SatRegimenFiscal;
@@ -27,6 +28,10 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 class PedidoController extends Controller
 {
     use AuthorizesRequests;
+
+    public function __construct(private readonly InventarioService $inventarioService)
+    {
+    }
 
     /**
      * Display a listing of the resource.
@@ -880,7 +885,7 @@ class PedidoController extends Controller
 
             // Copiar ítems del pedido a la venta y DESCONTAR INVENTARIO
             foreach ($pedido->items as $item) {
-                VentaItem::create([
+                $ventaItem = VentaItem::create([
                     'venta_id' => $venta->id,
                     'ventable_id' => $item->pedible_id,     // ← unificado con VentaController
                     'ventable_type' => $item->pedible_type, // ← unificado con VentaController
@@ -915,7 +920,17 @@ class PedidoController extends Controller
                             $producto->decrement('reservado', $consumirReserva);
                             $cantidadRestante -= $consumirReserva;
 
-                            $producto->decrement('stock', $cantidadRestante);
+                            $stockAnterior = $producto->stock;
+                            $this->inventarioService->salida($producto, $cantidadRestante, [
+                                'motivo' => 'Conversión de pedido a venta',
+                                'referencia' => $venta,
+                                'detalles' => [
+                                    'pedido_id' => $pedido->id,
+                                    'pedido_item_id' => $item->id,
+                                    'venta_item_id' => $ventaItem->id,
+                                    'reserva_consumida' => $consumirReserva,
+                                ],
+                            ]);
                             Log::info("Reserva parcial y stock reducido para producto {$producto->id} (pedido → venta)", [
                                 'producto_id' => $producto->id,
                                 'pedido_id' => $pedido->id,
@@ -923,6 +938,7 @@ class PedidoController extends Controller
                                 'reserva_consumida' => $consumirReserva,
                                 'stock_reducido' => $cantidadRestante,
                                 'reservado_actual' => $producto->reservado,
+                                'stock_anterior' => $stockAnterior,
                                 'stock_actual' => $producto->stock
                             ]);
                         }

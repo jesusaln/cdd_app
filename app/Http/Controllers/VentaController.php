@@ -2,14 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Venta;
-use App\Models\VentaItem;
+use App\Enums\EstadoVenta;
 use App\Models\Cliente;
 use App\Models\Producto;
 use App\Models\Servicio;
-use App\Models\User;
 use App\Models\Tecnico;
-use App\Enums\EstadoVenta;
+use App\Models\User;
+use App\Models\Venta;
+use App\Models\VentaItem;
+use App\Services\InventarioService;
 use App\Services\MarginService;
 use App\Models\SatEstado;
 use App\Models\SatRegimenFiscal;
@@ -24,6 +25,10 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 class VentaController extends Controller
 {
     use AuthorizesRequests;
+
+    public function __construct(private readonly InventarioService $inventarioService)
+    {
+    }
 
     /**
      * Display a listing of the resource.
@@ -262,7 +267,7 @@ class VentaController extends Controller
                 $subtotalItem = $item['cantidad'] * $item['precio'];
                 $descuentoMontoItem = $subtotalItem * ($item['descuento'] / 100);
 
-                VentaItem::create([
+                $ventaItem = VentaItem::create([
                     'venta_id' => $venta->id,
                     'ventable_id' => $item['id'],
                     'ventable_type' => $class,
@@ -294,12 +299,22 @@ class VentaController extends Controller
 
                     // Si queda cantidad por consumir, reducir stock físico
                     if ($cantidadRestante > 0) {
-                        $modelo->decrement('stock', $cantidadRestante);
+                        $stockAnterior = $modelo->stock;
+                        $this->inventarioService->salida($modelo, $cantidadRestante, [
+                            'motivo' => 'Venta creada',
+                            'referencia' => $venta,
+                            'detalles' => [
+                                'venta_item_id' => $ventaItem->id,
+                                'cantidad_total' => $item['cantidad'],
+                                'reservado_consumido' => $item['cantidad'] - $cantidadRestante,
+                            ],
+                        ]);
+
                         Log::info("Stock reducido para producto {$modelo->id}", [
                             'producto_id' => $modelo->id,
                             'cantidad_reducida' => $cantidadRestante,
-                            'stock_anterior' => $modelo->stock + $cantidadRestante,
-                            'stock_actual' => $modelo->stock
+                            'stock_anterior' => $stockAnterior,
+                            'stock_actual' => $modelo->stock,
                         ]);
                     }
                 }
@@ -692,12 +707,19 @@ class VentaController extends Controller
                     if ($producto) {
                         if ($venta->pagado) {
                             // Si la venta estaba pagada, devolver al stock físico
-                            $producto->increment('stock', $item->cantidad);
+                            $stockAnterior = $producto->stock;
+                            $this->inventarioService->entrada($producto, $item->cantidad, [
+                                'motivo' => 'Cancelación de venta pagada',
+                                'referencia' => $venta,
+                                'detalles' => [
+                                    'venta_item_id' => $item->id,
+                                ],
+                            ]);
                             Log::info("Stock devuelto para producto {$producto->id} (venta pagada cancelada)", [
                                 'producto_id' => $producto->id,
                                 'venta_id' => $venta->id,
                                 'cantidad_devuelta' => $item->cantidad,
-                                'stock_anterior' => $producto->stock - $item->cantidad,
+                                'stock_anterior' => $stockAnterior,
                                 'stock_actual' => $producto->stock
                             ]);
                         } else {
