@@ -10,13 +10,14 @@ use App\Models\Venta;
 use App\Enums\EstadoPedido;
 use App\Models\Cliente;
 use App\Models\Producto;
-use App\Models\Servicio;
-use App\Models\CotizacionItem;
 use App\Enums\EstadoCotizacion;
-use App\Services\MarginService;
+use App\Models\CotizacionItem;
+use App\Models\Servicio;
 use App\Models\SatEstado;
 use App\Models\SatRegimenFiscal;
 use App\Models\SatUsoCfdi;
+use App\Services\InventarioService;
+use App\Services\MarginService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -606,7 +607,17 @@ class CotizacionController extends Controller
                         'cantidad' => $item->cantidad,
                         'precio' => $item->precio,
                     ]);
-                    Producto::find($id)?->decrement('stock', $item->cantidad);
+                    $productoVenta = Producto::find($id);
+                    if ($productoVenta) {
+                        app(InventarioService::class)->salida($productoVenta, $item->cantidad, [
+                            'motivo' => 'Conversión de cotización a venta',
+                            'referencia' => $venta,
+                            'detalles' => [
+                                'cotizacion_id' => $cotizacion->id,
+                                'cotizacion_item_id' => $item->id,
+                            ],
+                        ]);
+                    }
                 } elseif ($class === Servicio::class) {
                     $venta->servicios()->attach($id, [
                         'cantidad' => $item->cantidad,

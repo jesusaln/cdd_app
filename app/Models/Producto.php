@@ -83,6 +83,12 @@ class Producto extends Model
         return $this->hasMany(Inventario::class);
     }
 
+    /** @return HasMany<InventarioMovimiento> */
+    public function movimientos(): HasMany
+    {
+        return $this->hasMany(InventarioMovimiento::class);
+    }
+
     /* =========================================================================
      * Relaciones polimórficas UNIFICADAS a *items (coinciden con tus controladores)
      * ========================================================================= */

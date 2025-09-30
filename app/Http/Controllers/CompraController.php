@@ -2,21 +2,24 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\EstadoCompra;
 use App\Models\Compra;
 use App\Models\CompraItem;
-use App\Models\Proveedor;
 use App\Models\Producto;
-use App\Enums\EstadoCompra;
+use App\Models\Proveedor;
+use App\Services\InventarioService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Inertia\Inertia;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 class CompraController extends Controller
 {
+    public function __construct(private readonly InventarioService $inventarioService)
+    {
+    }
+
     public function index(Request $request)
     {
         $perPage = (int) ($request->integer('per_page') ?: 10);
@@ -224,8 +227,15 @@ class CompraController extends Controller
                 $subtotalFinal = $subtotal - $descuentoMonto;
 
                 // Aumentar stock automáticamente al crear la compra
-                $producto->stock += $cantidad;
-                $producto->save();
+                $this->inventarioService->entrada($producto, $cantidad, [
+                    'motivo' => 'Compra procesada',
+                    'referencia' => $compra,
+                    'detalles' => [
+                        'precio_unitario' => $precio,
+                        'descuento' => $descuento,
+                        'subtotal' => $subtotalFinal,
+                    ],
+                ]);
 
                 CompraItem::create([
                     'compra_id' => $compra->id,
@@ -330,11 +340,14 @@ class CompraController extends Controller
                 if (!$producto) {
                     throw new \Exception("Producto con ID {$item->comprable_id} no encontrado");
                 }
-                $producto->stock -= $item->cantidad;
-                if ($producto->stock < 0) {
-                    throw new \Exception("El stock del producto '{$producto->nombre}' no puede ser negativo.");
-                }
-                $producto->save();
+
+                $this->inventarioService->salida($producto, $item->cantidad, [
+                    'motivo' => 'Edición de compra: reversa de stock previo',
+                    'referencia' => $compra,
+                    'detalles' => [
+                        'compra_item_id' => $item->id,
+                    ],
+                ]);
             }
 
             // Calcular totales con descuentos
@@ -378,8 +391,15 @@ class CompraController extends Controller
             // Crear items nuevos y agregar al stock
             foreach ($validatedData['productos'] as $productoData) {
                 $producto = Producto::findOrFail($productoData['id']);
-                $producto->stock += $productoData['cantidad'];
-                $producto->save();
+                $this->inventarioService->entrada($producto, $productoData['cantidad'], [
+                    'motivo' => 'Edición de compra: stock actualizado',
+                    'referencia' => $compra,
+                    'detalles' => [
+                        'producto_id' => $productoData['id'],
+                        'precio_unitario' => $productoData['precio'],
+                        'descuento' => $productoData['descuento'] ?? 0,
+                    ],
+                ]);
 
                 $cantidad = $productoData['cantidad'];
                 $precio = $productoData['precio'];
@@ -450,8 +470,15 @@ class CompraController extends Controller
             // Disminuir inventario de todos los productos
             foreach ($compraItems as $item) {
                 $producto = Producto::find($item->comprable_id);
-                $producto->stock -= $item->cantidad;
-                $producto->save();
+                if ($producto) {
+                    $this->inventarioService->salida($producto, $item->cantidad, [
+                        'motivo' => 'Cancelación de compra',
+                        'referencia' => $compra,
+                        'detalles' => [
+                            'compra_item_id' => $item->id,
+                        ],
+                    ]);
+                }
             }
 
             // Cambiar estado a cancelado
