@@ -80,6 +80,7 @@ class ReportesDashboardController extends Controller
                 'reportes' => [
                     ['nombre' => 'Productos en Stock', 'ruta' => 'reportes.inventario', 'icono' => 'fas fa-warehouse'],
                     ['nombre' => 'Productos Bajos', 'ruta' => 'reportes.inventario', 'icono' => 'fas fa-exclamation-triangle'],
+                    ['nombre' => 'Movimientos Inventario', 'url' => '/reportes?tab=movimientos', 'icono' => 'fas fa-exchange-alt'],
                 ],
                 'estadisticas' => [
                     'total_productos' => $estadisticasGenerales['inventario']['total_productos'],
@@ -154,12 +155,30 @@ class ReportesDashboardController extends Controller
             ],
         ];
 
-        return Inertia::render('Reportes/Dashboard', [
-            'categorias' => $categorias,
-            'periodo' => $periodo,
-            'fecha_inicio' => $fechaInicio->format('Y-m-d'),
-            'fecha_fin' => $fechaFin->format('Y-m-d'),
-            'periodo_label' => $this->obtenerLabelPeriodo($periodo),
+        return Inertia::render('Reportes/Dashboard');
+    }
+
+    /**
+     * Mostrar el centro de reportes con tabs
+     */
+    public function indexTabs(Request $request)
+    {
+        // Obtener datos para las tabs
+        $ventas = Venta::with(['cliente', 'productos'])->get();
+        $compras = Compra::with(['proveedor', 'productos'])->get();
+        $inventario = Producto::with('categoria')->get();
+        $movimientos = []; // Aquí irían los movimientos de inventario
+
+        return Inertia::render('Reportes/Index', [
+            'reportesVentas' => $ventas,
+            'corteVentas' => $ventas->sum('total'),
+            'utilidadVentas' => $ventas->sum(function ($venta) {
+                return $venta->total - $venta->calcularCostoTotal();
+            }),
+            'reportesCompras' => $compras,
+            'totalCompras' => $compras->sum('total'),
+            'inventario' => $inventario,
+            'movimientosInventario' => $movimientos,
         ]);
     }
 

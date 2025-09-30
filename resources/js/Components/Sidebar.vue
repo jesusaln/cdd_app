@@ -59,9 +59,12 @@
             <NavLink href="/panel" icon="tachometer-alt" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Panel' : null">
               Panel
             </NavLink>
-            <NavLink href="/reportes" icon="chart-bar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Reportes Largos' : null">
-              Reportes
-            </NavLink>
+            <!-- Reportes - Menú expandido -->
+            <div class="space-y-1">
+              <NavLink href="/reportes/dashboard" icon="chart-bar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Centro de Reportes' : null">
+                Centro de Reportes
+              </NavLink>
+            </div>
           </ul>
         </div>
 

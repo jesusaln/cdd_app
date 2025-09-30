@@ -80,7 +80,12 @@ import {
   faPlay,              // 👈 NUEVO (Reactivar)
   faClipboardList,     // Añadir clipboard-list
   faArrowRight,        // Añadir arrow-right
-  faArrowLeft          // Añadir arrow-left
+  faArrowLeft,         // Añadir arrow-left
+  // Íconos faltantes para sidebar reportes
+  faHandshake,         // 👈 NUEVO (handshake)
+  faChartLine,          // 👈 NUEVO (chart-line)
+  faHistory,           // 👈 NUEVO (history)
+  faMoneyBillWave      // 👈 NUEVO (money-bill-wave)
 } from '@fortawesome/free-solid-svg-icons'
 // Agrega todos los íconos necesarios a la librería
 library.add(
@@ -106,7 +111,11 @@ library.add(
   faShoppingCart,      // shopping-cart
   faClock,             // clock
   faFileText,          // document-text
-  faFile               // document
+  faFile,              // document
+  faHandshake,         // handshake
+  faChartLine,          // chart-line
+  faHistory,           // history
+  faMoneyBillWave      // money-bill-wave
 )
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel'
 // Mejor práctica: desactivar devtools en producción

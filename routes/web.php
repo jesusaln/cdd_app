@@ -173,36 +173,39 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
 // RUTAS DE REPORTES ORGANIZADAS
 // =====================================================
 
-// Dashboard principal de reportes
-Route::get('/reportes', [ReportesDashboardController::class, 'index'])->name('reportes.index');
+// Centro de reportes con tabs
+Route::get('/reportes', [ReportesDashboardController::class, 'indexTabs'])->name('reportes.index');
+
+// Dashboard de categorías de reportes
+Route::get('/reportes/dashboard', [ReportesDashboardController::class, 'index'])->name('reportes.dashboard');
 
 // CRUD de reportes personalizados (debe ir primero para evitar conflictos)
 Route::resource('reportes', ReporteController::class)->except(['index', 'show']);
 
-// Reportes específicos (después del resource para tener prioridad)
-Route::get('/reportes/ventas', [ReporteController::class, 'index'])->name('reportes.ventas');
-Route::get('/reportes/corte-diario', [ReporteController::class, 'corteDiario'])->name('reportes.corte-diario');
+// Reportes específicos redirigidos al centro de reportes con tabs
+Route::get('/reportes/ventas', function() { return redirect('/reportes?tab=ventas'); })->name('reportes.ventas');
+Route::get('/reportes/corte-diario', function() { return redirect('/reportes?tab=corte'); })->name('reportes.corte-diario');
 Route::get('/reportes/export', [ReporteController::class, 'exportarCorteDiario'])->name('reportes.export');
-Route::get('/reportes/tecnicos', [ReporteTecnicoController::class, 'index'])->name('reportes.tecnicos.index');
+Route::get('/reportes/tecnicos', function() { return redirect('/reportes?tab=personal'); })->name('reportes.tecnicos.index');
 Route::get('/reportes/tecnicos/datos', [ReporteTecnicoController::class, 'datos'])->name('reportes.tecnicos.datos');
 
-// Nuevos reportes
-Route::get('/reportes/ventas-pendientes', [ReporteController::class, 'ventasPendientes'])->name('reportes.ventas-pendientes');
-Route::get('/reportes/clientes', [ReporteController::class, 'clientes'])->name('reportes.clientes');
-Route::get('/reportes/inventario', [ReporteController::class, 'inventario'])->name('reportes.inventario');
-Route::get('/reportes/servicios', [ReporteController::class, 'servicios'])->name('reportes.servicios');
-Route::get('/reportes/citas', [ReporteController::class, 'citas'])->name('reportes.citas');
-Route::get('/reportes/mantenimientos', [ReporteController::class, 'mantenimientos'])->name('reportes.mantenimientos');
-Route::get('/reportes/rentas', [ReporteController::class, 'rentas'])->name('reportes.rentas');
-Route::get('/reportes/cobranzas', [ReporteController::class, 'cobranzas'])->name('reportes.cobranzas');
-Route::get('/reportes/ganancias', [ReporteController::class, 'ganancias'])->name('reportes.ganancias');
-Route::get('/reportes/productos', [ReporteController::class, 'productos'])->name('reportes.productos');
-Route::get('/reportes/proveedores', [ReporteController::class, 'proveedores'])->name('reportes.proveedores');
-Route::get('/reportes/empleados', [ReporteController::class, 'empleados'])->name('reportes.empleados');
-Route::get('/reportes/auditoria', [ReporteController::class, 'auditoria'])->name('reportes.auditoria');
+// Nuevos reportes redirigidos
+Route::get('/reportes/ventas-pendientes', function() { return redirect('/reportes?tab=ventas'); })->name('reportes.ventas-pendientes');
+Route::get('/reportes/clientes', function() { return redirect('/reportes?tab=clientes'); })->name('reportes.clientes');
+Route::get('/reportes/inventario', function() { return redirect('/reportes?tab=inventario'); })->name('reportes.inventario');
+Route::get('/reportes/servicios', function() { return redirect('/reportes?tab=servicios'); })->name('reportes.servicios');
+Route::get('/reportes/citas', function() { return redirect('/reportes?tab=citas'); })->name('reportes.citas');
+Route::get('/reportes/mantenimientos', function() { return redirect('/reportes?tab=mantenimientos'); })->name('reportes.mantenimientos');
+Route::get('/reportes/rentas', function() { return redirect('/reportes?tab=rentas'); })->name('reportes.rentas');
+Route::get('/reportes/cobranzas', function() { return redirect('/reportes?tab=cobranzas'); })->name('reportes.cobranzas');
+Route::get('/reportes/ganancias', function() { return redirect('/reportes?tab=ganancias'); })->name('reportes.ganancias');
+Route::get('/reportes/productos', function() { return redirect('/reportes?tab=productos'); })->name('reportes.productos');
+Route::get('/reportes/proveedores', function() { return redirect('/reportes?tab=proveedores'); })->name('reportes.proveedores');
+Route::get('/reportes/empleados', function() { return redirect('/reportes?tab=empleados'); })->name('reportes.empleados');
+Route::get('/reportes/auditoria', function() { return redirect('/reportes?tab=auditoria'); })->name('reportes.auditoria');
 
-// Reporte de movimientos de inventario
-Route::get('/reportes/movimientos-inventario', [ReporteMovimientosController::class, 'index'])->name('reportes.movimientos-inventario');
+// Reporte de movimientos de inventario redirigido
+Route::get('/reportes/movimientos-inventario', function() { return redirect('/reportes?tab=movimientos'); })->name('reportes.movimientos-inventario');
 Route::get('/reportes/movimientos-inventario/{id}', [ReporteMovimientosController::class, 'show'])->name('reportes.movimientos-inventario.show');
 Route::get('/reportes/movimientos-inventario-export', [ReporteMovimientosController::class, 'export'])->name('reportes.movimientos-inventario.export');
 
