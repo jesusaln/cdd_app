@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Cita;
 use App\Models\Tecnico;
 use App\Models\Cliente;
+use App\Models\Servicio;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
@@ -140,13 +141,19 @@ class CitaController extends Controller
     }
 
     /**
-     * Mostrar formulario para crear una nueva cita.
-     */
+      * Mostrar formulario para crear una nueva cita.
+      */
     public function create()
     {
         $tecnicos = Tecnico::all();
         $clientes = Cliente::select('id', 'nombre_razon_social', 'email', 'telefono')->get();
-        return Inertia::render('Citas/Create', ['tecnicos' => $tecnicos, 'clientes' => $clientes]);
+        $servicios = Servicio::select('id', 'nombre', 'precio', 'descripcion', 'categoria')->get();
+
+        return Inertia::render('Citas/Create', [
+            'tecnicos' => $tecnicos,
+            'clientes' => $clientes,
+            'servicios' => $servicios
+        ]);
     }
 
     /**
@@ -235,13 +242,20 @@ class CitaController extends Controller
     }
 
     /**
-     * Mostrar formulario para editar una cita existente.
-     */
+      * Mostrar formulario para editar una cita existente.
+      */
     public function edit(Cita $cita)
     {
         $tecnicos = Tecnico::all();
         $clientes = Cliente::all();
-        return Inertia::render('Citas/Edit', ['cita' => $cita, 'tecnicos' => $tecnicos, 'clientes' => $clientes]);
+        $servicios = Servicio::select('id', 'nombre', 'precio', 'descripcion', 'categoria')->get();
+
+        return Inertia::render('Citas/Edit', [
+            'cita' => $cita,
+            'tecnicos' => $tecnicos,
+            'clientes' => $clientes,
+            'servicios' => $servicios
+        ]);
     }
 
     /**

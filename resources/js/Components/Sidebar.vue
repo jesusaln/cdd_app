@@ -48,7 +48,7 @@
     <nav class="flex-1 overflow-y-auto pt-4">
       <div class="px-2 pb-4">
         <!-- Dashboard -->
-        <div class="mb-6">
+        <div class="mb-4">
           <h3
             v-show="!props.isSidebarCollapsed"
             class="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider"
@@ -59,47 +59,85 @@
             <NavLink href="/panel" icon="tachometer-alt" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Panel' : null">
               Panel
             </NavLink>
-            <!-- Reportes - Menú expandido -->
-            <div class="space-y-1">
-              <NavLink href="/reportes/dashboard" icon="chart-bar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Centro de Reportes' : null">
-                Centro de Reportes
-              </NavLink>
-            </div>
-          </ul>
-        </div>
-
-        <!-- Clientes -->
-        <div class="mb-6">
-          <h3
-            v-show="!props.isSidebarCollapsed"
-            class="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider"
-          >
-            Clientes
-          </h3>
-          <ul class="space-y-1">
-            <NavLink href="/clientes" icon="users" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Clientes' : null">
-              Clientes
-            </NavLink>
-            <NavLink href="/citas" icon="calendar-alt" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Citas Agendadas' : null">
-              Citas Agendadas
+            <NavLink href="/reportes/dashboard" icon="chart-bar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Centro de Reportes' : null">
+              Centro de Reportes
             </NavLink>
           </ul>
         </div>
 
-        <!-- Inventario -->
-        <div class="mb-6">
-          <h3
-            v-show="!props.isSidebarCollapsed"
-            class="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider"
+        <!-- Operación de Venta -->
+        <div class="mb-4">
+          <div
+            @click="toggleAccordion('ventas')"
+            class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
           >
-            Inventario
-          </h3>
-          <ul class="space-y-1">
-            <!-- NUEVO: Equipos -->
-            <NavLink href="/equipos" icon="laptop" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Equipos' : null">
-              Equipos
+            <span>Operación de Venta</span>
+            <svg
+              :class="accordionStates.ventas ? 'rotate-90' : ''"
+              class="w-3 h-3 transition-transform duration-200"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+          <div v-show="accordionStates.ventas" class="mt-2 ml-2 space-y-1">
+            <NavLink href="/cotizaciones" icon="file-alt" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Cotizaciones' : null">
+              Cotizaciones
             </NavLink>
+            <NavLink href="/ventas" icon="dollar-sign" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Ventas Realizadas' : null">
+              Ventas Realizadas
+            </NavLink>
+            <NavLink href="/cobranza" icon="dollar-sign" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Cobranza' : null">
+              Cobranza
+            </NavLink>
+          </div>
+        </div>
 
+        <!-- Operación de Compra -->
+        <div class="mb-4">
+          <div
+            @click="toggleAccordion('compras')"
+            class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
+          >
+            <span>Operación de Compra</span>
+            <svg
+              :class="accordionStates.compras ? 'rotate-90' : ''"
+              class="w-3 h-3 transition-transform duration-200"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+          <div v-show="accordionStates.compras" class="mt-2 ml-2 space-y-1">
+            <NavLink href="/compras" icon="cart-shopping" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Compras a Proveedores' : null">
+              Compras a Proveedores
+            </NavLink>
+            <NavLink href="/ordenescompra" icon="file-invoice-dollar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Órdenes de Compra' : null">
+              Órdenes de Compra
+            </NavLink>
+            <NavLink href="/proveedores" icon="truck" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Proveedores' : null">
+              Proveedores
+            </NavLink>
+          </div>
+        </div>
+
+        <!-- Catálogos -->
+        <div class="mb-4">
+          <div
+            @click="toggleAccordion('catalogos')"
+            class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
+          >
+            <span>Catálogos</span>
+            <FontAwesomeIcon
+              :icon="accordionStates.catalogos ? 'fa-solid fa-chevron-down' : 'fa-solid fa-chevron-right'"
+              class="text-xs transition-transform duration-200"
+            />
+          </div>
+          <div v-show="accordionStates.catalogos" class="mt-2 ml-2 space-y-1">
             <NavLink href="/productos" icon="box" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Productos' : null">
               Productos
             </NavLink>
@@ -115,78 +153,70 @@
             <NavLink href="/almacenes" icon="warehouse" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Almacenes' : null">
               Almacenes
             </NavLink>
-          </ul>
+          </div>
         </div>
 
-        <!-- Operaciones -->
-        <div class="mb-6">
-          <h3
-            v-show="!props.isSidebarCollapsed"
-            class="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider"
+        <!-- Administración -->
+        <div class="mb-4">
+          <div
+            @click="toggleAccordion('administracion')"
+            class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
           >
-            Operaciones
-          </h3>
-          <ul class="space-y-1">
-            <NavLink href="/cotizaciones" icon="file-alt" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Cotizaciones' : null">
-              Cotizaciones
+            <span>Administración</span>
+            <FontAwesomeIcon
+              :icon="accordionStates.administracion ? 'fa-solid fa-chevron-down' : 'fa-solid fa-chevron-right'"
+              class="text-xs transition-transform duration-200"
+            />
+          </div>
+          <div v-show="accordionStates.administracion" class="mt-2 ml-2 space-y-1">
+            <NavLink href="/usuarios" icon="user" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Usuarios' : null">
+              Usuarios
             </NavLink>
-            <NavLink href="/pedidos" icon="truck" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Pedidos' : null">
-              Pedidos
+            <NavLink :href="routeOr('/backup')" icon="database" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Copia de Seguridad' : null">
+              Copia de Seguridad
             </NavLink>
-            <NavLink href="/ventas" icon="dollar-sign" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Ventas Realizadas' : null">
-              Ventas Realizadas
-            </NavLink>
-            <NavLink href="/compras" icon="cart-shopping" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Compras a Proveedores' : null">
-              Compras a Proveedores
-            </NavLink>
-            <NavLink href="/ordenescompra" icon="file-invoice-dollar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Órdenes de Compra' : null">
-              Órdenes de Compra
-            </NavLink>
-            <NavLink href="/proveedores" icon="truck" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Proveedores' : null">
-              Proveedores
-            </NavLink>
-
-            <!-- NUEVO: Rentas -->
-            <NavLink href="/rentas" icon="file-contract" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Rentas' : null">
-              Rentas
-            </NavLink>
-
-            <!-- NUEVO: Cobranza -->
-            <NavLink href="/cobranza" icon="dollar-sign" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Cobranza' : null">
-              Cobranza
-            </NavLink>
-
             <!-- NUEVO: Entregas de Dinero (Solo para administradores) -->
             <NavLink v-if="props.usuario.is_admin || (props.usuario.roles && props.usuario.roles.some(role => role.name === 'admin'))" href="/entregas-dinero" icon="dollar-sign" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Entregas de Dinero' : null">
               Entregas de Dinero
             </NavLink>
-          </ul>
+          </div>
         </div>
 
-        <!-- Bitácora -->
-        <div class="mb-6">
-          <h3
-            v-show="!props.isSidebarCollapsed"
-            class="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider"
+        <!-- Rentas y Equipos -->
+        <div class="mb-4">
+          <div
+            @click="toggleAccordion('rentas')"
+            class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
           >
-            Bitácora
-          </h3>
-          <ul class="space-y-1">
-            <NavLink href="/bitacora" icon="clipboard-list" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Bitácora' : null">
-              Bitácora
+            <span>Rentas y Equipos</span>
+            <FontAwesomeIcon
+              :icon="accordionStates.rentas ? 'fa-solid fa-chevron-down' : 'fa-solid fa-chevron-right'"
+              class="text-xs transition-transform duration-200"
+            />
+          </div>
+          <div v-show="accordionStates.rentas" class="mt-2 ml-2 space-y-1">
+            <NavLink href="/rentas" icon="file-contract" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Rentas' : null">
+              Rentas
             </NavLink>
-          </ul>
+            <NavLink href="/equipos" icon="laptop" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Equipos' : null">
+              Equipos
+            </NavLink>
+          </div>
         </div>
 
-        <!-- Taller -->
-        <div class="mb-6">
-          <h3
-            v-show="!props.isSidebarCollapsed"
-            class="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider"
+        <!-- Taller Mantenimiento y Vehículos -->
+        <div class="mb-4">
+          <div
+            @click="toggleAccordion('taller')"
+            class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
           >
-            Taller
-          </h3>
-          <ul class="space-y-1">
+            <span>Taller y Mantenimiento</span>
+            <FontAwesomeIcon
+              :icon="accordionStates.taller ? 'fa-solid fa-chevron-down' : 'fa-solid fa-chevron-right'"
+              class="text-xs transition-transform duration-200"
+            />
+          </div>
+          <div v-show="accordionStates.taller" class="mt-2 ml-2 space-y-1">
             <NavLink href="/carros" icon="car" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Vehículos' : null">
               Vehículos
             </NavLink>
@@ -196,103 +226,32 @@
             <NavLink href="/tecnicos" icon="user-cog" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Técnicos' : null">
               Técnicos
             </NavLink>
-
-            <!-- Herramientas - Menú expandido -->
-            <div class="space-y-1">
-              <NavLink href="/herramientas" icon="toolbox" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Herramientas' : null">
-                Herramientas
-              </NavLink>
-
-              <!-- Submenu de herramientas (solo visible cuando no está colapsado) -->
-              <div v-show="!props.isSidebarCollapsed" class="ml-4 space-y-1">
-                <!-- Enlaces comentados temporalmente para evitar errores 404 -->
-                <!--
-                <NavLink
-                  href="/herramientas/asignaciones-masivas"
-                  icon="users"
-                  :collapsed="false"
-                  class="text-sm"
-                  :title="null"
-                >
-                  <span class="text-gray-300">Asignaciones Masivas</span>
-                </NavLink>
-
-                <NavLink
-                  href="/herramientas/tecnicos-herramientas"
-                  icon="clipboard-list"
-                  :collapsed="false"
-                  class="text-sm"
-                  :title="null"
-                >
-                  <span class="text-gray-300">Control por Técnico</span>
-                </NavLink>
-
-                <NavLink
-                  href="/herramientas/asignaciones"
-                  icon="exchange-alt"
-                  :collapsed="false"
-                  class="text-sm"
-                  :title="null"
-                >
-                  <span class="text-gray-300">Asignaciones</span>
-                </NavLink>
-
-                <NavLink
-                  href="/herramientas/estados"
-                  icon="clipboard-list"
-                  :collapsed="false"
-                  class="text-sm"
-                  :title="null"
-                >
-                  <span class="text-gray-300">Estados</span>
-                </NavLink>
-                -->
-                <div class="text-xs text-gray-500 px-3 py-2">
-                  Funcionalidades disponibles próximamente
-                </div>
-              </div>
-
-              <!-- Enlaces rápidos cuando está colapsado -->
-              <div v-show="props.isSidebarCollapsed" class="space-y-1">
-                <!-- Enlaces comentados temporalmente para evitar errores 404 -->
-                <!--
-                <NavLink
-                  href="/herramientas/asignaciones-masivas"
-                  icon="users"
-                  :collapsed="true"
-                  :title="'Asignaciones Masivas'"
-                >
-                </NavLink>
-
-                <NavLink
-                  href="/herramientas/tecnicos-herramientas"
-                  icon="clipboard-list"
-                  :collapsed="true"
-                  :title="'Control por Técnico'"
-                >
-                </NavLink>
-                -->
-              </div>
-            </div>
-          </ul>
+            <NavLink href="/herramientas" icon="toolbox" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Herramientas' : null">
+              Herramientas
+            </NavLink>
+          </div>
         </div>
 
-        <!-- Administración -->
-        <div class="mb-6">
+        <!-- Secciones Adicionales -->
+        <div class="mb-4">
           <h3
             v-show="!props.isSidebarCollapsed"
             class="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider"
           >
-            Administración
+            Módulos Adicionales
           </h3>
           <ul class="space-y-1">
-            <NavLink href="/usuarios" icon="user" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Usuarios' : null">
-              Usuarios
+            <NavLink href="/clientes" icon="users" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Clientes' : null">
+              Clientes
             </NavLink>
-
-            <!-- Si usas Ziggy, puedes dejar :href="route('backup.index')" -->
-            <NavLink :href="routeOr('/backup')" icon="database" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Copia de Seguridad' : null">
-              Copia de Seguridad
+            <NavLink href="/citas" icon="calendar-alt" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Citas Agendadas' : null">
+              Citas Agendadas
+            </NavLink>
+            <NavLink href="/pedidos" icon="truck" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Pedidos' : null">
+              Pedidos
+            </NavLink>
+            <NavLink href="/bitacora" icon="clipboard-list" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Bitácora' : null">
+              Bitácora
             </NavLink>
           </ul>
         </div>
@@ -324,7 +283,7 @@
 </template>
 
 <script setup>
-import { } from 'vue';
+import { ref, onMounted } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import NavLink from '@/Components/NavLink.vue';
@@ -348,6 +307,58 @@ const props = defineProps({
 // Emits
 const emit = defineEmits(['toggleSidebar']);
 
+// Estado del acordeón
+const accordionStates = ref({
+  ventas: false,
+  compras: false,
+  catalogos: false,
+  administracion: false,
+  rentas: false,
+  taller: false
+});
+
+// Función para alternar acordeón
+const toggleAccordion = (section) => {
+  // Si el sidebar está colapsado, expandir la sección
+  if (props.isSidebarCollapsed) {
+    Object.keys(accordionStates.value).forEach(key => {
+      accordionStates.value[key] = key === section;
+    });
+  } else {
+    // Si no está colapsado, alternar normalmente
+    accordionStates.value[section] = !accordionStates.value[section];
+  }
+};
+
+// Función para determinar la sección actual basada en la URL
+const getCurrentSection = () => {
+  const path = window.location.pathname;
+
+  if (path.includes('/cotizaciones') || path.includes('/ventas') || path.includes('/cobranza')) {
+    return 'ventas';
+  } else if (path.includes('/compras') || path.includes('/ordenescompra') || path.includes('/proveedores')) {
+    return 'compras';
+  } else if (path.includes('/productos') || path.includes('/servicios') || path.includes('/categorias') || path.includes('/marcas') || path.includes('/almacenes')) {
+    return 'catalogos';
+  } else if (path.includes('/usuarios') || path.includes('/backup') || path.includes('/entregas-dinero')) {
+    return 'administracion';
+  } else if (path.includes('/rentas') || path.includes('/equipos')) {
+    return 'rentas';
+  } else if (path.includes('/carros') || path.includes('/mantenimientos') || path.includes('/tecnicos') || path.includes('/herramientas')) {
+    return 'taller';
+  }
+
+  return null;
+};
+
+// Auto-expandir la sección actual cuando se carga la página
+const autoExpandCurrentSection = () => {
+  const currentSection = getCurrentSection();
+  if (currentSection) {
+    accordionStates.value[currentSection] = true;
+  }
+};
+
 // Helper para tolerar ausencia de Ziggy route()
 const routeOr = (fallback) => {
   try {
@@ -363,10 +374,19 @@ const toggleSidebar = () => {
   emit('toggleSidebar');
 };
 
+// Lifecycle hooks
+onMounted(() => {
+  // Auto-expandir la sección actual cuando se carga la página
+  autoExpandCurrentSection();
+});
+
 // Exponer si necesitas manipular desde fuera
 defineExpose({
   toggleSidebar,
-  isSidebarCollapsed: props.isSidebarCollapsed
+  toggleAccordion,
+  autoExpandCurrentSection,
+  isSidebarCollapsed: props.isSidebarCollapsed,
+  accordionStates
 });
 </script>
 
@@ -379,6 +399,23 @@ aside::-webkit-scrollbar-thumb:hover { background: rgba(156, 163, 175, 0.7); }
 
 /* Suaves */
 .transition-opacity { transition: opacity 0.3s ease-in-out; }
+
+/* Animaciones del acordeón */
+.accordion-section {
+  transition: all 0.3s ease-in-out;
+}
+
+.accordion-section:hover {
+  background-color: rgba(55, 65, 81, 0.3);
+}
+
+.accordion-chevron {
+  transition: transform 0.2s ease-in-out;
+}
+
+.accordion-chevron.rotated {
+  transform: rotate(90deg);
+}
 
 /* Responsive móvil */
 @media (max-width: 768px) {

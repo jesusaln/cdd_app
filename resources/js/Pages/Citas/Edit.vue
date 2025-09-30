@@ -119,24 +119,16 @@
               Información del Servicio
             </h3>
 
+            <!-- Buscador de Servicios Mejorado -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2" for="tipo_servicio">
+              <label class="block text-sm font-medium text-gray-700 mb-2">
                 Tipo de Servicio *
               </label>
-              <select
-                v-model="form.tipo_servicio"
-                id="tipo_servicio"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                :class="{ 'border-red-500 focus:ring-red-500 focus:border-red-500': errors.tipo_servicio }"
-                required
-              >
-                <option value="">Seleccionar tipo de servicio</option>
-                <option value="instalacion">🔧 Instalación</option>
-                <option value="diagnostico">🔍 Diagnóstico</option>
-                <option value="reparacion">🛠️ Reparación</option>
-                <option value="garantia">✅ Garantía</option>
-                <option value="otro_servicio">📋 Otro Servicio</option>
-              </select>
+              <BuscarServicios
+                ref="buscarServiciosRef"
+                :servicios="servicios"
+                @servicio-seleccionado="onServicioSeleccionado"
+              />
               <p v-if="errors.tipo_servicio" class="text-red-500 text-sm mt-1">{{ errors.tipo_servicio }}</p>
             </div>
 
@@ -434,6 +426,7 @@ import { Head, router } from '@inertiajs/vue3';
 import { reactive, ref, computed, onMounted, onUnmounted } from 'vue';
 import { notyf } from '@/Utils/notyf'; // Importar desde archivo global
 import AppLayout from '@/Layouts/AppLayout.vue';
+import BuscarServicios from '@/Components/CreateComponents/BuscarServicios.vue';
 
 defineOptions({ layout: AppLayout });
 
@@ -447,6 +440,10 @@ const props = defineProps({
     default: () => []
   },
   clientes: {
+    type: Array,
+    default: () => []
+  },
+  servicios: {
     type: Array,
     default: () => []
   },
@@ -517,6 +514,9 @@ const showClienteDropdown = ref(false);
 const filteredClientes = ref([]);
 const selectedCliente = ref(null);
 
+// Referencia al componente BuscarServicios
+const buscarServiciosRef = ref(null);
+
 // Funciones para búsqueda de clientes
 const searchClientes = () => {
   if (clienteSearch.value.length < 2) {
@@ -551,6 +551,22 @@ const hideClienteDropdown = () => {
   setTimeout(() => {
     showClienteDropdown.value = false;
   }, 200);
+};
+
+// Función para manejo del componente BuscarServicios
+const onServicioSeleccionado = (servicio) => {
+  if (servicio) {
+    // Auto-llenar campos relacionados con el servicio seleccionado
+    form.tipo_servicio = servicio.nombre;
+    form.descripcion = servicio.descripcion || '';
+
+    // Si el servicio tiene precio, establecerlo como costo estimado
+    if (servicio.precio) {
+      form.costo_estimado = servicio.precio;
+    }
+
+    showNotification(`Servicio seleccionado: ${servicio.nombre}`, 'success');
+  }
 };
 
 // Configuraciones de validación
@@ -886,6 +902,18 @@ onMounted(() => {
     }
   }
 
+  // Inicializar servicio seleccionado SI YA EXISTE UNO ASIGNADO
+  if (props.cita?.tipo_servicio) {
+    // Buscar el servicio que coincida con el tipo_servicio actual
+    const servicio = props.servicios.find(s => s.nombre === props.cita.tipo_servicio);
+    if (servicio) {
+      // El componente BuscarServicios se actualizará automáticamente con el servicio seleccionado
+      // cuando se monte, pero podemos establecer el valor inicial aquí
+      form.tipo_servicio = servicio.nombre;
+      form.descripcion = servicio.descripcion || props.cita.descripcion;
+    }
+  }
+
   // Notificación inicial si hay errores de servidor
   if (Object.keys(props.errors).length > 0) {
     notyf.error('Por favor, revisa los errores en el formulario');
@@ -911,6 +939,12 @@ const resetForm = () => {
     form.foto_equipo_url = props.cita?.foto_equipo ? `/storage/${props.cita.foto_equipo}` : null;
     form.foto_hoja_servicio_url = props.cita?.foto_hoja_servicio ? `/storage/${props.cita.foto_hoja_servicio}` : null;
     form.foto_identificacion_url = props.cita?.foto_identificacion ? `/storage/${props.cita.foto_identificacion}` : null;
+
+    // Limpiar componentes de búsqueda
+    if (buscarServiciosRef.value) {
+      // El componente BuscarServicios no tiene método limpiarBusqueda, pero podemos resetear la búsqueda
+      // buscarServiciosRef.value.busqueda = '';
+    }
 
     hasUnsavedChanges.value = false;
     notyf.success('Formulario restablecido');

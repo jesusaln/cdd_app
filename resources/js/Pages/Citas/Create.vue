@@ -44,85 +44,24 @@
                 <div class="border-b border-gray-200 pb-6">
                     <h2 class="text-lg font-medium text-gray-900 mb-4">Asignación</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Buscador de Cliente -->
-                        <div class="relative">
-                            <label for="cliente_search" class="block text-sm font-medium text-gray-700 mb-1">
-                                Cliente <span class="text-red-500">*</span>
-                            </label>
-                            <div class="relative">
-                                <input
-                                    id="cliente_search"
-                                    v-model="clienteSearch"
-                                    type="text"
-                                    placeholder="Buscar cliente por nombre o razón social..."
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    :class="{ 'border-red-300 focus:ring-red-500 focus:border-red-500': form.errors.cliente_id }"
-                                    @input="handleClienteSearch"
-                                    @focus="showClienteDropdown = true"
-                                    @blur="handleClienteBlur"
-                                    autocomplete="off"
-                                />
-                                <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
-                                    <svg v-if="isSearchingCliente" class="animate-spin h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24">
-                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    <svg v-else class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                                    </svg>
-                                </div>
-                            </div>
-
-                            <!-- Dropdown de resultados -->
-                            <div v-if="showClienteDropdown && filteredClientes.length > 0"
-                                 class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
-                                <div v-for="cliente in filteredClientes"
-                                     :key="cliente.id"
-                                     @mousedown="selectCliente(cliente)"
-                                     class="px-3 py-2 cursor-pointer hover:bg-gray-100 border-b border-gray-100 last:border-b-0">
-                                    <div class="font-medium text-gray-900">{{ cliente.nombre_razon_social }}</div>
-                                    <div v-if="cliente.telefono || cliente.email" class="text-sm text-gray-500">
-                                        <span v-if="cliente.telefono">Tel: {{ cliente.telefono }}</span>
-                                        <span v-if="cliente.telefono && cliente.email"> • </span>
-                                        <span v-if="cliente.email">{{ cliente.email }}</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Mensaje cuando no hay resultados -->
-                            <div v-if="showClienteDropdown && clienteSearch && filteredClientes.length === 0"
-                                 class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg p-3">
-                                <div class="text-sm text-gray-500 text-center">
-                                    No se encontraron clientes que coincidan con "{{ clienteSearch }}"
-                                </div>
-                                <button type="button"
-                                        @mousedown="openNewClientModal"
-                                        class="w-full mt-2 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
-                                    + Crear nuevo cliente
-                                </button>
-                            </div>
-
-                            <!-- Cliente seleccionado -->
-                            <div v-if="selectedCliente" class="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <div class="font-medium text-blue-900">{{ selectedCliente.nombre_razon_social }}</div>
-                                        <div v-if="selectedCliente.telefono || selectedCliente.email" class="text-sm text-blue-700">
-                                            <span v-if="selectedCliente.telefono">Tel: {{ selectedCliente.telefono }}</span>
-                                            <span v-if="selectedCliente.telefono && selectedCliente.email"> • </span>
-                                            <span v-if="selectedCliente.email">{{ selectedCliente.email }}</span>
-                                        </div>
-                                    </div>
-                                    <button type="button"
-                                            @click="clearClienteSelection"
-                                            class="text-blue-600 hover:text-blue-800">
-                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-
+                        <!-- Buscador de Cliente Mejorado -->
+                        <div class="md:col-span-2">
+                            <BuscarCliente
+                                ref="buscarClienteRef"
+                                :clientes="clientes"
+                                :cliente-seleccionado="selectedCliente"
+                                @cliente-seleccionado="onClienteSeleccionado"
+                                @crear-nuevo-cliente="onCrearNuevoCliente"
+                                label-busqueda="Cliente"
+                                placeholder-busqueda="Buscar cliente por nombre, email, teléfono o RFC..."
+                                :requerido="true"
+                                titulo-cliente-seleccionado="Cliente Seleccionado"
+                                mensaje-vacio="No hay cliente seleccionado"
+                                submensaje-vacio="Busca y selecciona un cliente para continuar"
+                                :mostrar-opcion-nuevo-cliente="true"
+                                :mostrar-estado-cliente="true"
+                                :mostrar-info-comercial="true"
+                            />
                             <p v-if="form.errors.cliente_id" class="mt-1 text-sm text-red-600">{{ form.errors.cliente_id }}</p>
                         </div>
 
@@ -142,15 +81,15 @@
                 <div class="border-b border-gray-200 pb-6">
                     <h2 class="text-lg font-medium text-gray-900 mb-4">Detalles del Servicio</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <FormField
-                            v-model="form.tipo_servicio"
-                            label="Tipo de Servicio"
-                            type="select"
-                            id="tipo_servicio"
-                            :options="tipoServicioOptions"
-                            :error="form.errors.tipo_servicio"
-                            required
-                        />
+                        <!-- Buscador de Servicios Mejorado -->
+                        <div class="md:col-span-2">
+                            <BuscarServicios
+                                ref="buscarServiciosRef"
+                                :servicios="servicios"
+                                @servicio-seleccionado="onServicioSeleccionado"
+                            />
+                            <p v-if="form.errors.tipo_servicio" class="mt-1 text-sm text-red-600">{{ form.errors.tipo_servicio }}</p>
+                        </div>
 
                         <FormField
                             v-model="form.fecha_hora"
@@ -189,7 +128,7 @@
                                 id="descripcion"
                                 :error="form.errors.descripcion"
                                 placeholder="Descripción detallada del servicio a realizar..."
-                                rows="3"
+                                :rows="3"
                             />
                         </div>
                     </div>
@@ -268,7 +207,7 @@
                                 id="problema_reportado"
                                 :error="form.errors.problema_reportado"
                                 placeholder="Describa detalladamente el problema reportado por el cliente..."
-                                rows="3"
+                                :rows="3"
                                 required
                             />
                         </div>
@@ -286,7 +225,7 @@
                             id="direccion_servicio"
                             :error="form.errors.direccion_servicio"
                             placeholder="Dirección completa donde se realizará el servicio..."
-                            rows="2"
+                            :rows="2"
                         />
 
                         <FormField
@@ -296,7 +235,7 @@
                             id="observaciones"
                             :error="form.errors.observaciones"
                             placeholder="Observaciones adicionales, instrucciones especiales..."
-                            rows="2"
+                            :rows="2"
                         />
 
                         <FormField
@@ -380,20 +319,24 @@ import { Head, useForm } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref, nextTick } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import FormField from '@/Components/FormField.vue';
+import BuscarCliente from '@/Components/CreateComponents/BuscarCliente.vue';
+import BuscarServicios from '@/Components/CreateComponents/BuscarServicios.vue';
 
 defineOptions({ layout: AppLayout });
 
 const props = defineProps({
     tecnicos: Array,
-    clientes: Array
+    clientes: Array,
+    servicios: Array
 });
 
 // Referencias reactivas para el buscador de clientes
-const clienteSearch = ref('');
-const showClienteDropdown = ref(false);
 const selectedCliente = ref(null);
-const isSearchingCliente = ref(false);
 const showSuccessMessage = ref(false);
+
+// Referencias a los componentes
+const buscarClienteRef = ref(null);
+const buscarServiciosRef = ref(null);
 
 // Opciones de selección mejoradas
 const tecnicosOptions = computed(() => [
@@ -475,19 +418,37 @@ const minDateTime = computed(() => {
     return now.toISOString().slice(0, 16);
 });
 
-// Filtrado de clientes
-const filteredClientes = computed(() => {
-    if (!clienteSearch.value || clienteSearch.value.length < 1) {
-        return [];
-    }
+// Funciones para manejo del nuevo componente BuscarCliente
+const onClienteSeleccionado = (cliente) => {
+    selectedCliente.value = cliente;
+    form.cliente_id = cliente ? cliente.id : '';
 
-    const searchTerm = clienteSearch.value.toLowerCase();
-    return props.clientes.filter(cliente =>
-        cliente.nombre_razon_social.toLowerCase().includes(searchTerm) ||
-        (cliente.telefono && cliente.telefono.includes(searchTerm)) ||
-        (cliente.email && cliente.email.toLowerCase().includes(searchTerm))
-    ).slice(0, 10); // Limitar a 10 resultados
-});
+    // Auto-llenar dirección si existe
+    if (cliente && cliente.direccion) {
+        form.direccion_servicio = cliente.direccion;
+    }
+};
+
+const onCrearNuevoCliente = (nombreBuscado) => {
+    // Abrir ventana para crear nuevo cliente
+    window.open(route('clientes.create'), '_blank');
+};
+
+// Función para manejo del componente BuscarServicios
+const onServicioSeleccionado = (servicio) => {
+    if (servicio) {
+        // Auto-llenar campos relacionados con el servicio seleccionado
+        form.tipo_servicio = servicio.nombre;
+        form.descripcion = servicio.descripcion || '';
+
+        // Si el servicio tiene precio, establecerlo como costo estimado
+        if (servicio.precio) {
+            form.costo_estimado = servicio.precio;
+        }
+
+        showTemporaryMessage(`Servicio seleccionado: ${servicio.nombre}`, 'success');
+    }
+};
 
 // Formulario usando useForm de Inertia con campos adicionales
 const form = useForm({
@@ -520,46 +481,10 @@ const hasGlobalErrors = computed(() => {
     return Object.keys(form.errors).length > 0;
 });
 
-// Funciones para manejo del buscador de clientes
-const handleClienteSearch = () => {
-    isSearchingCliente.value = true;
-    showClienteDropdown.value = true;
-
-    // Simular delay de búsqueda
-    setTimeout(() => {
-        isSearchingCliente.value = false;
-    }, 300);
-};
-
-const handleClienteBlur = () => {
-    setTimeout(() => {
-        showClienteDropdown.value = false;
-    }, 200);
-};
-
-const selectCliente = (cliente) => {
-    selectedCliente.value = cliente;
-    form.cliente_id = cliente.id;
-    clienteSearch.value = cliente.nombre_razon_social;
-    showClienteDropdown.value = false;
-
-    // Auto-llenar dirección si existe
-    if (cliente.direccion) {
-        form.direccion_servicio = cliente.direccion;
-    }
-};
-
+// Función para limpiar cliente seleccionado
 const clearClienteSelection = () => {
     selectedCliente.value = null;
     form.cliente_id = '';
-    clienteSearch.value = '';
-    showClienteDropdown.value = false;
-};
-
-const openNewClientModal = () => {
-    // Aquí podrías abrir un modal para crear nuevo cliente
-    // Por ahora, redirigir a la página de crear cliente
-    window.open(route('clientes.create'), '_blank');
 };
 
 // Funciones de utilidad
@@ -573,7 +498,6 @@ const saveDraft = () => {
     const draftData = {
         ...form.data(),
         selectedCliente: selectedCliente.value,
-        clienteSearch: clienteSearch.value,
         timestamp: new Date().toISOString()
     };
 
@@ -605,10 +529,10 @@ const loadDraft = () => {
                     }
                 });
 
-                // Cargar cliente seleccionado
+                // Cargar cliente seleccionado usando el nuevo componente
                 if (parsed.selectedCliente) {
                     selectedCliente.value = parsed.selectedCliente;
-                    clienteSearch.value = parsed.clienteSearch || parsed.selectedCliente.nombre_razon_social;
+                    // El componente BuscarCliente se actualizará automáticamente con el cliente seleccionado
                 }
 
                 showTemporaryMessage('Borrador cargado correctamente', 'info');
@@ -653,6 +577,15 @@ const resetForm = () => {
     // Limpiar selección de cliente
     clearClienteSelection();
 
+    // Limpiar los componentes de búsqueda
+    if (buscarClienteRef.value) {
+        buscarClienteRef.value.limpiarBusqueda();
+    }
+    if (buscarServiciosRef.value) {
+        // El componente BuscarServicios no tiene método limpiarBusqueda, pero podemos resetear la búsqueda
+        // buscarServiciosRef.value.busqueda = '';
+    }
+
     // Restablecer fecha y hora actual
     const now = new Date();
     const offset = now.getTimezoneOffset();
@@ -668,7 +601,7 @@ const resetForm = () => {
 const validateForm = () => {
     const errors = [];
 
-    if (!selectedCliente.value) {
+    if (!selectedCliente.value || !form.cliente_id) {
         errors.push('Debe seleccionar un cliente');
     }
 
@@ -676,8 +609,8 @@ const validateForm = () => {
         errors.push('Debe seleccionar un técnico');
     }
 
-    if (!form.tipo_servicio) {
-        errors.push('Debe seleccionar el tipo de servicio');
+    if (!form.tipo_servicio || form.tipo_servicio.trim() === '') {
+        errors.push('Debe seleccionar o especificar el tipo de servicio');
     }
 
     if (!form.fecha_hora) {
@@ -782,7 +715,7 @@ let autoSaveInterval;
 onMounted(() => {
     // Iniciar auto-guardado
     autoSaveInterval = setInterval(() => {
-        if (form.isDirty && (selectedCliente.value || clienteSearch.value)) {
+        if (form.isDirty && (selectedCliente.value || form.cliente_id)) {
             saveDraft();
         }
     }, 30000); // 30 segundos
