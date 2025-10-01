@@ -392,7 +392,27 @@ class VentaController extends Controller
         $productos = Producto::all();
         $servicios = Servicio::all();
 
-        return Inertia::render('Ventas/Edit', compact('venta', 'clientes', 'productos', 'servicios'));
+        return Inertia::render('Ventas/Edit', [
+            'venta' => array_merge($venta->toArray(), [
+                'informacion_general' => [
+                    'numero' => [
+                        'label' => 'Número de Venta',
+                        'value' => $venta->numero_venta,
+                        'tipo' => 'fijo',
+                        'descripcion' => 'Este número es fijo para todas las ventas'
+                    ],
+                    'fecha' => [
+                        'label' => 'Fecha de Venta',
+                        'value' => $venta->fecha ? $venta->fecha->format('d/m/Y') : now()->format('d/m/Y'),
+                        'tipo' => 'automatica',
+                        'descripcion' => 'Esta fecha se establece automáticamente con la fecha de creación'
+                    ]
+                ]
+            ]),
+            'clientes' => $clientes,
+            'productos' => $productos,
+            'servicios' => $servicios,
+        ]);
     }
 
     /**

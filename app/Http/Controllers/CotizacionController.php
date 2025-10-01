@@ -106,6 +106,10 @@ class CotizacionController extends Controller
                     'total'  => (float) $cotizacion->total,
                     'estado' => is_object($cotizacion->estado) ? $cotizacion->estado->value : $cotizacion->estado,
 
+                    // Permisos
+                    'canEdit' => in_array($cotizacion->estado, [EstadoCotizacion::Borrador, EstadoCotizacion::Pendiente], true),
+                    'canDelete' => in_array($cotizacion->estado, [EstadoCotizacion::Borrador, EstadoCotizacion::Pendiente, EstadoCotizacion::Aprobada], true),
+
                     // Auditoría (para tu modal y vistas)
                     'creado_por_nombre'      => $cotizacion->createdBy?->name,
                     'actualizado_por_nombre' => $cotizacion->updatedBy?->name,
@@ -371,6 +375,20 @@ class CotizacionController extends Controller
                 'iva' => $cotizacion->iva,
                 'total' => $cotizacion->total,
                 'notas' => $cotizacion->notas,
+                'informacion_general' => [
+                    'numero' => [
+                        'label' => 'Número de Cotización',
+                        'value' => $cotizacion->numero_cotizacion,
+                        'tipo' => 'fijo',
+                        'descripcion' => 'Este número es fijo para todas las cotizaciones'
+                    ],
+                    'fecha' => [
+                        'label' => 'Fecha de Cotización',
+                        'value' => $cotizacion->fecha_cotizacion ? $cotizacion->fecha_cotizacion->format('d/m/Y') : now()->format('d/m/Y'),
+                        'tipo' => 'automatica',
+                        'descripcion' => 'Esta fecha se establece automáticamente con la fecha de creación'
+                    ]
+                ]
             ],
             'clientes' => Cliente::activos()->select('id', 'nombre_razon_social', 'email', 'telefono')->get(),
             'productos' => Producto::select('id', 'nombre', 'precio_venta', 'descripcion')->get(),

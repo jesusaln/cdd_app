@@ -345,6 +345,20 @@ class PedidoController extends Controller
                 'notas' => $pedido->notas,
                 'numero_pedido' => $pedido->numero_pedido,
                 'cotizacion_id' => $pedido->cotizacion_id,
+                'informacion_general' => [
+                    'numero' => [
+                        'label' => 'Número de Pedido',
+                        'value' => $pedido->numero_pedido,
+                        'tipo' => 'fijo',
+                        'descripcion' => 'Este número es fijo para todas los pedidos'
+                    ],
+                    'fecha' => [
+                        'label' => 'Fecha de Pedido',
+                        'value' => $pedido->fecha ? $pedido->fecha->format('d/m/Y') : now()->format('d/m/Y'),
+                        'tipo' => 'automatica',
+                        'descripcion' => 'Esta fecha se establece automáticamente con la fecha de creación'
+                    ]
+                ]
             ],
             'clientes' => Cliente::activos()->select('id', 'nombre_razon_social', 'email', 'telefono')->get(),
             'productos' => Producto::select('id', 'nombre', 'precio_venta', 'descripcion')->get(),
