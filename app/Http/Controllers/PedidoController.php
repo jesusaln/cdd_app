@@ -126,7 +126,7 @@ class PedidoController extends Controller
     public function create()
     {
         return Inertia::render('Pedidos/Create', [
-            'clientes' => Cliente::select('id', 'nombre_razon_social', 'email', 'telefono')->get(),
+            'clientes' => Cliente::activos()->select('id', 'nombre_razon_social', 'email', 'telefono')->get(),
             'productos' => Producto::select('id', 'nombre', 'precio_venta', 'descripcion')->get(),
             'servicios' => Servicio::select('id', 'nombre', 'precio', 'descripcion')->get(),
             'catalogs' => [
@@ -346,7 +346,7 @@ class PedidoController extends Controller
                 'numero_pedido' => $pedido->numero_pedido,
                 'cotizacion_id' => $pedido->cotizacion_id,
             ],
-            'clientes' => Cliente::select('id', 'nombre_razon_social', 'email', 'telefono')->get(),
+            'clientes' => Cliente::activos()->select('id', 'nombre_razon_social', 'email', 'telefono')->get(),
             'productos' => Producto::select('id', 'nombre', 'precio_venta', 'descripcion')->get(),
             'servicios' => Servicio::select('id', 'nombre', 'precio', 'descripcion')->get(),
         ]);

@@ -122,7 +122,7 @@ class VentaController extends Controller
     public function create()
     {
         return Inertia::render('Ventas/Create', [
-            'clientes' => Cliente::select('id', 'nombre_razon_social', 'email', 'telefono')->get(),
+            'clientes' => Cliente::activos()->select('id', 'nombre_razon_social', 'email', 'telefono')->get(),
             'productos' => Producto::select('id', 'nombre', 'precio_venta', 'descripcion')->get(),
             'servicios' => Servicio::select('id', 'nombre', 'precio', 'descripcion')->get(),
             'usuarios' => User::select('id', 'name', 'email')->get(),
@@ -388,7 +388,7 @@ class VentaController extends Controller
             'items.ventable' // ← Esto carga productos y servicios
         ])->findOrFail($id);
 
-        $clientes = Cliente::all();
+        $clientes = Cliente::activos()->get();
         $productos = Producto::all();
         $servicios = Servicio::all();
 
