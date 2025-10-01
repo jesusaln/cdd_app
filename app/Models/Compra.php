@@ -55,7 +55,11 @@ class Compra extends Model
             'compra_items',
             'compra_id',
             'comprable_id'
-        )->withPivot('cantidad', 'precio', 'descuento', 'subtotal', 'descuento_monto');
+        )->withPivot('cantidad', 'precio', 'descuento', 'subtotal', 'descuento_monto')
+        ->wherePivot('comprable_type', Producto::class)
+        ->whereHasMorph('comprable', Producto::class, function ($query) {
+            $query->active();
+        });
     }
 
     /** Relación con orden de compra */

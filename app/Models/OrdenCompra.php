@@ -47,11 +47,12 @@ class OrdenCompra extends Model
         return $this->belongsTo(Proveedor::class);
     }
 
-    // Relación muchos a muchos con Productos
+    // Relación muchos a muchos con Productos (solo activos)
     public function productos()
     {
         return $this->belongsToMany(Producto::class, 'orden_compra_producto')
-            ->withPivot('cantidad', 'precio', 'descuento', 'unidad_medida');
+            ->withPivot('cantidad', 'precio', 'descuento', 'unidad_medida')
+            ->active();
     }
 
     protected static function booted(): void

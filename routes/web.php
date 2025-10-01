@@ -69,14 +69,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 | middleware 'web' aplicado.
 */
 
-// Opción 1: Usando PATCH
-Route::patch('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
 
-// Opción 2: Usando POST (más común)
+// Ruta para marcar todas las notificaciones como leídas
 Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
 
-// Opción 3: Usando PUT
-Route::put('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
 
 // =====================================================
 // RUTAS PÚBLICAS
@@ -365,8 +361,10 @@ Route::get('/reportes/productos/export', [ReporteController::class, 'exportarPro
     // =====================================================
 
 
-    Route::middleware(['auth'])->group(function () {
-        Route::prefix('admin/backup')->name('backup.')->group(function () {
+    Route::middleware(['auth', 'can:manage-backups'])
+        ->prefix('admin/backup')
+        ->name('backup.')
+        ->group(function () {
             Route::get('/', [DatabaseBackupController::class, 'index'])->name('index');
             Route::post('/create', [DatabaseBackupController::class, 'create'])->name('create');
             Route::get('/download/{path}', [DatabaseBackupController::class, 'download'])->name('download');
@@ -374,7 +372,6 @@ Route::get('/reportes/productos/export', [ReporteController::class, 'exportarPro
             Route::post('/restore/{path}', [DatabaseBackupController::class, 'restore'])->name('restore');
             Route::post('/clean', [DatabaseBackupController::class, 'clean'])->name('clean');
         });
-    });
 
 
 

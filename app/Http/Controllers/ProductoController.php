@@ -59,6 +59,13 @@ class ProductoController extends Controller
             $perPage = min((int) $request->input('per_page', 10), 50);
             $productos = $query->paginate($perPage);
 
+            // Agregar permisos a cada producto
+            foreach ($productos->items() as $producto) {
+                $producto->can_delete = $this->canDeleteProducto($producto);
+                $producto->can_toggle_in_index = false; // No mostrar botón de cambiar estado en el índice
+                $producto->can_toggle_in_modal = true; // Sí mostrar en el modal
+            }
+
             // Estadísticas basadas en estado del producto
             $stats = [
                 'total' => Producto::count(),
@@ -200,14 +207,21 @@ class ProductoController extends Controller
      */
     public function destroy(Producto $producto)
     {
+        // Verificar si puede ser eliminado usando la nueva lógica
+        if (!$this->canDeleteProducto($producto)) {
+            $razon = $producto->estado === 'activo'
+                ? 'está activo'
+                : 'está siendo utilizado en documentos de negocio';
+            return redirect()->back()->with('error', "No se puede eliminar el producto porque {$razon}.");
+        }
+
         if ($producto->imagen) {
             Storage::disk('public')->delete($producto->imagen);
         }
 
         $producto->delete();
 
-        // Sin notificación adicional
-        return redirect()->route('productos.index');
+        return redirect()->route('productos.index')->with('success', 'Producto eliminado correctamente.');
     }
 
     /**
@@ -411,5 +425,42 @@ class ProductoController extends Controller
             Log::error('Error al cambiar estado del producto: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Error al cambiar el estado del producto.');
         }
+    }
+
+    /**
+     * Verifica si un producto puede ser eliminado.
+     * Reglas:
+     * - Solo productos inactivos pueden ser eliminados
+     * - No debe estar siendo usado en ningún documento de negocio
+     */
+    private function canDeleteProducto(Producto $producto): bool
+    {
+        // Solo productos inactivos pueden ser eliminados
+        if ($producto->estado === 'activo') {
+            return false;
+        }
+
+        // Verificar si está siendo usado en documentos de negocio
+        if ($producto->cotizacionItems()->count() > 0) {
+            return false; // Tiene cotizaciones
+        }
+
+        if ($producto->pedidoItems()->count() > 0) {
+            return false; // Tiene pedidos
+        }
+
+        if ($producto->ventaItems()->count() > 0) {
+            return false; // Tiene ventas
+        }
+
+        if ($producto->compras()->count() > 0) {
+            return false; // Tiene compras
+        }
+
+        if ($producto->ordenesCompra()->count() > 0) {
+            return false; // Tiene órdenes de compra
+        }
+
+        return true; // Puede ser eliminado
     }
 }

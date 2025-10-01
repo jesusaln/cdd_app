@@ -71,10 +71,16 @@ class Producto extends Model
         return $this->belongsTo(Almacen::class);
     }
 
-    /** @return BelongsToMany<Compra> */
-    public function compras(): BelongsToMany
+    /** @return MorphToMany<Compra> */
+    public function compras(): MorphToMany
     {
-        return $this->belongsToMany(Compra::class)->withPivot('cantidad', 'precio');
+        return $this->morphToMany(Compra::class, 'comprable')->withPivot('cantidad', 'precio');
+    }
+
+    /** @return BelongsToMany<OrdenCompra> */
+    public function ordenesCompra(): BelongsToMany
+    {
+        return $this->belongsToMany(OrdenCompra::class, 'orden_compra_producto')->withPivot('cantidad', 'precio');
     }
 
     /** @return HasMany<Inventario> */
