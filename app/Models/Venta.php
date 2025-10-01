@@ -76,7 +76,11 @@ class Venta extends Model
             'venta_items',
             'venta_id',
             'ventable_id'
-        )->withPivot('cantidad', 'precio', 'descuento', 'costo_unitario');
+        )->withPivot('cantidad', 'precio', 'descuento', 'costo_unitario')
+        ->wherePivot('ventable_type', Servicio::class)
+        ->whereHasMorph('ventable', Servicio::class, function ($query) {
+            $query->active();
+        });
     }
 
     // Todos los ítems (productos + servicios)

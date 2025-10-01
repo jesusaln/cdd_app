@@ -50,6 +50,13 @@ class ServicioController extends Controller
             $perPage = min((int) $request->input('per_page', 10), 50);
             $servicios = $query->paginate($perPage)->appends($request->query());
 
+            // Agregar permisos a cada servicio
+            foreach ($servicios->items() as $servicio) {
+                $servicio->can_delete = $this->canDeleteServicio($servicio);
+                $servicio->can_toggle_in_index = false; // No mostrar botón de cambiar estado en el índice
+                $servicio->can_toggle_in_modal = true; // Sí mostrar en el modal
+            }
+
             // Estadísticas basadas en estado del servicio
             $stats = [
                 'total' => Servicio::count(),
@@ -248,5 +255,34 @@ class ServicioController extends Controller
             Log::error('Error en exportación de servicios: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Error al exportar los servicios.');
         }
+    }
+
+    /**
+     * Verifica si un servicio puede ser eliminado.
+     * Reglas:
+     * - Solo servicios inactivos pueden ser eliminados
+     * - No debe estar siendo usado en ningún documento de negocio
+     */
+    private function canDeleteServicio(Servicio $servicio): bool
+    {
+        // Solo servicios inactivos pueden ser eliminados
+        if ($servicio->estado === 'activo') {
+            return false;
+        }
+
+        // Verificar si está siendo usado en documentos de negocio
+        if ($servicio->cotizaciones()->count() > 0) {
+            return false; // Tiene cotizaciones
+        }
+
+        if ($servicio->pedidos()->count() > 0) {
+            return false; // Tiene pedidos
+        }
+
+        if ($servicio->ventas()->count() > 0) {
+            return false; // Tiene ventas
+        }
+
+        return true; // Puede ser eliminado
     }
 }

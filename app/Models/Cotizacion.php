@@ -91,6 +91,7 @@ class Cotizacion extends Model
     /**
      * Servicios cotizados (relación polimórfica a través de cotizacion_items).
      * Nota: Solo es necesaria si en algún punto usas attach/detach directamente.
+     * Solo incluye servicios activos.
      */
     public function servicios(): MorphToMany
     {
@@ -100,7 +101,11 @@ class Cotizacion extends Model
             'cotizacion_items',
             'cotizacion_id',
             'cotizable_id'
-        )->withPivot('cantidad', 'precio', 'descuento', 'subtotal', 'descuento_monto');
+        )->withPivot('cantidad', 'precio', 'descuento', 'subtotal', 'descuento_monto')
+        ->wherePivot('cotizable_type', Servicio::class)
+        ->whereHasMorph('cotizable', Servicio::class, function ($query) {
+            $query->active();
+        });
     }
 
     /** Marcado de estado helper */
