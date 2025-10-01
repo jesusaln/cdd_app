@@ -226,15 +226,21 @@ class VentaController extends Controller
             }
 
             $subtotal = 0;
+            foreach ($validated['productos'] as $item) {
+                $subtotalItem = $item['cantidad'] * $item['precio'];
+                $subtotal += $subtotalItem;
+            }
+
+            $descuentoGeneralMonto = $request->descuento_general ?? 0;
+            $subtotalDespuesGeneral = $subtotal - $descuentoGeneralMonto;
+
             $descuentoItems = 0;
             foreach ($validated['productos'] as $item) {
                 $subtotalItem = $item['cantidad'] * $item['precio'];
                 $descuentoItems += $subtotalItem * ($item['descuento'] / 100);
-                $subtotal += $subtotalItem;
             }
 
-            $descuentoGeneralMonto = ($subtotal - $descuentoItems) * ($request->descuento_general / 100);
-            $subtotalFinal = ($subtotal - $descuentoItems) - $descuentoGeneralMonto;
+            $subtotalFinal = $subtotalDespuesGeneral - $descuentoItems;
             $iva = $subtotalFinal * 0.16;
             $total = $subtotalFinal + $iva;
 
@@ -410,7 +416,7 @@ class VentaController extends Controller
             'productos.*.cantidad' => 'required|integer|min:1',
             'productos.*.precio' => 'required|numeric|min:0',
             'productos.*.descuento' => 'required|numeric|min:0|max:100',
-            'descuento_general' => 'nullable|numeric|min:0|max:100',
+            'descuento_general' => 'nullable|numeric|min:0',
             'notas' => 'nullable|string',
             'ajustar_margen' => 'nullable|boolean',
         ]);
@@ -443,15 +449,21 @@ class VentaController extends Controller
         }
 
         $subtotal = 0;
+        foreach ($validated['productos'] as $item) {
+            $subtotalItem = $item['cantidad'] * $item['precio'];
+            $subtotal += $subtotalItem;
+        }
+
+        $descuentoGeneralMonto = $request->descuento_general ?? 0;
+        $subtotalDespuesGeneral = $subtotal - $descuentoGeneralMonto;
+
         $descuentoItems = 0;
         foreach ($validated['productos'] as $item) {
             $subtotalItem = $item['cantidad'] * $item['precio'];
             $descuentoItems += $subtotalItem * ($item['descuento'] / 100);
-            $subtotal += $subtotalItem;
         }
 
-        $descuentoGeneralMonto = ($subtotal - $descuentoItems) * ($request->descuento_general / 100);
-        $subtotalFinal = ($subtotal - $descuentoItems) - $descuentoGeneralMonto;
+        $subtotalFinal = $subtotalDespuesGeneral - $descuentoItems;
         $iva = $subtotalFinal * 0.16;
         $total = $subtotalFinal + $iva;
 

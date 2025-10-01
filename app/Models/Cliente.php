@@ -101,7 +101,7 @@ class Cliente extends Model implements AuditableContract
 
     public function ventas(): HasMany
     {
-        return $this->hasMany(Venta::class)->withTrashed();
+        return $this->hasMany(Venta::class);
     }
 
     public function facturas(): HasMany

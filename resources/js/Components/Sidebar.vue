@@ -59,9 +59,6 @@
             <NavLink href="/panel" icon="tachometer-alt" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Panel' : null">
               Panel
             </NavLink>
-            <NavLink href="/reportes/dashboard" icon="chart-bar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Centro de Reportes' : null">
-              Centro de Reportes
-            </NavLink>
           </ul>
         </div>
 
@@ -82,9 +79,12 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
             </svg>
           </div>
-          <div v-show="accordionStates.ventas" class="mt-2 ml-2 space-y-1">
+          <div v-show="accordionStates.ventas" class="mt-2 space-y-1">
             <NavLink href="/cotizaciones" icon="file-alt" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Cotizaciones' : null">
               Cotizaciones
+            </NavLink>
+            <NavLink href="/pedidos" icon="truck" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Pedidos' : null">
+              Pedidos
             </NavLink>
             <NavLink href="/ventas" icon="dollar-sign" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Ventas Realizadas' : null">
               Ventas Realizadas
@@ -132,12 +132,20 @@
             class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
           >
             <span>Catálogos</span>
-            <FontAwesomeIcon
-              :icon="accordionStates.catalogos ? 'fa-solid fa-chevron-down' : 'fa-solid fa-chevron-right'"
-              class="text-xs transition-transform duration-200"
-            />
+            <svg
+              :class="accordionStates.catalogos ? 'rotate-90' : ''"
+              class="w-3 h-3 transition-transform duration-200"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
           </div>
-          <div v-show="accordionStates.catalogos" class="mt-2 ml-2 space-y-1">
+          <div v-show="accordionStates.catalogos" class="mt-2 space-y-1">
+            <NavLink href="/clientes" icon="users" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Clientes' : null">
+              Clientes
+            </NavLink>
             <NavLink href="/productos" icon="box" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Productos' : null">
               Productos
             </NavLink>
@@ -163,12 +171,20 @@
             class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
           >
             <span>Administración</span>
-            <FontAwesomeIcon
-              :icon="accordionStates.administracion ? 'fa-solid fa-chevron-down' : 'fa-solid fa-chevron-right'"
-              class="text-xs transition-transform duration-200"
-            />
+            <svg
+              :class="accordionStates.administracion ? 'rotate-90' : ''"
+              class="w-3 h-3 transition-transform duration-200"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
           </div>
-          <div v-show="accordionStates.administracion" class="mt-2 ml-2 space-y-1">
+          <div v-show="accordionStates.administracion" class="mt-2 space-y-1">
+            <NavLink href="/reportes/dashboard" icon="chart-bar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Centro de Reportes' : null">
+              Centro de Reportes
+            </NavLink>
             <NavLink href="/usuarios" icon="user" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Usuarios' : null">
               Usuarios
             </NavLink>
@@ -189,10 +205,15 @@
             class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
           >
             <span>Rentas y Equipos</span>
-            <FontAwesomeIcon
-              :icon="accordionStates.rentas ? 'fa-solid fa-chevron-down' : 'fa-solid fa-chevron-right'"
-              class="text-xs transition-transform duration-200"
-            />
+            <svg
+              :class="accordionStates.rentas ? 'rotate-90' : ''"
+              class="w-3 h-3 transition-transform duration-200"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
           </div>
           <div v-show="accordionStates.rentas" class="mt-2 ml-2 space-y-1">
             <NavLink href="/rentas" icon="file-contract" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Rentas' : null">
@@ -211,10 +232,15 @@
             class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
           >
             <span>Taller y Mantenimiento</span>
-            <FontAwesomeIcon
-              :icon="accordionStates.taller ? 'fa-solid fa-chevron-down' : 'fa-solid fa-chevron-right'"
-              class="text-xs transition-transform duration-200"
-            />
+            <svg
+              :class="accordionStates.taller ? 'rotate-90' : ''"
+              class="w-3 h-3 transition-transform duration-200"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
           </div>
           <div v-show="accordionStates.taller" class="mt-2 ml-2 space-y-1">
             <NavLink href="/carros" icon="car" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Vehículos' : null">
@@ -241,14 +267,8 @@
             Módulos Adicionales
           </h3>
           <ul class="space-y-1">
-            <NavLink href="/clientes" icon="users" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Clientes' : null">
-              Clientes
-            </NavLink>
             <NavLink href="/citas" icon="calendar-alt" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Citas Agendadas' : null">
               Citas Agendadas
-            </NavLink>
-            <NavLink href="/pedidos" icon="truck" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Pedidos' : null">
-              Pedidos
             </NavLink>
             <NavLink href="/bitacora" icon="clipboard-list" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Bitácora' : null">
               Bitácora
@@ -285,7 +305,6 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { Link } from '@inertiajs/vue3';
-import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import NavLink from '@/Components/NavLink.vue';
 
 // Props
@@ -334,11 +353,11 @@ const toggleAccordion = (section) => {
 const getCurrentSection = () => {
   const path = window.location.pathname;
 
-  if (path.includes('/cotizaciones') || path.includes('/ventas') || path.includes('/cobranza')) {
+  if (path.includes('/cotizaciones') || path.includes('/pedidos') || path.includes('/ventas') || path.includes('/cobranza')) {
     return 'ventas';
   } else if (path.includes('/compras') || path.includes('/ordenescompra') || path.includes('/proveedores')) {
     return 'compras';
-  } else if (path.includes('/productos') || path.includes('/servicios') || path.includes('/categorias') || path.includes('/marcas') || path.includes('/almacenes')) {
+  } else if (path.includes('/clientes') || path.includes('/productos') || path.includes('/servicios') || path.includes('/categorias') || path.includes('/marcas') || path.includes('/almacenes')) {
     return 'catalogos';
   } else if (path.includes('/usuarios') || path.includes('/backup') || path.includes('/entregas-dinero')) {
     return 'administracion';

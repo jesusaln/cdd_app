@@ -17,6 +17,13 @@ class RolesAndPermissionsSeeder extends Seeder
             'create usuarios',
             'edit usuarios',
             'delete usuarios',
+            // Permisos para clientes
+            'view clientes',
+            'create clientes',
+            'edit clientes',
+            'delete clientes',
+            'export clientes',
+            'stats clientes',
         ];
 
         // Crear los permisos si no existen
@@ -33,18 +40,29 @@ class RolesAndPermissionsSeeder extends Seeder
 
         // Asignar permisos después de crearlos
         $adminRole->syncPermissions($permissions);
-        $userRole->syncPermissions(['view usuarios']);
+        $userRole->syncPermissions([
+            'view usuarios',
+            'view clientes',
+            'create clientes',
+            'edit clientes',
+            'export clientes',
+            'stats clientes'
+        ]);
 
         $this->command->info('Roles y permisos creados exitosamente.');
 
-        // Crear un usuario con el rol de administrador
-        $user = User::create([
-            'name' => 'Jesus Lopez',  // Nombre del usuario
-            'email' => 'jesuslopeznoriega@hotmail.com',  // Correo del usuario
-            'password' => bcrypt('Zl01kpContpaqi1.'), // Contraseña para el usuario
-        ]);
+        // Crear o encontrar el usuario administrador
+        $user = User::firstOrCreate(
+            ['email' => 'jesuslopeznoriega@hotmail.com'],
+            [
+                'name' => 'Jesus Lopez',
+                'password' => bcrypt('Zl01kpContpaqi1.'),
+            ]
+        );
 
-        // Asignar el rol de admin al usuario
-        $user->assignRole($adminRole);
+        // Asignar el rol de admin al usuario (si no lo tiene ya)
+        if (!$user->hasRole('admin')) {
+            $user->assignRole($adminRole);
+        }
     }
 }

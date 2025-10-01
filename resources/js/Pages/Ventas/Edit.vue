@@ -151,6 +151,19 @@ const agregarProducto = (item) => {
 // --- Cálculos ---
 const totales = computed(() => {
   let subtotal = 0;
+
+  selectedProducts.value.forEach(item => {
+    const key = `${item.tipo}-${item.id}`;
+    const cantidad = parseFloat(quantities.value[key]) || 0;
+    const precio = parseFloat(prices.value[key]) || 0;
+
+    const subtotalItem = cantidad * precio;
+    subtotal += subtotalItem;
+  });
+
+  const descuentoGeneral = parseFloat(form.descuento_general) || 0;
+  const subtotalDespuesGeneral = subtotal - descuentoGeneral;
+
   let descuentoItems = 0;
 
   selectedProducts.value.forEach(item => {
@@ -162,13 +175,11 @@ const totales = computed(() => {
     const subtotalItem = cantidad * precio;
     const descuentoItem = subtotalItem * (descuento / 100);
 
-    subtotal += subtotalItem;
     descuentoItems += descuentoItem;
   });
 
-  const subtotalConDescuentos = subtotal - descuentoItems;
-  const descuentoGeneral = subtotalConDescuentos * (parseFloat(form.descuento_general) / 100);
-  const subtotalFinal = subtotalConDescuentos - descuentoGeneral;
+  const subtotalConDescuentos = subtotalDespuesGeneral - descuentoItems;
+  const subtotalFinal = subtotalConDescuentos;
   const iva = subtotalFinal * 0.16;
   const total = subtotalFinal + iva;
 
@@ -176,7 +187,7 @@ const totales = computed(() => {
     subtotal: parseFloat(subtotal.toFixed(2)),
     descuento_items: parseFloat(descuentoItems.toFixed(2)),
     descuento_general: parseFloat(descuentoGeneral.toFixed(2)),
-    subtotalConDescuentos: parseFloat(subtotalFinal.toFixed(2)),
+    subtotalConDescuentos: parseFloat(subtotalConDescuentos.toFixed(2)),
     iva: parseFloat(iva.toFixed(2)),
     total: parseFloat(total.toFixed(2))
   };
@@ -187,6 +198,7 @@ const calcularTotal = () => {
   form.subtotal = totals.subtotal;
   form.iva = totals.iva;
   form.total = totals.total;
+  form.descuento_general = totals.descuento_general; // Ensure it's updated
 };
 
 // --- Guardar cambios ---
@@ -291,6 +303,33 @@ const imprimirVenta = async () => {
 
 const closeShortcuts = () => {
   mostrarAtajos.value = false;
+};
+
+// --- Guardar en localStorage ---
+const saveToLocalStorage = () => {
+  const data = {
+    cliente_id: form.cliente_id,
+    selectedProducts: selectedProducts.value,
+    quantities: quantities.value,
+    prices: prices.value,
+    discounts: discounts.value,
+    descuento_general: form.descuento_general,
+    notas: form.notas
+  };
+  localStorage.setItem(`venta_edit_${props.venta.id}`, JSON.stringify(data));
+};
+
+// --- Métodos para actualizar cantidad y descuento ---
+const updateQuantity = (key, quantity) => {
+  quantities.value[key] = quantity;
+  calcularTotal();
+  saveToLocalStorage();
+};
+
+const updateDiscount = (key, discount) => {
+  discounts.value[key] = discount;
+  calcularTotal();
+  saveToLocalStorage();
 };
 </script>
 

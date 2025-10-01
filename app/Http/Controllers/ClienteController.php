@@ -693,6 +693,12 @@ class ClienteController extends Controller
     public function destroy(Cliente $cliente)
     {
         try {
+            Log::info('Iniciando eliminación de cliente', [
+                'cliente_id' => $cliente->id,
+                'cliente_nombre' => $cliente->nombre_razon_social,
+                'usuario_id' => Auth::id()
+            ]);
+
             // Verificar permisos de eliminación
             Gate::authorize('delete', $cliente);
 
@@ -700,31 +706,46 @@ class ClienteController extends Controller
             $relaciones = $this->verificarRelacionesCliente($cliente);
 
             if (!empty($relaciones)) {
-                return redirect()->back()->with('error',
-                    'No se puede eliminar el cliente porque tiene registros relacionados: ' .
-                    implode(', ', $relaciones) . '. ' .
-                    'Elimine o transfiera estos registros primero.'
-                );
+                // Crear mensaje simple y claro
+                $mensajeSimple = $this->generarMensajeSimple($cliente, $relaciones);
+
+                Log::warning('Cliente no eliminado por relaciones existentes', [
+                    'cliente_id' => $cliente->id,
+                    'cliente_nombre' => $cliente->nombre_razon_social,
+                    'estado_activo' => $cliente->activo,
+                    'relaciones' => $relaciones
+                ]);
+
+                return redirect()->back()->with('error', $mensajeSimple);
             }
 
             DB::beginTransaction();
             $cliente->delete(); // Ahora usa soft delete
             DB::commit();
 
-            Log::info('Cliente eliminado', ['cliente_id' => $cliente->id]);
+            Log::info('Cliente eliminado correctamente', [
+                'cliente_id' => $cliente->id,
+                'cliente_nombre' => $cliente->nombre_razon_social
+            ]);
+
             return redirect()->route('clientes.index')->with('success', 'Cliente eliminado correctamente');
 
         } catch (ModelNotFoundException $e) {
             DB::rollBack();
-            Log::warning('Cliente no encontrado para eliminación', ['id' => request()->route('cliente')]);
+            Log::warning('Cliente no encontrado para eliminación', [
+                'id' => request()->route('cliente'),
+                'error' => $e->getMessage()
+            ]);
             return redirect()->route('clientes.index')->with('error', 'Cliente no encontrado.');
         } catch (Exception $e) {
             DB::rollBack();
             Log::error('Error al eliminar cliente: ' . $e->getMessage(), [
                 'cliente_id' => $cliente->id ?? 'N/A',
+                'cliente_nombre' => $cliente->nombre_razon_social ?? 'N/A',
+                'usuario_id' => Auth::id() ?? 'N/A',
                 'trace' => $e->getTraceAsString()
             ]);
-            return redirect()->back()->with('error', 'Error interno al eliminar el cliente.');
+            return redirect()->back()->with('error', 'Error interno al eliminar el cliente. Detalles: ' . $e->getMessage());
         }
     }
 
@@ -735,12 +756,54 @@ class ClienteController extends Controller
             DB::beginTransaction();
             $cliente->update(['activo' => !$cliente->activo]);
             DB::commit();
+
+            Log::info('Estado de cliente cambiado', [
+                'cliente_id' => $cliente->id,
+                'cliente_nombre' => $cliente->nombre_razon_social,
+                'nuevo_estado' => $cliente->activo ? 'activo' : 'inactivo',
+                'usuario_id' => Auth::id()
+            ]);
+
+            // Retornar respuesta JSON para peticiones AJAX
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $cliente->activo ? 'Cliente activado correctamente' : 'Cliente desactivado correctamente',
+                    'cliente' => [
+                        'id' => $cliente->id,
+                        'activo' => $cliente->activo,
+                        'estado_texto' => $cliente->activo ? 'Activo' : 'Inactivo'
+                    ]
+                ]);
+            }
+
             return redirect()->back()->with('success', $cliente->activo ? 'Cliente activado correctamente' : 'Cliente desactivado correctamente');
         } catch (ModelNotFoundException $e) {
             DB::rollBack();
+            Log::warning('Cliente no encontrado para cambio de estado', ['id' => $cliente->id ?? 'N/A']);
+
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cliente no encontrado.'
+                ], 404);
+            }
+
             return redirect()->route('clientes.index')->with('error', 'Cliente no encontrado.');
         } catch (Exception $e) {
             DB::rollBack();
+            Log::error('Error al cambiar estado del cliente: ' . $e->getMessage(), [
+                'cliente_id' => $cliente->id ?? 'N/A',
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Hubo un problema al cambiar el estado del cliente.'
+                ], 500);
+            }
+
             return redirect()->back()->with('error', 'Hubo un problema al cambiar el estado del cliente.');
         }
     }
@@ -1083,37 +1146,109 @@ class ClienteController extends Controller
     }
 
     /**
-     * Verificar si el cliente tiene relaciones activas que impidan su eliminación
-     */
+      * Verificar si el cliente tiene relaciones que impidan su eliminación
+      * Las cotizaciones bloquean la eliminación SIEMPRE (activos e inactivos)
+      * Otros documentos solo bloquean si el cliente está activo
+      */
     private function verificarRelacionesCliente(Cliente $cliente): array
     {
         $relaciones = [];
 
-        // Verificar cotizaciones (cualquier estado, incluyendo eliminadas)
-        if ($cliente->cotizaciones()->count() > 0) {
-            $relaciones[] = 'cotizaciones';
+        // ✅ COTIZACIONES: Bloquean SIEMPRE (incluso para clientes inactivos)
+        $cotizacionesCount = $cliente->cotizaciones()->count();
+        if ($cotizacionesCount > 0) {
+            $relaciones[] = "tiene {$cotizacionesCount} cotización(es)";
         }
 
-        // Verificar ventas (cualquier estado, incluyendo eliminadas)
-        if ($cliente->ventas()->count() > 0) {
-            $relaciones[] = 'ventas';
+        // ✅ Si el cliente está inactivo, verificar cotizaciones, ventas y pedidos
+        if (!$cliente->activo) {
+            // Verificar ventas (todas)
+            $ventasCount = $cliente->ventas()->count();
+            if ($ventasCount > 0) {
+                $relaciones[] = "tiene {$ventasCount} venta(s)";
+            }
+
+            // Verificar pedidos activos (solo los que NO están cancelados)
+            $pedidosActivos = $cliente->pedidos()->where('estado', '!=', 'cancelado')->count();
+            if ($pedidosActivos > 0) {
+                $relaciones[] = "tiene {$pedidosActivos} pedido(s) activo(s)";
+            }
+
+            if (!empty($relaciones)) {
+                Log::info('Cliente inactivo con relaciones - bloqueando eliminación', [
+                    'cliente_id' => $cliente->id,
+                    'cliente_nombre' => $cliente->nombre_razon_social,
+                    'estado_activo' => $cliente->activo,
+                    'relaciones' => $relaciones
+                ]);
+            }
+            return $relaciones;
         }
 
-        // Verificar pedidos (cualquier estado, incluyendo eliminados)
-        if ($cliente->pedidos()->count() > 0) {
-            $relaciones[] = 'pedidos';
+        // ✅ Para clientes activos: verificar todas las relaciones
+
+        // Verificar ventas (todas, ya que no tienen soft deletes)
+        $ventasCount = $cliente->ventas()->count();
+        if ($ventasCount > 0) {
+            $relaciones[] = "tiene {$ventasCount} venta(s)";
         }
 
-        // Verificar facturas (cualquier factura emitida)
-        if ($cliente->facturas()->count() > 0) {
-            $relaciones[] = 'facturas emitidas';
+        // Verificar pedidos activos (solo los que NO están cancelados)
+        $pedidosActivos = $cliente->pedidos()->where('estado', '!=', 'cancelado')->count();
+        if ($pedidosActivos > 0) {
+            $relaciones[] = "tiene {$pedidosActivos} pedido(s) activo(s)";
         }
 
-        // Verificar rentas (cualquier estado, incluyendo eliminadas)
-        if ($cliente->rentas()->count() > 0) {
-            $relaciones[] = 'rentas';
+        // Verificar facturas (todas)
+        $facturasCount = $cliente->facturas()->count();
+        if ($facturasCount > 0) {
+            $relaciones[] = "tiene {$facturasCount} factura(s) emitida(s)";
+        }
+
+        // Verificar rentas activas (solo las que NO están finalizadas)
+        $rentasActivas = $cliente->rentas()->where('estado', '!=', 'finalizada')->count();
+        if ($rentasActivas > 0) {
+            $relaciones[] = "tiene {$rentasActivas} renta(s) activa(s)";
+        }
+
+        // Log detallado para debugging
+        if (!empty($relaciones)) {
+            Log::info('Cliente tiene relaciones que bloquean eliminación', [
+                'cliente_id' => $cliente->id,
+                'cliente_nombre' => $cliente->nombre_razon_social,
+                'estado_activo' => $cliente->activo,
+                'relaciones' => $relaciones,
+                'conteos' => [
+                    'cotizaciones' => $cotizacionesCount,
+                    'ventas' => $ventasCount,
+                    'pedidos_activos' => $pedidosActivos,
+                    'facturas' => $facturasCount,
+                    'rentas_activas' => $rentasActivas,
+                ]
+            ]);
         }
 
         return $relaciones;
     }
-}
+
+    /**
+     * Generar mensaje simple y claro para el usuario
+     */
+    private function generarMensajeSimple(Cliente $cliente, array $relaciones): string
+    {
+        $count = count($relaciones);
+
+        if ($count === 1) {
+            $mensaje = 'No se puede eliminar el cliente "' . $cliente->nombre_razon_social . '" porque ' . $relaciones[0] . '.';
+        } elseif ($count <= 3) {
+            $mensaje = 'No se puede eliminar el cliente "' . $cliente->nombre_razon_social . '" porque ' . implode(' y ', $relaciones) . '.';
+        } else {
+            // Si hay muchas relaciones, resumir
+            $mensaje = 'No se puede eliminar el cliente "' . $cliente->nombre_razon_social . '" porque tiene múltiples registros relacionados (' . $count . ' tipos de relación).';
+        }
+
+        $mensaje .= "\n\nPara eliminar este cliente, cancele o elimine los registros relacionados.";
+
+        return $mensaje;
+    }
+ }

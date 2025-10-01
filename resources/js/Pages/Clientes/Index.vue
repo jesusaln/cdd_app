@@ -45,6 +45,15 @@ const showModal = ref(false)
 const modalMode = ref('details')
 const selectedCliente = ref(null)
 const selectedId = ref(null)
+const isDeleting = ref(false)
+
+const closeModal = () => {
+  showModal.value = false
+  modalMode.value = 'details'
+  selectedCliente.value = null
+  selectedId.value = null
+  isDeleting.value = false
+}
 
 // Filtros
 const searchTerm = ref(props.filters?.search ?? '')
@@ -137,6 +146,7 @@ function handleSortChange(newSort) {
 const verDetalles = (doc) => {
   selectedCliente.value = doc.raw
   modalMode.value = 'details'
+  isDeleting.value = false
   showModal.value = true
 }
 
@@ -144,23 +154,48 @@ const editarCliente = (id) => {
   router.visit(route('clientes.edit', id))
 }
 
-const confirmarEliminacion = (id) => {
-  selectedId.value = id
+const confirmarEliminacion = (cliente) => {
+  const clienteData = cliente?.raw ?? cliente
+
+  if (!clienteData?.id) {
+    notyf.error('No se pudo obtener la informacion del cliente')
+    return
+  }
+
+  selectedCliente.value = clienteData
+  selectedId.value = clienteData.id
   modalMode.value = 'confirm'
+  isDeleting.value = false
   showModal.value = true
 }
 
 const eliminarCliente = () => {
+  if (!selectedId.value) {
+    notyf.error('Selecciona un cliente valido para eliminar')
+    return
+  }
+
+  isDeleting.value = true
+
   router.delete(route('clientes.destroy', selectedId.value), {
     preserveScroll: true,
     onSuccess: () => {
-      notyf.success('Cliente eliminado correctamente')
-      showModal.value = false
-      selectedId.value = null
-      router.reload()
+      const flash = page.props?.flash ?? {}
+
+      if (flash?.error) {
+        notyf.error(flash.error)
+        return
+      }
+
+      notyf.success(flash?.success ?? 'Cliente eliminado correctamente')
+      closeModal()
+      router.reload({ only: ['clientes', 'stats'] })
     },
-    onError: (errors) => {
+    onError: () => {
       notyf.error('No se pudo eliminar el cliente')
+    },
+    onFinish: () => {
+      isDeleting.value = false
     }
   })
 }
@@ -171,14 +206,30 @@ const toggleCliente = (id) => {
   const nuevoEstado = cliente.activo ? 'inactivo' : 'activo'
   const mensaje = nuevoEstado === 'activo' ? 'Cliente activado correctamente' : 'Cliente desactivado correctamente'
 
-  router.put(route('clientes.toggle', id), {
+  router.put(route('clientes.toggle', id), {}, {
     preserveScroll: true,
-    onSuccess: () => {
-      notyf.success(mensaje)
-      router.reload()
+    preserveState: false,
+    onSuccess: (response) => {
+      // Si hay respuesta JSON (para peticiones AJAX)
+      if (response.props?.success) {
+        notyf.success(response.props.message || mensaje)
+      } else {
+        notyf.success(mensaje)
+      }
+      closeModal() // Cerrar modal después del cambio exitoso
+      router.reload({ only: ['clientes', 'stats'] }) // Recargar solo datos necesarios
     },
     onError: (errors) => {
-      notyf.error('No se pudo cambiar el estado del cliente')
+      console.error('Error al cambiar estado del cliente:', errors)
+      notyf.error(errors?.message || 'No se pudo cambiar el estado del cliente')
+    },
+    onFinish: () => {
+      // Asegurar que el modal se cierre incluso si hay error
+      setTimeout(() => {
+        if (showModal.value) {
+          closeModal()
+        }
+      }, 1000)
     }
   })
 }
@@ -424,7 +475,12 @@ const obtenerLabelEstado = (estado) => {
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
                     </button>
-                    <button @click="confirmarEliminacion(cliente.id)" class="w-8 h-8 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors duration-150" title="Eliminar">
+                    <button
+                      v-if="cliente.estado === 'inactivo'"
+                      @click="confirmarEliminacion(cliente)"
+                      class="w-8 h-8 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors duration-150"
+                      title="Eliminar"
+                    >
                       <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
@@ -518,14 +574,14 @@ const obtenerLabelEstado = (estado) => {
       </div>
 
       <!-- Modal mejorado -->
-      <div v-if="showModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="showModal = false">
+      <div v-if="showModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="closeModal">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
           <!-- Header del modal -->
           <div class="flex items-center justify-between p-6 border-b border-gray-200">
             <h3 class="text-lg font-medium text-gray-900">
               {{ modalMode === 'details' ? 'Detalles del Cliente' : 'Confirmar Eliminación' }}
             </h3>
-            <button @click="showModal = false" class="text-gray-400 hover:text-gray-600 transition-colors">
+            <button @click="closeModal" class="text-gray-400 hover:text-gray-600 transition-colors">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -596,7 +652,7 @@ const obtenerLabelEstado = (estado) => {
 
           <!-- Footer del modal -->
           <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
-            <button @click="showModal = false" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+            <button @click="closeModal" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
               {{ modalMode === 'details' ? 'Cerrar' : 'Cancelar' }}
             </button>
             <div v-if="modalMode === 'details'" class="flex gap-2">
@@ -607,8 +663,14 @@ const obtenerLabelEstado = (estado) => {
                 Editar
               </button>
             </div>
-            <button v-if="modalMode === 'confirm'" @click="eliminarCliente" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
-              Eliminar
+            <button
+              v-if="modalMode === 'confirm'"
+              @click="eliminarCliente"
+              :disabled="isDeleting"
+              class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <span v-if="isDeleting">Eliminando...</span>
+              <span v-else>Eliminar</span>
             </button>
           </div>
         </div>
