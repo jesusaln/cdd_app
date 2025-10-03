@@ -22,20 +22,36 @@ export default defineConfig({
     alias: {
       '@': resolve('resources/js'),
       // Esta línea soluciona el error de compilación de templates de Vue
-      'vue': 'vue/dist/vue.esm-bundler.js'
+      vue: 'vue/dist/vue.esm-bundler.js',
     },
   },
   // Configuraciones adicionales para mejorar el rendimiento
   build: {
-    // Habilita la división de código para mejor caching
+    // División de código personalizada para módulos pesados
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['vue', '@inertiajs/vue3'],
-          utils: ['axios', 'lodash']
-        }
-      }
-    }
+        manualChunks(id) {
+          if (id.includes('resources/js/Pages/Reportes')) {
+            return 'module-reportes';
+          }
+          if (id.includes('resources/js/Pages/Mantenimientos')) {
+            return 'module-mantenimientos';
+          }
+          if (id.includes('node_modules/notyf')) {
+            return 'vendor-notyf';
+          }
+          if (id.includes('node_modules/date-fns')) {
+            return 'vendor-date-fns';
+          }
+          if (id.includes('node_modules/vue') || id.includes('node_modules/@inertiajs')) {
+            return 'vendor';
+          }
+          if (id.includes('node_modules/axios') || id.includes('node_modules/lodash')) {
+            return 'utils';
+          }
+        },
+      },
+    },
   },
   // Configuración del servidor de desarrollo
   server: {
@@ -45,10 +61,10 @@ export default defineConfig({
     // Puerto por defecto, puedes cambiarlo si es necesario
     port: 5173,
     // Abre automáticamente el navegador
-    open: false
+    open: false,
   },
   // Optimización de dependencias
   optimizeDeps: {
-    include: ['vue', '@inertiajs/vue3', 'axios']
-  }
+    include: ['vue', '@inertiajs/vue3', 'axios'],
+  },
 });

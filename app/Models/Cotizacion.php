@@ -81,11 +81,7 @@ class Cotizacion extends Model
             'cotizacion_items',
             'cotizacion_id',
             'cotizable_id'
-        )->withPivot('cantidad', 'precio', 'descuento', 'subtotal', 'descuento_monto')
-        ->wherePivot('cotizable_type', Producto::class)
-        ->whereHasMorph('cotizable', Producto::class, function ($query) {
-            $query->active();
-        });
+        )->withPivot('cantidad', 'precio', 'descuento', 'subtotal', 'descuento_monto');
     }
 
     /**
@@ -101,11 +97,7 @@ class Cotizacion extends Model
             'cotizacion_items',
             'cotizacion_id',
             'cotizable_id'
-        )->withPivot('cantidad', 'precio', 'descuento', 'subtotal', 'descuento_monto')
-        ->wherePivot('cotizable_type', Servicio::class)
-        ->whereHasMorph('cotizable', Servicio::class, function ($query) {
-            $query->active();
-        });
+        )->withPivot('cantidad', 'precio', 'descuento', 'subtotal', 'descuento_monto');
     }
 
     /** Marcado de estado helper */

@@ -304,6 +304,41 @@ const obtenerLabelEstado = (estado) => {
   }
   return labels[estado] || 'Pendiente'
 }
+
+const generarDireccionCompleta = (cliente) => {
+  if (!cliente) return ''
+
+  const partes = []
+
+  // Agregar calle y números
+  if (cliente.calle) partes.push(cliente.calle)
+  if (cliente.numero_exterior) {
+    partes.push(`#${cliente.numero_exterior}`)
+  }
+  if (cliente.numero_interior) {
+    partes.push(`-${cliente.numero_interior}`)
+  }
+
+  // Agregar colonia
+  if (cliente.colonia) partes.push(cliente.colonia)
+
+  // Agregar código postal, municipio y estado
+  const ubicacion = []
+  if (cliente.codigo_postal) ubicacion.push(`C.P. ${cliente.codigo_postal}`)
+  if (cliente.municipio) ubicacion.push(cliente.municipio)
+  if (cliente.estado) ubicacion.push(cliente.estado)
+
+  if (ubicacion.length > 0) {
+    partes.push(ubicacion.join(', '))
+  }
+
+  // Agregar país si no es México
+  if (cliente.pais && cliente.pais.toUpperCase() !== 'MX' && cliente.pais.toUpperCase() !== 'MEXICO') {
+    partes.push(cliente.pais)
+  }
+
+  return partes.join(', ')
+}
 </script>
 
 <template>
@@ -574,8 +609,8 @@ const obtenerLabelEstado = (estado) => {
       </div>
 
       <!-- Modal mejorado -->
-      <div v-if="showModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="closeModal">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div v-if="showModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" @click.self="closeModal">
+        <div class="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto transform transition-all">
           <!-- Header del modal -->
           <div class="flex items-center justify-between p-6 border-b border-gray-200">
             <h3 class="text-lg font-medium text-gray-900">
@@ -627,9 +662,11 @@ const obtenerLabelEstado = (estado) => {
                     </div>
                   </div>
                 </div>
-                <div v-if="selectedCliente.direccion">
+                <div>
                   <label class="block text-sm font-medium text-gray-700">Dirección</label>
-                  <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md whitespace-pre-wrap">{{ selectedCliente.direccion }}</p>
+                  <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md whitespace-pre-wrap">
+                    {{ generarDireccionCompleta(selectedCliente) || 'Dirección no disponible' }}
+                  </p>
                 </div>
               </div>
             </div>

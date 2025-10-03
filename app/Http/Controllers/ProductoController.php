@@ -92,10 +92,11 @@ class ProductoController extends Controller
     public function create()
     {
         return Inertia::render('Productos/Create', [
-            'categorias'  => Categoria::select('id', 'nombre')->get(),
-            'marcas'      => Marca::select('id', 'nombre')->get(),
-            'proveedores' => Proveedor::select('id', 'nombre_razon_social')->get(),
-            'almacenes'   => Almacen::select('id', 'nombre')->get(),
+            'categorias'     => Categoria::select('id', 'nombre')->get(),
+            'marcas'         => Marca::select('id', 'nombre')->get(),
+            'proveedores'    => Proveedor::select('id', 'nombre_razon_social')->get(),
+            'almacenes'      => Almacen::select('id', 'nombre')->get(),
+            'unidadesMedida' => \App\Models\UnidadMedida::select('id', 'nombre')->get(),
         ]);
     }
 
@@ -119,7 +120,7 @@ class ProductoController extends Controller
             'precio_compra'     => 'required|numeric|min:0',
             'precio_venta'      => 'required|numeric|min:0',
             'impuesto'          => 'required|numeric|min:0',
-            'unidad_medida'     => 'required|string',
+            'unidad_medida_id'  => 'required|exists:unidades_medida,id',
             'fecha_vencimiento' => 'nullable|date',
             'tipo_producto'     => 'required|in:fisico,digital',
             'imagen'            => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
@@ -141,18 +142,20 @@ class ProductoController extends Controller
      */
     public function edit($id)
     {
-        $producto    = Producto::findOrFail($id);
-        $categorias  = Categoria::all(['id', 'nombre']);
-        $marcas      = Marca::all(['id', 'nombre']);
-        $proveedores = Proveedor::all(['id', 'nombre_razon_social']);
-        $almacenes   = Almacen::all(['id', 'nombre']);
+        $producto       = Producto::findOrFail($id);
+        $categorias     = Categoria::all(['id', 'nombre']);
+        $marcas         = Marca::all(['id', 'nombre']);
+        $proveedores    = Proveedor::all(['id', 'nombre_razon_social']);
+        $almacenes      = Almacen::all(['id', 'nombre']);
+        $unidadesMedida = \App\Models\UnidadMedida::all(['id', 'nombre']);
 
         return Inertia::render('Productos/Edit', [
-            'producto'    => $producto,
-            'categorias'  => $categorias,
-            'marcas'      => $marcas,
-            'proveedores' => $proveedores,
-            'almacenes'   => $almacenes,
+            'producto'       => $producto,
+            'categorias'     => $categorias,
+            'marcas'         => $marcas,
+            'proveedores'    => $proveedores,
+            'almacenes'      => $almacenes,
+            'unidadesMedida' => $unidadesMedida,
         ]);
     }
 
@@ -176,11 +179,11 @@ class ProductoController extends Controller
 
             'numero_serie'  => 'nullable|string',
             'marca_id'      => 'required|exists:marcas,id',
-            'almacen_id'    => 'nullable|exists:almacenes,id',
+            'almacen_id'        => 'required|exists:almacenes,id',
             'stock_minimo'  => 'nullable|integer|min:0',
             'precio_compra' => 'nullable|numeric|min:0',
             'impuesto'      => 'nullable|numeric|min:0',
-            'unidad_medida' => 'nullable|string',
+            'unidad_medida_id' => 'nullable|exists:unidades_medida,id',
             'fecha_vencimiento' => 'nullable|date',
             'tipo_producto' => 'nullable|in:fisico,digital',
             'estado'        => 'nullable|in:activo,inactivo',

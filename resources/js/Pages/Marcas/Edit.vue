@@ -66,6 +66,22 @@ const submit = () => {
 const cancel = () => {
   router.visit(route('marcas.index'))
 }
+
+const toggleEstado = () => {
+  const nuevoEstado = props.marca.estado === 'activo' ? 'inactivo' : 'activo'
+  const mensaje = nuevoEstado === 'activo' ? 'Marca activada' : 'Marca desactivada'
+
+  router.put(route('marcas.toggle', props.marca.id), {}, {
+    onSuccess: () => {
+      notyf.success(mensaje + ' correctamente')
+      // Recargar la página para actualizar el estado
+      window.location.reload()
+    },
+    onError: (errors) => {
+      notyf.error('No se pudo cambiar el estado de la marca')
+    }
+  })
+}
 </script>
 
 <template>
@@ -80,6 +96,16 @@ const cancel = () => {
             <h1 class="text-3xl font-bold text-gray-900">Editar Marca</h1>
             <p class="text-gray-600 mt-1">Modifica la información de la marca</p>
           </div>
+          <button
+            v-if="props.marca.productos_count > 0"
+            @click="toggleEstado"
+            class="inline-flex items-center px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors mr-2"
+          >
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Cambiar Estado
+          </button>
           <button
             @click="cancel"
             class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"

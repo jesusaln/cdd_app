@@ -344,30 +344,21 @@
 
                             <!-- Unidad de Medida -->
                             <div>
-                                <label for="unidad_medida" class="block text-sm font-medium text-gray-700 mb-2">
+                                <label for="unidad_medida_id" class="block text-sm font-medium text-gray-700 mb-2">
                                     Unidad de Medida
                                 </label>
                                 <select
-                                    v-model="form.unidad_medida"
-                                    id="unidad_medida"
+                                    v-model="form.unidad_medida_id"
+                                    id="unidad_medida_id"
                                     class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
                                 >
                                     <option value="">Selecciona una unidad</option>
-                                    <option value="unidad">Unidad</option>
-                                    <option value="pieza">Pieza</option>
-                                    <option value="kg">Kilogramo</option>
-                                    <option value="g">Gramo</option>
-                                    <option value="litro">Litro</option>
-                                    <option value="ml">Mililitro</option>
-                                    <option value="metro">Metro</option>
-                                    <option value="cm">Centímetro</option>
-                                    <option value="caja">Caja</option>
-                                    <option value="paquete">Paquete</option>
-                                    <option value="docena">Docena</option>
-                                    <option value="par">Par</option>
+                                    <option v-for="unidad in unidadesMedida" :key="unidad.id" :value="unidad.id">
+                                        {{ unidad.nombre }}
+                                    </option>
                                 </select>
-                                <div v-if="form.errors.unidad_medida" class="mt-1 text-sm text-red-600">
-                                    {{ form.errors.unidad_medida }}
+                                <div v-if="form.errors.unidad_medida_id" class="mt-1 text-sm text-red-600">
+                                    {{ form.errors.unidad_medida_id }}
                                 </div>
                             </div>
 
@@ -587,6 +578,7 @@ const props = defineProps({
     marcas: { type: Array, default: () => [] },
     proveedores: { type: Array, default: () => [] },
     almacenes: { type: Array, default: () => [] },
+    unidadesMedida: { type: Array, default: () => [] },
 });
 
 // Inicializa el formulario con los datos del producto
@@ -606,7 +598,7 @@ const form = useForm({
     precio_compra: props.producto?.precio_compra || '',
     precio_venta: props.producto?.precio_venta || '',
     tipo_producto: props.producto?.tipo_producto || '',
-    unidad_medida: props.producto?.unidad_medida || '',
+    unidad_medida_id: props.producto?.unidad_medida_id || '',
     descuento_maximo: props.producto?.descuento_maximo || '',
     peso: props.producto?.peso || '',
     dimensiones: props.producto?.dimensiones || '',

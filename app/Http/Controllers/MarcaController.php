@@ -46,7 +46,7 @@ class MarcaController extends Controller
 
             // Paginación
             $perPage = min((int) $request->input('per_page', 10), 50);
-            $marcas = $query->paginate($perPage)->appends($request->query());
+            $marcas = $query->withCount('productos')->paginate($perPage)->appends($request->query());
 
             // Estadísticas
             $total = Marca::count();
@@ -103,7 +103,7 @@ class MarcaController extends Controller
     public function edit(Marca $marca)
     {
         return Inertia::render('Marcas/Edit', [
-            'marca' => $marca,
+            'marca' => $marca->loadCount('productos'),
         ]);
     }
 

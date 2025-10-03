@@ -36,7 +36,7 @@ class Producto extends Model
         'margen_ganancia',
         'comision_vendedor',
         'impuesto',
-        'unidad_medida',
+        'unidad_medida_id',
         'fecha_vencimiento',
         'tipo_producto',
         'imagen',
@@ -69,6 +69,12 @@ class Producto extends Model
     public function almacen(): BelongsTo
     {
         return $this->belongsTo(Almacen::class);
+    }
+
+    /** @return BelongsTo<UnidadMedida, Producto> */
+    public function unidadMedida(): BelongsTo
+    {
+        return $this->belongsTo(UnidadMedida::class);
     }
 
     /** @return MorphToMany<Compra> */

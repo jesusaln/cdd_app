@@ -12,8 +12,10 @@ class DatabaseSeeder extends Seeder
             // 1) Catálogos base
             RolesAndPermissionsSeeder::class,
             AlmacenSeeder::class,
+            UnidadMedidaSeeder::class,
             MarcaSeeder::class,
             CategoriaSeeder::class,
+            ProductoSeeder::class,
             ServicioSeeder::class,
 
             // ✅ SAT primero (necesarios para clientes)

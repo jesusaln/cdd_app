@@ -32,7 +32,17 @@ class ProductoSeeder extends Seeder
             [
                 'nombre_razon_social' => 'PROVEEDOR GENERAL',
                 'tipo_persona' => 'Moral',
-                'regimen_fiscal' => '616'
+                'regimen_fiscal' => '616',
+                'uso_cfdi' => 'G01',
+                'email' => 'proveedor@general.com',
+                'calle' => 'Calle Principal',
+                'numero_exterior' => '123',
+                'colonia' => 'Centro',
+                'codigo_postal' => '83000',
+                'municipio' => 'Hermosillo',
+                'estado' => 'Sonora',
+                'pais' => 'México',
+                'activo' => true
             ]
         );
 
@@ -40,6 +50,12 @@ class ProductoSeeder extends Seeder
             ['nombre' => 'Almacén Principal'],
             ['ubicacion' => 'Sucursal Central']
         );
+
+        // Obtener unidades de medida
+        $unidadesMedida = \App\Models\UnidadMedida::all();
+
+        // Obtener todos los almacenes para asignar random
+        $almacenes = Almacen::all();
 
         // Productos básicos que siempre deben existir
         $productosEsenciales = [
@@ -51,13 +67,13 @@ class ProductoSeeder extends Seeder
                 'categoria_id' => $categoriaDefault->id,
                 'marca_id' => $marcaDefault->id,
                 'proveedor_id' => $proveedorDefault->id,
-                'almacen_id' => $almacenDefault->id,
+                'almacen_id' => $almacenes->random()->id,
                 'stock' => 100,
                 'stock_minimo' => 10,
                 'precio_compra' => 50.00,
                 'precio_venta' => 80.00,
                 'impuesto' => 16.00,
-                'unidad_medida' => 'Pieza',
+                'unidad_medida_id' => $unidadesMedida->random()->id,
                 'tipo_producto' => 'fisico',
                 'estado' => 'activo'
             ]
@@ -72,7 +88,6 @@ class ProductoSeeder extends Seeder
 
         // Productos adicionales para desarrollo
         if (app()->environment('local', 'testing')) {
-            $unidadesMedida = ['Pieza', 'Kilogramo', 'Litro', 'Metro', 'Caja', 'Paquete'];
             $tiposProducto = ['fisico', 'digital'];
 
             for ($i = 0; $i < 20; $i++) {
@@ -93,13 +108,13 @@ class ProductoSeeder extends Seeder
                     'categoria_id' => $categoriaDefault->id,
                     'marca_id' => $marcaDefault->id,
                     'proveedor_id' => $faker->optional(0.8)->randomElement([$proveedorDefault->id]),
-                    'almacen_id' => $faker->optional(0.9)->randomElement([$almacenDefault->id]),
+                    'almacen_id' => $almacenes->random()->id,
                     'stock' => $faker->numberBetween(0, 500),
                     'stock_minimo' => $faker->numberBetween(5, 50),
                     'precio_compra' => $faker->randomFloat(2, 10, 500),
                     'precio_venta' => $faker->randomFloat(2, 15, 750),
                     'impuesto' => $faker->randomElement([0, 8, 16]),
-                    'unidad_medida' => $faker->randomElement($unidadesMedida),
+                    'unidad_medida_id' => $unidadesMedida->random()->id,
                     'fecha_vencimiento' => $vencimiento,
                     'tipo_producto' => $tipo,
                     'imagen' => $faker->optional(0.6)->imageUrl(400, 400, 'product'),

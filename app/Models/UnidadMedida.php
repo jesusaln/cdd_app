@@ -6,17 +6,21 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Categoria extends Model
+class UnidadMedida extends Model
 {
     use HasFactory;
 
+    protected $table = 'unidades_medida';
+
     protected $fillable = [
         'nombre',
+        'abreviatura',
         'descripcion',
+        'activo',
     ];
 
     protected $casts = [
-        'estado' => 'string',
+        'activo' => 'boolean',
     ];
 
     /**
@@ -28,18 +32,10 @@ class Categoria extends Model
     }
 
     /**
-     * Scope para categorías activas
+     * Scope para unidades activas
      */
     public function scopeActivas($query)
     {
-        return $query->where('estado', 'activo');
-    }
-
-    /**
-     * Scope para categorías inactivas
-     */
-    public function scopeInactivas($query)
-    {
-        return $query->where('estado', 'inactivo');
+        return $query->where('activo', true);
     }
 }

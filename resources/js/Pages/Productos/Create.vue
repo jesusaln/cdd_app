@@ -163,9 +163,9 @@
                         <!-- Almacén -->
                         <div>
                             <label for="almacen_id" class="block text-sm font-medium text-gray-700 mb-2">
-                                Almacén
+                                Almacén <span class="text-red-500">*</span>
                             </label>
-                            <select v-model="form.almacen_id" id="almacen_id" class="input-field">
+                            <select v-model="form.almacen_id" id="almacen_id" class="input-field" required>
                                 <option value="">Seleccione un almacén</option>
                                 <option v-for="almacen in almacenes" :key="almacen.id" :value="almacen.id">
                                     {{ almacen.nombre }}
@@ -291,16 +291,16 @@
 
                         <!-- Unidad de Medida -->
                         <div>
-                            <label for="unidad_medida" class="block text-sm font-medium text-gray-700 mb-2">
+                            <label for="unidad_medida_id" class="block text-sm font-medium text-gray-700 mb-2">
                                 Unidad de Medida <span class="text-red-500">*</span>
                             </label>
-                            <select v-model="form.unidad_medida" id="unidad_medida" class="input-field" required>
+                            <select v-model="form.unidad_medida_id" id="unidad_medida_id" class="input-field" required>
                                 <option value="">Seleccione una unidad</option>
-                                <option v-for="unidad in unidadesMedida" :key="unidad" :value="unidad">
-                                    {{ unidad }}
+                                <option v-for="unidad in unidadesMedida" :key="unidad.id" :value="unidad.id">
+                                    {{ unidad.nombre }}
                                 </option>
                             </select>
-                            <div v-if="form.errors.unidad_medida" class="error-message">{{ form.errors.unidad_medida }}</div>
+                            <div v-if="form.errors.unidad_medida_id" class="error-message">{{ form.errors.unidad_medida_id }}</div>
                         </div>
 
                         <!-- Comisión Vendedor -->
@@ -446,6 +446,7 @@ const props = defineProps({
     marcas: Array,
     proveedores: Array,
     almacenes: Array,
+    unidadesMedida: Array,
 });
 
 // Estado para las pestañas
@@ -454,18 +455,7 @@ const activeTab = ref('general');
 // Vista previa de imagen
 const imagePreview = ref(null);
 
-// Lista de unidades de medida
-const unidadesMedida = [
-    "Kilogramos",
-    "Gramos",
-    "Litros",
-    "Mililitros",
-    "Piezas",
-    "Metros",
-    "Centímetros",
-    "Milímetros",
-    "Unidades"
-];
+// Las unidades de medida vienen desde props
 
 // Formulario para crear un producto
 const form = useForm({
@@ -483,7 +473,7 @@ const form = useForm({
     precio_compra: '',
     precio_venta: '',
     impuesto: '16',
-    unidad_medida: 'Piezas',
+    unidad_medida_id: '',
     fecha_vencimiento: '',
     tipo_producto: 'fisico',
     imagen: null,

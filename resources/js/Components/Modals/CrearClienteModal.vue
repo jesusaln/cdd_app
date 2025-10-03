@@ -463,6 +463,30 @@
                               Código de país (2-3 letras). México por defecto, cambia para clientes extranjeros.
                             </div>
                           </div>
+
+                          <div class="md:col-span-3">
+                            <label for="modal-direccion_completa" class="block text-sm font-medium text-gray-700">
+                              Dirección Completa
+                            </label>
+                            <textarea
+                              id="modal-direccion_completa"
+                              v-model="form.direccion_completa"
+                              @blur="toUpper('direccion_completa')"
+                              rows="3"
+                              placeholder="Dirección completa del cliente (se genera automáticamente pero puede editarse)"
+                              autocomplete="new-password"
+                              :class="[
+                                'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                                form.errors.direccion_completa ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                              ]"
+                            />
+                            <div v-if="form.errors.direccion_completa" class="mt-1 text-sm text-red-600">
+                              {{ form.errors.direccion_completa }}
+                            </div>
+                            <div class="mt-1 text-xs text-gray-500">
+                              Esta dirección se genera automáticamente a partir de los campos anteriores, pero puede editarse manualmente.
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </form>
@@ -586,6 +610,7 @@ const initFormData = () => ({
   municipio: '',
   estado: '',
   pais: 'MX',
+  direccion_completa: '',
 })
 
 const form = useForm(initFormData())
@@ -654,6 +679,40 @@ const usosCFDI = computed(() => {
   }))
 })
 
+// Generar dirección completa automáticamente
+const direccionCompletaGenerada = computed(() => {
+  const partes = []
+
+  // Agregar calle y números
+  if (form.calle) partes.push(form.calle)
+  if (form.numero_exterior) {
+    partes.push(`#${form.numero_exterior}`)
+  }
+  if (form.numero_interior) {
+    partes.push(`-${form.numero_interior}`)
+  }
+
+  // Agregar colonia
+  if (form.colonia) partes.push(form.colonia)
+
+  // Agregar código postal, municipio y estado
+  const ubicacion = []
+  if (form.codigo_postal) ubicacion.push(`C.P. ${form.codigo_postal}`)
+  if (form.municipio) ubicacion.push(form.municipio)
+  if (form.estado) ubicacion.push(form.estado)
+
+  if (ubicacion.length > 0) {
+    partes.push(ubicacion.join(', '))
+  }
+
+  // Agregar país si no es México
+  if (form.pais && form.pais.toUpperCase() !== 'MX' && form.pais.toUpperCase() !== 'MEXICO') {
+    partes.push(form.pais)
+  }
+
+  return partes.join(', ')
+})
+
 // Configuración dinámica RFC/CURP
 const rfcMaxLength = computed(() => form.tipo_persona === 'fisica' ? 13 : 12)
 const rfcPlaceholder = computed(() => form.tipo_persona === 'fisica' ? 'ABCD123456EFG' : 'ABC123456EF')
@@ -680,6 +739,15 @@ watch(() => form.tipo_persona, (newVal, oldVal) => {
 watch(isExtranjero, (val) => {
   if (!val) form.pais = 'MX'
 })
+
+// Actualizar dirección completa automáticamente cuando cambien los campos de dirección
+watch(() => [form.calle, form.numero_exterior, form.numero_interior, form.colonia,
+             form.codigo_postal, form.municipio, form.estado, form.pais], () => {
+  // Solo actualizar automáticamente si el usuario no ha editado manualmente la dirección
+  if (!form.direccion_completa || form.direccion_completa === direccionCompletaGenerada.value) {
+    form.direccion_completa = direccionCompletaGenerada.value
+  }
+}, { immediate: true })
 
 // Handlers
 const onTipoPersonaChange = () => {
@@ -792,6 +860,8 @@ watch(() => props.show, (newVal) => {
     Object.assign(form, initFormData())
     availableColonias.value = []
     showAutoCompleteMessage.value = false
+    // Reset dirección completa generada
+    form.direccion_completa = ''
   }
 })
 </script>

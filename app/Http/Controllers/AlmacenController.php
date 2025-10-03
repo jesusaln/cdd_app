@@ -48,7 +48,7 @@ class AlmacenController extends Controller
 
             // Paginación
             $perPage = min((int) $request->input('per_page', 10), 50);
-            $almacenes = $query->paginate($perPage)->appends($request->query());
+            $almacenes = $query->withCount('productos')->paginate($perPage)->appends($request->query());
 
             // Estadísticas
             $total = Almacen::count();
@@ -108,7 +108,7 @@ class AlmacenController extends Controller
     public function edit(Almacen $almacen)
     {
         return Inertia::render('Almacenes/Edit', [
-            'almacen' => $almacen,
+            'almacen' => $almacen->loadCount('productos'),
         ]);
     }
 

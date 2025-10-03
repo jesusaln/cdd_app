@@ -24,6 +24,16 @@ class CompraSeeder extends Seeder
         // Obtener categorías existentes
         $categorias = \App\Models\Categoria::all();
 
+        // Obtener almacenes existentes
+        $almacenes = \App\Models\Almacen::all();
+
+        if ($almacenes->isEmpty()) {
+            return; // No hay almacenes, no podemos crear productos
+        }
+
+        // Obtener unidades de medida
+        $unidadesMedida = \App\Models\UnidadMedida::all();
+
         // Crear algunas compras de ejemplo
         $compras = [
             [
@@ -84,12 +94,13 @@ class CompraSeeder extends Seeder
                         'stock' => $productoData['cantidad'],
                         'stock_minimo' => 10,
                         'impuesto' => 16.00,
-                        'unidad_medida' => 'Pieza',
+                        'unidad_medida_id' => $unidadesMedida->random()->id,
                         'tipo_producto' => 'fisico',
                         'estado' => 'activo',
                         'categoria_id' => \App\Models\Categoria::where('nombre', $productoData['categoria'])->first()?->id ?? 1,
                         'marca_id' => \App\Models\Marca::first()?->id ?? 1,
                         'proveedor_id' => $compra->proveedor_id,
+                        'almacen_id' => $almacenes->random()->id,
                     ]
                 );
 

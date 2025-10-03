@@ -36,28 +36,31 @@ class Servicio extends Model
     // Relación con la categoría
     public function categoria()
     {
-        return $this->belongsTo(Categoria::class);
+        return $this->belongsTo(Categoria::class)->withDefault([
+            'nombre' => 'Sin categoría'
+        ]);
     }
 
     // Relación con las cotizaciones
     public function cotizaciones()
     {
-        return $this->morphToMany(Cotizacion::class, 'cotizable', 'cotizacion_producto')
-            ->withPivot(['cantidad', 'precio', 'descuento', 'subtotal', 'descuento_monto'])
-            ->using(CotizacionProducto::class)
-            ->withTimestamps();
+        return $this->morphToMany(
+            Cotizacion::class,
+            'cotizable',
+            'cotizacion_items',
+            'cotizable_id',
+            'cotizacion_id'
+        )->withPivot('cantidad', 'precio', 'descuento', 'subtotal', 'descuento_monto');
     }
 
     public function pedidos()
     {
-        return $this->morphToMany(Pedido::class, 'pedible', 'pedido_producto')
-            ->withPivot('precio', 'cantidad');
+        return $this->morphToMany(Pedido::class, 'pedible');
     }
 
     public function ventas()
     {
-        return $this->morphToMany(Venta::class, 'vendible', 'venta_producto')
-            ->withPivot('precio', 'cantidad');
+        return $this->morphToMany(Venta::class, 'vendible');
     }
 
     public function getGananciaAttribute()

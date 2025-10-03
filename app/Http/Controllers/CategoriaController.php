@@ -38,7 +38,7 @@ class CategoriaController extends Controller
 
             // Paginación
             $perPage = min((int) $request->input('per_page', 10), 50);
-            $categorias = $query->paginate($perPage)->appends($request->query());
+            $categorias = $query->withCount('productos')->paginate($perPage)->appends($request->query());
 
             // Estadísticas
             $total = Categoria::count();
@@ -95,7 +95,7 @@ class CategoriaController extends Controller
     public function edit(Categoria $categoria)
     {
         return Inertia::render('Categorias/Edit', [
-            'categoria' => $categoria,
+            'categoria' => $categoria->loadCount('productos'),
         ]);
     }
 

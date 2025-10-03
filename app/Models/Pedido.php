@@ -39,32 +39,12 @@ class Pedido extends Model
     // Relaciones polimórficas para productos y servicios
     public function productos()
     {
-        return $this->morphedByMany(
-            Producto::class,
-            'pedible',
-            'pedido_items',
-            'pedido_id',
-            'pedible_id'
-        )->withPivot('cantidad', 'precio', 'descuento', 'subtotal', 'descuento_monto')
-        ->wherePivot('pedible_type', Producto::class)
-        ->whereHasMorph('pedible', Producto::class, function ($query) {
-            $query->active();
-        });
+        return $this->morphedByMany(Producto::class, 'pedible');
     }
 
     public function servicios()
     {
-        return $this->morphedByMany(
-            Servicio::class,
-            'pedible',
-            'pedido_items',
-            'pedido_id',
-            'pedible_id'
-        )->withPivot('cantidad', 'precio', 'descuento', 'subtotal', 'descuento_monto')
-        ->wherePivot('pedible_type', Servicio::class)
-        ->whereHasMorph('pedible', Servicio::class, function ($query) {
-            $query->active();
-        });
+        return $this->morphedByMany(Servicio::class, 'pedible');
     }
 
     public function cotizacion()

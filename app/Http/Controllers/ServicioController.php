@@ -16,6 +16,16 @@ class ServicioController extends Controller
     public function index(Request $request)
     {
         try {
+            // Verificar que existan categorías antes de cargar servicios
+            $categoriasCount = Categoria::count();
+            if ($categoriasCount === 0) {
+                // Crear una categoría por defecto si no existe ninguna
+                Categoria::create([
+                    'nombre' => 'General',
+                    'descripcion' => 'Categoría general para servicios'
+                ]);
+            }
+
             $query = Servicio::query()->with(['categoria']);
 
             // Filtros
@@ -72,7 +82,8 @@ class ServicioController extends Controller
             ]);
         } catch (\Exception $e) {
             Log::error('Error en ServicioController@index: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Error al cargar los servicios.');
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            return redirect()->back()->with('error', 'Error al cargar los servicios: ' . $e->getMessage());
         }
     }
 

@@ -61,10 +61,7 @@ class Venta extends Model
             'venta_id',
             'ventable_id'
         )->withPivot('cantidad', 'precio', 'descuento', 'costo_unitario')
-        ->wherePivot('ventable_type', Producto::class)
-        ->whereHasMorph('ventable', Producto::class, function ($query) {
-            $query->active();
-        });
+        ->wherePivot('ventable_type', Producto::class);
     }
 
     // Relación polimórfica para servicios
@@ -77,10 +74,7 @@ class Venta extends Model
             'venta_id',
             'ventable_id'
         )->withPivot('cantidad', 'precio', 'descuento', 'costo_unitario')
-        ->wherePivot('ventable_type', Servicio::class)
-        ->whereHasMorph('ventable', Servicio::class, function ($query) {
-            $query->active();
-        });
+        ->wherePivot('ventable_type', Servicio::class);
     }
 
     // Todos los ítems (productos + servicios)
