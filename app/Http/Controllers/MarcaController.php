@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Log;
 
 class MarcaController extends Controller
 {
+    private const ITEMS_PER_PAGE = 10;
+
     /**
      * Muestra una lista de todas las marcas con paginación y filtros.
      */
@@ -45,7 +47,7 @@ class MarcaController extends Controller
             $query->orderBy($sortBy, $sortDirection);
 
             // Paginación
-            $perPage = min((int) $request->input('per_page', 10), 50);
+            $perPage = max(1, min(100, (int) $request->input('per_page', self::ITEMS_PER_PAGE)));
             $marcas = $query->withCount('productos')->paginate($perPage)->appends($request->query());
 
             // Estadísticas

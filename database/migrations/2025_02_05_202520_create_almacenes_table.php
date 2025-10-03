@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id(); // ID autoincremental
             $table->string('nombre', 100)->unique(); // Nombre del almacén (único)
             $table->text('descripcion')->nullable(); // Descripción opcional
-            $table->string('ubicacion', 255); // Ubicación del almacén
+            $table->string('direccion', 255)->nullable(); // Dirección del almacén
             $table->timestamps(); // Columnas created_at y updated_at
         });
     }

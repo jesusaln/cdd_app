@@ -1,6 +1,6 @@
 <!-- /resources/js/Pages/Categorias/Index.vue -->
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { Head, router, usePage, Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { Notyf } from 'notyf'
@@ -46,7 +46,13 @@ const sortBy = ref('nombre-asc')
 const filtroEstado = ref('')
 
 // Paginación
-const perPage = ref(10)
+const perPage = ref(props.categorias?.per_page ?? 10)
+
+watch(() => props.categorias?.per_page, (newVal) => {
+  if (typeof newVal === 'number' && newVal > 0) {
+    perPage.value = newVal
+  }
+})
 
 // Header config
 const headerConfig = {
@@ -178,18 +184,19 @@ const exportCategorias = () => {
 
 // Paginación
 const paginationData = computed(() => ({
-  current_page: categoriasPaginator.value?.current_page || 1,
-  last_page: categoriasPaginator.value?.last_page || 1,
-  per_page: categoriasPaginator.value?.per_page || 10,
-  from: categoriasPaginator.value?.from || 0,
-  to: categoriasPaginator.value?.to || 0,
-  total: categoriasPaginator.value?.total || 0,
-  prev_page_url: categoriasPaginator.value?.prev_page_url,
-  next_page_url: categoriasPaginator.value?.next_page_url,
-  links: categoriasPaginator.value?.links || []
+  currentPage: categoriasPaginator.value?.current_page ?? 1,
+  lastPage: categoriasPaginator.value?.last_page ?? 1,
+  perPage: categoriasPaginator.value?.per_page ?? perPage.value,
+  from: categoriasPaginator.value?.from ?? 0,
+  to: categoriasPaginator.value?.to ?? 0,
+  total: categoriasPaginator.value?.total ?? 0,
+  prevPageUrl: categoriasPaginator.value?.prev_page_url ?? null,
+  nextPageUrl: categoriasPaginator.value?.next_page_url ?? null,
+  links: categoriasPaginator.value?.links ?? []
 }))
 
 const handlePerPageChange = (newPerPage) => {
+  perPage.value = newPerPage
   router.get(route('categorias.index'), {
     ...props.filters,
     ...props.sorting,
@@ -202,6 +209,7 @@ const handlePageChange = (newPage) => {
   router.get(route('categorias.index'), {
     ...props.filters,
     ...props.sorting,
+    per_page: perPage.value,
     page: newPage
   }, { preserveState: true, preserveScroll: true })
 }

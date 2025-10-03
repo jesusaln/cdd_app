@@ -1,6 +1,6 @@
 <!-- /resources/js/Pages/Marcas/Index.vue -->
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { Head, router, usePage, Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { Notyf } from 'notyf'
@@ -46,7 +46,13 @@ const sortBy = ref('nombre-asc')
 const filtroEstado = ref(props.filters?.estado ?? '')
 
 // Paginación
-const perPage = ref(10)
+const perPage = ref(props.marcas?.per_page ?? 10)
+
+watch(() => props.marcas?.per_page, (newVal) => {
+  if (typeof newVal === 'number' && newVal > 0) {
+    perPage.value = newVal
+  }
+})
 
 // Header config
 const headerConfig = {
@@ -178,18 +184,19 @@ const exportMarcas = () => {
 
 // Paginación
 const paginationData = computed(() => ({
-  current_page: marcasPaginator.value?.current_page || 1,
-  last_page: marcasPaginator.value?.last_page || 1,
-  per_page: marcasPaginator.value?.per_page || 10,
-  from: marcasPaginator.value?.from || 0,
-  to: marcasPaginator.value?.to || 0,
-  total: marcasPaginator.value?.total || 0,
-  prev_page_url: marcasPaginator.value?.prev_page_url,
-  next_page_url: marcasPaginator.value?.next_page_url,
-  links: marcasPaginator.value?.links || []
+  currentPage: marcasPaginator.value?.current_page ?? 1,
+  lastPage: marcasPaginator.value?.last_page ?? 1,
+  perPage: marcasPaginator.value?.per_page ?? perPage.value,
+  from: marcasPaginator.value?.from ?? 0,
+  to: marcasPaginator.value?.to ?? 0,
+  total: marcasPaginator.value?.total ?? 0,
+  prevPageUrl: marcasPaginator.value?.prev_page_url ?? null,
+  nextPageUrl: marcasPaginator.value?.next_page_url ?? null,
+  links: marcasPaginator.value?.links ?? []
 }))
 
 const handlePerPageChange = (newPerPage) => {
+  perPage.value = newPerPage
   router.get(route('marcas.index'), {
     ...props.filters,
     ...props.sorting,
@@ -202,6 +209,7 @@ const handlePageChange = (newPage) => {
   router.get(route('marcas.index'), {
     ...props.filters,
     ...props.sorting,
+    per_page: perPage.value,
     page: newPage
   }, { preserveState: true, preserveScroll: true })
 }
