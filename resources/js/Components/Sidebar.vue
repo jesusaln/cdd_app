@@ -161,71 +161,114 @@
           </div>
         </div>
 
-        <!-- Inventario -->
-        <div class="mb-4">
-          <div
-            @click="toggleAccordion('inventario')"
-            class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
-          >
-            <span>Inventario</span>
-            <svg
-              :class="accordionStates.inventario ? 'rotate-90' : ''"
-              class="w-3 h-3 transition-transform duration-200"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
-          </div>
-          <div v-show="accordionStates.inventario" class="mt-2 ml-2 space-y-1">
-            <NavLink href="/productos" icon="box" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Productos' : null">
-              Productos
-            </NavLink>
-            <NavLink href="/traspasos" icon="exchange-alt" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Traspasos' : null">
-              Traspasos
-            </NavLink>
-            <NavLink href="/movimientos-inventario" icon="history" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Movimientos' : null">
-              Movimientos
-            </NavLink>
-          </div>
-        </div>
 
         <!-- Administración -->
         <div class="mb-4">
-          <div
-            @click="toggleAccordion('administracion')"
-            class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
-          >
-            <span>Administración</span>
-            <svg
-              :class="accordionStates.administracion ? 'rotate-90' : ''"
-              class="w-3 h-3 transition-transform duration-200"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
-          </div>
-          <div v-show="accordionStates.administracion" class="mt-2 space-y-1">
-            <NavLink href="/reportes/dashboard" icon="chart-bar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Centro de Reportes' : null">
-              Centro de Reportes
-            </NavLink>
-            <NavLink href="/usuarios" icon="user" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Usuarios' : null">
-              Usuarios
-            </NavLink>
-            <NavLink :href="routeOr('/backup')" icon="database" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Copia de Seguridad' : null">
-              Copia de Seguridad
-            </NavLink>
-            <!-- NUEVO: Entregas de Dinero (Solo para administradores) -->
-            <NavLink v-if="props.usuario.is_admin || (props.usuario.roles && props.usuario.roles.some(role => role.name === 'admin'))" href="/entregas-dinero" icon="dollar-sign" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Entregas de Dinero' : null">
-              Entregas de Dinero
-            </NavLink>
-          </div>
-        </div>
+           <div
+             @click="toggleAccordion('administracion')"
+             class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
+           >
+             <span>Administración</span>
+             <svg
+               :class="accordionStates.administracion ? 'rotate-90' : ''"
+               class="w-3 h-3 transition-transform duration-200"
+               fill="none"
+               stroke="currentColor"
+               viewBox="0 0 24 24"
+             >
+               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+             </svg>
+           </div>
+           <div v-show="accordionStates.administracion" class="mt-2 space-y-1">
+             <NavLink href="/usuarios" icon="user" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Usuarios' : null">
+               Usuarios
+             </NavLink>
+             <NavLink :href="routeOr('/backup')" icon="database" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Copia de Seguridad' : null">
+               Copia de Seguridad
+             </NavLink>
+             <!-- NUEVO: Entregas de Dinero (Solo para administradores) -->
+             <NavLink v-if="props.usuario.is_admin || (props.usuario.roles && props.usuario.roles.some(role => role.name === 'admin'))" href="/entregas-dinero" icon="dollar-sign" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Entregas de Dinero' : null">
+               Entregas de Dinero
+             </NavLink>
+           </div>
+         </div>
 
-        <!-- Rentas y Equipos -->
+       <!-- Reportes -->
+       <div class="mb-4">
+         <div
+           @click="toggleAccordion('reportes')"
+           class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
+         >
+           <span>Reportes</span>
+           <svg
+             :class="accordionStates.reportes ? 'rotate-90' : ''"
+             class="w-3 h-3 transition-transform duration-200"
+             fill="none"
+             stroke="currentColor"
+             viewBox="0 0 24 24"
+           >
+             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+           </svg>
+         </div>
+         <div v-show="accordionStates.reportes" class="mt-2 space-y-1">
+           <!-- Centro de Reportes -->
+           <NavLink href="/reportes/dashboard" icon="chart-bar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Centro de Reportes' : null">
+             Centro de Reportes
+           </NavLink>
+
+           <!-- Reportes de Inventario -->
+           <NavLink href="/reportes/inventario/dashboard" icon="clipboard-list" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Dashboard Inventario' : null">
+             Dashboard Inventario
+           </NavLink>
+           <NavLink href="/reportes/inventario/stock-por-almacen" icon="warehouse" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Stock por Almacén' : null">
+             Stock por Almacén
+           </NavLink>
+           <NavLink href="/reportes/inventario/productos-bajo-stock" icon="exclamation-triangle" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Productos Bajo Stock' : null">
+             Productos Bajo Stock
+           </NavLink>
+           <NavLink href="/reportes/inventario/movimientos-por-periodo" icon="history" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Movimientos por Período' : null">
+             Movimientos por Período
+           </NavLink>
+           <NavLink href="/reportes/inventario/costos" icon="dollar-sign" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Costos de Inventario' : null">
+             Costos de Inventario
+           </NavLink>
+
+           <!-- Reportes de Ventas -->
+           <NavLink href="/reportes/ventas" icon="chart-line" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Reportes de Ventas' : null">
+             Reportes de Ventas
+           </NavLink>
+           <NavLink href="/reportes/cobranza" icon="credit-card" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Reportes de Cobranza' : null">
+             Reportes de Cobranza
+           </NavLink>
+
+           <!-- Reportes de Compras -->
+           <NavLink href="/reportes/compras" icon="shopping-cart" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Reportes de Compras' : null">
+             Reportes de Compras
+           </NavLink>
+
+           <!-- Reportes de Clientes -->
+           <NavLink href="/reportes/clientes" icon="users" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Reportes de Clientes' : null">
+             Reportes de Clientes
+           </NavLink>
+
+           <!-- Reportes de Proveedores -->
+           <NavLink href="/reportes/proveedores" icon="truck" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Reportes de Proveedores' : null">
+             Reportes de Proveedores
+           </NavLink>
+
+           <!-- Reportes de Servicios -->
+           <NavLink href="/reportes/servicios" icon="wrench" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Reportes de Servicios' : null">
+             Reportes de Servicios
+           </NavLink>
+
+           <!-- Reportes de Citas -->
+           <NavLink href="/reportes/citas" icon="calendar-alt" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Reportes de Citas' : null">
+             Reportes de Citas
+           </NavLink>
+         </div>
+       </div>
+
+       <!-- Rentas y Equipos -->
         <div class="mb-4">
           <div
             @click="toggleAccordion('rentas')"
@@ -281,6 +324,42 @@
             </NavLink>
             <NavLink href="/herramientas" icon="toolbox" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Herramientas' : null">
               Herramientas
+            </NavLink>
+          </div>
+        </div>
+
+        <!-- Inventario -->
+        <div class="mb-4">
+          <div
+            @click="toggleAccordion('inventario')"
+            class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
+          >
+            <span>Inventario</span>
+            <svg
+              :class="accordionStates.inventario ? 'rotate-90' : ''"
+              class="w-3 h-3 transition-transform duration-200"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+          <div v-show="accordionStates.inventario" class="mt-2 space-y-1">
+            <NavLink href="/productos" icon="box" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Productos' : null">
+              Productos
+            </NavLink>
+            <NavLink href="/traspasos" icon="exchange-alt" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Traspasos' : null">
+              Traspasos
+            </NavLink>
+            <NavLink href="/movimientos-inventario" icon="history" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Movimientos' : null">
+              Movimientos
+            </NavLink>
+            <NavLink href="/ajustes-inventario" icon="cogs" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Ajustes' : null">
+              Ajustes
+            </NavLink>
+            <NavLink href="/movimientos-manuales" icon="exchange-alt" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Mov. Manuales' : null">
+              Mov. Manuales
             </NavLink>
           </div>
         </div>
@@ -360,6 +439,7 @@ const accordionStates = ref({
   catalogos: false,
   inventario: false,
   administracion: false,
+  reportes: false,
   rentas: false,
   taller: false
 });
@@ -381,18 +461,21 @@ const toggleAccordion = (section) => {
 const getCurrentSection = () => {
   const path = window.location.pathname;
 
-  if (path.includes('/cotizaciones') || path.includes('/pedidos') || path.includes('/ventas') || path.includes('/cobranza')) {
+  // Verificar inventario primero (más específico)
+  if (path.includes('/productos') || path.includes('/traspasos') || path.includes('/movimientos-inventario') || path.includes('/ajustes-inventario') || path.includes('/movimientos-manuales')) {
+    return 'inventario';
+  } else if (path.includes('/cotizaciones') || path.includes('/pedidos') || path.includes('/ventas') || path.includes('/cobranza')) {
     return 'ventas';
   } else if (path.includes('/compras') || path.includes('/ordenescompra') || path.includes('/proveedores')) {
     return 'compras';
-  } else if (path.includes('/clientes') || path.includes('/productos') || path.includes('/servicios') || path.includes('/categorias') || path.includes('/marcas') || path.includes('/almacenes')) {
+  } else if (path.includes('/clientes') || path.includes('/servicios') || path.includes('/categorias') || path.includes('/marcas') || path.includes('/almacenes')) {
     return 'catalogos';
   } else if (path.includes('/usuarios') || path.includes('/backup') || path.includes('/entregas-dinero')) {
     return 'administracion';
+  } else if (path.includes('/reportes')) {
+    return 'reportes';
   } else if (path.includes('/rentas') || path.includes('/equipos')) {
     return 'rentas';
-  } else if (path.includes('/productos') || path.includes('/traspasos') || path.includes('/movimientos-inventario')) {
-    return 'inventario';
   } else if (path.includes('/carros') || path.includes('/mantenimientos') || path.includes('/tecnicos') || path.includes('/herramientas')) {
     return 'taller';
   }

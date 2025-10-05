@@ -15,7 +15,11 @@ return new class extends Migration
             $table->id(); // ID autoincremental
             $table->string('nombre', 100)->unique(); // Nombre del almacén (único)
             $table->text('descripcion')->nullable(); // Descripción opcional
-            $table->string('ubicacion', 255); // Ubicación del almacén
+            $table->string('ubicacion', 255)->nullable(); // Ubicación del almacén
+            $table->string('direccion')->nullable(); // Dirección completa
+            $table->string('telefono', 20)->nullable(); // Teléfono de contacto
+            $table->foreignId('responsable')->nullable()->constrained('users')->onDelete('set null'); // Usuario responsable
+            $table->enum('estado', ['activo', 'inactivo'])->default('activo'); // Estado del almacén
             $table->timestamps(); // Columnas created_at y updated_at
         });
     }

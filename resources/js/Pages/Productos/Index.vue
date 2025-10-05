@@ -39,6 +39,9 @@ const showModal = ref(false)
 const modalMode = ref('details')
 const selectedProducto = ref(null)
 const selectedId = ref(null)
+const showStockModal = ref(false)
+const stockDetalle = ref(null)
+const loadingStock = ref(false)
 
 // Filtros
 const searchTerm = ref(props.filters?.search ?? '')
@@ -176,6 +179,24 @@ const exportProductos = () => {
   const queryString = params.toString()
   const url = route('productos.export') + (queryString ? `?${queryString}` : '')
   window.location.href = url
+}
+
+const verStockDetalle = async (producto) => {
+  loadingStock.value = true
+  try {
+    const response = await fetch(route('productos.stock-detalle', producto.id))
+    if (response.ok) {
+      stockDetalle.value = await response.json()
+      showStockModal.value = true
+    } else {
+      notyf.error('Error al cargar el detalle de stock')
+    }
+  } catch (error) {
+    console.error('Error:', error)
+    notyf.error('Error al cargar el detalle de stock')
+  } finally {
+    loadingStock.value = false
+  }
 }
 
 // Paginación
@@ -425,7 +446,13 @@ const obtenerLabelEstado = (estado) => {
                   <div class="text-sm text-gray-700">${{ formatNumber(producto.raw.precio_venta || 0) }}</div>
                 </td>
                 <td class="px-6 py-4">
-                  <div class="text-sm text-gray-700">{{ producto.raw.stock || 0 }}</div>
+                  <div
+                    class="text-sm text-blue-600 hover:text-blue-800 cursor-pointer font-medium hover:underline"
+                    @click="verStockDetalle(producto.raw)"
+                    title="Ver detalle de stock por almacén"
+                  >
+                    {{ producto.raw.stock || 0 }}
+                  </div>
                 </td>
                 <td class="px-6 py-4">
                   <span :class="obtenerClasesEstado(producto.estado)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
@@ -630,6 +657,123 @@ const obtenerLabelEstado = (estado) => {
             </div>
             <button v-if="modalMode === 'confirm'" @click="eliminarProducto" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
               Eliminar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal de Detalle de Stock -->
+      <div v-if="showStockModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="showStockModal = false">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <!-- Header del modal -->
+          <div class="flex items-center justify-between p-6 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">
+              Detalle de Stock: {{ stockDetalle?.producto?.nombre }}
+            </h3>
+            <button @click="showStockModal = false" class="text-gray-400 hover:text-gray-600 transition-colors">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="p-6">
+            <div v-if="loadingStock" class="flex items-center justify-center py-8">
+              <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span class="ml-3 text-gray-600">Cargando...</span>
+            </div>
+
+            <div v-else-if="stockDetalle">
+              <!-- Información del producto -->
+              <div class="bg-gray-50 rounded-lg p-4 mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <span class="font-medium text-gray-700">Producto:</span>
+                    <span class="ml-2 text-gray-900">{{ stockDetalle.producto.nombre }}</span>
+                  </div>
+                  <div>
+                    <span class="font-medium text-gray-700">Código:</span>
+                    <span class="ml-2 text-gray-900">{{ stockDetalle.producto.codigo || 'N/A' }}</span>
+                  </div>
+                  <div>
+                    <span class="font-medium text-gray-700">Stock Total:</span>
+                    <span class="ml-2 text-gray-900 font-semibold">{{ stockDetalle.producto.stock_total }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tabla de stock por almacén -->
+              <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Almacén
+                      </th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Cantidad Disponible
+                      </th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Stock Mínimo
+                      </th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Estado
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody class="bg-white divide-y divide-gray-200">
+                    <tr v-for="stock in stockDetalle.stock_por_almacen" :key="stock.almacen_id">
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                          <div class="flex-shrink-0 h-8 w-8">
+                            <div class="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                              <svg class="h-4 w-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                              </svg>
+                            </div>
+                          </div>
+                          <div class="ml-4">
+                            <div class="text-sm font-medium text-gray-900">
+                              {{ stock.almacen_nombre }}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="text-sm font-semibold text-gray-900">{{ stock.cantidad }}</span>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="text-sm text-gray-700">{{ stock.stock_minimo }}</span>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <span
+                          :class="stock.cantidad > stock.stock_minimo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
+                          class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                        >
+                          {{ stock.cantidad > stock.stock_minimo ? 'Normal' : 'Bajo' }}
+                        </span>
+                      </td>
+                    </tr>
+                    <tr v-if="stockDetalle.stock_por_almacen.length === 0">
+                      <td colspan="4" class="px-6 py-8 text-center">
+                        <div class="flex flex-col items-center space-y-2">
+                          <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-5v2m0 0v2m0-2h2m-2 0h-2"/>
+                          </svg>
+                          <p class="text-gray-500 text-sm">No hay stock disponible en ningún almacén</p>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer del modal -->
+          <div class="flex justify-end px-6 py-4 border-t border-gray-200 bg-gray-50">
+            <button @click="showStockModal = false" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+              Cerrar
             </button>
           </div>
         </div>

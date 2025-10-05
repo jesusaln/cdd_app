@@ -428,6 +428,37 @@ class ProductoController extends Controller
     }
 
     /**
+     * Obtiene el detalle de stock por almacén para un producto.
+     */
+    public function getStockDetalle($id)
+    {
+        $producto = Producto::findOrFail($id);
+
+        $stockPorAlmacen = \App\Models\Inventario::with('almacen')
+            ->where('producto_id', $id)
+            ->where('cantidad', '>', 0)
+            ->get()
+            ->map(function ($inventario) {
+                return [
+                    'almacen_id' => $inventario->almacen_id,
+                    'almacen_nombre' => $inventario->almacen->nombre,
+                    'cantidad' => $inventario->cantidad,
+                    'stock_minimo' => $inventario->stock_minimo,
+                ];
+            });
+
+        return response()->json([
+            'producto' => [
+                'id' => $producto->id,
+                'nombre' => $producto->nombre,
+                'codigo' => $producto->codigo,
+                'stock_total' => $producto->stock,
+            ],
+            'stock_por_almacen' => $stockPorAlmacen,
+        ]);
+    }
+
+    /**
      * Verifica si un producto puede ser eliminado.
      * Reglas:
      * - Solo productos inactivos pueden ser eliminados

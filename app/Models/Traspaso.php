@@ -17,7 +17,21 @@ class Traspaso extends Model
         'almacen_origen_id',
         'almacen_destino_id',
         'cantidad',
+        'estado',
+        'usuario_autoriza',
+        'usuario_envia',
+        'usuario_recibe',
+        'fecha_envio',
+        'fecha_recepcion',
         'observaciones',
+        'referencia',
+        'costo_transporte',
+    ];
+
+    protected $casts = [
+        'fecha_envio' => 'datetime',
+        'fecha_recepcion' => 'datetime',
+        'costo_transporte' => 'decimal:2',
     ];
 
     public function producto(): BelongsTo
@@ -33,5 +47,20 @@ class Traspaso extends Model
     public function almacenDestino(): BelongsTo
     {
         return $this->belongsTo(Almacen::class, 'almacen_destino_id');
+    }
+
+    public function usuarioAutoriza(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'usuario_autoriza');
+    }
+
+    public function usuarioEnvia(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'usuario_envia');
+    }
+
+    public function usuarioRecibe(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'usuario_recibe');
     }
 }

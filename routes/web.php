@@ -44,6 +44,9 @@ use App\Http\Controllers\AsignacionMasivaController;
 use App\Http\Controllers\TecnicoHerramientasController;
 use App\Http\Controllers\MovimientoInventarioController;
 use App\Http\Controllers\TraspasoController;
+use App\Http\Controllers\AjusteInventarioController;
+use App\Http\Controllers\MovimientoManualController;
+use App\Http\Controllers\ReportesInventarioController;
 
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -149,6 +152,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
 
     Route::resource('clientes', ClienteController::class)->names('clientes');
     Route::resource('productos', ProductoController::class)->names('productos');
+    Route::get('productos/{id}/stock-detalle', [ProductoController::class, 'getStockDetalle'])->name('productos.stock-detalle');
     Route::resource('proveedores', ProveedorController::class)->names('proveedores');
     Route::resource('categorias', CategoriaController::class)->names('categorias');
     Route::put('/categorias/{categoria}/toggle', [CategoriaController::class, 'toggle'])->name('categorias.toggle');
@@ -161,6 +165,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::get('/almacenes/export', [AlmacenController::class, 'export'])->name('almacenes.export');
     Route::resource('traspasos', TraspasoController::class)->names('traspasos');
     Route::resource('movimientos-inventario', MovimientoInventarioController::class)->names('movimientos-inventario');
+    Route::resource('ajustes-inventario', AjusteInventarioController::class)->names('ajustes-inventario');
+    Route::resource('movimientos-manuales', MovimientoManualController::class)->names('movimientos-manuales');
     Route::resource('cotizaciones', CotizacionController::class)->names('cotizaciones');
     Route::resource('pedidos', PedidoController::class)->names('pedidos');
     Route::resource('ventas', VentaController::class)->names('ventas');
@@ -208,6 +214,13 @@ Route::get('/reportes/auditoria', function() { return redirect('/reportes?tab=au
 Route::get('/reportes/movimientos-inventario', function() { return redirect('/reportes?tab=movimientos'); })->name('reportes.movimientos-inventario');
 Route::get('/reportes/movimientos-inventario/{id}', [ReporteMovimientosController::class, 'show'])->name('reportes.movimientos-inventario.show');
 Route::get('/reportes/movimientos-inventario-export', [ReporteMovimientosController::class, 'export'])->name('reportes.movimientos-inventario.export');
+
+// Reportes específicos de inventario
+Route::get('/reportes/inventario/dashboard', [ReportesInventarioController::class, 'index'])->name('reportes.inventario.dashboard');
+Route::get('/reportes/inventario/stock-por-almacen', [ReportesInventarioController::class, 'stockPorAlmacen'])->name('reportes.inventario.stock-por-almacen');
+Route::get('/reportes/inventario/productos-bajo-stock', [ReportesInventarioController::class, 'productosBajoStock'])->name('reportes.inventario.productos-bajo-stock');
+Route::get('/reportes/inventario/movimientos-por-periodo', [ReportesInventarioController::class, 'movimientosPorPeriodo'])->name('reportes.inventario.movimientos-por-periodo');
+Route::get('/reportes/inventario/costos', [ReportesInventarioController::class, 'costosInventario'])->name('reportes.inventario.costos');
 
 // Exportaciones
 Route::get('/reportes/clientes/export', [ReporteController::class, 'exportarClientes'])->name('reportes.clientes.export');

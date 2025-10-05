@@ -269,7 +269,7 @@ class CompraController extends Controller
 
     public function show($id)
     {
-        $compra = Compra::with('proveedor')->findOrFail($id);
+        $compra = Compra::with('proveedor', 'almacen')->findOrFail($id);
 
         // Obtener los items de la compra con información del stock
         $compraItems = CompraItem::where('compra_id', $id)->with('comprable')->get();
@@ -318,7 +318,7 @@ class CompraController extends Controller
 
     public function edit($id)
     {
-        $compra = Compra::with('proveedor', 'productos')->findOrFail($id);
+        $compra = Compra::with('proveedor', 'productos', 'almacen')->findOrFail($id);
         $compra->productos = $compra->productos->map(function ($producto) {
             return [
                 'id' => $producto->id,
@@ -333,7 +333,13 @@ class CompraController extends Controller
         });
         $proveedores = Proveedor::all();
         $productos = Producto::all();
-        return Inertia::render('Compras/Edit', ['compra' => $compra, 'proveedores' => $proveedores, 'productos' => $productos]);
+        $almacenes = Almacen::where('estado', 'activo')->get();
+        return Inertia::render('Compras/Edit', [
+            'compra' => $compra,
+            'proveedores' => $proveedores,
+            'productos' => $productos,
+            'almacenes' => $almacenes
+        ]);
     }
 
     public function update(Request $request, $id)
@@ -396,6 +402,7 @@ class CompraController extends Controller
             // Actualizar la compra
             $compra->update([
                 'proveedor_id' => $validatedData['proveedor_id'],
+                'almacen_id' => $validatedData['almacen_id'],
                 'subtotal' => $subtotal,
                 'descuento_items' => $descuentoItems,
                 'descuento_general' => $descuentoGeneral,
