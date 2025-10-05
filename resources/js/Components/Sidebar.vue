@@ -143,9 +143,6 @@
             </svg>
           </div>
           <div v-show="accordionStates.catalogos" class="mt-2 space-y-1">
-            <NavLink href="/clientes" icon="users" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Clientes' : null">
-              Clientes
-            </NavLink>
             <NavLink href="/categorias" icon="tags" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Categorías' : null">
               Categorías
             </NavLink>
@@ -180,9 +177,6 @@
              </svg>
            </div>
            <div v-show="accordionStates.administracion" class="mt-2 space-y-1">
-             <NavLink href="/usuarios" icon="user" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Usuarios' : null">
-               Usuarios
-             </NavLink>
              <NavLink :href="routeOr('/backup')" icon="database" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Copia de Seguridad' : null">
                Copia de Seguridad
              </NavLink>
@@ -192,6 +186,60 @@
              </NavLink>
            </div>
          </div>
+
+       <!-- Usuario -->
+       <div class="mb-4">
+         <div
+           @click="toggleAccordion('usuario')"
+           class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
+         >
+           <span>Usuario</span>
+           <svg
+             :class="accordionStates.usuario ? 'rotate-90' : ''"
+             class="w-3 h-3 transition-transform duration-200"
+             fill="none"
+             stroke="currentColor"
+             viewBox="0 0 24 24"
+           >
+             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+           </svg>
+         </div>
+         <div v-show="accordionStates.usuario" class="mt-2 space-y-1">
+           <NavLink href="/usuarios" icon="user" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Usuarios' : null">
+             Usuarios
+           </NavLink>
+           <NavLink href="/bitacora" icon="clipboard-list" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Bitácora' : null">
+             Bitácora
+           </NavLink>
+         </div>
+       </div>
+
+       <!-- Clientes y Citas -->
+       <div class="mb-4">
+         <div
+           @click="toggleAccordion('clientes_citas')"
+           class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
+         >
+           <span>Clientes y Citas</span>
+           <svg
+             :class="accordionStates.clientes_citas ? 'rotate-90' : ''"
+             class="w-3 h-3 transition-transform duration-200"
+             fill="none"
+             stroke="currentColor"
+             viewBox="0 0 24 24"
+           >
+             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+           </svg>
+         </div>
+         <div v-show="accordionStates.clientes_citas" class="mt-2 space-y-1">
+           <NavLink href="/clientes" icon="users" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Clientes' : null">
+             Clientes
+           </NavLink>
+           <NavLink href="/citas" icon="calendar-alt" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Citas Agendadas' : null">
+             Citas Agendadas
+           </NavLink>
+         </div>
+       </div>
 
        <!-- Reportes -->
        <div class="mb-4">
@@ -364,23 +412,6 @@
           </div>
         </div>
 
-        <!-- Secciones Adicionales -->
-        <div class="mb-4">
-          <h3
-            v-show="!props.isSidebarCollapsed"
-            class="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider"
-          >
-            Módulos Adicionales
-          </h3>
-          <ul class="space-y-1">
-            <NavLink href="/citas" icon="calendar-alt" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Citas Agendadas' : null">
-              Citas Agendadas
-            </NavLink>
-            <NavLink href="/bitacora" icon="clipboard-list" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Bitácora' : null">
-              Bitácora
-            </NavLink>
-          </ul>
-        </div>
       </div>
     </nav>
 
@@ -439,6 +470,8 @@ const accordionStates = ref({
   catalogos: false,
   inventario: false,
   administracion: false,
+  usuario: false,
+  clientes_citas: false,
   reportes: false,
   rentas: false,
   taller: false
@@ -468,10 +501,14 @@ const getCurrentSection = () => {
     return 'ventas';
   } else if (path.includes('/compras') || path.includes('/ordenescompra') || path.includes('/proveedores')) {
     return 'compras';
-  } else if (path.includes('/clientes') || path.includes('/servicios') || path.includes('/categorias') || path.includes('/marcas') || path.includes('/almacenes')) {
+  } else if (path.includes('/servicios') || path.includes('/categorias') || path.includes('/marcas') || path.includes('/almacenes')) {
     return 'catalogos';
-  } else if (path.includes('/usuarios') || path.includes('/backup') || path.includes('/entregas-dinero')) {
+  } else if (path.includes('/clientes') || path.includes('/citas')) {
+    return 'clientes_citas';
+  } else if (path.includes('/backup') || path.includes('/entregas-dinero')) {
     return 'administracion';
+  } else if (path.includes('/usuarios') || path.includes('/bitacora')) {
+    return 'usuario';
   } else if (path.includes('/reportes')) {
     return 'reportes';
   } else if (path.includes('/rentas') || path.includes('/equipos')) {
