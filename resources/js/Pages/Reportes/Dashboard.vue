@@ -14,442 +14,53 @@
             <div class="p-6">
                 <!-- Todos los reportes en una cuadrícula -->
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    <!-- Ventas -->
-                    <div class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
-                        <div class="flex items-center space-x-4 mb-4">
-                            <div class="w-12 h-12 rounded-lg bg-blue-600 flex items-center justify-center">
-                                <component :is="getCategoriaIcon('ventas')" class="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900">Ventas Generales</h3>
-                                <p class="text-sm text-gray-600">Análisis completo de todas las ventas realizadas</p>
+                    <div
+                        v-for="card in reportCards"
+                        :key="card.titulo"
+                        class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow flex flex-col"
+                    >
+                        <div class="flex items-start justify-between mb-4">
+                            <div class="flex items-start space-x-4">
+                                <div :class="['w-12 h-12 rounded-lg flex items-center justify-center', getCategoriaColor(card.categoria)]">
+                                    <component :is="getCategoriaIcon(card.categoria)" class="w-6 h-6 text-white" />
+                                </div>
+                                <div>
+                                    <div class="flex items-center space-x-2">
+                                        <h3 class="text-lg font-semibold text-gray-900">{{ card.titulo }}</h3>
+                                        <span
+                                            v-if="card.isNew"
+                                            class="inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-700"
+                                        >
+                                            Nuevo
+                                        </span>
+                                    </div>
+                                    <p class="text-sm text-gray-600">{{ card.descripcion }}</p>
+                                </div>
                             </div>
                         </div>
-                        <Link
-                            href="/reportes?tab=ventas"
-                            class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors w-full justify-center"
-                        >
-                            Ver Reporte
-                            <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </Link>
-                    </div>
 
-                    <!-- Ventas Pendientes -->
-                    <div class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
-                        <div class="flex items-center space-x-4 mb-4">
-                            <div class="w-12 h-12 rounded-lg bg-blue-600 flex items-center justify-center">
-                                <component :is="getCategoriaIcon('ventas')" class="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900">Ventas Pendientes</h3>
-                                <p class="text-sm text-gray-600">Ventas que requieren atención</p>
-                            </div>
-                        </div>
-                        <Link
-                            href="/reportes?tab=ventas"
-                            class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors w-full justify-center"
-                        >
-                            Ver Reporte
-                            <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </Link>
-                    </div>
+                        <ul v-if="card.highlights?.length" class="mt-4 space-y-2 flex-1">
+                            <li
+                                v-for="highlight in card.highlights"
+                                :key="highlight"
+                                class="flex items-start text-sm text-gray-600"
+                            >
+                                <span
+                                    :class="['mt-0.5 mr-2 inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-semibold', getCategoriaBadgeColor(card.categoria)]"
+                                >
+                                    ✓
+                                </span>
+                                <span class="leading-snug">{{ highlight }}</span>
+                            </li>
+                        </ul>
 
-                    <!-- Productos Más Vendidos -->
-                    <div class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
-                        <div class="flex items-center space-x-4 mb-4">
-                            <div class="w-12 h-12 rounded-lg bg-blue-600 flex items-center justify-center">
-                                <component :is="getCategoriaIcon('ventas')" class="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900">Productos Más Vendidos</h3>
-                                <p class="text-sm text-gray-600">Ranking de productos por volumen de ventas</p>
-                            </div>
-                        </div>
                         <Link
-                            href="/reportes?tab=productos"
-                            class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors w-full justify-center"
+                            :href="card.href"
+                            :class="['mt-6 inline-flex items-center px-4 py-2 text-white text-sm font-medium rounded-md transition-colors w-full justify-center', getCategoriaButtonColor(card.categoria)]"
                         >
                             Ver Reporte
                             <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </Link>
-                    </div>
-
-                    <!-- Corte de Pagos -->
-                    <div class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
-                        <div class="flex items-center space-x-4 mb-4">
-                            <div class="w-12 h-12 rounded-lg bg-green-600 flex items-center justify-center">
-                                <component :is="getCategoriaIcon('pagos')" class="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900">Corte de Pagos</h3>
-                                <p class="text-sm text-gray-600">Resumen diario/semanal de ingresos y pagos</p>
-                            </div>
-                        </div>
-                        <Link
-                            href="/reportes?tab=corte"
-                            class="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors w-full justify-center"
-                        >
-                            Ver Reporte
-                            <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </Link>
-                    </div>
-
-                    <!-- Cobranzas -->
-                    <div class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
-                        <div class="flex items-center space-x-4 mb-4">
-                            <div class="w-12 h-12 rounded-lg bg-green-600 flex items-center justify-center">
-                                <component :is="getCategoriaIcon('pagos')" class="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900">Cobranzas</h3>
-                                <p class="text-sm text-gray-600">Estado de pagos pendientes y realizados</p>
-                            </div>
-                        </div>
-                        <Link
-                            href="/reportes?tab=cobranzas"
-                            class="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors w-full justify-center"
-                        >
-                            Ver Reporte
-                            <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </Link>
-                    </div>
-
-                    <!-- Clientes Activos -->
-                    <div class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
-                        <div class="flex items-center space-x-4 mb-4">
-                            <div class="w-12 h-12 rounded-lg bg-purple-600 flex items-center justify-center">
-                                <component :is="getCategoriaIcon('clientes')" class="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900">Clientes Activos</h3>
-                                <p class="text-sm text-gray-600">Clientes con actividad reciente</p>
-                            </div>
-                        </div>
-                        <Link
-                            href="/reportes?tab=clientes"
-                            class="inline-flex items-center px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700 transition-colors w-full justify-center"
-                        >
-                            Ver Reporte
-                            <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </Link>
-                    </div>
-
-                    <!-- Clientes Deudores -->
-                    <div class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
-                        <div class="flex items-center space-x-4 mb-4">
-                            <div class="w-12 h-12 rounded-lg bg-purple-600 flex items-center justify-center">
-                                <component :is="getCategoriaIcon('clientes')" class="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900">Clientes Deudores</h3>
-                                <p class="text-sm text-gray-600">Clientes con pagos pendientes</p>
-                            </div>
-                        </div>
-                        <Link
-                            href="/reportes?tab=clientes"
-                            class="inline-flex items-center px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700 transition-colors w-full justify-center"
-                        >
-                            Ver Reporte
-                            <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </Link>
-                    </div>
-
-                    <!-- Productos en Stock -->
-                    <div class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
-                        <div class="flex items-center space-x-4 mb-4">
-                            <div class="w-12 h-12 rounded-lg bg-orange-600 flex items-center justify-center">
-                                <component :is="getCategoriaIcon('inventario')" class="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900">Productos en Stock</h3>
-                                <p class="text-sm text-gray-600">Estado actual del inventario</p>
-                            </div>
-                        </div>
-                        <Link
-                            href="/reportes?tab=inventario"
-                            class="inline-flex items-center px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded-md hover:bg-orange-700 transition-colors w-full justify-center"
-                        >
-                            Ver Reporte
-                            <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </Link>
-                    </div>
-
-                    <!-- Productos Bajos -->
-                    <div class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
-                        <div class="flex items-center space-x-4 mb-4">
-                            <div class="w-12 h-12 rounded-lg bg-orange-600 flex items-center justify-center">
-                                <component :is="getCategoriaIcon('inventario')" class="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900">Productos Bajos</h3>
-                                <p class="text-sm text-gray-600">Productos por debajo del stock mínimo</p>
-                            </div>
-                        </div>
-                        <Link
-                            href="/reportes?tab=inventario"
-                            class="inline-flex items-center px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded-md hover:bg-orange-700 transition-colors w-full justify-center"
-                        >
-                            Ver Reporte
-                            <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </Link>
-                    </div>
-
-                    <!-- Movimientos Inventario -->
-                    <div class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
-                        <div class="flex items-center space-x-4 mb-4">
-                            <div class="w-12 h-12 rounded-lg bg-orange-600 flex items-center justify-center">
-                                <component :is="getCategoriaIcon('inventario')" class="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900">Movimientos Inventario</h3>
-                                <p class="text-sm text-gray-600">Historial de entradas y salidas de productos</p>
-                            </div>
-                        </div>
-                        <Link
-                            href="/reportes?tab=movimientos"
-                            class="inline-flex items-center px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded-md hover:bg-orange-700 transition-colors w-full justify-center"
-                        >
-                            Ver Reporte
-                            <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </Link>
-                    </div>
-
-                    <!-- Servicios Más Vendidos -->
-                    <div class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
-                        <div class="flex items-center space-x-4 mb-4">
-                            <div class="w-12 h-12 rounded-lg bg-indigo-600 flex items-center justify-center">
-                                <component :is="getCategoriaIcon('servicios')" class="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900">Servicios Más Vendidos</h3>
-                                <p class="text-sm text-gray-600">Servicios más demandados</p>
-                            </div>
-                        </div>
-                        <Link
-                            href="/reportes?tab=servicios"
-                            class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 transition-colors w-full justify-center"
-                        >
-                            Ver Reporte
-                            <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </Link>
-                    </div>
-
-                    <!-- Citas Programadas -->
-                    <div class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
-                        <div class="flex items-center space-x-4 mb-4">
-                            <div class="w-12 h-12 rounded-lg bg-indigo-600 flex items-center justify-center">
-                                <component :is="getCategoriaIcon('servicios')" class="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900">Citas Programadas</h3>
-                                <p class="text-sm text-gray-600">Calendario de citas agendadas</p>
-                            </div>
-                        </div>
-                        <Link
-                            href="/reportes?tab=citas"
-                            class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 transition-colors w-full justify-center"
-                        >
-                            Ver Reporte
-                            <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </Link>
-                    </div>
-
-                    <!-- Mantenimientos -->
-                    <div class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
-                        <div class="flex items-center space-x-4 mb-4">
-                            <div class="w-12 h-12 rounded-lg bg-indigo-600 flex items-center justify-center">
-                                <component :is="getCategoriaIcon('servicios')" class="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900">Mantenimientos</h3>
-                                <p class="text-sm text-gray-600">Historial de trabajos de mantenimiento</p>
-                            </div>
-                        </div>
-                        <Link
-                            href="/reportes?tab=mantenimientos"
-                            class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 transition-colors w-full justify-center"
-                        >
-                            Ver Reporte
-                            <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </Link>
-                    </div>
-
-                    <!-- Rentas Activas -->
-                    <div class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
-                        <div class="flex items-center space-x-4 mb-4">
-                            <div class="w-12 h-12 rounded-lg bg-teal-600 flex items-center justify-center">
-                                <component :is="getCategoriaIcon('rentas')" class="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900">Rentas Activas</h3>
-                                <p class="text-sm text-gray-600">Equipos actualmente rentados</p>
-                            </div>
-                        </div>
-                        <Link
-                            href="/reportes?tab=rentas"
-                            class="inline-flex items-center px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-md hover:bg-teal-700 transition-colors w-full justify-center"
-                        >
-                            Ver Reporte
-                            <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </Link>
-                    </div>
-
-                    <!-- Ganancias Generales -->
-                    <div class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
-                        <div class="flex items-center space-x-4 mb-4">
-                            <div class="w-12 h-12 rounded-lg bg-yellow-600 flex items-center justify-center">
-                                <component :is="getCategoriaIcon('finanzas')" class="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900">Ganancias Generales</h3>
-                                <p class="text-sm text-gray-600">Análisis financiero completo</p>
-                            </div>
-                        </div>
-                        <Link
-                            href="/reportes?tab=ganancias"
-                            class="inline-flex items-center px-4 py-2 bg-yellow-600 text-white text-sm font-medium rounded-md hover:bg-yellow-700 transition-colors w-full justify-center"
-                        >
-                            Ver Reporte
-                            <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </Link>
-                    </div>
-
-                    <!-- Compras -->
-                    <div class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
-                        <div class="flex items-center space-x-4 mb-4">
-                            <div class="w-12 h-12 rounded-lg bg-yellow-600 flex items-center justify-center">
-                                <component :is="getCategoriaIcon('finanzas')" class="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900">Compras</h3>
-                                <p class="text-sm text-gray-600">Historial de compras realizadas</p>
-                            </div>
-                        </div>
-                        <Link
-                            href="/reportes?tab=compras"
-                            class="inline-flex items-center px-4 py-2 bg-yellow-600 text-white text-sm font-medium rounded-md hover:bg-yellow-700 transition-colors w-full justify-center"
-                        >
-                            Ver Reporte
-                            <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </Link>
-                    </div>
-
-                    <!-- Proveedores -->
-                    <div class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
-                        <div class="flex items-center space-x-4 mb-4">
-                            <div class="w-12 h-12 rounded-lg bg-yellow-600 flex items-center justify-center">
-                                <component :is="getCategoriaIcon('finanzas')" class="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900">Proveedores</h3>
-                                <p class="text-sm text-gray-600">Análisis de proveedores y compras</p>
-                            </div>
-                        </div>
-                        <Link
-                            href="/reportes?tab=proveedores"
-                            class="inline-flex items-center px-4 py-2 bg-yellow-600 text-white text-sm font-medium rounded-md hover:bg-yellow-700 transition-colors w-full justify-center"
-                        >
-                            Ver Reporte
-                            <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </Link>
-                    </div>
-
-                    <!-- Técnicos -->
-                    <div class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
-                        <div class="flex items-center space-x-4 mb-4">
-                            <div class="w-12 h-12 rounded-lg bg-red-600 flex items-center justify-center">
-                                <component :is="getCategoriaIcon('personal')" class="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900">Técnicos</h3>
-                                <p class="text-sm text-gray-600">Rendimiento y comisiones por técnico</p>
-                            </div>
-                        </div>
-                        <Link
-                            href="/reportes?tab=personal"
-                            class="inline-flex items-center px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 transition-colors w-full justify-center"
-                        >
-                            Ver Reporte
-                            <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </Link>
-                    </div>
-
-                    <!-- Empleados -->
-                    <div class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
-                        <div class="flex items-center space-x-4 mb-4">
-                            <div class="w-12 h-12 rounded-lg bg-red-600 flex items-center justify-center">
-                                <component :is="getCategoriaIcon('personal')" class="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900">Empleados</h3>
-                                <p class="text-sm text-gray-600">Información general del personal</p>
-                            </div>
-                        </div>
-                        <Link
-                            href="/reportes?tab=personal"
-                            class="inline-flex items-center px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 transition-colors w-full justify-center"
-                        >
-                            Ver Reporte
-                            <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </Link>
-                    </div>
-
-                    <!-- Bitácora de Actividades -->
-                    <div class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
-                        <div class="flex items-center space-x-4 mb-4">
-                            <div class="w-12 h-12 rounded-lg bg-gray-600 flex items-center justify-center">
-                                <component :is="getCategoriaIcon('auditoria')" class="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900">Bitácora de Actividades</h3>
-                                <p class="text-sm text-gray-600">Registro de todas las operaciones</p>
-                            </div>
-                        </div>
-                        <Link
-                            href="/reportes?tab=auditoria"
-                            class="inline-flex items-center px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors w-full justify-center"
-                        >
-                            Ver Reporte
-                            <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                             </svg>
                         </Link>
                     </div>
@@ -464,6 +75,176 @@ import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
 defineOptions({ layout: AppLayout });
+
+const reportCards = [
+    {
+        titulo: 'Ventas y Productos',
+        descripcion: 'Analiza el desempeño comercial y los artículos con mayor impacto en ventas.',
+        href: '/reportes?tab=ventas',
+        categoria: 'ventas',
+        highlights: [
+            'Ventas generales y utilidades',
+            'Ventas pendientes de pago',
+            'Ranking de productos más vendidos',
+        ],
+    },
+    {
+        titulo: 'Corte de Pagos',
+        descripcion: 'Control diario y semanal de ingresos, egresos y conciliaciones.',
+        href: '/reportes?tab=corte',
+        categoria: 'pagos',
+        highlights: [
+            'Resumen de caja por periodo',
+            'Conciliación de ingresos y egresos',
+            'Exportación rápida de cortes',
+        ],
+    },
+    {
+        titulo: 'Gestión de Cobranzas',
+        descripcion: 'Monitorea el estado de las cuentas por cobrar y sus responsables.',
+        href: '/reportes?tab=cobranzas',
+        categoria: 'pagos',
+        highlights: [
+            'Pagos pendientes y realizados',
+            'Alertas de clientes morosos',
+            'Seguimiento por responsable',
+        ],
+    },
+    {
+        titulo: 'Clientes y Fidelización',
+        descripcion: 'Conoce a tus clientes activos y detecta oportunidades de seguimiento.',
+        href: '/reportes?tab=clientes',
+        categoria: 'clientes',
+        highlights: [
+            'Clientes activos recientes',
+            'Clientes con pagos pendientes',
+            'Segmentación por categoría',
+        ],
+    },
+    {
+        titulo: 'Inventario en Tiempo Real',
+        descripcion: 'Consulta existencias disponibles y recibe alertas de stock.',
+        href: '/reportes?tab=inventario',
+        categoria: 'inventario',
+        highlights: [
+            'Stock disponible por categoría',
+            'Productos bajos o sin stock',
+            'Valor total del inventario',
+        ],
+    },
+    {
+        titulo: 'Movimientos de Inventario',
+        descripcion: 'Audita entradas y salidas filtradas por periodo o almacén.',
+        href: '/reportes?tab=movimientos',
+        categoria: 'inventario',
+        highlights: [
+            'Movimientos recientes',
+            'Filtros por almacén y usuario',
+            'Historial exportable',
+        ],
+    },
+    {
+        titulo: 'Reportes Avanzados de Inventario',
+        descripcion: 'Explora reportes dedicados de stock, costos y movimientos detallados.',
+        href: '/reportes/inventario/dashboard',
+        categoria: 'inventario',
+        highlights: [
+            'Stock por almacén',
+            'Productos con bajo stock',
+            'Costos de inventario y valorización',
+        ],
+        isNew: true,
+    },
+    {
+        titulo: 'Servicios y Citas',
+        descripcion: 'Supervisa la demanda de servicios y el cumplimiento de agendas.',
+        href: '/reportes?tab=servicios',
+        categoria: 'servicios',
+        highlights: [
+            'Servicios más vendidos',
+            'Agenda de citas programadas',
+            'Historial de mantenimientos',
+        ],
+    },
+    {
+        titulo: 'Rentas Activas',
+        descripcion: 'Controla equipos rentados, renovaciones pendientes y vencimientos.',
+        href: '/reportes?tab=rentas',
+        categoria: 'rentas',
+        highlights: [
+            'Rentas vigentes',
+            'Fechas de devolución',
+            'Alertas de vencimiento',
+        ],
+    },
+    {
+        titulo: 'Compras y Costos',
+        descripcion: 'Evalúa el gasto por periodo y la eficiencia de las compras.',
+        href: '/reportes?tab=compras',
+        categoria: 'finanzas',
+        highlights: [
+            'Historial de compras',
+            'Comparativo por proveedor',
+            'Tendencias de costos',
+        ],
+    },
+    {
+        titulo: 'Proveedores Estratégicos',
+        descripcion: 'Analiza la dependencia y cumplimiento de los proveedores clave.',
+        href: '/reportes?tab=proveedores',
+        categoria: 'finanzas',
+        highlights: [
+            'Volumen por proveedor',
+            'Pedidos pendientes',
+            'Condiciones comerciales',
+        ],
+    },
+    {
+        titulo: 'Ganancias y KPIs',
+        descripcion: 'Mide rentabilidad, márgenes y crecimiento por periodo.',
+        href: '/reportes?tab=ganancias',
+        categoria: 'finanzas',
+        highlights: [
+            'Margen bruto y neto',
+            'Utilidad por periodo',
+            'Tendencias de crecimiento',
+        ],
+    },
+    {
+        titulo: 'Talento y Técnicos',
+        descripcion: 'Monitorea el desempeño del personal y su aportación al negocio.',
+        href: '/reportes?tab=personal',
+        categoria: 'personal',
+        highlights: [
+            'Rendimiento por técnico',
+            'Horas trabajadas',
+            'Comisiones generadas',
+        ],
+    },
+    {
+        titulo: 'Reporte de Técnicos',
+        descripcion: 'Acceso directo al informe detallado por técnico y periodo.',
+        href: '/reportes/tecnicos',
+        categoria: 'personal',
+        highlights: [
+            'KPIs individuales',
+            'Servicios atendidos',
+            'Alertas de desempeño',
+        ],
+        isNew: true,
+    },
+    {
+        titulo: 'Auditoría y Bitácora',
+        descripcion: 'Revisa la actividad del sistema y los cambios críticos registrados.',
+        href: '/reportes?tab=auditoria',
+        categoria: 'auditoria',
+        highlights: [
+            'Acciones por usuario',
+            'Eventos de seguridad',
+            'Exportación de bitácora',
+        ],
+    },
+];
 
 // Función para obtener el color de la categoría
 const getCategoriaColor = (categoria) => {
@@ -481,20 +262,50 @@ const getCategoriaColor = (categoria) => {
     return colores[categoria] || 'bg-gray-600';
 };
 
+const getCategoriaButtonColor = (categoria) => {
+    const colores = {
+        ventas: 'bg-blue-600 hover:bg-blue-700',
+        pagos: 'bg-green-600 hover:bg-green-700',
+        clientes: 'bg-purple-600 hover:bg-purple-700',
+        inventario: 'bg-orange-600 hover:bg-orange-700',
+        servicios: 'bg-indigo-600 hover:bg-indigo-700',
+        rentas: 'bg-teal-600 hover:bg-teal-700',
+        finanzas: 'bg-yellow-600 hover:bg-yellow-700',
+        personal: 'bg-red-600 hover:bg-red-700',
+        auditoria: 'bg-gray-600 hover:bg-gray-700',
+    };
+    return colores[categoria] || 'bg-gray-600 hover:bg-gray-700';
+};
+
+const getCategoriaBadgeColor = (categoria) => {
+    const colores = {
+        ventas: 'bg-blue-100 text-blue-700',
+        pagos: 'bg-green-100 text-green-700',
+        clientes: 'bg-purple-100 text-purple-700',
+        inventario: 'bg-orange-100 text-orange-700',
+        servicios: 'bg-indigo-100 text-indigo-700',
+        rentas: 'bg-teal-100 text-teal-700',
+        finanzas: 'bg-yellow-100 text-yellow-700',
+        personal: 'bg-red-100 text-red-700',
+        auditoria: 'bg-gray-200 text-gray-700',
+    };
+    return colores[categoria] || 'bg-gray-200 text-gray-700';
+};
+
 // Función para obtener el ícono de la categoría
 const getCategoriaIcon = (categoria) => {
     const iconos = {
-        ventas: 'ShoppingCartIcon',
-        pagos: 'CashIcon',
-        clientes: 'UsersIcon',
-        inventario: 'ArchiveIcon',
-        servicios: 'WrenchIcon',
-        rentas: 'HandIcon',
-        finanzas: 'ChartBarIcon',
-        personal: 'UserGroupIcon',
-        auditoria: 'DocumentIcon',
+        ventas: ShoppingCartIcon,
+        pagos: CashIcon,
+        clientes: UsersIcon,
+        inventario: ArchiveIcon,
+        servicios: WrenchIcon,
+        rentas: HandIcon,
+        finanzas: ChartBarIcon,
+        personal: UserGroupIcon,
+        auditoria: DocumentIcon,
     };
-    return iconos[categoria] || 'DocumentIcon';
+    return iconos[categoria] || DocumentIcon;
 };
 
 // Componentes de íconos (usando Heroicons)
