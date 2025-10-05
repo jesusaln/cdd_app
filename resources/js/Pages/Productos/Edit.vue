@@ -305,25 +305,6 @@
                                 </div>
                             </div>
 
-                            <!-- Stock -->
-                            <div>
-                                <label for="stock" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Stock *
-                                </label>
-                                <input
-                                    v-model="form.stock"
-                                    type="number"
-                                    id="stock"
-                                    min="0"
-                                    placeholder="0"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
-                                    required
-                                />
-                                <div v-if="form.errors.stock" class="mt-1 text-sm text-red-600">
-                                    {{ form.errors.stock }}
-                                </div>
-                            </div>
-
                             <!-- Stock Mínimo -->
                             <div>
                                 <label for="stock_minimo" class="block text-sm font-medium text-gray-700 mb-2">
@@ -601,7 +582,6 @@ const form = useForm({
     codigo: props.producto?.codigo || '',
     codigo_barras: props.producto?.codigo_barras || '',
     numero_serie: props.producto?.numero_serie || '',
-    stock: props.producto?.stock || '',
     stock_minimo: props.producto?.stock_minimo || '',
     precio_compra: props.producto?.precio_compra || '',
     precio_venta: props.producto?.precio_venta || '',

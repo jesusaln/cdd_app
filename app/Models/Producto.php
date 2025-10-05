@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -71,7 +72,7 @@ class Producto extends Model
         return $this->belongsTo(Almacen::class);
     }
 
-    /** @return MorphToMany<Compra> */
+    /** @return MorphToMany<Compra, Producto> */
     public function compras(): MorphToMany
     {
         return $this->morphToMany(Compra::class, 'comprable', 'compra_items');
@@ -93,6 +94,12 @@ class Producto extends Model
     public function movimientos(): HasMany
     {
         return $this->hasMany(InventarioMovimiento::class);
+    }
+
+    /** @return HasMany<ProductoPrecioHistorial> */
+    public function precioHistorial(): HasMany
+    {
+        return $this->hasMany(ProductoPrecioHistorial::class);
     }
 
     /* =========================================================================

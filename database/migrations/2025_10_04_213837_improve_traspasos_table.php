@@ -13,15 +13,33 @@ return new class extends Migration
     {
         Schema::table('traspasos', function (Blueprint $table) {
             // Agregar campos para mejorar el sistema de traspasos
-            $table->enum('estado', ['pendiente', 'en_transito', 'completado', 'cancelado'])->default('completado')->after('cantidad');
-            $table->foreignId('usuario_autoriza')->constrained('users')->onDelete('cascade')->after('estado');
-            $table->foreignId('usuario_envia')->nullable()->constrained('users')->onDelete('set null')->after('usuario_autoriza');
-            $table->foreignId('usuario_recibe')->nullable()->constrained('users')->onDelete('set null')->after('usuario_envia');
-            $table->timestamp('fecha_envio')->nullable()->after('usuario_recibe');
-            $table->timestamp('fecha_recepcion')->nullable()->after('fecha_envio');
-            $table->text('observaciones')->nullable()->after('fecha_recepcion');
-            $table->string('referencia', 100)->nullable()->after('observaciones');
-            $table->decimal('costo_transporte', 10, 2)->nullable()->after('referencia');
+            if (!Schema::hasColumn('traspasos', 'estado')) {
+                $table->enum('estado', ['pendiente', 'en_transito', 'completado', 'cancelado'])->default('completado')->after('cantidad');
+            }
+            if (!Schema::hasColumn('traspasos', 'usuario_autoriza')) {
+                $table->foreignId('usuario_autoriza')->nullable()->constrained('users')->onDelete('set null')->after('estado');
+            }
+            if (!Schema::hasColumn('traspasos', 'usuario_envia')) {
+                $table->foreignId('usuario_envia')->nullable()->constrained('users')->onDelete('set null')->after('usuario_autoriza');
+            }
+            if (!Schema::hasColumn('traspasos', 'usuario_recibe')) {
+                $table->foreignId('usuario_recibe')->nullable()->constrained('users')->onDelete('set null')->after('usuario_envia');
+            }
+            if (!Schema::hasColumn('traspasos', 'fecha_envio')) {
+                $table->timestamp('fecha_envio')->nullable()->after('usuario_recibe');
+            }
+            if (!Schema::hasColumn('traspasos', 'fecha_recepcion')) {
+                $table->timestamp('fecha_recepcion')->nullable()->after('fecha_envio');
+            }
+            if (!Schema::hasColumn('traspasos', 'observaciones')) {
+                $table->text('observaciones')->nullable()->after('fecha_recepcion');
+            }
+            if (!Schema::hasColumn('traspasos', 'referencia')) {
+                $table->string('referencia', 100)->nullable()->after('observaciones');
+            }
+            if (!Schema::hasColumn('traspasos', 'costo_transporte')) {
+                $table->decimal('costo_transporte', 10, 2)->nullable()->after('referencia');
+            }
         });
     }
 

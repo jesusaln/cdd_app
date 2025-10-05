@@ -6,6 +6,7 @@ use App\Enums\EstadoCompra;
 use App\Models\Compra;
 use App\Models\CompraItem;
 use App\Models\Producto;
+use App\Models\ProductoPrecioHistorial;
 use App\Models\Proveedor;
 use App\Models\Almacen;
 use App\Services\InventarioService;
@@ -239,6 +240,24 @@ class CompraController extends Controller
                 $descuentoMonto = $subtotal * ($descuento / 100);
                 $subtotalFinal = $subtotal - $descuentoMonto;
 
+                // Update product price if different
+                if ($producto->precio_compra != $precio) {
+                    $oldPrecioCompra = $producto->precio_compra;
+                    $producto->update(['precio_compra' => $precio]);
+
+                    // Log price change
+                    ProductoPrecioHistorial::create([
+                        'producto_id' => $producto->id,
+                        'precio_compra_anterior' => $oldPrecioCompra,
+                        'precio_compra_nuevo' => $precio,
+                        'precio_venta_anterior' => null,
+                        'precio_venta_nuevo' => $producto->precio_venta,
+                        'tipo_cambio' => 'compra',
+                        'notas' => "Actualización por compra #{$compra->id}",
+                        'user_id' => Auth::id(),
+                    ]);
+                }
+
                 // Aumentar stock automáticamente al crear la compra
                 $this->inventarioService->entrada($producto, $cantidad, [
                     'motivo' => 'Compra procesada',
@@ -417,23 +436,41 @@ class CompraController extends Controller
             foreach ($validatedData['productos'] as $productoData) {
                 $producto = Producto::findOrFail($productoData['id']);
 
-                $this->inventarioService->entrada($producto, $productoData['cantidad'], [
-                    'motivo' => 'Edición de compra: stock actualizado',
-                    'almacen_id' => $validatedData['almacen_id'],
-                    'detalles' => [
-                        'compra_id' => $compra->id,
-                        'producto_id' => $productoData['id'],
-                        'precio_unitario' => $productoData['precio'],
-                        'descuento' => $productoData['descuento'] ?? 0,
-                    ],
-                ]);
-
                 $cantidad = $productoData['cantidad'];
                 $precio = $productoData['precio'];
                 $descuento = $productoData['descuento'] ?? 0;
                 $subtotal = $cantidad * $precio;
                 $descuentoMonto = $subtotal * ($descuento / 100);
                 $subtotalFinal = $subtotal - $descuentoMonto;
+
+                // Update product price if different
+                if ($producto->precio_compra != $precio) {
+                    $oldPrecioCompra = $producto->precio_compra;
+                    $producto->update(['precio_compra' => $precio]);
+
+                    // Log price change
+                    ProductoPrecioHistorial::create([
+                        'producto_id' => $producto->id,
+                        'precio_compra_anterior' => $oldPrecioCompra,
+                        'precio_compra_nuevo' => $precio,
+                        'precio_venta_anterior' => null,
+                        'precio_venta_nuevo' => $producto->precio_venta,
+                        'tipo_cambio' => 'compra',
+                        'notas' => "Actualización por edición de compra #{$compra->id}",
+                        'user_id' => Auth::id(),
+                    ]);
+                }
+
+                $this->inventarioService->entrada($producto, $cantidad, [
+                    'motivo' => 'Edición de compra: stock actualizado',
+                    'almacen_id' => $validatedData['almacen_id'],
+                    'detalles' => [
+                        'compra_id' => $compra->id,
+                        'producto_id' => $productoData['id'],
+                        'precio_unitario' => $precio,
+                        'descuento' => $descuento,
+                    ],
+                ]);
 
                 CompraItem::create([
                     'compra_id' => $compra->id,

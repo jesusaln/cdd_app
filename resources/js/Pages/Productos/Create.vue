@@ -193,23 +193,6 @@
                 <!-- Precios e Inventario Tab -->
                 <div v-show="activeTab === 'pricing'" class="space-y-6">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Stock -->
-                        <div>
-                            <label for="stock" class="block text-sm font-medium text-gray-700 mb-2">
-                                Stock Actual <span class="text-red-500">*</span>
-                            </label>
-                            <input
-                                v-model="form.stock"
-                                type="number"
-                                id="stock"
-                                placeholder="Cantidad en stock"
-                                class="input-field"
-                                min="0"
-                                required
-                            />
-                            <div v-if="form.errors.stock" class="error-message">{{ form.errors.stock }}</div>
-                        </div>
-
                         <!-- Stock Mínimo -->
                         <div>
                             <label for="stock_minimo" class="block text-sm font-medium text-gray-700 mb-2">
@@ -478,7 +461,6 @@ const form = useForm({
     marca_id: '',
     proveedor_id: '',
     almacen_id: '',
-    stock: '',
     stock_minimo: '',
     precio_compra: '',
     precio_venta: '',

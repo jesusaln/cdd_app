@@ -6,6 +6,7 @@ use App\Enums\EstadoCompra;
 use App\Models\Compra; // <-- Importa el modelo Compra aquí
 use App\Models\OrdenCompra;
 use App\Models\Producto;
+use App\Models\ProductoPrecioHistorial;
 use App\Models\Proveedor;
 use App\Services\InventarioService;
 use App\Mail\OrdenCompraEnviada;
@@ -710,6 +711,24 @@ class OrdenCompraController extends Controller
                     $precioUnitario = (float) $producto->pivot->precio;
                     // Obtener unidad de medida del pivot o del modelo producto
                     $unidadMedida = $producto->pivot->unidad_medida ?? $prodModel->unidad_medida ?? '';
+
+                    // Update product price if different
+                    if ($prodModel->precio_compra != $precioUnitario) {
+                        $oldPrecioCompra = $prodModel->precio_compra;
+                        $prodModel->update(['precio_compra' => $precioUnitario]);
+
+                        // Log price change
+                        ProductoPrecioHistorial::create([
+                            'producto_id' => $prodModel->id,
+                            'precio_compra_anterior' => $oldPrecioCompra,
+                            'precio_compra_nuevo' => $precioUnitario,
+                            'precio_venta_anterior' => null,
+                            'precio_venta_nuevo' => $prodModel->precio_venta,
+                            'tipo_cambio' => 'orden_compra',
+                            'notas' => "Actualización por recepción de orden de compra #{$ordenCompra->id}",
+                            'user_id' => Auth::id(),
+                        ]);
+                    }
 
                     // Actualizar el stock del producto con registro de movimiento
                     $this->inventarioService->entrada($prodModel, $cantidadRecibida, [

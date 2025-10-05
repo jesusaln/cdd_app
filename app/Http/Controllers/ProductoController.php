@@ -8,10 +8,12 @@ use App\Models\Categoria;
 use App\Models\Marca;
 use App\Models\Proveedor;
 use App\Models\Almacen;
+use App\Models\ProductoPrecioHistorial;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class ProductoController extends Controller
@@ -114,7 +116,6 @@ class ProductoController extends Controller
             'marca_id'          => 'required|exists:marcas,id',
             'proveedor_id'      => 'nullable|exists:proveedores,id',
             'almacen_id'        => 'nullable|exists:almacenes,id',
-            'stock'             => 'required|integer|min:0',
             'stock_minimo'      => 'required|integer|min:0',
             'precio_compra'     => 'required|numeric|min:0',
             'precio_venta'      => 'required|numeric|min:0',
@@ -131,7 +132,22 @@ class ProductoController extends Controller
             $validated['imagen'] = $request->file('imagen')->store('productos', 'public');
         }
 
-        Producto::create($validated);
+        // Set stock to 0 since it will be managed through purchases
+        $validated['stock'] = 0;
+
+        $producto = Producto::create($validated);
+
+        // Log initial prices
+        ProductoPrecioHistorial::create([
+            'producto_id' => $producto->id,
+            'precio_compra_anterior' => null,
+            'precio_compra_nuevo' => $producto->precio_compra,
+            'precio_venta_anterior' => null,
+            'precio_venta_nuevo' => $producto->precio_venta,
+            'tipo_cambio' => 'creacion',
+            'notas' => 'Precio inicial al crear el producto',
+            'user_id' => Auth::id(),
+        ]);
 
         return redirect()->route('productos.index')->with('success', 'Producto creado correctamente.');
     }
@@ -166,7 +182,6 @@ class ProductoController extends Controller
             'nombre'        => 'required|string|max:255',
             'descripcion'   => 'nullable|string|max:1000',
             'precio_venta'  => 'required|numeric|min:0',
-            'stock'         => 'required|integer|min:0',
             'categoria_id'  => 'required|exists:categorias,id',
             'proveedor_id'  => 'nullable|exists:proveedores,id',
 
@@ -195,6 +210,27 @@ class ProductoController extends Controller
                 Storage::disk('public')->delete($producto->imagen);
             }
             $validated['imagen'] = $request->file('imagen')->store('productos', 'public');
+        }
+
+        // Stock is managed through purchases, so don't update it from the form
+        // Keep the existing stock value
+        unset($validated['stock']);
+
+        // Check for price changes before updating
+        $precioCompraChanged = isset($validated['precio_compra']) && $validated['precio_compra'] != $producto->precio_compra;
+        $precioVentaChanged = isset($validated['precio_venta']) && $validated['precio_venta'] != $producto->precio_venta;
+
+        if ($precioCompraChanged || $precioVentaChanged) {
+            ProductoPrecioHistorial::create([
+                'producto_id' => $producto->id,
+                'precio_compra_anterior' => $precioCompraChanged ? $producto->precio_compra : null,
+                'precio_compra_nuevo' => $precioCompraChanged ? $validated['precio_compra'] : $producto->precio_compra,
+                'precio_venta_anterior' => $precioVentaChanged ? $producto->precio_venta : null,
+                'precio_venta_nuevo' => $precioVentaChanged ? $validated['precio_venta'] : $producto->precio_venta,
+                'tipo_cambio' => 'manual',
+                'notas' => 'Actualización manual de precios',
+                'user_id' => Auth::id(),
+            ]);
         }
 
         $producto->update($validated);
