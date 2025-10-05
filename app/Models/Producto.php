@@ -74,7 +74,7 @@ class Producto extends Model
     /** @return MorphToMany<Compra> */
     public function compras(): MorphToMany
     {
-        return $this->morphToMany(Compra::class, 'comprable')->withPivot('cantidad', 'precio');
+        return $this->morphToMany(Compra::class, 'comprable', 'compra_items');
     }
 
     /** @return BelongsToMany<OrdenCompra> */
@@ -123,7 +123,13 @@ class Producto extends Model
 
     public function getStockDisponibleAttribute()
     {
-        return $this->stock - $this->reservado;
+        // Suma de cantidades en todos los inventarios
+        return $this->inventarios->sum('cantidad');
+    }
+
+    public function getStockTotalAttribute()
+    {
+        return $this->inventarios->sum('cantidad');
     }
 
     public function getGananciaAttribute()

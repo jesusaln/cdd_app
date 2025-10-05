@@ -7,6 +7,7 @@ use App\Models\Compra;
 use App\Models\CompraItem;
 use App\Models\Producto;
 use App\Models\Proveedor;
+use App\Models\Almacen;
 use App\Services\InventarioService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -108,6 +109,10 @@ class CompraController extends Controller
                     'nombre_razon_social' => $compra->proveedor->nombre_razon_social,
                     'rfc' => $compra->proveedor->rfc ?? null,
                 ] : null,
+                'almacen' => $compra->almacen ? [
+                    'id' => $compra->almacen->id,
+                    'nombre' => $compra->almacen->nombre,
+                ] : null,
                 'productos' => $items,
                 'productos_count' => $items->count(),
                 'productos_tooltip' => $productosTooltip ?: 'Sin productos',
@@ -161,13 +166,19 @@ class CompraController extends Controller
     {
         $proveedores = Proveedor::all();
         $productos = Producto::all();
-        return Inertia::render('Compras/Create', ['proveedores' => $proveedores, 'productos' => $productos]);
+        $almacenes = Almacen::where('estado', 'activo')->get();
+        return Inertia::render('Compras/Create', [
+            'proveedores' => $proveedores,
+            'productos' => $productos,
+            'almacenes' => $almacenes
+        ]);
     }
 
     private function validateCompraRequest(Request $request)
     {
         return $request->validate([
             'proveedor_id' => 'required|exists:proveedores,id',
+            'almacen_id' => 'required|exists:almacenes,id',
             'descuento_general' => 'nullable|numeric|min:0',
             'productos' => 'required|array|min:1',
             'productos.*.id' => 'required|exists:productos,id',
@@ -210,6 +221,7 @@ class CompraController extends Controller
             // Crear compra (automáticamente se marca como procesada en el modelo)
             $compra = Compra::create([
                 'proveedor_id' => $validatedData['proveedor_id'],
+                'almacen_id' => $validatedData['almacen_id'],
                 'subtotal' => $subtotal,
                 'descuento_items' => $descuentoItems,
                 'descuento_general' => $descuentoGeneral,
@@ -230,8 +242,9 @@ class CompraController extends Controller
                 // Aumentar stock automáticamente al crear la compra
                 $this->inventarioService->entrada($producto, $cantidad, [
                     'motivo' => 'Compra procesada',
-                    'referencia' => $compra,
+                    'almacen_id' => $validatedData['almacen_id'],
                     'detalles' => [
+                        'compra_id' => $compra->id,
                         'precio_unitario' => $precio,
                         'descuento' => $descuento,
                         'subtotal' => $subtotalFinal,
@@ -347,8 +360,9 @@ class CompraController extends Controller
 
                 $this->inventarioService->salida($producto, $item->cantidad, [
                     'motivo' => 'Edición de compra: reversa de stock previo',
-                    'referencia' => $compra,
+                    'almacen_id' => $compra->almacen_id,
                     'detalles' => [
+                        'compra_id' => $compra->id,
                         'compra_item_id' => $item->id,
                     ],
                 ]);
@@ -398,8 +412,9 @@ class CompraController extends Controller
 
                 $this->inventarioService->entrada($producto, $productoData['cantidad'], [
                     'motivo' => 'Edición de compra: stock actualizado',
-                    'referencia' => $compra,
+                    'almacen_id' => $validatedData['almacen_id'],
                     'detalles' => [
+                        'compra_id' => $compra->id,
                         'producto_id' => $productoData['id'],
                         'precio_unitario' => $productoData['precio'],
                         'descuento' => $productoData['descuento'] ?? 0,
@@ -478,8 +493,9 @@ class CompraController extends Controller
                 if ($producto) {
                     $this->inventarioService->salida($producto, $item->cantidad, [
                         'motivo' => 'Cancelación de compra',
-                        'referencia' => $compra,
+                        'almacen_id' => $compra->almacen_id,
                         'detalles' => [
+                            'compra_id' => $compra->id,
                             'compra_item_id' => $item->id,
                         ],
                     ]);

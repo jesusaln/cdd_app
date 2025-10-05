@@ -20,6 +20,8 @@ const notyf = new Notyf({
 })
 
 const page = usePage()
+const usuarios = ref(page.props.usuarios || [])
+
 onMounted(() => {
   const flash = page.props.flash
   if (flash?.success) notyf.success(flash.success)
@@ -45,12 +47,12 @@ const submit = () => {
 
   router.post(route('almacenes.store'), form.value, {
     onSuccess: () => {
-      notyf.success('Almacén creado correctamente')
+      notyf.success('Almacen creado correctamente')
       router.visit(route('almacenes.index'))
     },
     onError: (errors) => {
       console.error('Errores de validación:', errors)
-      notyf.error('Error al crear el almacén')
+      notyf.error('Error al crear el almacen')
     },
     onFinish: () => {
       loading.value = false
@@ -64,7 +66,7 @@ const cancel = () => {
 </script>
 
 <template>
-  <Head title="Crear Almacén" />
+  <Head title="Crear Almacen" />
 
   <div class="min-h-screen bg-gray-50">
     <div class="max-w-4xl mx-auto px-6 py-8">
@@ -72,8 +74,8 @@ const cancel = () => {
       <div class="mb-8">
         <div class="flex items-center justify-between">
           <div>
-            <h1 class="text-3xl font-bold text-gray-900">Crear Nuevo Almacén</h1>
-            <p class="text-gray-600 mt-1">Agrega un nuevo almacén al sistema</p>
+            <h1 class="text-3xl font-bold text-gray-900">Crear Nuevo Almacen</h1>
+            <p class="text-gray-600 mt-1">Agrega un nuevo almacen al sistema</p>
           </div>
           <button
             @click="cancel"
@@ -93,7 +95,7 @@ const cancel = () => {
           <!-- Nombre -->
           <div>
             <label for="nombre" class="block text-sm font-medium text-gray-700 mb-2">
-              Nombre del Almacén *
+              Nombre del Almacen *
             </label>
             <input
               id="nombre"
@@ -101,7 +103,7 @@ const cancel = () => {
               type="text"
               required
               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-              placeholder="Ingresa el nombre del almacén"
+              placeholder="Ingresa el nombre del almacen"
             />
           </div>
 
@@ -115,13 +117,13 @@ const cancel = () => {
               v-model="form.descripcion"
               rows="4"
               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-              placeholder="Ingresa una descripción opcional para el almacén"
+              placeholder="Ingresa una descripcion opcional para el almacen"
             ></textarea>
           </div>
 
           <!-- Dirección -->
           <div>
-            <label for="direccion" class="block text-sm font-medium text-gray-700 mb-2">
+            <label for="ubicacion" class="block text-sm font-medium text-gray-700 mb-2">
               Dirección
             </label>
             <textarea
@@ -129,7 +131,7 @@ const cancel = () => {
               v-model="form.direccion"
               rows="3"
               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-              placeholder="Ingresa la dirección completa del almacén"
+              placeholder="Ingresa la dirección completa del almacen"
             ></textarea>
           </div>
 
@@ -144,7 +146,7 @@ const cancel = () => {
                 v-model="form.telefono"
                 type="tel"
                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                placeholder="Ingresa el teléfono de contacto"
+                placeholder="Ingresa el telefono de contacto"
               />
             </div>
 
@@ -152,13 +154,16 @@ const cancel = () => {
               <label for="responsable" class="block text-sm font-medium text-gray-700 mb-2">
                 Responsable
               </label>
-              <input
+              <select
                 id="responsable"
                 v-model="form.responsable"
-                type="text"
                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                placeholder="Nombre del responsable del almacén"
-              />
+              >
+                <option value="">Seleccionar responsable</option>
+                <option v-for="usuario in usuarios" :key="usuario.id" :value="usuario.name">
+                  {{ usuario.name }}
+                </option>
+              </select>
             </div>
           </div>
 
@@ -177,7 +182,7 @@ const cancel = () => {
               <option value="inactivo">Inactivo</option>
             </select>
             <p class="mt-1 text-sm text-gray-500">
-              Los almacenes activos estarán disponibles para ser usados en productos
+              Los almacenes activos estaran disponibles para ser usados en productos
             </p>
           </div>
 
@@ -197,8 +202,8 @@ const cancel = () => {
                   <ul class="list-disc pl-5 space-y-1">
                     <li>El nombre del almacén debe ser único en el sistema</li>
                     <li>Puedes cambiar el estado del almacén en cualquier momento</li>
-                    <li>Los almacenes inactivos no estarán disponibles para nuevos productos</li>
-                    <li>Es importante asignar un responsable para el control del almacén</li>
+                    <li>Los almacenes inactivos no estaran disponibles para nuevos productos</li>
+                    <li>Es importante asignar un responsable para el control del almacen</li>
                   </ul>
                 </div>
               </div>
@@ -227,7 +232,7 @@ const cancel = () => {
               <svg v-else class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
               </svg>
-              {{ loading ? 'Creando...' : 'Crear Almacén' }}
+              {{ loading ? 'Creando...' : 'Crear Almacen' }}
             </button>
           </div>
         </form>

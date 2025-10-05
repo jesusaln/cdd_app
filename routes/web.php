@@ -42,6 +42,8 @@ use App\Http\Controllers\AsignacionHerramientaController;
 use App\Http\Controllers\EstadoHerramientaController;
 use App\Http\Controllers\AsignacionMasivaController;
 use App\Http\Controllers\TecnicoHerramientasController;
+use App\Http\Controllers\MovimientoInventarioController;
+use App\Http\Controllers\TraspasoController;
 
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -157,6 +159,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::resource('almacenes', AlmacenController::class)->names('almacenes'); // ✅ DUPLICACIÓN ELIMINADA
     Route::put('/almacenes/{almacen}/toggle', [AlmacenController::class, 'toggle'])->name('almacenes.toggle');
     Route::get('/almacenes/export', [AlmacenController::class, 'export'])->name('almacenes.export');
+    Route::resource('traspasos', TraspasoController::class)->names('traspasos');
+    Route::resource('movimientos-inventario', MovimientoInventarioController::class)->names('movimientos-inventario');
     Route::resource('cotizaciones', CotizacionController::class)->names('cotizaciones');
     Route::resource('pedidos', PedidoController::class)->names('pedidos');
     Route::resource('ventas', VentaController::class)->names('ventas');

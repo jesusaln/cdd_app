@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Inertia\Inertia;
 use App\Models\Almacen;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -80,7 +81,11 @@ class AlmacenController extends Controller
      */
     public function create()
     {
-        return Inertia::render('Almacenes/Create');
+        $usuarios = User::select('id', 'name')->orderBy('name')->get();
+
+        return Inertia::render('Almacenes/Create', [
+            'usuarios' => $usuarios,
+        ]);
     }
 
     /**
@@ -105,20 +110,31 @@ class AlmacenController extends Controller
     /**
      * Muestra el formulario para editar un almacén existente.
      */
-    public function edit(Almacen $almacen)
+    public function edit($id)
     {
+        $almacen = Almacen::findOrFail($id);
+        // Asegurar que tenga valores por defecto
+        $almacen->direccion = $almacen->direccion ?: '';
+        $almacen->telefono = $almacen->telefono ?: '';
+        $almacen->responsable = $almacen->responsable ?: '';
+
+        $usuarios = User::select('id', 'name')->orderBy('name')->get();
+
         return Inertia::render('Almacenes/Edit', [
             'almacen' => $almacen,
+            'usuarios' => $usuarios,
         ]);
     }
 
     /**
      * Actualiza un almacén existente en la base de datos.
      */
-    public function update(Request $request, Almacen $almacen)
+    public function update(Request $request, $id)
     {
+        $almacen = Almacen::findOrFail($id);
+
         $validated = $request->validate([
-            'nombre' => 'required|string|max:100|unique:almacenes,nombre,' . $almacen->id,
+            'nombre' => 'required|string|max:100|unique:almacenes,nombre,' . $id,
             'descripcion' => 'nullable|string|max:1000',
             'direccion' => 'nullable|string|max:255',
             'telefono' => 'nullable|string|max:20',
@@ -128,7 +144,7 @@ class AlmacenController extends Controller
 
         $almacen->update($validated);
 
-        return redirect()->route('almacenes.index')->with('success', 'Almacén actualizado correctamente.');
+        return redirect()->route('almacenes.index')->with('success', 'Almacen actualizado correctamente.');
     }
 
     /**
@@ -141,32 +157,33 @@ class AlmacenController extends Controller
 
             // Verificar si tiene productos relacionados antes de eliminar
             if ($almacen->productos()->exists()) {
-                return redirect()->route('almacenes.index')->withErrors(['error' => 'No se puede eliminar el almacén porque tiene productos asociados.']);
+                return redirect()->route('almacenes.index')->withErrors(['error' => 'No se puede eliminar el almacen porque tiene productos asociados.']);
             }
 
             $almacen->delete();
 
-            return redirect()->route('almacenes.index')->with('success', 'Almacén eliminado correctamente.');
+            return redirect()->route('almacenes.index')->with('success', 'Almacen eliminado correctamente.');
         } catch (\Exception $e) {
-            Log::error('Error al eliminar almacén: ' . $e->getMessage());
-            return redirect()->route('almacenes.index')->withErrors(['error' => 'Error al eliminar el almacén.']);
+            Log::error('Error al eliminar almacen: ' . $e->getMessage());
+            return redirect()->route('almacenes.index')->withErrors(['error' => 'Error al eliminar el almacen.']);
         }
     }
 
     /**
      * Alterna el estado de un almacén (activo/inactivo).
      */
-    public function toggle(Almacen $almacen)
+    public function toggle($id)
     {
         try {
+            $almacen = Almacen::findOrFail($id);
             $almacen->update(['estado' => $almacen->estado === 'activo' ? 'inactivo' : 'activo']);
 
-            $mensaje = $almacen->estado === 'activo' ? 'Almacén activado correctamente' : 'Almacén desactivado correctamente';
+            $mensaje = $almacen->estado === 'activo' ? 'Almacen activado correctamente' : 'Almacen desactivado correctamente';
 
             return redirect()->back()->with('success', $mensaje);
         } catch (\Exception $e) {
-            Log::error('Error al cambiar estado de almacén: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Error al cambiar el estado del almacén.');
+            Log::error('Error al cambiar estado de almacen: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al cambiar el estado del almacen.');
         }
     }
 

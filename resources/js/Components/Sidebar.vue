@@ -112,7 +112,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
             </svg>
           </div>
-          <div v-show="accordionStates.compras" class="mt-2 ml-2 space-y-1">
+          <div v-show="accordionStates.compras" class="mt-2 space-y-1">
             <NavLink href="/compras" icon="cart-shopping" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Compras a Proveedores' : null">
               Compras a Proveedores
             </NavLink>
@@ -146,12 +146,6 @@
             <NavLink href="/clientes" icon="users" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Clientes' : null">
               Clientes
             </NavLink>
-            <NavLink href="/productos" icon="box" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Productos' : null">
-              Productos
-            </NavLink>
-            <NavLink href="/servicios" icon="wrench" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Servicios' : null">
-              Servicios
-            </NavLink>
             <NavLink href="/categorias" icon="tags" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Categorías' : null">
               Categorías
             </NavLink>
@@ -160,6 +154,39 @@
             </NavLink>
             <NavLink href="/almacenes" icon="warehouse" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Almacenes' : null">
               Almacenes
+            </NavLink>
+            <NavLink href="/servicios" icon="wrench" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Servicios' : null">
+              Servicios
+            </NavLink>
+          </div>
+        </div>
+
+        <!-- Inventario -->
+        <div class="mb-4">
+          <div
+            @click="toggleAccordion('inventario')"
+            class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
+          >
+            <span>Inventario</span>
+            <svg
+              :class="accordionStates.inventario ? 'rotate-90' : ''"
+              class="w-3 h-3 transition-transform duration-200"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+          <div v-show="accordionStates.inventario" class="mt-2 ml-2 space-y-1">
+            <NavLink href="/productos" icon="box" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Productos' : null">
+              Productos
+            </NavLink>
+            <NavLink href="/traspasos" icon="exchange-alt" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Traspasos' : null">
+              Traspasos
+            </NavLink>
+            <NavLink href="/movimientos-inventario" icon="history" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Movimientos' : null">
+              Movimientos
             </NavLink>
           </div>
         </div>
@@ -215,7 +242,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
             </svg>
           </div>
-          <div v-show="accordionStates.rentas" class="mt-2 ml-2 space-y-1">
+          <div v-show="accordionStates.rentas" class="mt-2 space-y-1">
             <NavLink href="/rentas" icon="file-contract" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Rentas' : null">
               Rentas
             </NavLink>
@@ -242,7 +269,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
             </svg>
           </div>
-          <div v-show="accordionStates.taller" class="mt-2 ml-2 space-y-1">
+          <div v-show="accordionStates.taller" class="mt-2 space-y-1">
             <NavLink href="/carros" icon="car" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Vehículos' : null">
               Vehículos
             </NavLink>
@@ -331,6 +358,7 @@ const accordionStates = ref({
   ventas: false,
   compras: false,
   catalogos: false,
+  inventario: false,
   administracion: false,
   rentas: false,
   taller: false
@@ -363,6 +391,8 @@ const getCurrentSection = () => {
     return 'administracion';
   } else if (path.includes('/rentas') || path.includes('/equipos')) {
     return 'rentas';
+  } else if (path.includes('/productos') || path.includes('/traspasos') || path.includes('/movimientos-inventario')) {
+    return 'inventario';
   } else if (path.includes('/carros') || path.includes('/mantenimientos') || path.includes('/tecnicos') || path.includes('/herramientas')) {
     return 'taller';
   }

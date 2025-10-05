@@ -26,12 +26,22 @@ class Almacen extends Model
     ];
 
     /**
-     * Relación con productos
+     * Relación con productos (legacy)
      */
     public function productos(): HasMany
     {
         return $this->hasMany(Producto::class);
     }
+
+    /**
+     * Relación con inventarios
+     */
+    public function inventarios(): HasMany
+    {
+        return $this->hasMany(Inventario::class);
+    }
+
+
 
     /**
      * Scope para almacenes activos

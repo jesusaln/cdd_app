@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\InventarioMovimiento;
 use App\Models\Producto;
+use App\Models\Almacen;
 use App\Models\User;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\Arr;
@@ -18,19 +19,19 @@ class InventarioService
     {
     }
 
-    public function entrada(Producto $producto, int $cantidad, array $contexto = []): InventarioMovimiento
+    public function entrada(Producto $producto, int $cantidad, array $contexto = []): void
     {
-        return $this->ajustar($producto, InventarioMovimiento::TIPO_ENTRADA, $cantidad, $contexto);
+        $this->ajustar($producto, 'entrada', $cantidad, $contexto);
     }
 
-    public function salida(Producto $producto, int $cantidad, array $contexto = []): InventarioMovimiento
+    public function salida(Producto $producto, int $cantidad, array $contexto = []): void
     {
-        return $this->ajustar($producto, InventarioMovimiento::TIPO_SALIDA, $cantidad, $contexto);
+        $this->ajustar($producto, 'salida', $cantidad, $contexto);
     }
 
-    protected function ajustar(Producto $producto, string $tipo, int $cantidad, array $contexto = []): InventarioMovimiento
+    protected function ajustar(Producto $producto, string $tipo, int $cantidad, array $contexto = []): void
     {
-        if (!in_array($tipo, [InventarioMovimiento::TIPO_ENTRADA, InventarioMovimiento::TIPO_SALIDA], true)) {
+        if (!in_array($tipo, ['entrada', 'salida'], true)) {
             throw new InvalidArgumentException('Tipo de movimiento inválido.');
         }
 
@@ -38,45 +39,70 @@ class InventarioService
             throw new InvalidArgumentException('La cantidad del movimiento debe ser mayor que cero.');
         }
 
-        return $this->db->transaction(function () use ($producto, $tipo, $cantidad, $contexto) {
-            $producto->refresh();
-            $stockAnterior = (int) $producto->stock;
+        $this->db->transaction(function () use ($producto, $tipo, $cantidad, $contexto) {
+            $almacenId = Arr::get($contexto, 'almacen_id');
+            if (!$almacenId) {
+                // Si no se especifica almacén, usar el primer almacén activo como fallback
+                $almacenId = Almacen::where('estado', 'activo')->first()?->id;
+                if (!$almacenId) {
+                    throw new RuntimeException('No hay almacenes activos disponibles.');
+                }
+            }
+
+            // Verificar si el almacén existe y está activo
+            $almacen = Almacen::find($almacenId);
+            if (!$almacen || $almacen->estado !== 'activo') {
+                throw new RuntimeException('El almacén especificado no existe o no está activo.');
+            }
+
+            // Obtener o crear registro de inventario para este producto en este almacén
+            $inventario = \App\Models\Inventario::firstOrCreate(
+                [
+                    'producto_id' => $producto->id,
+                    'almacen_id' => $almacenId,
+                ],
+                [
+                    'cantidad' => 0,
+                    'stock_minimo' => 0,
+                ]
+            );
+
+            $stockAnterior = $inventario->cantidad;
 
             $nuevoStock = $stockAnterior;
-            if ($tipo === InventarioMovimiento::TIPO_ENTRADA) {
+            if ($tipo === 'entrada') {
                 $nuevoStock = $stockAnterior + $cantidad;
             } else {
                 $nuevoStock = $stockAnterior - $cantidad;
                 if ($nuevoStock < 0) {
-                    throw new RuntimeException("Stock insuficiente para el producto '{$producto->nombre}'.");
+                    throw new RuntimeException("Stock insuficiente para el producto '{$producto->nombre}' en el almacén '{$almacen->nombre}'.");
                 }
             }
 
-            $producto->forceFill(['stock' => $nuevoStock])->save();
+            // Actualizar inventario específico
+            $inventario->update(['cantidad' => $nuevoStock]);
 
-            $referencia = Arr::get($contexto, 'referencia');
+            // Actualizar stock total del producto
+            $totalStock = \App\Models\Inventario::where('producto_id', $producto->id)->sum('cantidad');
+            $producto->update(['stock' => $totalStock]);
+
+            // Registrar en inventario_logs
             $userId = Arr::get($contexto, 'user_id');
             if (!$userId && $this->usuarioAutenticado()) {
                 $userId = Auth::id();
             }
 
-            $movimientoData = [
+            DB::table('inventario_logs')->insert([
                 'producto_id' => $producto->id,
+                'almacen_id' => $almacenId,
+                'user_id' => $userId,
                 'tipo' => $tipo,
                 'cantidad' => $cantidad,
-                'stock_anterior' => $stockAnterior,
-                'stock_posterior' => $nuevoStock,
-                'motivo' => Arr::get($contexto, 'motivo'),
-                'user_id' => $userId,
-                'detalles' => Arr::get($contexto, 'detalles'),
-            ];
-
-            if ($referencia) {
-                $movimientoData['referencia_type'] = get_class($referencia);
-                $movimientoData['referencia_id'] = $referencia->getKey();
-            }
-
-            return InventarioMovimiento::create($movimientoData);
+                'motivo' => Arr::get($contexto, 'motivo', 'Movimiento de inventario'),
+                'detalles' => json_encode(Arr::get($contexto, 'detalles', [])),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
         });
     }
 

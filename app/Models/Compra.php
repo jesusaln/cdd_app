@@ -19,6 +19,7 @@ class Compra extends Model
 
     protected $fillable = [
         'proveedor_id',
+        'almacen_id',
         'orden_compra_id',
         'numero_compra',
         'fecha_compra',
@@ -49,17 +50,14 @@ class Compra extends Model
     /** Productos de la compra */
     public function productos(): MorphToMany
     {
-        return $this->morphedByMany(
-            Producto::class,
-            'comprable',
-            'compra_items',
-            'compra_id',
-            'comprable_id'
-        )->withPivot('cantidad', 'precio', 'descuento', 'subtotal', 'descuento_monto')
-        ->wherePivot('comprable_type', Producto::class)
-        ->whereHasMorph('comprable', Producto::class, function ($query) {
-            $query->active();
-        });
+        return $this->morphedByMany(Producto::class, 'comprable', 'compra_items')
+            ->withPivot('cantidad', 'precio', 'descuento', 'subtotal', 'descuento_monto');
+    }
+
+    /** Relación con almacén */
+    public function almacen(): BelongsTo
+    {
+        return $this->belongsTo(Almacen::class);
     }
 
     /** Relación con orden de compra */

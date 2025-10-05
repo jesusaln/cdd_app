@@ -1,4 +1,4 @@
-<!-- /resources/js/Pages/Almacenes/Edit.vue -->
+﻿<!-- /resources/js/Pages/Almacenes/Edit.vue -->
 <script setup>
 import { ref, onMounted } from 'vue'
 import { Head, router, usePage } from '@inertiajs/vue3'
@@ -21,6 +21,7 @@ const notyf = new Notyf({
 
 const page = usePage()
 onMounted(() => {
+  console.log('Almacen:', props.almacen)
   const flash = page.props.flash
   if (flash?.success) notyf.success(flash.success)
   if (flash?.error) notyf.error(flash.error)
@@ -30,7 +31,11 @@ onMounted(() => {
 const props = defineProps({
   almacen: {
     type: Object,
-    required: true
+    default: () => ({})
+  },
+  usuarios: {
+    type: Array,
+    default: () => []
   }
 })
 
@@ -53,12 +58,12 @@ const submit = () => {
 
   router.put(route('almacenes.update', props.almacen.id), form.value, {
     onSuccess: () => {
-      notyf.success('Almacén actualizado correctamente')
+      notyf.success('Almacen actualizado correctamente')
       router.visit(route('almacenes.index'))
     },
     onError: (errors) => {
       console.error('Errores de validación:', errors)
-      notyf.error('Error al actualizar el almacén')
+      notyf.error('Error al actualizar el almacen')
     },
     onFinish: () => {
       loading.value = false
@@ -72,7 +77,7 @@ const cancel = () => {
 </script>
 
 <template>
-  <Head title="Editar Almacén" />
+  <Head :title="'Editar Almacen: ' + (form.nombre || 'Sin nombre')" />
 
   <div class="min-h-screen bg-gray-50">
     <div class="max-w-4xl mx-auto px-6 py-8">
@@ -80,8 +85,8 @@ const cancel = () => {
       <div class="mb-8">
         <div class="flex items-center justify-between">
           <div>
-            <h1 class="text-3xl font-bold text-gray-900">Editar Almacén</h1>
-            <p class="text-gray-600 mt-1">Modifica la información del almacén</p>
+            <h1 class="text-3xl font-bold text-gray-900">Editar Almacen: {{ form.nombre || 'Sin nombre' }}</h1>
+            <p class="text-gray-600 mt-1">Modifica la información del almacen</p>
           </div>
           <button
             @click="cancel"
@@ -101,7 +106,7 @@ const cancel = () => {
           <!-- Nombre -->
           <div>
             <label for="nombre" class="block text-sm font-medium text-gray-700 mb-2">
-              Nombre del Almacén *
+              Nombre del Almacen *
             </label>
             <input
               id="nombre"
@@ -109,7 +114,7 @@ const cancel = () => {
               type="text"
               required
               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-              placeholder="Ingresa el nombre del almacén"
+              placeholder="Ingresa el nombre del almacen"
             />
           </div>
 
@@ -123,13 +128,13 @@ const cancel = () => {
               v-model="form.descripcion"
               rows="4"
               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-              placeholder="Ingresa una descripción opcional para el almacén"
+              placeholder="Ingresa una descripción opcional para el almacen"
             ></textarea>
           </div>
 
           <!-- Dirección -->
           <div>
-            <label for="direccion" class="block text-sm font-medium text-gray-700 mb-2">
+            <label for="ubicacion" class="block text-sm font-medium text-gray-700 mb-2">
               Dirección
             </label>
             <textarea
@@ -137,7 +142,7 @@ const cancel = () => {
               v-model="form.direccion"
               rows="3"
               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-              placeholder="Ingresa la dirección completa del almacén"
+              placeholder="Ingresa la dirección completa del almacen"
             ></textarea>
           </div>
 
@@ -160,13 +165,16 @@ const cancel = () => {
               <label for="responsable" class="block text-sm font-medium text-gray-700 mb-2">
                 Responsable
               </label>
-              <input
+              <select
                 id="responsable"
                 v-model="form.responsable"
-                type="text"
                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                placeholder="Nombre del responsable del almacén"
-              />
+              >
+                <option value="">Seleccionar responsable</option>
+                <option v-for="usuario in props.usuarios" :key="usuario.id" :value="usuario.name">
+                  {{ usuario.name }}
+                </option>
+              </select>
             </div>
           </div>
 
