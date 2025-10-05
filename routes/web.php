@@ -47,6 +47,7 @@ use App\Http\Controllers\TraspasoController;
 use App\Http\Controllers\AjusteInventarioController;
 use App\Http\Controllers\MovimientoManualController;
 use App\Http\Controllers\ReportesInventarioController;
+use App\Http\Controllers\ReportesController;
 
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -183,7 +184,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
 Route::get('/reportes', [ReportesDashboardController::class, 'indexTabs'])->name('reportes.index');
 
 // Dashboard de categorías de reportes
-Route::get('/reportes/dashboard', [ReportesDashboardController::class, 'index'])->name('reportes.dashboard');
+Route::get('/reportes/dashboard', [ReportesController::class, 'index'])->name('reportes.dashboard');
 
 // CRUD de reportes personalizados (debe ir primero para evitar conflictos)
 Route::resource('reportes', ReporteController::class)->except(['index', 'show']);

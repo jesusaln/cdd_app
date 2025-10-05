@@ -237,7 +237,7 @@
            <NavLink href="/reportes/ventas" icon="chart-line" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Reportes de Ventas' : null">
              Reportes de Ventas
            </NavLink>
-           <NavLink href="/reportes/cobranza" icon="credit-card" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Reportes de Cobranza' : null">
+           <NavLink href="/reportes/cobranza" icon="dollar-sign" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Reportes de Cobranza' : null">
              Reportes de Cobranza
            </NavLink>
 
