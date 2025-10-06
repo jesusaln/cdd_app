@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <AppLayout title="Cuentas por Cobrar">
         <template #header>
             <div class="flex justify-between items-center">
@@ -14,7 +14,7 @@
             </div>
         </template>
 
-        <!-- EstadÃ­sticas -->
+        <!-- EstadÃƒÂ­sticas -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">
@@ -201,7 +201,7 @@
                     </table>
                 </div>
 
-                <!-- PaginaciÃ³n -->
+                <!-- PaginaciÃƒÂ³n -->
                 <div class="mt-4">
                     <div class="flex justify-between items-center">
                         <div class="text-sm text-gray-700">
@@ -275,3 +275,4 @@ const applyFilters = () => {
 //     //     });
 // });
 </script>
+

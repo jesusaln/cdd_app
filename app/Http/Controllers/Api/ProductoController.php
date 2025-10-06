@@ -16,7 +16,7 @@ class ProductoController extends Controller
     public function index()
     {
         $productos = Producto::with(['categoria', 'marca', 'proveedor', 'almacen'])->get();
-        return response()->json($productos);
+        return response()->json($productos->toArray());
     }
 
     /**

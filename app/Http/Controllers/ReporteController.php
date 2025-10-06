@@ -69,6 +69,12 @@ class ReporteController extends Controller
         // Estadísticas adicionales
         $clientes = \App\Models\Cliente::select('id', 'nombre_razon_social')->get();
 
+        // Obtener datos para el corte diario (ventas y rentas cobradas)
+        $corteDiario = $this->obtenerDatosCorteDiario($fechaInicio, $fechaFin);
+
+        // Obtener usuarios activos para el filtro de corte
+        $usuarios = \App\Models\User::select('id', 'name')->get();
+
         return Inertia::render('Reportes/Index', [
             'reportesVentas' => $ventasConCosto,
             'corteVentas' => $corteVentas,
@@ -77,6 +83,8 @@ class ReporteController extends Controller
             'totalCompras' => $totalCompras,
             'inventario' => $productos,
             'clientes' => $clientes,
+            'corteDiario' => $corteDiario,
+            'usuarios' => $usuarios,
             'filtros' => [
                 'fecha_inicio' => $fechaInicio,
                 'fecha_fin' => $fechaFin,
@@ -105,10 +113,16 @@ class ReporteController extends Controller
             return $venta;
         });
 
+        // Obtener datos para el corte diario
+        $corteDiario = $this->obtenerDatosCorteDiario(now()->startOfMonth()->format('Y-m-d'), now()->endOfMonth()->format('Y-m-d'));
+        $usuarios = \App\Models\User::select('id', 'name')->get();
+
         return Inertia::render('Reportes/Index', [
             'reportes' => $ventasConCosto,
             'corte' => $corte,
             'utilidad' => $utilidad,
+            'corteDiario' => $corteDiario,
+            'usuarios' => $usuarios,
         ]);
     }
     public function create()
@@ -1310,9 +1324,15 @@ class ReporteController extends Controller
             'borrador' => $ventasPendientes->where('estado', 'borrador')->count(),
         ];
 
+        // Obtener datos para el corte diario
+        $corteDiario = $this->obtenerDatosCorteDiario(now()->startOfMonth()->format('Y-m-d'), now()->endOfMonth()->format('Y-m-d'));
+        $usuarios = \App\Models\User::select('id', 'name')->get();
+
         return Inertia::render('Reportes/VentasPendientes', [
             'ventas' => $ventas,
             'estadisticas' => $estadisticas,
+            'corteDiario' => $corteDiario,
+            'usuarios' => $usuarios,
             'filters' => [
                 'search' => $search,
                 'estado' => $estado,
@@ -1385,5 +1405,59 @@ class ReporteController extends Controller
             'data' => $productos->toArray(),
             'filename' => 'reporte_productos_' . now()->format('Y-m-d_H-i-s') . '.json'
         ]);
+    }
+
+    /**
+     * Obtener datos para el corte diario (ventas y rentas cobradas)
+     */
+    private function obtenerDatosCorteDiario($fechaInicio, $fechaFin)
+    {
+        // Ventas pagadas en el período
+        $ventasPagadas = Venta::with(['cliente', 'pagadoPor'])
+            ->where('pagado', true)
+            ->whereBetween('fecha_pago', [$fechaInicio . ' 00:00:00', $fechaFin . ' 23:59:59'])
+            ->get()
+            ->map(function ($venta) {
+                return [
+                    'id' => $venta->id,
+                    'tipo' => 'venta',
+                    'numero' => $venta->numero_venta,
+                    'cliente' => $venta->cliente->nombre_razon_social ?? 'Sin cliente',
+                    'concepto' => 'Venta de productos/servicios',
+                    'total' => $venta->total,
+                    'metodo_pago' => $venta->metodo_pago,
+                    'fecha_pago' => $venta->fecha_pago,
+                    'notas_pago' => $venta->notas_pago,
+                    'cobrado_por' => $venta->pagadoPor?->name ?? 'Sistema',
+                    'pagado_por' => $venta->pagado_por,
+                ];
+            });
+
+        // Cobranzas de rentas pagadas en el período
+        $cobranzasPagadas = Cobranza::with(['renta.cliente', 'responsableCobro'])
+            ->whereIn('estado', ['pagado', 'parcial'])
+            ->whereBetween('fecha_pago', [$fechaInicio . ' 00:00:00', $fechaFin . ' 23:59:59'])
+            ->get()
+            ->map(function ($cobranza) {
+                return [
+                    'id' => $cobranza->id,
+                    'tipo' => 'renta',
+                    'numero' => $cobranza->renta->numero_contrato ?? 'N/A',
+                    'cliente' => $cobranza->renta->cliente->nombre_razon_social ?? 'Sin cliente',
+                    'concepto' => $cobranza->concepto ?? 'Cobranza de renta',
+                    'total' => $cobranza->monto_pagado,
+                    'metodo_pago' => $cobranza->metodo_pago,
+                    'fecha_pago' => $cobranza->fecha_pago,
+                    'notas_pago' => $cobranza->notas_pago,
+                    'cobrado_por' => $cobranza->responsableCobro?->name ?? 'Sistema',
+                    'pagado_por' => $cobranza->user_id,
+                ];
+            });
+
+        // Combinar ventas y cobranzas ordenadas por fecha de pago
+        return collect([...$ventasPagadas, ...$cobranzasPagadas])
+            ->sortByDesc('fecha_pago')
+            ->values()
+            ->toArray();
     }
 }

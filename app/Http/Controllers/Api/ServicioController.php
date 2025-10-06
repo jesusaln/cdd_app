@@ -16,7 +16,7 @@ class ServicioController extends Controller
     {
         try {
             $servicios = Servicio::with('categoria')->get();
-            return response()->json($servicios, 200);
+            return response()->json($servicios->toArray(), 200);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Error al obtener los servicios: ' . $e->getMessage()], 500);
         }
@@ -107,7 +107,7 @@ class ServicioController extends Controller
     {
         try {
             $categorias = Categoria::select('id', 'nombre')->get();
-            return response()->json($categorias, 200);
+            return response()->json($categorias->toArray(), 200);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Error al obtener las categorías: ' . $e->getMessage()], 500);
         }

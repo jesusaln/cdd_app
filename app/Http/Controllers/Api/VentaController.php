@@ -83,9 +83,9 @@ class VentaController extends Controller
             $servicios = \App\Models\Servicio::all(); // Añadimos servicios
 
             return response()->json([
-                'clientes' => $clientes,
-                'productos' => $productos,
-                'servicios' => $servicios,
+                'clientes' => $clientes->toArray(),
+                'productos' => $productos->toArray(),
+                'servicios' => $servicios->toArray(),
             ], 200);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Error al cargar datos para nueva venta: ' . $e->getMessage()], 500);

@@ -44,7 +44,7 @@
       </button>
     </div>
 
-    <!-- NavegaciÃ³n -->
+    <!-- Navegación -->
     <nav class="flex-1 overflow-y-auto pt-4">
       <div class="px-2 pb-4">
         <!-- Dashboard -->
@@ -116,9 +116,9 @@
             <NavLink href="/compras" icon="cart-shopping" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Compras a Proveedores' : null">
               Compras a Proveedores
             </NavLink>
-             <NavLink href="/ordenescompra" icon="file-invoice-dollar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Ã“Órdenes de Compra' : null">
-              Ã“Órdenes de Compra
-            </NavLink>
+             <NavLink href="/ordenescompra" icon="file-invoice-dollar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Órdenes de Compra' : null">
+              Órdenes de Compra
+             </NavLink>
             <NavLink href="/cuentas-por-pagar" icon="file-invoice-dollar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Cuentas por Pagar' : null">
               Cuentas por Pagar
             </NavLink>
@@ -146,7 +146,7 @@
             </svg>
           </div>
           <div v-show="accordionStates.catalogos" class="mt-2 space-y-1">
-            <NavLink href="/Categorías" icon="tags" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Categorías' : null">
+            <NavLink href="/categorias" icon="tags" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Categorías' : null">
               Categorías
             </NavLink>
             <NavLink href="/marcas" icon="trademark" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Marcas de Productos' : null">
@@ -211,9 +211,9 @@
            <NavLink href="/usuarios" icon="user" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Usuarios' : null">
              Usuarios
            </NavLink>
-          <NavLink href="/Bitácora" icon="clipboard-list" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'BitÃ¡cora' : null">
-             BitÃ¡cora
-           </NavLink>
+          <NavLink href="/bitacora" icon="clipboard-list" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Bitácora' : null">
+             Bitácora
+          </NavLink>
          </div>
        </div>
 
@@ -323,9 +323,9 @@
             <NavLink href="/mantenimientos" icon="tools" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Mantenimientos' : null">
               Mantenimientos
             </NavLink>
-             <NavLink href="/tecnicos" icon="user-cog" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'TÃ©cnicos' : null">
-              TÃ©cnicos
-            </NavLink>
+             <NavLink href="/tecnicos" icon="user-cog" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Técnicos' : null">
+              Técnicos
+             </NavLink>
             <NavLink href="/herramientas" icon="toolbox" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Herramientas' : null">
               Herramientas
             </NavLink>
@@ -457,13 +457,13 @@ const getCurrentSection = () => {
     return 'ventas';
   } else if (path.includes('/compras') || path.includes('/ordenescompra') || path.includes('/proveedores') || path.includes('/cuentas-por-pagar')) {
     return 'compras';
-  } else if (path.includes('/servicios') || path.includes('/Categorías') || path.includes('/marcas') || path.includes('/almacenes')) {
+  } else if (path.includes('/servicios') || path.includes('/categorias') || path.includes('/marcas') || path.includes('/almacenes')) {
     return 'catalogos';
   } else if (path.includes('/clientes') || path.includes('/citas')) {
     return 'clientes_citas';
   } else if (path.includes('/backup') || path.includes('/entregas-dinero')) {
     return 'administracion';
-  } else if (path.includes('/usuarios') || path.includes('/Bitácora')) {
+  } else if (path.includes('/usuarios') || path.includes('/bitacora')) {
     return 'usuario';
   } else if (path.includes('/reportes')) {
     return 'reportes';
@@ -555,6 +555,7 @@ aside::-webkit-scrollbar-thumb:hover { background: rgba(156, 163, 175, 0.7); }
   }
 }
 </style>
+
 
 
 

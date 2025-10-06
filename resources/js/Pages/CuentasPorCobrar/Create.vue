@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <AppLayout title="Crear Cuenta por Cobrar">
         <template #header>
             <div class="flex justify-between items-center">
@@ -21,11 +21,11 @@
                         <form @submit.prevent="submit">
                             <!-- Venta -->
                             <div v-if="venta" class="mb-6">
-                                <h3 class="text-lg font-medium text-gray-900 mb-4">InformaciÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³n de la Venta</h3>
+                                <h3 class="text-lg font-medium text-gray-900 mb-4">Información de la Venta</h3>
                                 <div class="bg-gray-50 p-4 rounded-lg">
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
-                                            <label class="block text-sm font-medium text-gray-700">NÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âºmero de Venta</label>
+                                            <label class="block text-sm font-medium text-gray-700">Número de Venta</label>
                                             <p class="mt-1 text-sm text-gray-900">{{ venta.numero_venta }}</p>
                                         </div>
                                         <div>
@@ -44,7 +44,7 @@
                                 </div>
                             </div>
 
-                            <!-- Seleccionar Venta (si no viene por parÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡metro) -->
+                            <!-- Seleccionar Venta (si no viene por parámetro) -->
                             <div v-if="!venta" class="mb-6">
                                 <label for="venta_id" class="block text-sm font-medium text-gray-700">
                                     Seleccionar Venta
@@ -101,7 +101,7 @@
                                     :class="{ 'border-red-500': form.errors.fecha_vencimiento }"
                                 />
                                 <p class="mt-1 text-sm text-gray-500">
-                                    Opcional. Si no se especifica, se establecerÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ automÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ticamente en 30 dÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­as.
+                                    Opcional. Si no se especifica, se establecerá automáticamente en 30 días.
                                 </p>
                                 <p v-if="form.errors.fecha_vencimiento" class="mt-2 text-sm text-red-600">
                                     {{ form.errors.fecha_vencimiento }}
@@ -184,7 +184,7 @@ const formatCurrency = (value) => currencyFormatter.format(toNumber(value));
 const submit = () => {
     form.post(route('cuentas-por-cobrar.store'), {
         onSuccess: () => {
-            // Redirigir al índice
+            // Redirigir al Ã­ndice
         },
         onError: (errors) => {
             console.error('Errores:', errors);
@@ -203,3 +203,4 @@ onMounted(() => {
     }
 });
 </script>
+

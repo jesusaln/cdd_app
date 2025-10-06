@@ -63,11 +63,11 @@
             <!-- No Tabs - Reports Disabled -->
             <div class="border-b border-gray-200 hidden">
                 <div class="px-6 py-4 text-center">
-                    <p class="text-gray-500">Los reportes estÃ¡n temporalmente deshabilitados</p>
+                    <p class="text-gray-500">Los reportes están temporalmente deshabilitados</p>
                 </div>
             </div>
 
-            <!-- AcordeÃ³n de Reportes -->
+            <!-- Acordeón de Reportes -->
             <div class="border-b border-gray-200 bg-white">
                 <div class="px-6 py-4">
                     <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-2">
@@ -88,7 +88,7 @@
                         </button>
                     </div>
                     <div class="text-xs text-gray-500 pt-2">
-                        Todos los reportes estÃ¡n centralizados aquÃ­. Usa el acordeÃ³n para navegar.
+                        Todos los reportes están centralizados aquí. Usa el acordeón para navegar.
                     </div>
                 </div>
             </div>
@@ -110,7 +110,7 @@
                             </div>
                             <div class="bg-purple-50 p-4 rounded-lg">
                                 <div class="text-2xl font-bold text-purple-600">{{ ventasFiltradas.length }}</div>
-                                <div class="text-sm text-purple-600">NÃºmero de Ventas</div>
+                                <div class="text-sm text-purple-600">Número de Ventas</div>
                             </div>
                             <div class="bg-orange-50 p-4 rounded-lg">
                                 <div class="text-2xl font-bold text-orange-600">{{ clientesUnicosVentas }}</div>
@@ -122,13 +122,13 @@
                     <!-- Accesos directos a reportes avanzados de inventario -->
                     <div class="mt-4 flex flex-wrap gap-2">
                         <Link :href="route('reportes.inventario.stock-por-almacen')" class="inline-flex items-center px-3 py-2 text-sm rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200">
-                            Stock por almacÃ©n
+                            Stock por almacén
                         </Link>
                         <Link :href="route('reportes.inventario.productos-bajo-stock')" class="inline-flex items-center px-3 py-2 text-sm rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200">
                             Productos bajo stock
                         </Link>
                         <Link :href="route('reportes.inventario.movimientos-por-periodo')" class="inline-flex items-center px-3 py-2 text-sm rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200">
-                            Movimientos por perÃ­odo
+                            Movimientos por período
                         </Link>
                         <Link :href="route('reportes.inventario.costos')" class="inline-flex items-center px-3 py-2 text-sm rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200">
                             Costos de inventario
@@ -215,7 +215,7 @@
                                 </template>
                                 <tr v-if="ventasFiltradas.length === 0">
                                     <td colspan="7" class="px-6 py-12 text-center text-gray-500">
-                                        No hay ventas en el perÃ­odo seleccionado
+                                        No hay ventas en el período seleccionado
                                     </td>
                                 </tr>
                             </tbody>
@@ -270,7 +270,7 @@
                             </div>
                             <div class="bg-orange-50 p-4 rounded-lg">
                                 <div class="text-2xl font-bold text-orange-600">{{ comprasFiltradas.length }}</div>
-                                <div class="text-sm text-orange-600">NÃºmero de Compras</div>
+                                <div class="text-sm text-orange-600">Número de Compras</div>
                             </div>
                             <div class="bg-blue-50 p-4 rounded-lg">
                                 <div class="text-2xl font-bold text-blue-600">{{ proveedoresUnicos }}</div>
@@ -316,7 +316,7 @@
                                 </tr>
                                 <tr v-if="comprasFiltradas.length === 0">
                                     <td colspan="6" class="px-6 py-12 text-center text-gray-500">
-                                        No hay compras en el perÃ­odo seleccionado
+                                        No hay compras en el período seleccionado
                                     </td>
                                 </tr>
                             </tbody>
@@ -365,7 +365,7 @@
                             <thead class="bg-gray-50">
                                 <tr>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CategorÃ­a</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoría</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio Compra</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio Venta</th>
@@ -396,23 +396,146 @@
 
                 <!-- Tab Corte Diario -->
                 <div v-show="activeTab === 'corte'">
-                    <div class="text-center py-12">
-                        <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <svg class="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
+                    <div class="mb-6">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Corte Diario - Cobros del Día</h3>
+                        <p class="text-sm text-gray-600 mb-4">Todas las ventas y rentas cobradas en el período seleccionado</p>
+
+                        <!-- Filtros específicos para corte -->
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Fecha del Corte</label>
+                                <input
+                                    v-model="fechaCorte"
+                                    type="date"
+                                    class="input-field"
+                                    @change="filtrarCorte"
+                                />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Usuario que Cobró</label>
+                                <select
+                                    v-model="usuarioCorte"
+                                    class="input-field"
+                                    @change="filtrarCorte"
+                                >
+                                    <option value="">Todos los usuarios</option>
+                                    <option v-for="usuario in usuariosActivos" :key="usuario.id" :value="usuario.id">
+                                        {{ usuario.name }}
+                                    </option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Cobro</label>
+                                <select
+                                    v-model="tipoCobro"
+                                    class="input-field"
+                                    @change="filtrarCorte"
+                                >
+                                    <option value="">Todos</option>
+                                    <option value="venta">Solo Ventas</option>
+                                    <option value="renta">Solo Rentas</option>
+                                </select>
+                            </div>
+                            <div class="flex items-end">
+                                <button
+                                    @click="exportarCorte"
+                                    class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                                >
+                                    Exportar Excel
+                                </button>
+                            </div>
                         </div>
-                        <h3 class="text-lg font-medium text-gray-900 mb-2">Corte Diario</h3>
-                        <p class="text-sm text-gray-500 mb-4">Accede al reporte detallado de pagos diarios</p>
-                        <a
-                            href="/reportes/corte-diario"
-                            class="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors"
-                        >
-                            Ver Corte Diario Completo
-                            <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                            </svg>
-                        </a>
+
+                        <!-- Resumen del corte -->
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                            <div class="bg-green-50 p-4 rounded-lg">
+                                <div class="text-2xl font-bold text-green-600">{{ formatCurrency(totalCorteVentas) }}</div>
+                                <div class="text-sm text-green-600">Total Ventas Cobradas</div>
+                            </div>
+                            <div class="bg-blue-50 p-4 rounded-lg">
+                                <div class="text-2xl font-bold text-blue-600">{{ formatCurrency(totalCorteRentas) }}</div>
+                                <div class="text-sm text-blue-600">Total Rentas Cobradas</div>
+                            </div>
+                            <div class="bg-purple-50 p-4 rounded-lg">
+                                <div class="text-2xl font-bold text-purple-600">{{ corteFiltrado.length }}</div>
+                                <div class="text-sm text-purple-600">Número de Cobros</div>
+                            </div>
+                            <div class="bg-orange-50 p-4 rounded-lg">
+                                <div class="text-2xl font-bold text-orange-600">{{ usuariosCobradores.length }}</div>
+                                <div class="text-sm text-orange-600">Usuarios que Cobraron</div>
+                            </div>
+                        </div>
+
+                        <!-- Tabla de corte diario -->
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha/Hora</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Número</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Concepto</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Método de Pago</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monto</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cobrado Por</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notas</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr v-for="cobro in corteFiltrado" :key="cobro.id" class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {{ formatDateTime(cobro.fecha_pago) }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span :class="{
+                                                'bg-green-100 text-green-800': cobro.tipo === 'venta',
+                                                'bg-blue-100 text-blue-800': cobro.tipo === 'renta'
+                                            }" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                                                {{ cobro.tipo === 'venta' ? 'Venta' : 'Renta' }}
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
+                                            {{ cobro.numero }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {{ cobro.cliente }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {{ cobro.concepto }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {{ cobro.metodo_pago || 'N/A' }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                            {{ formatCurrency(cobro.total) }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {{ cobro.cobrado_por }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {{ cobro.notas_pago || '-' }}
+                                        </td>
+                                    </tr>
+                                    <tr v-if="corteFiltrado.length === 0">
+                                        <td colspan="9" class="px-6 py-12 text-center text-gray-500">
+                                            No hay cobros en el período seleccionado
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Resumen por método de pago -->
+                        <div v-if="corteFiltrado.length > 0" class="mt-8">
+                            <h4 class="text-md font-medium text-gray-900 mb-4">Cobros por Método de Pago</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <div v-for="(total, metodo) in totalesPorMetodo" :key="metodo" class="bg-gray-50 p-4 rounded-lg">
+                                    <div class="font-medium text-gray-900 capitalize">{{ metodo }}</div>
+                                    <div class="text-lg font-bold text-green-600">{{ formatCurrency(total) }}</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -446,7 +569,7 @@
                                 <tr>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">TelÃ©fono</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teléfono</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ventas</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rentas</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
@@ -505,11 +628,11 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                             </svg>
                         </div>
-                        <h3 class="text-lg font-medium text-gray-900 mb-2">Servicios MÃ¡s Vendidos</h3>
-                        <p class="text-sm text-gray-500 mb-4">AnÃ¡lisis de servicios por volumen de ventas</p>
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">Servicios Más Vendidos</h3>
+                        <p class="text-sm text-gray-500 mb-4">Análisis de servicios por volumen de ventas</p>
                         <div class="bg-gray-50 p-6 rounded-lg max-w-2xl mx-auto">
                             <div class="text-center">
-                                <p class="text-gray-600">Los datos de servicios se cargan desde el controlador especÃ­fico</p>
+                                <p class="text-gray-600">Los datos de servicios se cargan desde el controlador específico</p>
                                 <a
                                     href="/reportes/servicios"
                                     class="inline-flex items-center mt-4 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
@@ -551,7 +674,7 @@
                 <!-- Tab Ganancias -->
                 <div v-show="activeTab === 'ganancias'">
                     <div class="mb-6">
-                        <h3 class="text-lg font-medium text-gray-900 mb-4">AnÃ¡lisis Financiero</h3>
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Análisis Financiero</h3>
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div class="bg-green-50 p-4 rounded-lg">
                                 <div class="text-2xl font-bold text-green-600">{{ formatCurrency(totalIngresos) }}</div>
@@ -572,10 +695,10 @@
                         </div>
                     </div>
 
-                    <!-- GrÃ¡ficos de ingresos vs gastos -->
+                    <!-- Gráficos de ingresos vs gastos -->
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                         <div class="bg-gray-50 p-6 rounded-lg">
-                            <h4 class="text-md font-medium text-gray-900 mb-4">Ingresos por CategorÃ­a</h4>
+                            <h4 class="text-md font-medium text-gray-900 mb-4">Ingresos por Categoría</h4>
                             <div class="space-y-3">
                                 <div class="flex justify-between items-center">
                                     <span class="text-sm text-gray-600">Ventas de Productos:</span>
@@ -593,7 +716,7 @@
                         </div>
 
                         <div class="bg-gray-50 p-6 rounded-lg">
-                            <h4 class="text-md font-medium text-gray-900 mb-4">Gastos por CategorÃ­a</h4>
+                            <h4 class="text-md font-medium text-gray-900 mb-4">Gastos por Categoría</h4>
                             <div class="space-y-3">
                                 <div class="flex justify-between items-center">
                                     <span class="text-sm text-gray-600">Costo de Ventas:</span>
@@ -618,7 +741,7 @@
                             </svg>
                         </div>
                         <h3 class="text-lg font-medium text-gray-900 mb-2">Reporte Financiero Detallado</h3>
-                        <p class="text-sm text-gray-500 mb-4">AnÃ¡lisis completo de ingresos, gastos y ganancias</p>
+                        <p class="text-sm text-gray-500 mb-4">Análisis completo de ingresos, gastos y ganancias</p>
                         <a
                             href="/reportes/ganancias"
                             class="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors"
@@ -634,7 +757,7 @@
                 <!-- Tab Proveedores -->
                 <div v-show="activeTab === 'proveedores'">
                     <div class="mb-6">
-                        <h3 class="text-lg font-medium text-gray-900 mb-4">AnÃ¡lisis de Proveedores</h3>
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Análisis de Proveedores</h3>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div class="bg-blue-50 p-4 rounded-lg">
                                 <div class="text-2xl font-bold text-blue-600">{{ proveedoresTotales }}</div>
@@ -657,11 +780,11 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                             </svg>
                         </div>
-                        <h3 class="text-lg font-medium text-gray-900 mb-2">Proveedores MÃ¡s Utilizados</h3>
-                        <p class="text-sm text-gray-500 mb-4">AnÃ¡lisis de proveedores por volumen de compras</p>
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">Proveedores Más Utilizados</h3>
+                        <p class="text-sm text-gray-500 mb-4">Análisis de proveedores por volumen de compras</p>
                         <div class="bg-gray-50 p-6 rounded-lg max-w-2xl mx-auto">
                             <div class="text-center">
-                                <p class="text-gray-600">Los datos de proveedores se cargan desde el controlador especÃ­fico</p>
+                                <p class="text-gray-600">Los datos de proveedores se cargan desde el controlador específico</p>
                                 <a
                                     href="/reportes/proveedores"
                                     class="inline-flex items-center mt-4 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
@@ -680,11 +803,11 @@
                 <div v-show="activeTab === 'personal'">
                     <div class="text-center py-12">
                         <h3 class="text-lg font-medium text-gray-900 mb-2">Reporte de Personal</h3>
-                        <p class="text-sm text-gray-500">Empleados, tÃ©cnicos y rendimiento</p>
+                        <p class="text-sm text-gray-500">Empleados, técnicos y rendimiento</p>
                     </div>
                 </div>
 
-                <!-- Tab AuditorÃ­a -->
+                <!-- Tab Auditoría -->
                 <div v-show="activeTab === 'auditoria'">
                     <div class="mb-6">
                         <h3 class="text-lg font-medium text-gray-900 mb-4">Registro de Actividades</h3>
@@ -714,16 +837,16 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
                         </div>
-                        <h3 class="text-lg font-medium text-gray-900 mb-2">BitÃ¡cora de Actividades</h3>
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">Bitácora de Actividades</h3>
                         <p class="text-sm text-gray-500 mb-4">Registro completo de todas las operaciones del sistema</p>
                         <div class="bg-gray-50 p-6 rounded-lg max-w-2xl mx-auto">
                             <div class="text-center">
-                                <p class="text-gray-600">Los datos de auditorÃ­a se cargan desde el controlador especÃ­fico</p>
+                                <p class="text-gray-600">Los datos de auditoría se cargan desde el controlador específico</p>
                                 <a
                                     href="/reportes/auditoria"
                                     class="inline-flex items-center mt-4 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
                                 >
-                                    Ver BitÃ¡cora Completa
+                                    Ver Bitácora Completa
                                     <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                                     </svg>
@@ -736,7 +859,7 @@
                 <!-- Tab Productos -->
                 <div v-show="activeTab === 'productos'">
                     <div class="mb-6">
-                        <h3 class="text-lg font-medium text-gray-900 mb-4">Productos MÃ¡s Vendidos</h3>
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Productos Más Vendidos</h3>
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div class="bg-blue-50 p-4 rounded-lg">
                                 <div class="text-2xl font-bold text-blue-600">{{ productosTotales }}</div>
@@ -763,11 +886,11 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                             </svg>
                         </div>
-                        <h3 class="text-lg font-medium text-gray-900 mb-2">Productos MÃ¡s Vendidos</h3>
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">Productos Más Vendidos</h3>
                         <p class="text-sm text-gray-500 mb-4">Ranking detallado por volumen y ganancias</p>
                         <div class="bg-gray-50 p-6 rounded-lg max-w-2xl mx-auto">
                             <div class="text-center">
-                                <p class="text-gray-600">Los datos de productos se cargan desde el controlador especÃ­fico</p>
+                                <p class="text-gray-600">Los datos de productos se cargan desde el controlador específico</p>
                                 <a
                                     href="/reportes/productos"
                                     class="inline-flex items-center mt-4 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
@@ -816,7 +939,7 @@
                         <p class="text-sm text-gray-500 mb-4">Estado detallado de pagos de rentas</p>
                         <div class="bg-gray-50 p-6 rounded-lg max-w-2xl mx-auto">
                             <div class="text-center">
-                                <p class="text-gray-600">Los datos de cobranzas se cargan desde el controlador especÃ­fico</p>
+                                <p class="text-gray-600">Los datos de cobranzas se cargan desde el controlador específico</p>
                                 <Link
                                     href="/reportes?tab=cobranzas"
                                     class="inline-flex items-center mt-4 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors"
@@ -846,7 +969,7 @@
                             </div>
                             <div class="bg-blue-50 p-4 rounded-lg">
                                 <div class="text-2xl font-bold text-blue-600">{{ movimientosFiltrados.length }}</div>
-                                <div class="text-sm text-blue-600">NÃºmero de Movimientos</div>
+                                <div class="text-sm text-blue-600">Número de Movimientos</div>
                             </div>
                         </div>
                     </div>
@@ -902,6 +1025,9 @@ const props = defineProps({
     totalCompras: { type: Number, default: 0 },
     inventario: { type: Array, default: () => [] },
     movimientosInventario: { type: Array, default: () => [] },
+    // Datos para corte diario
+    corteDiario: { type: Array, default: () => [] },
+    usuarios: { type: Array, default: () => [] },
 });
 
 const page = usePage();
@@ -912,7 +1038,7 @@ const expandedVentas = ref({});
 const toggleVentaDetails = (id) => {
     expandedVentas.value[id] = !expandedVentas.value[id];
 };
-// DefiniciÃ³n del acordeÃ³n (pestaÃ±as centralizadas)
+// Definición del acordeón (pestañas centralizadas)
 const tabs = [
     { key: 'ventas', label: 'Ventas' },
     { key: 'compras', label: 'Compras' },
@@ -927,12 +1053,83 @@ const tabs = [
     { key: 'ganancias', label: 'Ganancias' },
     { key: 'proveedores', label: 'Proveedores' },
     { key: 'personal', label: 'Personal' },
-    { key: 'auditoria', label: 'AuditorÃ­a' },
+    { key: 'auditoria', label: 'Auditoría' },
     { key: 'productos', label: 'Productos' },
     { key: 'cobranzas', label: 'Cobranzas' },
 ];
 const fechaInicio = ref('');
 const fechaFin = ref('');
+
+// Variables específicas para corte diario
+const fechaCorte = ref(new Date().toISOString().split('T')[0]);
+const usuarioCorte = ref('');
+const tipoCobro = ref('');
+
+// Funciones para corte diario
+const filtrarCorte = () => {
+    // Los computed se actualizan automáticamente
+};
+
+const exportarCorte = () => {
+    // Función para exportar el corte diario
+    alert('Función de exportar corte - pendiente implementar');
+};
+
+// Datos para corte diario
+const usuariosActivos = computed(() => props.usuarios || []);
+
+const corteFiltrado = computed(() => {
+    let corte = props.corteDiario || [];
+
+    // Filtrar por fecha
+    if (fechaCorte.value) {
+        corte = corte.filter(cobro => {
+            const fechaCobro = new Date(cobro.fecha_pago).toISOString().split('T')[0];
+            return fechaCobro === fechaCorte.value;
+        });
+    }
+
+    // Filtrar por usuario
+    if (usuarioCorte.value) {
+        corte = corte.filter(cobro => cobro.pagado_por === usuarioCorte.value);
+    }
+
+    // Filtrar por tipo
+    if (tipoCobro.value) {
+        corte = corte.filter(cobro => cobro.tipo === tipoCobro.value);
+    }
+
+    return corte;
+});
+
+const totalCorteVentas = computed(() => {
+    return corteFiltrado.value
+        .filter(c => c.tipo === 'venta')
+        .reduce((acc, c) => acc + Number.parseFloat(c.total || 0), 0);
+});
+
+const totalCorteRentas = computed(() => {
+    return corteFiltrado.value
+        .filter(c => c.tipo === 'renta')
+        .reduce((acc, c) => acc + Number.parseFloat(c.total || 0), 0);
+});
+
+const usuariosCobradores = computed(() => {
+    const usuarios = new Set(corteFiltrado.value.map(c => c.cobrado_por).filter(Boolean));
+    return usuarios.size;
+});
+
+const totalesPorMetodo = computed(() => {
+    const metodos = {};
+    corteFiltrado.value.forEach(cobro => {
+        const metodo = cobro.metodo_pago || 'otros';
+        if (!metodos[metodo]) {
+            metodos[metodo] = 0;
+        }
+        metodos[metodo] += Number.parseFloat(cobro.total || 0);
+    });
+    return metodos;
+});
 
 const formatCurrency = (value) => `$${(Number.parseFloat(value) || 0).toFixed(2)}`;
 const calculateProfit = (venta) => (Number.parseFloat(venta.total) || 0) - (Number.parseFloat(venta.costo_total) || 0);
@@ -941,7 +1138,7 @@ const formatDate = (date) => {
     try {
         return format(new Date(date), 'MMM d, yyyy h:mm a', { locale: es });
     } catch {
-        return 'Fecha invÃ¡lida';
+        return 'Fecha inválida';
     }
 };
 
@@ -958,7 +1155,7 @@ const filtrarPorFecha = (items) => {
 };
 
 const filtrarDatos = () => {
-    // Los computed se actualizan automÃ¡ticamente
+    // Los computed se actualizan automáticamente
 };
 
 const limpiarFiltros = () => {
@@ -971,7 +1168,7 @@ const comprasFiltradas = computed(() => filtrarPorFecha(props.reportesCompras));
 const inventarioFiltrado = computed(() => props.inventario); // Por ahora sin filtro de fecha, ya que inventario no tiene fecha
 const movimientosFiltrados = computed(() => filtrarPorFecha(props.movimientosInventario));
 
-const corteFiltrado = computed(() => ventasFiltradas.value.reduce((acc, v) => acc + Number.parseFloat(v.total), 0));
+// Corte filtrado movido arriba con las otras funciones de corte
 const utilidadFiltrada = computed(() => ventasFiltradas.value.reduce((acc, v) => acc + calculateProfit(v), 0));
 const totalComprasFiltrado = computed(() => comprasFiltradas.value.reduce((acc, c) => acc + Number.parseFloat(c.total), 0));
 
@@ -1052,7 +1249,7 @@ const topClientes = computed(() => {
         .slice(0, 5); // Top 5 clientes
 });
 
-// Datos de clientes (simulados por ahora, en producciÃ³n vendrÃ­an del controlador)
+// Datos de clientes (simulados por ahora, en producción vendrían del controlador)
 const clientesActivos = computed(() => {
     // Por ahora devolveremos datos simulados basados en las ventas
     const clientesUnicos = {};
@@ -1086,23 +1283,23 @@ const clientesConRentas = computed(() => {
 });
 
 const clientesDeudores = computed(() => {
-    // Por ahora devolveremos 0, en producciÃ³n vendrÃ­a del controlador
+    // Por ahora devolveremos 0, en producción vendría del controlador
     return 0;
 });
 
 // Datos de servicios (simulados por ahora)
 const serviciosTotales = computed(() => {
-    // En producciÃ³n esto vendrÃ­a del controlador
+    // En producción esto vendría del controlador
     return 0;
 });
 
 const serviciosVendidos = computed(() => {
-    // En producciÃ³n esto vendrÃ­a del controlador
+    // En producción esto vendría del controlador
     return 0;
 });
 
 const ingresosServicios = computed(() => {
-    // En producciÃ³n esto vendrÃ­a del controlador
+    // En producción esto vendría del controlador
     return formatCurrency(0);
 });
 
@@ -1129,7 +1326,7 @@ const ingresosProductos = computed(() => {
 });
 
 const ingresosCobranzas = computed(() => {
-    return formatCurrency(0); // En producciÃ³n vendrÃ­a del controlador
+    return formatCurrency(0); // En producción vendría del controlador
 });
 
 const costoVentas = computed(() => {
@@ -1141,7 +1338,7 @@ const gastosCompras = computed(() => {
 });
 
 const otrosGastos = computed(() => {
-    return formatCurrency(0); // En producciÃ³n vendrÃ­a del controlador
+    return formatCurrency(0); // En producción vendría del controlador
 });
 
 // Datos de productos (simulados por ahora)
@@ -1150,18 +1347,18 @@ const productosTotales = computed(() => {
 });
 
 const productosVendidos = computed(() => {
-    // En producciÃ³n esto vendrÃ­a del controlador
+    // En producción esto vendría del controlador
     return 0;
 });
 
 const unidadesVendidas = computed(() => {
-    // En producciÃ³n esto vendrÃ­a del controlador
+    // En producción esto vendría del controlador
     return 0;
 });
 
 // Datos de proveedores (simulados por ahora)
 const proveedoresTotales = computed(() => {
-    // En producciÃ³n esto vendrÃ­a del controlador
+    // En producción esto vendría del controlador
     return proveedoresUnicos.value;
 });
 
@@ -1175,42 +1372,39 @@ const montoTotalProveedores = computed(() => {
 
 // Datos de cobranzas (simulados por ahora)
 const cobranzasTotales = computed(() => {
-    // En producciÃ³n esto vendrÃ­a del controlador
+    // En producción esto vendría del controlador
     return 0;
 });
 
 const cobranzasPagadas = computed(() => {
-    // En producciÃ³n esto vendrÃ­a del controlador
+    // En producción esto vendría del controlador
     return 0;
 });
 
 const cobranzasPendientes = computed(() => {
-    // En producciÃ³n esto vendrÃ­a del controlador
+    // En producción esto vendría del controlador
     return 0;
 });
 
 const montoCobrado = computed(() => {
-    return formatCurrency(0); // En producciÃ³n vendrÃ­a del controlador
+    return formatCurrency(0); // En producción vendría del controlador
 });
 
-// Datos de auditorÃ­a (simulados por ahora)
+// Datos de auditoría (simulados por ahora)
 const actividadesHoy = computed(() => {
-    // En producciÃ³n esto vendrÃ­a del controlador
+    // En producción esto vendría del controlador
     return 0;
 });
 
-const usuariosActivos = computed(() => {
-    // En producciÃ³n esto vendrÃ­a del controlador
-    return 0;
-});
+// usuariosActivos movido arriba con las funciones de corte
 
 const actividadesTotales = computed(() => {
-    // En producciÃ³n esto vendrÃ­a del controlador
+    // En producción esto vendría del controlador
     return 0;
 });
 
 const actividadesLogin = computed(() => {
-    // En producciÃ³n esto vendrÃ­a del controlador
+    // En producción esto vendría del controlador
     return 0;
 });
 
@@ -1237,4 +1431,7 @@ const tabClass = (tab) => ({
     max-width: 1200px;
 }
 </style>
+
+
+
 

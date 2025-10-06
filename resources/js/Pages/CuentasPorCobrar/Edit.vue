@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <AppLayout title="Editar Cuenta por Cobrar">
         <template #header>
             <div class="flex justify-between items-center">
@@ -18,13 +18,13 @@
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-6 bg-white border-b border-gray-200">
-                        <!-- InformaciÃ³n de la Venta -->
+                        <!-- InformaciÃƒÂ³n de la Venta -->
                         <div class="mb-6">
-                            <h3 class="text-lg font-medium text-gray-900 mb-4">InformaciÃ³n de la Venta</h3>
+                            <h3 class="text-lg font-medium text-gray-900 mb-4">InformaciÃƒÂ³n de la Venta</h3>
                             <div class="bg-gray-50 p-4 rounded-lg">
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700">NÃºmero de Venta</label>
+                                        <label class="block text-sm font-medium text-gray-700">NÃƒÂºmero de Venta</label>
                                         <p class="mt-1 text-sm text-gray-900">{{ cuenta.venta.numero_venta }}</p>
                                     </div>
                                     <div>
@@ -50,7 +50,7 @@
                             </div>
                         </div>
 
-                        <!-- InformaciÃ³n de Pagos -->
+                        <!-- InformaciÃƒÂ³n de Pagos -->
                         <div class="mb-6">
                             <h3 class="text-lg font-medium text-gray-900 mb-4">Estado de Pagos</h3>
                             <div class="bg-blue-50 p-4 rounded-lg">
@@ -126,9 +126,9 @@
                                 </div>
                             </div>
 
-                            <!-- Editar InformaciÃ³n -->
+                            <!-- Editar InformaciÃƒÂ³n -->
                             <div class="mb-6">
-                                <h3 class="text-lg font-medium text-gray-900 mb-4">Editar InformaciÃ³n</h3>
+                                <h3 class="text-lg font-medium text-gray-900 mb-4">Editar InformaciÃƒÂ³n</h3>
                                 <div class="bg-gray-50 p-4 rounded-lg">
                                     <!-- Fecha de Vencimiento -->
                                     <div class="mb-4">
@@ -243,7 +243,7 @@ const submit = () => {
 const registrarPago = () => {
     pagoForm.post(route('cuentas-por-cobrar.registrar-pago', props.cuenta.id), {
         onSuccess: () => {
-            // Limpiar formulario y recargar pÃ¡gina
+            // Limpiar formulario y recargar pÃƒÂ¡gina
             pagoForm.reset();
             window.location.reload();
         },
@@ -253,3 +253,4 @@ const registrarPago = () => {
     });
 };
 </script>
+
