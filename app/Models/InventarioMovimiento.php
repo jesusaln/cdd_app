@@ -19,7 +19,9 @@ class InventarioMovimiento extends Model
      */
     protected $fillable = [
         'producto_id',
+        'producto_nombre',
         'almacen_id',
+        'almacen_nombre',
         'lote_id',
         'tipo',
         'cantidad',
@@ -29,6 +31,7 @@ class InventarioMovimiento extends Model
         'referencia_type',
         'referencia_id',
         'user_id',
+        'usuario_nombre',
         'detalles',
     ];
 

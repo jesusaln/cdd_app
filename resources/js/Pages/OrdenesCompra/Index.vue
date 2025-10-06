@@ -501,6 +501,43 @@ const recibirOrden = async (ordenData) => {
   }
 }
 
+const convertirDirecto = async (ordenData) => {
+  try {
+    const doc = ordenData?.id ? ordenData : fila.value
+    validarOrdenBasica(doc)
+
+    loading.value = true
+
+    // Mostrar confirmación elegante con notyf
+    notyf.success(`Convirtiendo orden #${doc.numero_orden || doc.id} a compra...`)
+
+    // Pequeña pausa para mostrar el mensaje antes de proceder
+    await new Promise(resolve => setTimeout(resolve, 1000))
+
+    const { data } = await axios.post(`/ordenescompra/${doc.id}/convertir-directo`)
+
+    if (!data?.success) throw new Error(data?.error || 'No se pudo convertir la orden')
+
+    // Actualiza estado local
+    const i = ordenesOriginales.value.findIndex(o => o.id === doc.id)
+    if (i !== -1) ordenesOriginales.value[i] = { ...ordenesOriginales.value[i], estado: 'procesada' }
+
+    showModal.value = false
+    notyf.success(data.message || 'Orden convertida a compra exitosamente')
+
+    // Redirigir a la página de compras
+    setTimeout(() => {
+      router.visit('/compras')
+    }, 1500)
+
+  } catch (err) {
+    console.error(err)
+    notyf.error(err.response?.data?.error || err.response?.data?.message || err.message || 'Error al convertir orden')
+  } finally {
+    loading.value = false
+  }
+}
+
 const crearNuevaOrden = () => {
   router.visit('/ordenescompra/create')
 }
@@ -1443,6 +1480,18 @@ const validarEstado = (estado) => {
                           </svg>
                         </button>
 
+                        <!-- Convertir Directamente (solo órdenes pendientes) -->
+                        <button
+                          v-if="doc.estado === 'pendiente'"
+                          @click="convertirDirecto(doc)"
+                          class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-1"
+                          title="Convertir directamente a compra (sin envío a proveedor)"
+                        >
+                          <svg class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </button>
+
                         <!-- Recibir Mercancía (solo órdenes enviadas a proveedor) -->
                         <button
                           v-if="doc.estado === 'enviado_a_proveedor'"
@@ -1772,6 +1821,13 @@ const validarEstado = (estado) => {
 
             <!-- Botones de acción -->
             <div class="flex flex-wrap justify-end gap-2 mt-6">
+              <button
+                v-if="fila?.estado === 'pendiente'"
+                @click="convertirDirecto(fila)"
+                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Convertir a Compra
+              </button>
               <button
                 v-if="fila?.estado !== 'cancelado'"
                 @click="enviarOrden(fila)"

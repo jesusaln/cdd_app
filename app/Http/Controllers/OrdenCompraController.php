@@ -37,6 +37,7 @@ class OrdenCompraController extends Controller
         $baseQuery = OrdenCompra::with([
             'proveedor',
             'productos',
+            'almacen',
         ]);
 
         // Aplicar filtros
@@ -128,6 +129,10 @@ class OrdenCompraController extends Controller
                     'nombre_razon_social' => $orden->proveedor->nombre_razon_social,
                     'rfc'                 => $orden->proveedor->rfc ?? null,
                 ] : null,
+                'almacen'            => $orden->almacen ? [
+                    'id'   => $orden->almacen->id,
+                    'nombre' => $orden->almacen->nombre,
+                ] : null,
                 'productos'           => $items,
                 'productos_count'    => $items->count(),
                 'productos_tooltip'  => $productosTooltip ?: 'Sin productos',
@@ -149,6 +154,7 @@ class OrdenCompraController extends Controller
                     'edit' => route('ordenescompra.edit', $orden->id),
                     'duplicate' => route('ordenescompra.duplicate', $orden->id),
                     'enviar' => route('ordenescompra.enviar-compra', $orden->id),
+                    'convertir_directo' => route('ordenescompra.convertir-directo', $orden->id),
                     'recibir' => route('ordenescompra.recibir-mercancia', $orden->id),
                     'cancelar' => route('ordenescompra.cancelar', $orden->id),
                     'delete' => route('ordenescompra.destroy', $orden->id),
@@ -157,6 +163,7 @@ class OrdenCompraController extends Controller
                 'can' => [
                     'edit' => in_array($orden->estado, ['borrador', 'pendiente']),
                     'enviar' => $orden->estado === 'pendiente',
+                    'convertir_directo' => $orden->estado === 'pendiente',
                     'recibir' => $orden->estado === 'enviado_a_compra',
                     'cancelar' => in_array($orden->estado, ['pendiente', 'enviado_a_compra', 'convertida']),
                     'delete' => in_array($orden->estado, ['borrador', 'pendiente']),
@@ -250,9 +257,10 @@ class OrdenCompraController extends Controller
      */
     public function create()
     {
-        // Obtiene todos los proveedores y productos para los selectores/búsquedas en el frontend
+        // Obtiene todos los proveedores, productos y almacenes para los selectores/búsquedas en el frontend
         $proveedores = Proveedor::all();
         $productos = Producto::all();
+        $almacenes = \App\Models\Almacen::all();
 
         // Obtener el próximo número de orden
         $proximoNumero = OrdenCompra::getProximoNumero();
@@ -261,6 +269,7 @@ class OrdenCompraController extends Controller
         return Inertia::render('OrdenesCompra/Create', [
             'proveedores' => $proveedores,
             'productos' => $productos,
+            'almacenes' => $almacenes,
             'proximoNumero' => $proximoNumero,
         ]);
     }
@@ -273,9 +282,18 @@ class OrdenCompraController extends Controller
      */
     public function store(Request $request)
     {
+        // Log de depuración
+        Log::info('OrdenCompraController@store - Datos recibidos:', $request->all());
+
         // Inicia una transacción de base de datos para asegurar la integridad
         DB::beginTransaction();
         try {
+            // Preparar los datos antes de validar
+            $requestData = $request->all();
+            if (empty($requestData['almacen_id'])) {
+                $requestData['almacen_id'] = null;
+            }
+
             // Valida los datos de entrada del formulario
             $validatedData = $request->validate([
                 'numero_orden' => 'nullable|string',
@@ -283,6 +301,7 @@ class OrdenCompraController extends Controller
                 'fecha_entrega_esperada' => 'nullable|date',
                 'prioridad' => 'required|in:baja,media,alta,urgente',
                 'proveedor_id' => 'required|exists:proveedores,id',
+                'almacen_id' => 'nullable|exists:almacenes,id',
                 'direccion_entrega' => 'nullable|string',
                 'terminos_pago' => 'required|in:contado,15_dias,30_dias,45_dias,60_dias,90_dias',
                 'metodo_pago' => 'required|in:transferencia,cheque,efectivo,tarjeta',
@@ -300,12 +319,15 @@ class OrdenCompraController extends Controller
                 'items.*.descuento' => 'required|numeric|min:0',
             ]);
 
+            Log::info('OrdenCompraController@store - Datos validados:', $validatedData);
+
             // Crea la nueva orden de compra en la tabla 'orden_compras'
             $ordenCompra = OrdenCompra::create([
                 'fecha_orden' => $validatedData['fecha_orden'],
                 'fecha_entrega_esperada' => $validatedData['fecha_entrega_esperada'],
                 'prioridad' => $validatedData['prioridad'],
                 'proveedor_id' => $validatedData['proveedor_id'],
+                'almacen_id' => $validatedData['almacen_id'],
                 'direccion_entrega' => $validatedData['direccion_entrega'],
                 'terminos_pago' => $validatedData['terminos_pago'],
                 'metodo_pago' => $validatedData['metodo_pago'],
@@ -338,17 +360,30 @@ class OrdenCompraController extends Controller
             // Confirma la transacción si todo fue exitoso
             DB::commit();
 
+            Log::info('OrdenCompraController@store - Orden creada exitosamente:', [
+                'orden_id' => $ordenCompra->id,
+                'numero_orden' => $ordenCompra->numero_orden,
+                'proveedor_id' => $ordenCompra->proveedor_id,
+                'total' => $ordenCompra->total
+            ]);
+
             // Redirige al índice de órdenes de compra con un mensaje de éxito
             return redirect()->route('ordenescompra.index')->with('success', 'Orden de compra creada exitosamente.');
         } catch (\Illuminate\Validation\ValidationException $e) {
             // Si hay errores de validación, se revierte la transacción y se redirige con los errores
             DB::rollBack();
-            Log::error('Error de validación al crear orden de compra: ' . $e->getMessage(), $e->errors());
+            Log::error('Error de validación al crear orden de compra: ' . $e->getMessage(), [
+                'errors' => $e->errors(),
+                'request_data' => $request->all()
+            ]);
             return redirect()->back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {
             // Si ocurre cualquier otro error, se revierte la transacción y se registra el error
             DB::rollBack();
-            Log::error('Error al crear la orden de compra: ' . $e->getMessage());
+            Log::error('Error al crear la orden de compra: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->all()
+            ]);
             return redirect()->back()->with('error', 'Ocurrió un error al crear la orden de compra. Por favor, inténtalo de nuevo.');
         }
     }
@@ -436,9 +471,10 @@ class OrdenCompraController extends Controller
             // Recalcular totales basados en los productos actuales para asegurar consistencia
             $totalesCalculados = $this->calcularTotalesDesdeItems($productos, $ordenCompra->descuento_general ?? 0);
 
-            // Obtiene todos los proveedores y productos para los selectores/búsquedas en el frontend
+            // Obtiene todos los proveedores, productos y almacenes para los selectores/búsquedas en el frontend
             $proveedores = Proveedor::all();
             $productosAll = Producto::all();
+            $almacenes = \App\Models\Almacen::all();
 
             // Renderiza la vista de edición de órdenes de compra
             return Inertia::render('OrdenesCompra/Edit', [
@@ -449,6 +485,7 @@ class OrdenCompraController extends Controller
                     'fecha_entrega_esperada' => $ordenCompra->fecha_entrega_esperada?->format('Y-m-d'),
                     'prioridad' => $ordenCompra->prioridad,
                     'proveedor_id' => $ordenCompra->proveedor_id,
+                    'almacen_id' => $ordenCompra->almacen_id,
                     'proveedor' => $ordenCompra->proveedor,
                     'direccion_entrega' => $ordenCompra->direccion_entrega,
                     'terminos_pago' => $ordenCompra->terminos_pago,
@@ -464,6 +501,7 @@ class OrdenCompraController extends Controller
                 ],
                 'proveedores' => $proveedores,
                 'productos' => $productosAll,
+                'almacenes' => $almacenes,
             ]);
         } catch (\Exception $e) {
             Log::error('Error en OrdenCompraController@edit: ' . $e->getMessage());
@@ -494,6 +532,7 @@ class OrdenCompraController extends Controller
                 'fecha_entrega_esperada' => 'nullable|date',
                 'prioridad' => 'required|in:baja,media,alta,urgente',
                 'proveedor_id' => 'required|exists:proveedores,id',
+                'almacen_id' => 'nullable|exists:almacenes,id',
                 'direccion_entrega' => 'nullable|string',
                 'terminos_pago' => 'required|in:contado,15_dias,30_dias,45_dias,60_dias,90_dias',
                 'metodo_pago' => 'required|in:transferencia,cheque,efectivo,tarjeta',
@@ -517,6 +556,7 @@ class OrdenCompraController extends Controller
                 'fecha_entrega_esperada' => $validatedData['fecha_entrega_esperada'],
                 'prioridad' => $validatedData['prioridad'],
                 'proveedor_id' => $validatedData['proveedor_id'],
+                'almacen_id' => $validatedData['almacen_id'],
                 'direccion_entrega' => $validatedData['direccion_entrega'],
                 'terminos_pago' => $validatedData['terminos_pago'],
                 'metodo_pago' => $validatedData['metodo_pago'],
@@ -735,6 +775,7 @@ class OrdenCompraController extends Controller
                     $this->inventarioService->entrada($prodModel, $cantidadRecibida, [
                         'motivo' => 'Recepción de orden de compra',
                         'referencia' => $ordenCompra,
+                        'almacen_id' => $ordenCompra->almacen_id,
                         'detalles' => [
                             'orden_compra_id' => $ordenCompra->id,
                             'precio_unitario' => $precioUnitario,
@@ -778,15 +819,34 @@ class OrdenCompraController extends Controller
             // Total final
             $total = $subtotalDespuesDescuentoGeneral + $iva;
 
-            // Crea la compra
+            // Crear notas combinando información de la orden de compra
+            $notasCompra = "Compra generada desde Orden de Compra #{$ordenCompra->numero_orden}\n\n";
+            $notasCompra .= "Fecha de Orden: " . $ordenCompra->fecha_orden->format('d/m/Y') . "\n";
+            if ($ordenCompra->fecha_entrega_esperada) {
+                $notasCompra .= "Fecha de Entrega Esperada: " . $ordenCompra->fecha_entrega_esperada->format('d/m/Y') . "\n";
+            }
+            $notasCompra .= "Prioridad: " . ucfirst($ordenCompra->prioridad) . "\n";
+            $notasCompra .= "Términos de Pago: " . ucfirst(str_replace('_', ' ', $ordenCompra->terminos_pago)) . "\n";
+            $notasCompra .= "Método de Pago: " . ucfirst($ordenCompra->metodo_pago) . "\n";
+            if ($ordenCompra->direccion_entrega) {
+                $notasCompra .= "Dirección de Entrega: " . $ordenCompra->direccion_entrega . "\n";
+            }
+            if ($ordenCompra->observaciones) {
+                $notasCompra .= "\nObservaciones de la Orden:\n" . $ordenCompra->observaciones . "\n";
+            }
+
+            // Crea la compra con todos los campos de la orden de compra
             $compra = Compra::create([
                 'proveedor_id' => $ordenCompra->proveedor_id,
+                'almacen_id' => $ordenCompra->almacen_id,
                 'orden_compra_id' => $ordenCompra->id,
+                'fecha_compra' => now(),
                 'subtotal' => $subtotal,
                 'descuento_general' => $descuentoGeneral,
                 'descuento_items' => $descuentoItems,
                 'iva' => $iva,
                 'total' => $total,
+                'notas' => $notasCompra,
                 'estado' => EstadoCompra::Procesada,
             ]);
 
@@ -1070,7 +1130,7 @@ class OrdenCompraController extends Controller
             // Validar transiciones de estado permitidas
             $transicionesPermitidas = [
                 'borrador' => ['pendiente', 'cancelada'],
-                'pendiente' => ['enviado_a_proveedor', 'cancelada'], // Solo puede enviarse al proveedor o cancelarse
+                'pendiente' => ['enviado_a_proveedor', 'convertida', 'cancelada'], // Puede enviarse al proveedor, convertirse directamente o cancelarse
                 'enviado_a_proveedor' => ['convertida', 'cancelada'], // Puede recibir mercancía o cancelarse
                 'convertida' => ['cancelada'], // Solo se puede cancelar una vez procesada (revertirá inventario)
                 'cancelada' => [] // Estado final
@@ -1100,6 +1160,238 @@ class OrdenCompraController extends Controller
                 'success' => false,
                 'message' => 'Error al cambiar el estado de la orden'
             ], 500);
+        }
+    }
+
+    /**
+     * Convierte una orden de compra directamente a compra sin pasar por proveedor
+     * Útil cuando el proveedor no tiene correo o se quiere agilizar el proceso
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function convertirDirecto(Request $request, $id)
+    {
+        DB::beginTransaction();
+        try {
+            $ordenCompra = OrdenCompra::with([
+                'proveedor',
+                'productos' => function ($q) {
+                    $q->withPivot(['cantidad', 'precio', 'descuento']);
+                }
+            ])->findOrFail($id);
+
+            // Solo se puede convertir directamente si está pendiente
+            if ($ordenCompra->estado !== 'pendiente') {
+                return redirect()->back()->with('error', 'Solo se pueden convertir directamente órdenes en estado pendiente.');
+            }
+
+            $productosParaCompra = [];
+
+            foreach ($ordenCompra->productos as $producto) {
+                // Validar que los datos esenciales del pivot estén presentes
+                if (
+                    !$producto->pivot ||
+                    !isset($producto->pivot->cantidad) ||
+                    !isset($producto->pivot->precio) ||
+                    $producto->pivot->cantidad <= 0 ||
+                    $producto->pivot->precio <= 0
+                ) {
+                    Log::error('Datos de pivot faltantes o inválidos para producto ID: ' . $producto->id . ' en orden ID: ' . $ordenCompra->id, [
+                        'pivot_data' => $producto->pivot ? $producto->pivot->toArray() : null,
+                        'cantidad' => $producto->pivot->cantidad ?? null,
+                        'precio' => $producto->pivot->precio ?? null,
+                        'unidad_medida' => $producto->pivot->unidad_medida ?? null
+                    ]);
+                    continue;
+                }
+
+                $prodModel = Producto::find($producto->id);
+                if ($prodModel) {
+                    $cantidadRecibida = (int) $producto->pivot->cantidad;
+                    $precioUnitario = (float) $producto->pivot->precio;
+                    // Obtener unidad de medida del pivot o del modelo producto
+                    $unidadMedida = $producto->pivot->unidad_medida ?? $prodModel->unidad_medida ?? '';
+
+                    // Update product price if different
+                    if ($prodModel->precio_compra != $precioUnitario) {
+                        $oldPrecioCompra = $prodModel->precio_compra;
+                        $prodModel->update(['precio_compra' => $precioUnitario]);
+
+                        // Log price change
+                        ProductoPrecioHistorial::create([
+                            'producto_id' => $prodModel->id,
+                            'precio_compra_anterior' => $oldPrecioCompra,
+                            'precio_compra_nuevo' => $precioUnitario,
+                            'precio_venta_anterior' => null,
+                            'precio_venta_nuevo' => $prodModel->precio_venta,
+                            'tipo_cambio' => 'orden_compra_directa',
+                            'notas' => "Actualización por conversión directa de orden de compra #{$ordenCompra->id}",
+                            'user_id' => Auth::id(),
+                        ]);
+                    }
+
+                    // Actualizar el stock del producto con registro de movimiento
+                    $this->inventarioService->entrada($prodModel, $cantidadRecibida, [
+                        'motivo' => 'Conversión directa de orden de compra',
+                        'referencia' => $ordenCompra,
+                        'almacen_id' => $ordenCompra->almacen_id,
+                        'detalles' => [
+                            'orden_compra_id' => $ordenCompra->id,
+                            'precio_unitario' => $precioUnitario,
+                            'unidad_medida' => $unidadMedida,
+                        ],
+                    ]);
+
+                    $productosParaCompra[$producto->id] = [
+                        'cantidad' => $cantidadRecibida,
+                        'precio' => $precioUnitario,
+                        'unidad_medida' => $unidadMedida,
+                    ];
+                } else {
+                    Log::warning('Producto no encontrado para incrementar stock en orden de compra ID: ' . $ordenCompra->id . ', Producto ID: ' . $producto->id);
+                }
+            }
+
+            // Calcular totales basados en los productos de la orden de compra
+            $subtotal = 0;
+            $descuentoItems = 0;
+            $descuentoGeneral = $ordenCompra->descuento_general ?? 0;
+
+            foreach ($ordenCompra->productos as $producto) {
+                $cantidad = $producto->pivot->cantidad;
+                $precio = $producto->pivot->precio;
+                $descuento = $producto->pivot->descuento ?? 0;
+
+                $subtotalProducto = $cantidad * $precio;
+                $descuentoMonto = $subtotalProducto * ($descuento / 100);
+
+                $subtotal += $subtotalProducto;
+                $descuentoItems += $descuentoMonto;
+            }
+
+            // Aplicar descuento general
+            $subtotalDespuesDescuentoGeneral = $subtotal - $descuentoItems - $descuentoGeneral;
+
+            // Calcular IVA (16%)
+            $iva = $subtotalDespuesDescuentoGeneral * 0.16;
+
+            // Total final
+            $total = $subtotalDespuesDescuentoGeneral + $iva;
+
+            // Crear notas combinando información de la orden de compra
+            $notasCompra = "Compra generada directamente desde Orden de Compra #{$ordenCompra->numero_orden}\n\n";
+            $notasCompra .= "Fecha de Orden: " . $ordenCompra->fecha_orden->format('d/m/Y') . "\n";
+            if ($ordenCompra->fecha_entrega_esperada) {
+                $notasCompra .= "Fecha de Entrega Esperada: " . $ordenCompra->fecha_entrega_esperada->format('d/m/Y') . "\n";
+            }
+            $notasCompra .= "Prioridad: " . ucfirst($ordenCompra->prioridad) . "\n";
+            $notasCompra .= "Términos de Pago: " . ucfirst(str_replace('_', ' ', $ordenCompra->terminos_pago)) . "\n";
+            $notasCompra .= "Método de Pago: " . ucfirst($ordenCompra->metodo_pago) . "\n";
+            if ($ordenCompra->direccion_entrega) {
+                $notasCompra .= "Dirección de Entrega: " . $ordenCompra->direccion_entrega . "\n";
+            }
+            if ($ordenCompra->observaciones) {
+                $notasCompra .= "\nObservaciones de la Orden:\n" . $ordenCompra->observaciones . "\n";
+            }
+
+            // Crea la compra con todos los campos de la orden de compra
+            $compra = Compra::create([
+                'proveedor_id' => $ordenCompra->proveedor_id,
+                'almacen_id' => $ordenCompra->almacen_id,
+                'orden_compra_id' => $ordenCompra->id,
+                'fecha_compra' => now(),
+                'subtotal' => $subtotal,
+                'descuento_general' => $descuentoGeneral,
+                'descuento_items' => $descuentoItems,
+                'iva' => $iva,
+                'total' => $total,
+                'notas' => $notasCompra,
+                'estado' => EstadoCompra::Procesada,
+            ]);
+
+            // Crear cuenta por pagar automáticamente
+            CuentasPorPagar::create([
+                'compra_id' => $compra->id,
+                'monto_total' => $total,
+                'monto_pagado' => 0,
+                'monto_pendiente' => $total,
+                'fecha_vencimiento' => now()->addDays(30), // 30 días por defecto
+                'estado' => 'pendiente',
+                'notas' => 'Cuenta generada automáticamente por conversión directa de orden de compra',
+            ]);
+
+            // Crea los items de la compra
+            if (!empty($productosParaCompra)) {
+                foreach ($productosParaCompra as $productoId => $datos) {
+                    // Obtener la unidad de medida del producto desde la orden de compra
+                    $productoPivot = $ordenCompra->productos->find($productoId);
+                    $unidadMedida = '';
+                    $descuento = 0;
+
+                    if ($productoPivot) {
+                        $unidadMedida = $productoPivot->pivot->unidad_medida ?? '';
+                        $descuento = $productoPivot->pivot->descuento ?? 0;
+                    }
+
+                    // Si no hay unidad de medida en el pivot, obtenerla del modelo producto
+                    if (empty($unidadMedida)) {
+                        $prodModel = Producto::find($productoId);
+                        if ($prodModel) {
+                            $unidadMedida = $prodModel->unidad_medida ?? '';
+                        }
+                    }
+
+                    // Calcular subtotal considerando descuento
+                    $subtotal = $datos['cantidad'] * $datos['precio'];
+                    $descuentoMonto = ($subtotal * $descuento) / 100;
+                    $subtotalFinal = $subtotal - $descuentoMonto;
+
+                    \App\Models\CompraItem::create([
+                        'compra_id' => $compra->id,
+                        'comprable_id' => $productoId,
+                        'comprable_type' => \App\Models\Producto::class,
+                        'cantidad' => $datos['cantidad'],
+                        'precio' => $datos['precio'],
+                        'descuento' => $descuento,
+                        'subtotal' => $subtotalFinal,
+                        'descuento_monto' => $descuentoMonto,
+                    ]);
+                }
+            }
+
+            // Marcar la orden como convertida y agregar fecha de recepción
+            $ordenCompra->update([
+                'estado' => 'convertida',
+                'fecha_recepcion' => now(),
+                'observaciones' => ($ordenCompra->observaciones ? $ordenCompra->observaciones . "\n\n" : '') .
+                    '*** CONVERSIÓN DIRECTA A COMPRA #' . $compra->id . ' *** ' . now()->format('d/m/Y H:i') .
+                    ' - Stock actualizado automáticamente (sin envío a proveedor)'
+            ]);
+
+            DB::commit();
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Orden convertida directamente a compra exitosamente. Compra #' . $compra->id . ' creada y stock actualizado.',
+                    'compra_id' => $compra->id
+                ]);
+            }
+
+            return redirect()->route('compras.index')
+                ->with('success', 'Orden convertida directamente a compra exitosamente. Compra #' . $compra->id . ' creada y stock actualizado.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al convertir orden directamente a compra: ' . $e->getMessage());
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Error al procesar la conversión directa: ' . $e->getMessage()
+                ], 500);
+            }
+            return redirect()->back()->with('error', 'Error al procesar la conversión directa a compra.');
         }
     }
 

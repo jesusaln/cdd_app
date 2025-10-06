@@ -16,13 +16,18 @@ class MovimientoInventarioController extends Controller
         $perPage = (int) ($request->integer('per_page') ?: 15);
 
         // Obtener movimientos de inventario
-        $query = InventarioMovimiento::with(['producto', 'almacen', 'user'])
-            ->select(
+        $query = InventarioMovimiento::select(
                 'id',
                 'tipo',
                 'cantidad',
                 'motivo',
-                'created_at'
+                'created_at',
+                'producto_id',
+                'producto_nombre',
+                'almacen_id',
+                'almacen_nombre',
+                'user_id',
+                'usuario_nombre'
             )
             ->orderBy('created_at', 'desc');
 
@@ -52,59 +57,19 @@ class MovimientoInventarioController extends Controller
         }
 
         $movimientos = $query->paginate($perPage)->through(function ($movimiento) {
-            // Obtener información detallada del producto
-            $producto = $movimiento->producto;
-            $productoInfo = null;
-            if ($producto) {
-                $productoInfo = [
-                    'id' => $producto->id,
-                    'nombre' => $producto->nombre,
-                    'codigo' => $producto->codigo,
-                    'categoria' => $producto->categoria ? [
-                        'id' => $producto->categoria->id,
-                        'nombre' => $producto->categoria->nombre,
-                    ] : null,
-                ];
-            }
-
-            // Obtener información detallada del almacén
-            $almacen = $movimiento->almacen;
-            $almacenInfo = null;
-            if ($almacen) {
-                $almacenInfo = [
-                    'id' => $almacen->id,
-                    'nombre' => $almacen->nombre,
-                    'ubicacion' => $almacen->ubicacion,
-                ];
-            }
-
-            // Obtener información detallada del usuario
-            $usuario = $movimiento->user;
-            $usuarioInfo = null;
-            if ($usuario) {
-                $usuarioInfo = [
-                    'id' => $usuario->id,
-                    'name' => $usuario->name,
-                    'email' => $usuario->email,
-                ];
-            }
-
             return [
                 'id' => $movimiento->id,
                 'tipo' => $movimiento->tipo,
                 'cantidad' => $movimiento->cantidad,
                 'motivo' => $movimiento->motivo,
                 'created_at' => $movimiento->created_at,
-                'producto' => $productoInfo,
-                'almacen' => $almacenInfo,
-                'usuario' => $usuarioInfo,
                 'producto_id' => $movimiento->producto_id,
                 'almacen_id' => $movimiento->almacen_id,
                 'user_id' => $movimiento->user_id,
-                // Para compatibilidad con el frontend existente
-                'producto_nombre' => $productoInfo ? $productoInfo['nombre'] : 'Producto eliminado',
-                'almacen_nombre' => $almacenInfo ? $almacenInfo['nombre'] : 'Almacén eliminado',
-                'usuario_nombre' => $usuarioInfo ? $usuarioInfo['name'] : 'Usuario eliminado',
+                // Usar los nombres almacenados directamente
+                'producto_nombre' => $movimiento->producto_nombre ?: 'Producto eliminado',
+                'almacen_nombre' => $movimiento->almacen_nombre ?: 'Almacén eliminado',
+                'usuario_nombre' => $movimiento->usuario_nombre ?: 'Usuario eliminado',
             ];
         });
 

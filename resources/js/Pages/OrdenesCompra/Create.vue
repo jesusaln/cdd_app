@@ -184,6 +184,26 @@
                 <option value="urgente">Urgente</option>
               </select>
             </div>
+
+            <!-- Almacén -->
+            <div>
+              <label for="almacen_id" class="block text-sm font-medium text-gray-700 mb-2">
+                Almacén de Destino
+              </label>
+              <select
+                id="almacen_id"
+                v-model="form.almacen_id"
+                class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              >
+                <option value="">Seleccionar almacén...</option>
+                <option v-for="almacen in almacenes" :key="almacen.id" :value="almacen.id">
+                  {{ almacen.nombre }}
+                </option>
+              </select>
+              <p class="mt-1 text-xs text-gray-500">
+                Almacén donde se recibirán los productos
+              </p>
+            </div>
           </div>
         </div>
 
@@ -232,13 +252,14 @@
           <div class="p-6">
             <BuscarProducto
               ref="buscarProductoRef"
-              :productos="props.productos"
+              :productos="productos"
               :servicios="[]"
+              :validar-stock="false"
               @agregar-producto="agregarProducto"
             />
             <ProductosSeleccionados
               :selected-products="selectedProducts"
-              :productos="props.productos"
+              :productos="productos"
               :servicios="[]"
               :quantities="quantities"
               :prices="prices"
@@ -456,11 +477,15 @@ defineOptions({ layout: AppLayout });
 const props = defineProps({
   proveedores: { type: Array, default: () => [] },
   productos: { type: Array, default: () => [] },
+  almacenes: { type: Array, default: () => [] },
   proximoNumero: { type: String, default: 'OC-001' },
 });
 
+// Destructure props for easier access
+const { proveedores, productos, almacenes, proximoNumero } = props;
+
 // Copia reactiva de proveedores para evitar mutación de props
-const proveedoresList = ref([...props.proveedores]);
+const proveedoresList = ref([...proveedores]);
 
 // Obtener fecha actual en formato YYYY-MM-DD (zona horaria local)
 const getCurrentDate = () => {
@@ -473,10 +498,12 @@ const getCurrentDate = () => {
 
 // Formulario
 const form = useForm({
+  numero_orden: '',
   fecha_orden: getCurrentDate(),
   fecha_entrega_esperada: '',
   prioridad: 'media',
   proveedor_id: '',
+  almacen_id: '',
   direccion_entrega: '',
   terminos_pago: '30_dias',
   metodo_pago: 'transferencia',
@@ -625,8 +652,13 @@ const agregarProducto = (item) => {
     const key = `producto-${item.id}`;
     quantities.value[key] = 1;
 
-    // Solo productos, usar precio_compra
-    const precio = typeof item.precio_compra === 'number' ? item.precio_compra : 0;
+    // Solo productos, usar precio_compra con fallback a precio_venta
+    let precio = 0;
+    if (item.precio_compra && Number(item.precio_compra) > 0) {
+      precio = Number(item.precio_compra);
+    } else if (item.precio_venta && Number(item.precio_venta) > 0) {
+      precio = Number(item.precio_venta);
+    }
     prices.value[key] = precio;
     discounts.value[key] = 0;
     calcularTotal();
@@ -776,6 +808,36 @@ const crearOrdenCompra = () => {
 
   calcularTotal();
 
+  // Asegurar que numero_orden se envíe (si no está definido, usar el próximo número)
+  if (!form.numero_orden) {
+    form.numero_orden = proximoNumero;
+  }
+
+  // Convertir almacen_id vacío a null
+  if (!form.almacen_id || form.almacen_id === '') {
+    form.almacen_id = null;
+  }
+
+  // Log de depuración
+  console.log('Datos a enviar:', {
+    numero_orden: form.numero_orden,
+    fecha_orden: form.fecha_orden,
+    fecha_entrega_esperada: form.fecha_entrega_esperada,
+    prioridad: form.prioridad,
+    proveedor_id: form.proveedor_id,
+    almacen_id: form.almacen_id,
+    direccion_entrega: form.direccion_entrega,
+    terminos_pago: form.terminos_pago,
+    metodo_pago: form.metodo_pago,
+    subtotal: form.subtotal,
+    descuento_items: form.descuento_items,
+    descuento_general: form.descuento_general,
+    iva: form.iva,
+    total: form.total,
+    items: form.items,
+    observaciones: form.observaciones,
+  });
+
   form.post(route('ordenescompra.store'), {
     onSuccess: () => {
       removeFromLocalStorage('ordenCompraEnProgreso');
@@ -786,6 +848,7 @@ const crearOrdenCompra = () => {
       proveedorSeleccionado.value = null;
       form.reset();
       // Mantener la fecha de orden como automática (siempre la fecha actual)
+      form.numero_orden = '';
       form.fecha_orden = getCurrentDate();
       form.prioridad = 'media';
       form.terminos_pago = '30_dias';
@@ -822,9 +885,11 @@ const limpiarFormulario = () => {
   proveedorSeleccionado.value = null;
   // Asegurar que la fecha sea la actual
   asegurarFechaActual();
+  form.numero_orden = '';
   form.fecha_entrega_esperada = '';
   form.prioridad = 'media';
   form.proveedor_id = '';
+  form.almacen_id = '';
   form.direccion_entrega = '';
   form.terminos_pago = '30_dias';
   form.metodo_pago = 'transferencia';
@@ -844,6 +909,7 @@ const saveState = () => {
     fecha_entrega_esperada: form.fecha_entrega_esperada,
     prioridad: form.prioridad,
     proveedor_id: form.proveedor_id,
+    almacen_id: form.almacen_id,
     proveedor: proveedorSeleccionado.value,
     direccion_entrega: form.direccion_entrega,
     terminos_pago: form.terminos_pago,
@@ -875,6 +941,7 @@ onMounted(() => {
       form.fecha_entrega_esperada = savedData.fecha_entrega_esperada || '';
       form.prioridad = savedData.prioridad || 'media';
       form.proveedor_id = savedData.proveedor_id || '';
+      form.almacen_id = savedData.almacen_id || '';
       form.direccion_entrega = savedData.direccion_entrega || '';
       form.terminos_pago = savedData.terminos_pago || '30_dias';
       form.metodo_pago = savedData.metodo_pago || 'transferencia';

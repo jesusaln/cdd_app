@@ -445,6 +445,7 @@ class CompraController extends Controller
     public function edit($id)
     {
         $compra = Compra::with('proveedor', 'productos', 'almacen')->findOrFail($id);
+
         $compra->productos = $compra->productos->map(function ($producto) {
             return [
                 'id' => $producto->id,
@@ -519,13 +520,25 @@ class CompraController extends Controller
                 ->first();
         }
 
+        // Crear el array de compra con toda la información necesaria
+        $compraData = array_merge($compra->toArray(), [
+            'almacen_id' => $compra->almacen_id,
+            'almacen' => $compra->almacen ? [
+                'id' => $compra->almacen->id,
+                'nombre' => $compra->almacen->nombre,
+                'ubicacion' => $compra->almacen->ubicacion ?? null,
+            ] : null,
+        ]);
+
         return Inertia::render('Compras/Edit', [
-            'compra' => $compra,
+            'compra' => $compraData,
             'proveedores' => $proveedores,
             'productos' => $productos,
             'almacenes' => $almacenes,
-            'almacen_predeterminado' => $almacenPrincipal ? $almacenPrincipal->id : null,
-            'recordatorio_almacen' => $almacenPrincipal ? "Almacén Principal - {$almacenPrincipal->ubicacion}" : null
+            'almacen_predeterminado' => $compra->almacen_id ?? ($almacenPrincipal ? $almacenPrincipal->id : null),
+            'recordatorio_almacen' => $compra->almacen ? "Almacén Actual: {$compra->almacen->nombre}" .
+                (isset($compra->almacen->ubicacion) ? " - {$compra->almacen->ubicacion}" : "") :
+                ($almacenPrincipal ? "Almacén Principal - {$almacenPrincipal->ubicacion}" : null)
         ]);
     }
 

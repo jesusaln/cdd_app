@@ -205,6 +205,27 @@
                 <option value="urgente">Urgente</option>
               </select>
             </div>
+
+            <!-- Almacén -->
+            <div>
+              <label for="almacen_id" class="block text-sm font-medium text-gray-700 mb-2">
+                Almacén de Destino
+              </label>
+              <select
+                id="almacen_id"
+                v-model="form.almacen_id"
+                :disabled="cargandoDatos"
+                class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+              >
+                <option value="">Seleccionar almacén...</option>
+                <option v-for="almacen in almacenes" :key="almacen.id" :value="almacen.id">
+                  {{ almacen.nombre }}
+                </option>
+              </select>
+              <p class="mt-1 text-xs text-gray-500">
+                Almacén donde se recibirán los productos
+              </p>
+            </div>
           </div>
         </div>
 
@@ -255,6 +276,7 @@
               ref="buscarProductoRef"
               :productos="props.productos"
               :servicios="[]"
+              :validar-stock="false"
               @agregar-producto="agregarProducto"
             />
             <ProductosSeleccionados
@@ -492,6 +514,10 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  almacenes: {
+    type: Array,
+    default: () => [],
+  },
   errors: {
     type: Object,
     default: () => ({}),
@@ -508,6 +534,7 @@ const form = useForm({
   fecha_entrega_esperada: '',
   prioridad: 'media',
   proveedor_id: '',
+  almacen_id: '',
   direccion_entrega: '',
   terminos_pago: '30_dias',
   metodo_pago: 'transferencia',
@@ -555,6 +582,7 @@ const inicializarFormulario = () => {
     form.fecha_entrega_esperada = formatearFecha(props.ordenCompra.fecha_entrega_esperada);
     form.prioridad = props.ordenCompra.prioridad || 'media';
     form.proveedor_id = props.ordenCompra.proveedor_id || '';
+    form.almacen_id = props.ordenCompra.almacen_id || '';
     form.direccion_entrega = props.ordenCompra.direccion_entrega || '';
     form.terminos_pago = props.ordenCompra.terminos_pago || '30_dias';
     form.metodo_pago = props.ordenCompra.metodo_pago || 'transferencia';
@@ -572,6 +600,7 @@ const inicializarFormulario = () => {
     form.fecha_entrega_esperada = '';
     form.prioridad = 'media';
     form.proveedor_id = '';
+    form.almacen_id = '';
     form.direccion_entrega = '';
     form.terminos_pago = '30_dias';
     form.metodo_pago = 'transferencia';
@@ -716,7 +745,14 @@ const agregarProducto = (item) => {
     selectedProducts.value.push(itemEntry);
     const key = `producto-${item.id}`;
     quantities.value[key] = 1;
-    prices.value[key] = item.precio_compra || 0;
+    // Solo productos, usar precio_compra con fallback a precio_venta
+    let precio = 0;
+    if (item.precio_compra && Number(item.precio_compra) > 0) {
+      precio = Number(item.precio_compra);
+    } else if (item.precio_venta && Number(item.precio_venta) > 0) {
+      precio = Number(item.precio_venta);
+    }
+    prices.value[key] = precio;
     discounts.value[key] = 0;
     calcularTotal();
     saveState();
@@ -888,6 +924,7 @@ const limpiarFormulario = () => {
   // No limpiar datos críticos de la orden existente
   form.fecha_entrega_esperada = '';
   form.prioridad = 'media';
+  form.almacen_id = '';
   form.direccion_entrega = '';
   form.terminos_pago = '30_dias';
   form.metodo_pago = 'transferencia';

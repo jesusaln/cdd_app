@@ -210,10 +210,10 @@
               <button
                 type="button"
                 @click="agregarItem(item)"
-                :disabled="item.tipo === 'producto' && (item.stock_total || item.stock) <= 0"
+                :disabled="props.validarStock && item.tipo === 'producto' && (item.stock_total || item.stock) <= 0"
                 :class="[
                   'w-full px-2 py-1 text-xs font-medium rounded-md transition-colors duration-200',
-                  item.tipo === 'producto' && (item.stock_total || item.stock) <= 0
+                  props.validarStock && item.tipo === 'producto' && (item.stock_total || item.stock) <= 0
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     : 'bg-green-500 text-white hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1'
                 ]"
@@ -255,6 +255,10 @@ const props = defineProps({
   servicios: {
     type: Array,
     default: () => [],
+  },
+  validarStock: {
+    type: Boolean,
+    default: true,
   },
 });
 
@@ -347,8 +351,8 @@ const filtrarItems = () => {
 };
 
 const agregarItem = (item) => {
-  // Verificar stock para productos
-  if (item.tipo === 'producto' && (item.stock_total || item.stock) <= 0) {
+  // Verificar stock para productos solo si validarStock es true
+  if (props.validarStock && item.tipo === 'producto' && (item.stock_total || item.stock) <= 0) {
     return;
   }
   // Agregar a productos recientes

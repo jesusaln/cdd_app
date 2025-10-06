@@ -13,6 +13,7 @@ class OrdenCompra extends Model
 
     protected $fillable = [
         'proveedor_id',
+        'almacen_id',
         'numero_orden',
         'fecha_orden',
         'fecha_entrega_esperada',
@@ -47,6 +48,12 @@ class OrdenCompra extends Model
         return $this->belongsTo(Proveedor::class);
     }
 
+    // Relación con el Almacén
+    public function almacen()
+    {
+        return $this->belongsTo(Almacen::class);
+    }
+
     // Relación muchos a muchos con Productos (solo activos)
     public function productos()
     {
@@ -58,7 +65,8 @@ class OrdenCompra extends Model
     protected static function booted(): void
     {
         static::creating(function (OrdenCompra $orden) {
-            if (empty($orden->numero_orden)) {
+            // Solo generar numero_orden si no viene en los datos de entrada
+            if (empty($orden->numero_orden) && !isset($orden->getAttributes()['numero_orden'])) {
                 $orden->numero_orden = self::getProximoNumero();
             }
         });

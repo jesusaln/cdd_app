@@ -107,7 +107,9 @@ class InventarioService
 
             \App\Models\InventarioMovimiento::create([
                 'producto_id' => $producto->id,
+                'producto_nombre' => $producto->nombre,
                 'almacen_id' => $almacenId,
+                'almacen_nombre' => $almacen->nombre,
                 'tipo' => $tipo,
                 'cantidad' => $cantidad,
                 'stock_anterior' => $stockAnterior,
@@ -116,6 +118,7 @@ class InventarioService
                 'referencia_type' => $referenciaType,
                 'referencia_id' => $referenciaId,
                 'user_id' => $userId,
+                'usuario_nombre' => $userId ? User::find($userId)?->name : null,
                 'detalles' => Arr::get($contexto, 'detalles', []),
             ]);
         });
@@ -264,6 +267,12 @@ class InventarioService
                 }
             }
 
+            // Verificar si el almacén existe y está activo
+            $almacen = Almacen::find($almacenId);
+            if (!$almacen || $almacen->estado !== 'activo') {
+                throw new RuntimeException('El almacén especificado no existe o no está activo.');
+            }
+
             // Crear o actualizar lote
             $lote = Lote::firstOrCreate(
                 [
@@ -312,7 +321,9 @@ class InventarioService
 
             \App\Models\InventarioMovimiento::create([
                 'producto_id' => $producto->id,
+                'producto_nombre' => $producto->nombre,
                 'almacen_id' => $almacenId,
+                'almacen_nombre' => $almacen->nombre,
                 'lote_id' => $lote->id,
                 'tipo' => 'entrada',
                 'cantidad' => $cantidad,
@@ -322,6 +333,7 @@ class InventarioService
                 'referencia_type' => $referenciaType,
                 'referencia_id' => $referenciaId,
                 'user_id' => $userId,
+                'usuario_nombre' => $userId ? User::find($userId)?->name : null,
                 'detalles' => Arr::get($contexto, 'detalles', []),
             ]);
         });
@@ -339,6 +351,12 @@ class InventarioService
                 if (!$almacenId) {
                     throw new RuntimeException('No hay almacenes activos disponibles.');
                 }
+            }
+
+            // Verificar si el almacén existe y está activo
+            $almacen = Almacen::find($almacenId);
+            if (!$almacen || $almacen->estado !== 'activo') {
+                throw new RuntimeException('El almacén especificado no existe o no está activo.');
             }
 
             // Obtener lotes disponibles ordenados por fecha de caducidad (FIFO)
@@ -396,7 +414,9 @@ class InventarioService
             foreach ($lotesUsados as $loteData) {
                 \App\Models\InventarioMovimiento::create([
                     'producto_id' => $producto->id,
+                    'producto_nombre' => $producto->nombre,
                     'almacen_id' => $almacenId,
+                    'almacen_nombre' => $almacen->nombre,
                     'lote_id' => $loteData['lote']->id,
                     'tipo' => 'salida',
                     'cantidad' => $loteData['cantidad'],
@@ -406,6 +426,7 @@ class InventarioService
                     'referencia_type' => $referenciaType,
                     'referencia_id' => $referenciaId,
                     'user_id' => $userId,
+                    'usuario_nombre' => $userId ? User::find($userId)?->name : null,
                     'detalles' => Arr::get($contexto, 'detalles', []),
                 ]);
             }
