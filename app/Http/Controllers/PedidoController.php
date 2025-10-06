@@ -512,7 +512,7 @@ class PedidoController extends Controller
             // Validar y reservar inventario para productos
             foreach ($pedido->items as $item) {
                 if ($item->pedible_type === Producto::class) {
-                    $producto = Producto::find($item->pedible_id);
+                    $producto = Producto::with('inventarios')->find($item->pedible_id);
                     if (!$producto) {
                         return response()->json([
                             'success' => false,
@@ -882,7 +882,7 @@ class PedidoController extends Controller
             // ✅ VALIDAR STOCK DISPONIBLE ANTES DE CREAR VENTA (considerando reservas)
             foreach ($pedido->items as $item) {
                 if ($item->pedible_type === Producto::class) {
-                    $producto = Producto::find($item->pedible_id);
+                    $producto = Producto::with('inventarios')->find($item->pedible_id);
                     if (!$producto) {
                         return response()->json([
                             'success' => false,
@@ -891,10 +891,10 @@ class PedidoController extends Controller
                         ], 400);
                     }
 
-                    if ($producto->stock_disponible < $item->cantidad) {
+                    if ($producto->stock < $item->cantidad) {
                         return response()->json([
                             'success' => false,
-                            'error' => "Stock insuficiente para '{$producto->nombre}'. Disponible: {$producto->stock_disponible}, Solicitado: {$item->cantidad}",
+                            'error' => "Stock insuficiente para '{$producto->nombre}'. Total: {$producto->stock}, Solicitado: {$item->cantidad}",
                             'requiere_confirmacion' => false
                         ], 400);
                     }
