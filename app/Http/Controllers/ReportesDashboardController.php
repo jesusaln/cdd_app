@@ -164,7 +164,7 @@ class ReportesDashboardController extends Controller
     public function indexTabs(Request $request)
     {
         // Obtener datos para las tabs
-        $ventas = Venta::with(['cliente', 'productos'])->get()->map(function ($venta) {
+        $ventas = Venta::with(['cliente', 'items.ventable', 'productos', 'servicios'])->get()->map(function ($venta) {
             $venta->costo_total = $venta->calcularCostoTotal();
             return $venta;
         });
@@ -244,7 +244,15 @@ class ReportesDashboardController extends Controller
         $utilidadVentas = $ventas->sum(function ($venta) {
             return $venta->total - $venta->calcularCostoTotal();
         });
-        $productosVendidos = $ventas->flatMap->productos->sum('pivot.cantidad');
+        // Calcular productos vendidos usando los items de venta
+        $productosVendidos = 0;
+        foreach ($ventas as $venta) {
+            foreach ($venta->items as $item) {
+                if ($item->ventable_type === \App\Models\Producto::class) {
+                    $productosVendidos += $item->cantidad;
+                }
+            }
+        }
 
         // Clientes
         $clientes = Cliente::all();

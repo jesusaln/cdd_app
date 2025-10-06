@@ -141,6 +141,13 @@ class Producto extends Model
         return $this->morphMany(CotizacionItem::class, 'cotizable');
     }
 
+    /** @return MorphToMany<Venta> */
+    public function ventas()
+    {
+        return $this->morphedByMany(Venta::class, 'ventable', 'venta_items')
+            ->withPivot('cantidad', 'precio', 'descuento', 'costo_unitario');
+    }
+
     /* =========================
      * Accessors
      * ========================= */

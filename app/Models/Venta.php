@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use App\Enums\EstadoVenta; // Ajusta según tu enum
+use App\Enums\EstadoVenta; // Ajusta segï¿½n tu enum
 
 class Venta extends Model
 {
@@ -46,16 +46,16 @@ class Venta extends Model
         return $this->belongsTo(User::class, 'pagado_por');
     }
 
-    // Relación polimórfica con vendedor (User o Tecnico)
+    // Relaciï¿½n polimï¿½rfica con vendedor (User o Tecnico)
     public function vendedor()
     {
         return $this->morphTo();
     }
 
-    // Relación polimórfica para productos
+    // Relaciï¿½n polimï¿½rfica para productos
     public function productos()
     {
-        return $this->morphedByMany(
+        return $this->morphToMany(
             Producto::class,
             'ventable',
             'venta_items',
@@ -68,10 +68,10 @@ class Venta extends Model
         });
     }
 
-    // Relación polimórfica para servicios
+    // Relaciï¿½n polimï¿½rfica para servicios
     public function servicios()
     {
-        return $this->morphedByMany(
+        return $this->morphToMany(
             Servicio::class,
             'ventable',
             'venta_items',
@@ -84,7 +84,7 @@ class Venta extends Model
         });
     }
 
-    // Todos los ítems (productos + servicios)
+    // Todos los ï¿½tems (productos + servicios)
     public function items()
     {
         return $this->hasMany(VentaItem::class, 'venta_id');
@@ -110,11 +110,11 @@ class Venta extends Model
             $costo = $pivot->costo_unitario ?? $producto->precio_compra;
             $gananciaBase = ($precioVenta - $costo) * $pivot->cantidad;
 
-            // Aplicar comisión individual del producto
+            // Aplicar comisiï¿½n individual del producto
             $comisionProducto = $gananciaBase * ($producto->comision_vendedor / 100);
             $ganancia += $gananciaBase + $comisionProducto;
 
-            // Si hay vendedor técnico, aplicar márgenes adicionales del técnico
+            // Si hay vendedor tï¿½cnico, aplicar mï¿½rgenes adicionales del tï¿½cnico
             if ($vendedor && $vendedor instanceof Tecnico) {
                 $margenTecnico = $vendedor->margen_venta_productos / 100;
                 $ganancia += $gananciaBase * $margenTecnico;
@@ -127,16 +127,16 @@ class Venta extends Model
             $precioVenta = $pivot->precio - ($pivot->descuento ?? 0);
             $gananciaBase = $precioVenta * ($servicio->margen_ganancia / 100) * $pivot->cantidad;
 
-            // Aplicar comisión individual del servicio
+            // Aplicar comisiï¿½n individual del servicio
             $comisionServicio = $servicio->comision_vendedor * $pivot->cantidad;
             $ganancia += $gananciaBase + $comisionServicio;
 
-            // Si hay vendedor técnico, aplicar márgenes adicionales del técnico
+            // Si hay vendedor tï¿½cnico, aplicar mï¿½rgenes adicionales del tï¿½cnico
             if ($vendedor && $vendedor instanceof Tecnico) {
                 $margenTecnico = $vendedor->margen_venta_servicios / 100;
                 $ganancia += $gananciaBase * $margenTecnico;
 
-                // Si es servicio de instalación, agregar comisión adicional del técnico
+                // Si es servicio de instalaciï¿½n, agregar comisiï¿½n adicional del tï¿½cnico
                 if ($servicio->es_instalacion) {
                     $ganancia += $vendedor->comision_instalacion * $pivot->cantidad;
                 }

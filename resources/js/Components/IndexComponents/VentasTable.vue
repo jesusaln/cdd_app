@@ -257,8 +257,9 @@
                     <font-awesome-icon icon="times-circle" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
                   </button>
 
+                  <!-- Botón Eliminar (solo si NO está pagada y aprobada) -->
                   <button
-                    v-if="doc.estado !== 'cancelada'"
+                    v-if="doc.estado !== 'cancelada' && !(doc.pagado && (doc.estado === 'aprobada' || doc.estado === 'aprobado'))"
                     @click="onEliminar(doc.id)"
                     class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:ring-offset-1"
                     title="Eliminar"

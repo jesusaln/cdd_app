@@ -177,7 +177,7 @@ defineOptions({ layout: AppLayout })
 // Props
 const props = defineProps({
   productos: {
-    type: Array,
+    type: [Array, Object],
     default: () => []
   },
   totales: {

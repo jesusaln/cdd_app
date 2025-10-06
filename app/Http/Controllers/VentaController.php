@@ -967,6 +967,22 @@ class VentaController extends Controller
                 'pagado_por' => $request->user()->id,
             ]);
 
+            // ✅ SINCRONIZAR CON CUENTA POR COBRAR
+            if ($venta->cuentaPorCobrar) {
+                $cuentaCobrar = $venta->cuentaPorCobrar;
+
+                // Marcar como completamente pagada
+                $cuentaCobrar->registrarPago($venta->total, "Pago recibido - {$request->metodo_pago}");
+
+                Log::info("Cuenta por cobrar actualizada al marcar venta como pagada", [
+                    'venta_id' => $venta->id,
+                    'cuenta_cobrar_id' => $cuentaCobrar->id,
+                    'monto_pagado' => $venta->total,
+                    'metodo_pago' => $request->metodo_pago,
+                    'usuario_id' => $request->user()->id
+                ]);
+            }
+
             DB::commit();
 
             return response()->json([

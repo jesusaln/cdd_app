@@ -55,8 +55,8 @@ class Servicio extends Model
 
     public function ventas()
     {
-        return $this->morphToMany(Venta::class, 'vendible', 'venta_producto')
-            ->withPivot('precio', 'cantidad');
+        return $this->morphedByMany(Venta::class, 'ventable', 'venta_items')
+            ->withPivot('cantidad', 'precio', 'descuento', 'costo_unitario');
     }
 
     public function getGananciaAttribute()

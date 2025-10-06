@@ -12,6 +12,7 @@ use App\Models\Producto;
 use App\Models\Servicio;
 use App\Models\Venta;
 use App\Models\VentaItem;
+use App\Models\CuentasPorCobrar;
 use App\Services\InventarioService;
 use App\Services\MarginService;
 use App\Models\SatEstado;
@@ -920,6 +921,19 @@ class PedidoController extends Controller
                 'user_id' => $request->user()->id ?? null,
             ]);
             $venta->save();
+
+            // Crear cuenta por cobrar si la venta no está pagada (igual que en ventas directas)
+            if (!$venta->pagado) {
+                CuentasPorCobrar::create([
+                    'venta_id' => $venta->id,
+                    'monto_total' => $venta->total,
+                    'monto_pagado' => 0,
+                    'monto_pendiente' => $venta->total,
+                    'fecha_vencimiento' => now()->addDays(30), // 30 días por defecto
+                    'estado' => 'pendiente',
+                    'notas' => 'Cuenta por cobrar generada automáticamente desde pedido #' . $pedido->numero_pedido,
+                ]);
+            }
 
             // Copiar ítems del pedido a la venta y DESCONTAR INVENTARIO
             foreach ($pedido->items as $item) {
