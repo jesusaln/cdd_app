@@ -14,6 +14,7 @@ use App\Http\Controllers\CotizacionController;
 use App\Http\Controllers\PedidoController;
 use App\Http\Controllers\UserNotificationController;
 use App\Http\Controllers\VentaController;
+use App\Http\Controllers\CuentasPorCobrarController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\CompraController;
 use App\Http\Controllers\ReporteController;
@@ -70,18 +71,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
 |--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
-| Aquí defines todas las rutas web de tu aplicación. Estas rutas están
-| cargadas por el RouteServiceProvider y automáticamente tienen el
+| AquÃƒÂ­ defines todas las rutas web de tu aplicaciÃƒÂ³n. Estas rutas estÃƒÂ¡n
+| cargadas por el RouteServiceProvider y automÃƒÂ¡ticamente tienen el
 | middleware 'web' aplicado.
 */
 
 
-// Ruta para marcar todas las notificaciones como leídas
+// Ruta para marcar todas las notificaciones como leÃƒÂ­das
 Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
 
 
 // =====================================================
-// RUTAS PÚBLICAS
+// RUTAS PÃƒÅ¡BLICAS
 // =====================================================
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -98,7 +99,7 @@ Route::get('/empresas', [EmpresasController::class, 'index'])->name('empresas.in
 // =====================================================
 Route::get('/placeholder/{w}x{h}/{bg?}/{fg?}', function (int $w, int $h, $bg = 'e5e7eb', $fg = '6b7280') {
     $text = \Illuminate\Support\Str::of(request('text', 'Sin imagen'))->limit(40);
-    $fontSize = max(12, min($w / 12, 24)); // Tamaño de fuente adaptativo
+    $fontSize = max(12, min($w / 12, 24)); // TamaÃƒÂ±o de fuente adaptativo
 
     $svg = <<<SVG
 <svg xmlns="http://www.w3.org/2000/svg" width="{$w}" height="{$h}" viewBox="0 0 {$w} {$h}">
@@ -129,7 +130,7 @@ Route::get('/productos/{id}/inventario', [ProductoController::class, 'showInvent
 Route::resource('inventario', InventarioController::class);
 
 // =====================================================
-// RUTAS PROTEGIDAS POR AUTENTICACIÓN
+// RUTAS PROTEGIDAS POR AUTENTICACIÃƒâ€œN
 // =====================================================
 Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified'])->group(function () {
 
@@ -161,7 +162,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::resource('marcas', MarcaController::class)->names('marcas');
     Route::put('/marcas/{marca}/toggle', [MarcaController::class, 'toggle'])->name('marcas.toggle');
     Route::get('/marcas/export', [MarcaController::class, 'export'])->name('marcas.export');
-    Route::resource('almacenes', AlmacenController::class)->names('almacenes'); // ✅ DUPLICACIÓN ELIMINADA
+    Route::resource('almacenes', AlmacenController::class)->names('almacenes'); // Ã¢Å“â€¦ DUPLICACIÃƒâ€œN ELIMINADA
     Route::put('/almacenes/{almacen}/toggle', [AlmacenController::class, 'toggle'])->name('almacenes.toggle');
     Route::get('/almacenes/export', [AlmacenController::class, 'export'])->name('almacenes.export');
     Route::resource('traspasos', TraspasoController::class)->names('traspasos');
@@ -178,57 +179,93 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::post('/compras/{id}/cancel', [CompraController::class, 'cancel'])->name('compras.cancel');
     Route::resource('cuentas-por-pagar', \App\Http\Controllers\CuentasPorPagarController::class)->names('cuentas-por-pagar');
     Route::post('/cuentas-por-pagar/{id}/registrar-pago', [\App\Http\Controllers\CuentasPorPagarController::class, 'registrarPago'])->name('cuentas-por-pagar.registrar-pago');
-// =====================================================
-// RUTAS DE REPORTES ORGANIZADAS
-// =====================================================
+    Route::resource('cuentas-por-cobrar', CuentasPorCobrarController::class)->names('cuentas-por-cobrar');
+    Route::post('/cuentas-por-cobrar/{id}/registrar-pago', [CuentasPorCobrarController::class, 'registrarPago'])->name('cuentas-por-cobrar.registrar-pago');
+    // =====================================================
+    // RUTAS DE REPORTES ORGANIZADAS
+    // =====================================================
 
-// Centro de reportes con tabs
-Route::get('/reportes', [ReportesDashboardController::class, 'indexTabs'])->name('reportes.index');
+    // Centro de reportes con tabs
+    Route::get('/reportes', [ReportesDashboardController::class, 'indexTabs'])->name('reportes.index');
 
-// Dashboard de categorías de reportes
-Route::get('/reportes/dashboard', [ReportesController::class, 'index'])->name('reportes.dashboard');
+    // Dashboard de categorÃƒÂ­as de reportes
+    Route::get('/reportes/dashboard', [ReportesController::class, 'index'])->name('reportes.dashboard');
 
-// CRUD de reportes personalizados (debe ir primero para evitar conflictos)
-Route::resource('reportes', ReporteController::class)->except(['index', 'show']);
+    // CRUD de reportes personalizados (debe ir primero para evitar conflictos)
+    Route::resource('reportes', ReporteController::class)->except(['index', 'show']);
 
-// Reportes específicos redirigidos al centro de reportes con tabs
-Route::get('/reportes/ventas', function() { return redirect('/reportes?tab=ventas'); })->name('reportes.ventas');
-Route::get('/reportes/corte-diario', function() { return redirect('/reportes?tab=corte'); })->name('reportes.corte-diario');
-Route::get('/reportes/export', [ReporteController::class, 'exportarCorteDiario'])->name('reportes.export');
-Route::get('/reportes/tecnicos', function() { return redirect('/reportes?tab=personal'); })->name('reportes.tecnicos.index');
-Route::get('/reportes/tecnicos/datos', [ReporteTecnicoController::class, 'datos'])->name('reportes.tecnicos.datos');
+    // Reportes especÃƒÂ­ficos redirigidos al centro de reportes con tabs
+    Route::get('/reportes/ventas', function () {
+        return redirect('/reportes?tab=ventas');
+    })->name('reportes.ventas');
+    Route::get('/reportes/corte-diario', function () {
+        return redirect('/reportes?tab=corte');
+    })->name('reportes.corte-diario');
+    Route::get('/reportes/export', [ReporteController::class, 'exportarCorteDiario'])->name('reportes.export');
+    Route::get('/reportes/tecnicos', function () {
+        return redirect('/reportes?tab=personal');
+    })->name('reportes.tecnicos.index');
+    Route::get('/reportes/tecnicos/datos', [ReporteTecnicoController::class, 'datos'])->name('reportes.tecnicos.datos');
 
-// Nuevos reportes redirigidos
-Route::get('/reportes/ventas-pendientes', function() { return redirect('/reportes?tab=ventas'); })->name('reportes.ventas-pendientes');
-Route::get('/reportes/clientes', function() { return redirect('/reportes?tab=clientes'); })->name('reportes.clientes');
-Route::get('/reportes/inventario', function() { return redirect('/reportes?tab=inventario'); })->name('reportes.inventario');
-Route::get('/reportes/servicios', function() { return redirect('/reportes?tab=servicios'); })->name('reportes.servicios');
-Route::get('/reportes/citas', function() { return redirect('/reportes?tab=citas'); })->name('reportes.citas');
-Route::get('/reportes/mantenimientos', function() { return redirect('/reportes?tab=mantenimientos'); })->name('reportes.mantenimientos');
-Route::get('/reportes/rentas', function() { return redirect('/reportes?tab=rentas'); })->name('reportes.rentas');
-Route::get('/reportes/cobranzas', function() { return redirect('/reportes?tab=cobranzas'); })->name('reportes.cobranzas');
-Route::get('/reportes/ganancias', function() { return redirect('/reportes?tab=ganancias'); })->name('reportes.ganancias');
-Route::get('/reportes/productos', function() { return redirect('/reportes?tab=productos'); })->name('reportes.productos');
-Route::get('/reportes/proveedores', function() { return redirect('/reportes?tab=proveedores'); })->name('reportes.proveedores');
-Route::get('/reportes/empleados', function() { return redirect('/reportes?tab=empleados'); })->name('reportes.empleados');
-Route::get('/reportes/auditoria', function() { return redirect('/reportes?tab=auditoria'); })->name('reportes.auditoria');
+    // Nuevos reportes redirigidos
+    Route::get('/reportes/ventas-pendientes', function () {
+        return redirect('/reportes?tab=ventas');
+    })->name('reportes.ventas-pendientes');
+    Route::get('/reportes/clientes', function () {
+        return redirect('/reportes?tab=clientes');
+    })->name('reportes.clientes');
+    Route::get('/reportes/inventario', function () {
+        return redirect('/reportes?tab=inventario');
+    })->name('reportes.inventario');
+    Route::get('/reportes/servicios', function () {
+        return redirect('/reportes?tab=servicios');
+    })->name('reportes.servicios');
+    Route::get('/reportes/citas', function () {
+        return redirect('/reportes?tab=citas');
+    })->name('reportes.citas');
+    Route::get('/reportes/mantenimientos', function () {
+        return redirect('/reportes?tab=mantenimientos');
+    })->name('reportes.mantenimientos');
+    Route::get('/reportes/rentas', function () {
+        return redirect('/reportes?tab=rentas');
+    })->name('reportes.rentas');
+    Route::get('/reportes/cobranzas', function () {
+        return redirect('/reportes?tab=cobranzas');
+    })->name('reportes.cobranzas');
+    Route::get('/reportes/ganancias', function () {
+        return redirect('/reportes?tab=ganancias');
+    })->name('reportes.ganancias');
+    Route::get('/reportes/productos', function () {
+        return redirect('/reportes?tab=productos');
+    })->name('reportes.productos');
+    Route::get('/reportes/proveedores', function () {
+        return redirect('/reportes?tab=proveedores');
+    })->name('reportes.proveedores');
+    Route::get('/reportes/empleados', function () {
+        return redirect('/reportes?tab=empleados');
+    })->name('reportes.empleados');
+    Route::get('/reportes/auditoria', function () {
+        return redirect('/reportes?tab=auditoria');
+    })->name('reportes.auditoria');
 
-// Reporte de movimientos de inventario redirigido
-Route::get('/reportes/movimientos-inventario', function() { return redirect('/reportes?tab=movimientos'); })->name('reportes.movimientos-inventario');
-Route::get('/reportes/movimientos-inventario/{id}', [ReporteMovimientosController::class, 'show'])->name('reportes.movimientos-inventario.show');
-Route::get('/reportes/movimientos-inventario-export', [ReporteMovimientosController::class, 'export'])->name('reportes.movimientos-inventario.export');
+    // Reporte de movimientos de inventario redirigido
+    Route::get('/reportes/movimientos-inventario', function () {
+        return redirect('/reportes?tab=movimientos');
+    })->name('reportes.movimientos-inventario');
+    Route::get('/reportes/movimientos-inventario/{id}', [ReporteMovimientosController::class, 'show'])->name('reportes.movimientos-inventario.show');
+    Route::get('/reportes/movimientos-inventario-export', [ReporteMovimientosController::class, 'export'])->name('reportes.movimientos-inventario.export');
 
-// Reportes específicos de inventario
-Route::get('/reportes/inventario/dashboard', [ReportesInventarioController::class, 'index'])->name('reportes.inventario.dashboard');
-Route::get('/reportes/inventario/stock-por-almacen', [ReportesInventarioController::class, 'stockPorAlmacen'])->name('reportes.inventario.stock-por-almacen');
-Route::get('/reportes/inventario/productos-bajo-stock', [ReportesInventarioController::class, 'productosBajoStock'])->name('reportes.inventario.productos-bajo-stock');
-Route::get('/reportes/inventario/movimientos-por-periodo', [ReportesInventarioController::class, 'movimientosPorPeriodo'])->name('reportes.inventario.movimientos-por-periodo');
-Route::get('/reportes/inventario/costos', [ReportesInventarioController::class, 'costosInventario'])->name('reportes.inventario.costos');
+    // Reportes especÃƒÂ­ficos de inventario
+    Route::get('/reportes/inventario/dashboard', [ReportesInventarioController::class, 'index'])->name('reportes.inventario.dashboard');
+    Route::get('/reportes/inventario/stock-por-almacen', [ReportesInventarioController::class, 'stockPorAlmacen'])->name('reportes.inventario.stock-por-almacen');
+    Route::get('/reportes/inventario/productos-bajo-stock', [ReportesInventarioController::class, 'productosBajoStock'])->name('reportes.inventario.productos-bajo-stock');
+    Route::get('/reportes/inventario/movimientos-por-periodo', [ReportesInventarioController::class, 'movimientosPorPeriodo'])->name('reportes.inventario.movimientos-por-periodo');
+    Route::get('/reportes/inventario/costos', [ReportesInventarioController::class, 'costosInventario'])->name('reportes.inventario.costos');
 
-// Exportaciones
-Route::get('/reportes/clientes/export', [ReporteController::class, 'exportarClientes'])->name('reportes.clientes.export');
-Route::get('/reportes/inventario/export', [ReporteController::class, 'exportarInventario'])->name('reportes.inventario.export');
-Route::get('/reportes/productos/export', [ReporteController::class, 'exportarProductos'])->name('reportes.productos.export');
+    // Exportaciones
+    Route::get('/reportes/clientes/export', [ReporteController::class, 'exportarClientes'])->name('reportes.clientes.export');
+    Route::get('/reportes/inventario/export', [ReporteController::class, 'exportarInventario'])->name('reportes.inventario.export');
+    Route::get('/reportes/productos/export', [ReporteController::class, 'exportarProductos'])->name('reportes.productos.export');
     Route::resource('herramientas', HerramientaController::class)->names('herramientas');
     Route::post('herramientas/{herramienta}/asignar', [HerramientaController::class, 'asignar'])->name('herramientas.asignar');
     Route::post('herramientas/{herramienta}/recibir', [HerramientaController::class, 'recibir'])->name('herramientas.recibir');
@@ -251,7 +288,7 @@ Route::get('/reportes/productos/export', [ReporteController::class, 'exportarPro
     Route::post('herramientas/asignaciones-masivas/{asignacionMasiva}/cancelar', [AsignacionMasivaController::class, 'cancelar'])->name('herramientas.asignaciones-masivas.cancelar');
     Route::post('herramientas/asignaciones-masivas/{asignacionMasiva}/devolver-herramienta/{herramienta}', [AsignacionMasivaController::class, 'devolverHerramienta'])->name('herramientas.asignaciones-masivas.devolver-herramienta');
 
-    // Rutas para control de herramientas por técnico
+    // Rutas para control de herramientas por tÃƒÂ©cnico
     Route::get('herramientas/tecnicos-herramientas', [TecnicoHerramientasController::class, 'index'])->name('herramientas.tecnicos-herramientas.index');
     Route::get('herramientas/tecnicos-herramientas/{tecnico}', [TecnicoHerramientasController::class, 'show'])->name('herramientas.tecnicos-herramientas.show');
     Route::post('herramientas/tecnicos-herramientas/{tecnico}/actualizar-responsabilidad', [TecnicoHerramientasController::class, 'actualizarResponsabilidad'])->name('herramientas.tecnicos-herramientas.actualizar-responsabilidad');
@@ -286,7 +323,7 @@ Route::get('/reportes/productos/export', [ReporteController::class, 'exportarPro
 
 
     // =====================================================
-    // RUTAS ESPECÍFICAS DE CLIENTES
+    // RUTAS ESPECÃƒÂFICAS DE CLIENTES
     // =====================================================
     Route::post('/clientes/validar-rfc', [ClienteController::class, 'validarRfc'])->name('clientes.validarRfc');
     Route::get('/clientes/validar-email', [ClienteController::class, 'validarEmail'])->name('clientes.validarEmail');
@@ -297,36 +334,36 @@ Route::get('/reportes/productos/export', [ReporteController::class, 'exportarPro
     Route::put('/clientes/{cliente}/toggle', [ClienteController::class, 'toggle'])->name('clientes.toggle');
 
     // =====================================================
-    // RUTAS ESPECÍFICAS DE PROVEEDORES
+    // RUTAS ESPECÃƒÂFICAS DE PROVEEDORES
     // =====================================================
     Route::get('/proveedores/export', [ProveedorController::class, 'export'])->name('proveedores.export');
     Route::put('/proveedores/{proveedor}/toggle', [ProveedorController::class, 'toggle'])->name('proveedores.toggle');
 
     // =====================================================
-    // RUTAS ESPECÍFICAS DE TÉCNICOS
+    // RUTAS ESPECÃƒÂFICAS DE TÃƒâ€°CNICOS
     // =====================================================
     Route::get('/tecnicos/export', [TecnicoController::class, 'export'])->name('tecnicos.export');
     Route::put('/tecnicos/{tecnico}/toggle', [TecnicoController::class, 'toggle'])->name('tecnicos.toggle');
 
     // =====================================================
-    // RUTAS ESPECÍFICAS DE USUARIOS
+    // RUTAS ESPECÃƒÂFICAS DE USUARIOS
     // =====================================================
     Route::get('/usuarios/export', [UserController::class, 'export'])->name('usuarios.export');
     Route::put('/usuarios/{user}/toggle', [UserController::class, 'toggle'])->name('usuarios.toggle');
 
     // =====================================================
-    // RUTAS ESPECÍFICAS DE CITAS
+    // RUTAS ESPECÃƒÂFICAS DE CITAS
     // =====================================================
     Route::get('/citas/export', [CitaController::class, 'export'])->name('citas.export');
 
     // =====================================================
-    // RUTAS ESPECÍFICAS DE PRODUCTOS
+    // RUTAS ESPECÃƒÂFICAS DE PRODUCTOS
     // =====================================================
     Route::post('/productos/validate-stock', [ProductoController::class, 'validateStock'])->name('productos.validateStock');
     Route::put('/productos/{producto}/toggle', [ProductoController::class, 'toggle'])->name('productos.toggle');
 
     // =====================================================
-    // RUTAS ESPECÍFICAS DE COTIZACIONES
+    // RUTAS ESPECÃƒÂFICAS DE COTIZACIONES
     // =====================================================
     Route::post('/cotizaciones/{id}/convertir-a-venta', [CotizacionController::class, 'convertirAVenta'])->name('cotizaciones.convertir-a-venta');
     Route::get('/cotizaciones/{id}/confirmar-pedido', [CotizacionController::class, 'mostrarConfirmacionPedido'])->name('cotizaciones.confirmar-pedido');
@@ -337,7 +374,7 @@ Route::get('/reportes/productos/export', [ReporteController::class, 'exportarPro
     Route::post('/cotizaciones/{id}/cancel', [CotizacionController::class, 'cancel'])->name('cotizaciones.cancel');
 
     // =====================================================
-    // RUTAS ESPECÍFICAS DE PEDIDOS
+    // RUTAS ESPECÃƒÂFICAS DE PEDIDOS
     // =====================================================
     Route::post('/pedidos/{id}/confirmar', [PedidoController::class, 'confirmar'])->name('pedidos.confirmar');
     Route::post('/pedidos/{id}/enviar-a-venta', [PedidoController::class, 'enviarAVenta'])
@@ -346,20 +383,20 @@ Route::get('/reportes/productos/export', [ReporteController::class, 'exportarPro
     Route::post('/pedidos/{pedido}/duplicate', [PedidoController::class, 'duplicate'])->name('pedidos.duplicate');
 
     // =====================================================
-    // RUTAS ESPECÍFICAS DE VENTAS
+    // RUTAS ESPECÃƒÂFICAS DE VENTAS
     // =====================================================
     Route::post('/ventas/{venta}/duplicate', [VentaController::class, 'duplicate'])->name('ventas.duplicate');
     Route::post('/ventas/{id}/cancel', [VentaController::class, 'cancel'])->name('ventas.cancel');
     Route::post('/ventas/{id}/marcar-pagado', [VentaController::class, 'marcarPagado'])->name('ventas.marcar-pagado');
     // =====================================================
-    // RUTAS ESPECÍFICAS DE USUARIOS
+    // RUTAS ESPECÃƒÂFICAS DE USUARIOS
     // =====================================================
     Route::get('/perfil', [UserController::class, 'profile'])->name('perfil');
-    // ✅ CONFLICTO RESUELTO: Eliminada ruta duplicada - usa la del resource usuarios.show
+    // Ã¢Å“â€¦ CONFLICTO RESUELTO: Eliminada ruta duplicada - usa la del resource usuarios.show
 
-        // =====================================================
-        // RUTAS ESPECÍFICAS DE CITAS
-        // =====================================================
+    // =====================================================
+    // RUTAS ESPECÃƒÂFICAS DE CITAS
+    // =====================================================
     Route::put('/citas/{id}', [CitaController::class, 'update']); // Nota: Esto duplica el resource update
     Route::patch('/citas/{id}/update-index', [CitaController::class, 'updateIndex'])->name('citas.updateIndex');
 

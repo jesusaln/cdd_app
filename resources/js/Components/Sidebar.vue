@@ -92,10 +92,13 @@
             <NavLink href="/cobranza" icon="dollar-sign" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Cobranza' : null">
               Cobranza
             </NavLink>
+            <NavLink href="/cuentas-por-cobrar" icon="file-invoice-dollar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Cuentas por Cobrar' : null">
+              Cuentas por Cobrar
+            </NavLink>
           </div>
         </div>
 
-        <!-- Operación de Compra -->
+        <!-- OperaciÃƒÂ³n de Compra -->
         <div class="mb-4">
           <div
             @click="toggleAccordion('compras')"
@@ -116,7 +119,7 @@
             <NavLink href="/compras" icon="cart-shopping" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Compras a Proveedores' : null">
               Compras a Proveedores
             </NavLink>
-            <NavLink href="/ordenescompra" icon="file-invoice-dollar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Órdenes de Compra' : null">
+             <NavLink href="/ordenescompra" icon="file-invoice-dollar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Órdenes de Compra' : null">
               Órdenes de Compra
             </NavLink>
             <NavLink href="/cuentas-por-pagar" icon="file-invoice-dollar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Cuentas por Pagar' : null">
@@ -128,7 +131,7 @@
           </div>
         </div>
 
-        <!-- Catálogos -->
+        <!-- CatÃƒÂ¡logos -->
         <div class="mb-4">
           <div
             @click="toggleAccordion('catalogos')"
@@ -162,7 +165,7 @@
         </div>
 
 
-        <!-- Administración -->
+        <!-- AdministraciÃƒÂ³n -->
         <div class="mb-4">
            <div
              @click="toggleAccordion('administracion')"
@@ -211,7 +214,7 @@
            <NavLink href="/usuarios" icon="user" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Usuarios' : null">
              Usuarios
            </NavLink>
-           <NavLink href="/bitacora" icon="clipboard-list" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Bitácora' : null">
+          <NavLink href="/bitacora" icon="clipboard-list" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Bitácora' : null">
              Bitácora
            </NavLink>
          </div>
@@ -271,7 +274,7 @@
            <NavLink href="/reportes/inventario/dashboard" icon="clipboard-list" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Dashboard Inventario' : null">
              Dashboard Inventario
            </NavLink>
-           <NavLink href="/reportes/inventario/stock-por-almacen" icon="warehouse" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Stock por Almacén' : null">
+          <NavLink href="/reportes/inventario/stock-por-almacen" icon="warehouse" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Stock por Almacén' : null">
              Stock por Almacén
            </NavLink>
            <NavLink href="/reportes/inventario/productos-bajo-stock" icon="exclamation-triangle" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Productos Bajo Stock' : null">
@@ -343,10 +346,13 @@
             <NavLink href="/equipos" icon="laptop" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Equipos' : null">
               Equipos
             </NavLink>
+            <NavLink href="/cuentas-por-cobrar" icon="file-invoice-dollar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Cuentas por Cobrar' : null">
+              Cuentas por Cobrar
+            </NavLink>
           </div>
         </div>
 
-        <!-- Taller Mantenimiento y Vehículos -->
+        <!-- Taller Mantenimiento y VehÃƒÂ­culos -->
         <div class="mb-4">
           <div
             @click="toggleAccordion('taller')"
@@ -370,7 +376,7 @@
             <NavLink href="/mantenimientos" icon="tools" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Mantenimientos' : null">
               Mantenimientos
             </NavLink>
-            <NavLink href="/tecnicos" icon="user-cog" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Técnicos' : null">
+             <NavLink href="/tecnicos" icon="user-cog" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Técnicos' : null">
               Técnicos
             </NavLink>
             <NavLink href="/herramientas" icon="toolbox" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Herramientas' : null">
@@ -466,7 +472,7 @@ const props = defineProps({
 // Emits
 const emit = defineEmits(['toggleSidebar']);
 
-// Estado del acordeón
+// Estado del acordeÃƒÂ³n
 const accordionStates = ref({
   ventas: false,
   compras: false,
@@ -480,27 +486,27 @@ const accordionStates = ref({
   taller: false
 });
 
-// Función para alternar acordeón
+// FunciÃƒÂ³n para alternar acordeÃƒÂ³n
 const toggleAccordion = (section) => {
-  // Si el sidebar está colapsado, expandir la sección
+  // Si el sidebar estÃƒÂ¡ colapsado, expandir la secciÃƒÂ³n
   if (props.isSidebarCollapsed) {
     Object.keys(accordionStates.value).forEach(key => {
       accordionStates.value[key] = key === section;
     });
   } else {
-    // Si no está colapsado, alternar normalmente
+    // Si no estÃƒÂ¡ colapsado, alternar normalmente
     accordionStates.value[section] = !accordionStates.value[section];
   }
 };
 
-// Función para determinar la sección actual basada en la URL
+// FunciÃƒÂ³n para determinar la secciÃƒÂ³n actual basada en la URL
 const getCurrentSection = () => {
   const path = window.location.pathname;
 
-  // Verificar inventario primero (más específico)
+  // Verificar inventario primero (mÃƒÂ¡s especÃƒÂ­fico)
   if (path.includes('/productos') || path.includes('/traspasos') || path.includes('/movimientos-inventario') || path.includes('/ajustes-inventario') || path.includes('/movimientos-manuales')) {
     return 'inventario';
-  } else if (path.includes('/cotizaciones') || path.includes('/pedidos') || path.includes('/ventas') || path.includes('/cobranza')) {
+  } else if (path.includes('/cotizaciones') || path.includes('/pedidos') || path.includes('/ventas') || path.includes('/cobranza') || path.includes('/cuentas-por-cobrar')) {
     return 'ventas';
   } else if (path.includes('/compras') || path.includes('/ordenescompra') || path.includes('/proveedores') || path.includes('/cuentas-por-pagar')) {
     return 'compras';
@@ -523,7 +529,7 @@ const getCurrentSection = () => {
   return null;
 };
 
-// Auto-expandir la sección actual cuando se carga la página
+// Auto-expandir la secciÃƒÂ³n actual cuando se carga la pÃƒÂ¡gina
 const autoExpandCurrentSection = () => {
   const currentSection = getCurrentSection();
   if (currentSection) {
@@ -534,7 +540,7 @@ const autoExpandCurrentSection = () => {
 // Helper para tolerar ausencia de Ziggy route()
 const routeOr = (fallback) => {
   try {
-    // si Ziggy está disponible
+    // si Ziggy estÃƒÂ¡ disponible
     if (typeof route === 'function') return route('backup.index');
     return fallback;
   } catch {
@@ -548,7 +554,7 @@ const toggleSidebar = () => {
 
 // Lifecycle hooks
 onMounted(() => {
-  // Auto-expandir la sección actual cuando se carga la página
+  // Auto-expandir la secciÃƒÂ³n actual cuando se carga la pÃƒÂ¡gina
   autoExpandCurrentSection();
 });
 
@@ -572,7 +578,7 @@ aside::-webkit-scrollbar-thumb:hover { background: rgba(156, 163, 175, 0.7); }
 /* Suaves */
 .transition-opacity { transition: opacity 0.3s ease-in-out; }
 
-/* Animaciones del acordeón */
+/* Animaciones del acordeÃƒÂ³n */
 .accordion-section {
   transition: all 0.3s ease-in-out;
 }
@@ -589,7 +595,7 @@ aside::-webkit-scrollbar-thumb:hover { background: rgba(156, 163, 175, 0.7); }
   transform: rotate(90deg);
 }
 
-/* Responsive móvil */
+/* Responsive mÃƒÂ³vil */
 @media (max-width: 768px) {
   aside {
     position: fixed;

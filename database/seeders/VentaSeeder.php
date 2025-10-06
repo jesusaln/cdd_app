@@ -8,6 +8,7 @@ use App\Models\VentaItem;
 use App\Models\Cliente;
 use App\Models\Producto;
 use App\Models\User;
+use App\Models\CuentasPorCobrar;
 use App\Models\InventarioMovimiento;
 use App\Services\InventarioService;
 use Carbon\Carbon;
@@ -22,7 +23,7 @@ class VentaSeeder extends Seeder
     {
         // Obtener datos necesarios
         $clientes = Cliente::all();
-        $productos = Producto::where('estado', 'activo')->get(); // Obtener productos activos (el stock se valida por almacén)
+        $productos = Producto::where('estado', 'activo')->get(); // Obtener productos activos (el stock se valida por almacÃƒÂ©n)
         $usuarios = User::all();
         $almacenes = \App\Models\Almacen::where('estado', 'activo')->get();
 
@@ -49,7 +50,7 @@ class VentaSeeder extends Seeder
             return; // No hay productos con stock para vender
         }
 
-        // Obtener productos con stock como colección
+        // Obtener productos con stock como colecciÃƒÂ³n
         $productosConStock = Producto::whereIn('id', $productosConStockIds)->get();
         $this->command->info('Productos con stock disponible: ' . $productosConStock->count());
 
@@ -140,6 +141,18 @@ class VentaSeeder extends Seeder
             $ventaData['numero_venta'] = 'V' . str_pad(Venta::count() + 1, 4, '0', STR_PAD_LEFT);
 
             $venta = Venta::create($ventaData);
+
+            $estaPagada = ($ventaData['estado'] ?? '') === 'pagado' || ($venta->pagado ?? false);
+
+            CuentasPorCobrar::create([
+                'venta_id' => $venta->id,
+                'monto_total' => $total,
+                'monto_pagado' => $estaPagada ? $total : 0,
+                'monto_pendiente' => $estaPagada ? 0 : $total,
+                'fecha_vencimiento' => Carbon::now()->addDays(30),
+                'estado' => $estaPagada ? 'pagado' : 'pendiente',
+                'notas' => $venta->notas,
+            ]);
 
             // Crear items de venta y reducir stock
             foreach ($productosVenta as $productoData) {

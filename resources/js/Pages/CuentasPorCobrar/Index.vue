@@ -1,20 +1,20 @@
 <template>
-    <AppLayout title="Cuentas por Pagar">
+    <AppLayout title="Cuentas por Cobrar">
         <template #header>
             <div class="flex justify-between items-center">
                 <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                    Cuentas por Pagar
+                    Cuentas por Cobrar
                 </h2>
                 <Link
-                    :href="route('cuentas-por-pagar.create')"
+                    :href="route('cuentas-por-cobrar.create')"
                     class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
                 >
-                    Nueva Cuenta por Pagar
+                    Nueva Cuenta por Cobrar
                 </Link>
             </div>
         </template>
 
-        <!-- Estadísticas -->
+        <!-- EstadÃ­sticas -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">
@@ -113,11 +113,11 @@
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Proveedor</label>
-                        <select v-model="filters.proveedor_id" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                        <label class="block text-sm font-medium text-gray-700">Cliente</label>
+                        <select v-model="filters.cliente_id" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
                             <option value="">Todos</option>
-                            <option v-for="proveedor in proveedores" :key="proveedor.id" :value="proveedor.id">
-                                {{ proveedor.nombre_razon_social }}
+                            <option v-for="cliente in clientes" :key="cliente.id" :value="cliente.id">
+                                {{ cliente.nombre_razon_social }}
                             </option>
                         </select>
                     </div>
@@ -139,10 +139,10 @@
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Compra
+                                    Venta
                                 </th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Proveedor
+                                    Cliente
                                 </th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Monto Total
@@ -164,10 +164,10 @@
                         <tbody class="bg-white divide-y divide-gray-200">
                             <tr v-for="cuenta in cuentas.data" :key="cuenta.id">
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    {{ cuenta.compra.numero_compra }}
+                                    {{ cuenta.venta.numero_venta }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ cuenta.compra.proveedor.nombre_razon_social }}
+                                    {{ cuenta.venta.cliente.nombre_razon_social }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     {{ formatCurrency(cuenta.monto_total) }}
@@ -189,10 +189,10 @@
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                    <Link :href="route('cuentas-por-pagar.show', cuenta.id)" class="text-indigo-600 hover:text-indigo-900 mr-3">
+                                    <Link :href="route('cuentas-por-cobrar.show', cuenta.id)" class="text-indigo-600 hover:text-indigo-900 mr-3">
                                         Ver
                                     </Link>
-                                    <Link :href="route('cuentas-por-pagar.edit', cuenta.id)" class="text-indigo-600 hover:text-indigo-900">
+                                    <Link :href="route('cuentas-por-cobrar.edit', cuenta.id)" class="text-indigo-600 hover:text-indigo-900">
                                         Editar
                                     </Link>
                                 </td>
@@ -201,7 +201,7 @@
                     </table>
                 </div>
 
-                <!-- Paginación -->
+                <!-- PaginaciÃ³n -->
                 <div class="mt-4">
                     <div class="flex justify-between items-center">
                         <div class="text-sm text-gray-700">
@@ -238,11 +238,11 @@ const props = defineProps({
     filters: Object,
 });
 
-const proveedores = ref([]);
+const clientes = ref([]);
 
 const filters = ref({
     estado: props.filters.estado || '',
-    proveedor_id: props.filters.proveedor_id || '',
+    cliente_id: props.filters.cliente_id || '',
 });
 
 const currencyFormatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
@@ -260,18 +260,18 @@ const formatCurrency = (value) => currencyFormatter.format(toNumber(value));
 
 const applyFilters = () => {
     // Implementar filtrado
-    window.location.href = route('cuentas-por-pagar.index', filters.value);
+    window.location.href = route('cuentas-por-cobrar.index', filters.value);
 };
 
 // onMounted(() => {
-//     // Cargar proveedores para el filtro - temporalmente deshabilitado
-//     // fetch(route('proveedores.index', { per_page: 100 }))
+//     // Cargar clientes para el filtro - temporalmente deshabilitado
+//     // fetch(route('clientes.index', { per_page: 100 }))
 //     //     .then(response => response.json())
 //     //     .then(data => {
-//     //         proveedores.value = data.data || [];
+//     //         clientes.value = data.data || [];
 //     //     })
 //     //     .catch(error => {
-//     //         console.error('Error loading proveedores:', error);
+//     //         console.error('Error loading clientes:', error);
 //     //     });
 // });
 </script>

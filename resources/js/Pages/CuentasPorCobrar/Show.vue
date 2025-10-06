@@ -1,19 +1,19 @@
 <template>
-    <AppLayout title="Detalles de Cuenta por Pagar">
+    <AppLayout title="Detalles de Cuenta por Cobrar">
         <template #header>
             <div class="flex justify-between items-center">
                 <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                    Detalles de Cuenta por Pagar
+                    Detalles de Cuenta por Cobrar
                 </h2>
                 <div class="flex space-x-2">
                     <Link
-                        :href="route('cuentas-por-pagar.edit', cuenta.id)"
+                        :href="route('cuentas-por-cobrar.edit', cuenta.id)"
                         class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
                     >
                         Editar
                     </Link>
                     <Link
-                        :href="route('cuentas-por-pagar.index')"
+                        :href="route('cuentas-por-cobrar.index')"
                         class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
                     >
                         Volver
@@ -60,30 +60,30 @@
                             </dl>
                         </div>
 
-                        <!-- Información de la Compra -->
+                        <!-- Información de la Venta -->
                         <div class="mb-6">
-                            <h3 class="text-lg font-medium text-gray-900 mb-4">Información de la Compra</h3>
+                            <h3 class="text-lg font-medium text-gray-900 mb-4">Información de la Venta</h3>
                             <div class="bg-gray-50 p-4 rounded-lg">
                                 <dl class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-6">
                                     <div>
-                                        <dt class="text-sm font-medium text-gray-500">Número de Compra</dt>
+                                        <dt class="text-sm font-medium text-gray-500">Número de Venta</dt>
                                         <dd class="mt-1 text-sm text-gray-900">
-                                            <Link :href="route('compras.show', cuenta.compra.id)" class="text-blue-600 hover:text-blue-800">
-                                                {{ cuenta.compra.numero_compra }}
+                                            <Link :href="route('ventas.show', cuenta.venta.id)" class="text-blue-600 hover:text-blue-800">
+                                                {{ cuenta.venta.numero_venta }}
                                             </Link>
                                         </dd>
                                     </div>
                                     <div>
-                                        <dt class="text-sm font-medium text-gray-500">Proveedor</dt>
-                                        <dd class="mt-1 text-sm text-gray-900">{{ cuenta.compra.proveedor.nombre_razon_social }}</dd>
+                                        <dt class="text-sm font-medium text-gray-500">Cliente</dt>
+                                        <dd class="mt-1 text-sm text-gray-900">{{ cuenta.venta.cliente.nombre_razon_social }}</dd>
                                     </div>
                                     <div>
-                                        <dt class="text-sm font-medium text-gray-500">Total de la Compra</dt>
-                                        <dd class="mt-1 text-sm text-gray-900">{{ cuenta.compra ? formatCurrency(cuenta.compra.total) : 'N/A' }}</dd>
+                                        <dt class="text-sm font-medium text-gray-500">Total de la Venta</dt>
+                                        <dd class="mt-1 text-sm text-gray-900">{{ cuenta.venta ? formatCurrency(cuenta.venta.total) : 'N/A' }}</dd>
                                     </div>
                                     <div>
-                                        <dt class="text-sm font-medium text-gray-500">Estado de la Compra</dt>
-                                        <dd class="mt-1 text-sm text-gray-900">{{ cuenta.compra.estado }}</dd>
+                                        <dt class="text-sm font-medium text-gray-500">Estado de la Venta</dt>
+                                        <dd class="mt-1 text-sm text-gray-900">{{ cuenta.venta.estado }}</dd>
                                     </div>
                                 </dl>
                             </div>
@@ -142,7 +142,7 @@
                                 </p>
                                 <div class="mt-4">
                                     <Link
-                                        :href="route('cuentas-por-pagar.edit', cuenta.id)"
+                                        :href="route('cuentas-por-cobrar.edit', cuenta.id)"
                                         class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
                                     >
                                         Registrar Nuevo Pago

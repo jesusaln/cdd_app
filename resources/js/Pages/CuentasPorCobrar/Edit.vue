@@ -1,12 +1,12 @@
 <template>
-    <AppLayout title="Editar Cuenta por Pagar">
+    <AppLayout title="Editar Cuenta por Cobrar">
         <template #header>
             <div class="flex justify-between items-center">
                 <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                    Editar Cuenta por Pagar
+                    Editar Cuenta por Cobrar
                 </h2>
                 <Link
-                    :href="route('cuentas-por-pagar.index')"
+                    :href="route('cuentas-por-cobrar.index')"
                     class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
                 >
                     Cancelar
@@ -18,22 +18,22 @@
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-6 bg-white border-b border-gray-200">
-                        <!-- Información de la Compra -->
+                        <!-- InformaciÃ³n de la Venta -->
                         <div class="mb-6">
-                            <h3 class="text-lg font-medium text-gray-900 mb-4">Información de la Compra</h3>
+                            <h3 class="text-lg font-medium text-gray-900 mb-4">InformaciÃ³n de la Venta</h3>
                             <div class="bg-gray-50 p-4 rounded-lg">
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700">Número de Compra</label>
-                                        <p class="mt-1 text-sm text-gray-900">{{ cuenta.compra.numero_compra }}</p>
+                                        <label class="block text-sm font-medium text-gray-700">NÃºmero de Venta</label>
+                                        <p class="mt-1 text-sm text-gray-900">{{ cuenta.venta.numero_venta }}</p>
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700">Proveedor</label>
-                                        <p class="mt-1 text-sm text-gray-900">{{ cuenta.compra.proveedor.nombre_razon_social }}</p>
+                                        <label class="block text-sm font-medium text-gray-700">Cliente</label>
+                                        <p class="mt-1 text-sm text-gray-900">{{ cuenta.venta.cliente.nombre_razon_social }}</p>
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700">Total de la Compra</label>
-                                        <p class="mt-1 text-sm text-gray-900">{{ cuenta.compra ? formatCurrency(cuenta.compra.total) : 'N/A' }}</p>
+                                        <label class="block text-sm font-medium text-gray-700">Total de la Venta</label>
+                                        <p class="mt-1 text-sm text-gray-900">{{ cuenta.venta ? formatCurrency(cuenta.venta.total) : 'N/A' }}</p>
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700">Estado Actual</label>
@@ -50,7 +50,7 @@
                             </div>
                         </div>
 
-                        <!-- Información de Pagos -->
+                        <!-- InformaciÃ³n de Pagos -->
                         <div class="mb-6">
                             <h3 class="text-lg font-medium text-gray-900 mb-4">Estado de Pagos</h3>
                             <div class="bg-blue-50 p-4 rounded-lg">
@@ -126,9 +126,9 @@
                                 </div>
                             </div>
 
-                            <!-- Editar Información -->
+                            <!-- Editar InformaciÃ³n -->
                             <div class="mb-6">
-                                <h3 class="text-lg font-medium text-gray-900 mb-4">Editar Información</h3>
+                                <h3 class="text-lg font-medium text-gray-900 mb-4">Editar InformaciÃ³n</h3>
                                 <div class="bg-gray-50 p-4 rounded-lg">
                                     <!-- Fecha de Vencimiento -->
                                     <div class="mb-4">
@@ -158,7 +158,7 @@
                                             rows="4"
                                             class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                                             :class="{ 'border-red-500': form.errors.notas }"
-                                            placeholder="Notas adicionales sobre la cuenta por pagar..."
+                                            placeholder="Notas adicionales sobre la cuenta por cobrar..."
                                         ></textarea>
                                         <p v-if="form.errors.notas" class="mt-2 text-sm text-red-600">
                                             {{ form.errors.notas }}
@@ -170,7 +170,7 @@
                             <!-- Botones -->
                             <div class="flex items-center justify-end">
                                 <Link
-                                    :href="route('cuentas-por-pagar.show', cuenta.id)"
+                                    :href="route('cuentas-por-cobrar.show', cuenta.id)"
                                     class="mr-4 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded"
                                 >
                                     Ver Detalles
@@ -230,7 +230,7 @@ const pagoForm = useForm({
 });
 
 const submit = () => {
-    form.put(route('cuentas-por-pagar.update', props.cuenta.id), {
+    form.put(route('cuentas-por-cobrar.update', props.cuenta.id), {
         onSuccess: () => {
             // Redirigir al show
         },
@@ -241,9 +241,9 @@ const submit = () => {
 };
 
 const registrarPago = () => {
-    pagoForm.post(route('cuentas-por-pagar.registrar-pago', props.cuenta.id), {
+    pagoForm.post(route('cuentas-por-cobrar.registrar-pago', props.cuenta.id), {
         onSuccess: () => {
-            // Limpiar formulario y recargar página
+            // Limpiar formulario y recargar pÃ¡gina
             pagoForm.reset();
             window.location.reload();
         },

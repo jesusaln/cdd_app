@@ -3,7 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use App\Enums\EstadoVenta; // Ajusta seg煤n tu enum
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use App\Enums\EstadoVenta; // Ajusta seg鷑 tu enum
 
 class Venta extends Model
 {
@@ -42,16 +43,16 @@ class Venta extends Model
 
     public function pagadoPor()
     {
-        return $this->belongsTo(\App\Models\User::class, 'pagado_por');
+        return $this->belongsTo(User::class, 'pagado_por');
     }
 
-    // Relaci贸n polim贸rfica con vendedor (User o Tecnico)
+    // Relaci髇 polim髍fica con vendedor (User o Tecnico)
     public function vendedor()
     {
         return $this->morphTo();
     }
 
-    // Relaci贸n polim贸rfica para productos
+    // Relaci髇 polim髍fica para productos
     public function productos()
     {
         return $this->morphedByMany(
@@ -67,7 +68,7 @@ class Venta extends Model
         });
     }
 
-    // Relaci贸n polim贸rfica para servicios
+    // Relaci髇 polim髍fica para servicios
     public function servicios()
     {
         return $this->morphedByMany(
@@ -83,10 +84,15 @@ class Venta extends Model
         });
     }
 
-    // Todos los 铆tems (productos + servicios)
+    // Todos los 韙ems (productos + servicios)
     public function items()
     {
         return $this->hasMany(VentaItem::class, 'venta_id');
+    }
+
+    public function cuentaPorCobrar(): HasOne
+    {
+        return $this->hasOne(CuentasPorCobrar::class, 'venta_id');
     }
 
     // Calcular ganancia total de la venta
@@ -104,12 +110,12 @@ class Venta extends Model
             $costo = $pivot->costo_unitario ?? $producto->precio_compra;
             $gananciaBase = ($precioVenta - $costo) * $pivot->cantidad;
 
-            // Aplicar comisi贸n individual del producto
+            // Aplicar comisi髇 individual del producto
             $comisionProducto = $gananciaBase * ($producto->comision_vendedor / 100);
             $ganancia += $gananciaBase + $comisionProducto;
 
-            // Si hay vendedor t茅cnico, aplicar m谩rgenes adicionales del t茅cnico
-            if ($vendedor && $vendedor instanceof \App\Models\Tecnico) {
+            // Si hay vendedor t閏nico, aplicar m醨genes adicionales del t閏nico
+            if ($vendedor && $vendedor instanceof Tecnico) {
                 $margenTecnico = $vendedor->margen_venta_productos / 100;
                 $ganancia += $gananciaBase * $margenTecnico;
             }
@@ -121,16 +127,16 @@ class Venta extends Model
             $precioVenta = $pivot->precio - ($pivot->descuento ?? 0);
             $gananciaBase = $precioVenta * ($servicio->margen_ganancia / 100) * $pivot->cantidad;
 
-            // Aplicar comisi贸n individual del servicio
+            // Aplicar comisi髇 individual del servicio
             $comisionServicio = $servicio->comision_vendedor * $pivot->cantidad;
             $ganancia += $gananciaBase + $comisionServicio;
 
-            // Si hay vendedor t茅cnico, aplicar m谩rgenes adicionales del t茅cnico
-            if ($vendedor && $vendedor instanceof \App\Models\Tecnico) {
+            // Si hay vendedor t閏nico, aplicar m醨genes adicionales del t閏nico
+            if ($vendedor && $vendedor instanceof Tecnico) {
                 $margenTecnico = $vendedor->margen_venta_servicios / 100;
                 $ganancia += $gananciaBase * $margenTecnico;
 
-                // Si es servicio de instalaci贸n, agregar comisi贸n adicional del t茅cnico
+                // Si es servicio de instalaci髇, agregar comisi髇 adicional del t閏nico
                 if ($servicio->es_instalacion) {
                     $ganancia += $vendedor->comision_instalacion * $pivot->cantidad;
                 }

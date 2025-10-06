@@ -119,6 +119,7 @@ class Cotizacion extends Model
     {
         $estadoActual = $this->estado->value;
         return in_array($estadoActual, [
+            EstadoCotizacion::Aprobada->value,
             EstadoCotizacion::Pendiente->value,
             EstadoCotizacion::Borrador->value,
         ], true);
@@ -150,6 +151,24 @@ class Cotizacion extends Model
 
     public static function generarNumero(): string
     {
-        return 'COT0001';
+        // Buscar el último número de cotización existente
+        $ultimaCotizacion = static::where('numero_cotizacion', 'LIKE', 'C%')
+            ->orderBy('id', 'desc')
+            ->first();
+
+        if (!$ultimaCotizacion || !$ultimaCotizacion->numero_cotizacion) {
+            return 'C001';
+        }
+
+        // Extraer el número de la cotización
+        $matches = [];
+        if (preg_match('/C(\d+)$/', $ultimaCotizacion->numero_cotizacion, $matches)) {
+            $ultimoNumero = (int) $matches[1];
+            $siguienteNumero = $ultimoNumero + 1;
+            return 'C' . str_pad($siguienteNumero, 3, '0', STR_PAD_LEFT);
+        }
+
+        // Si no se puede extraer el número, empezar desde C001
+        return 'C001';
     }
 }

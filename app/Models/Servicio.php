@@ -30,7 +30,7 @@ class Servicio extends Model
 
     public function scopeActive($query)
     {
-        return $query->where('estado', 'activo'); // Ajusta según los valores que uses
+        return $query->where('estado', 'activo');
     }
 
     // Relación con la categoría
@@ -42,9 +42,8 @@ class Servicio extends Model
     // Relación con las cotizaciones
     public function cotizaciones()
     {
-        return $this->morphToMany(Cotizacion::class, 'cotizable', 'cotizacion_producto')
+        return $this->morphToMany(Cotizacion::class, 'cotizable', 'cotizacion_items')
             ->withPivot(['cantidad', 'precio', 'descuento', 'subtotal', 'descuento_monto'])
-            ->using(CotizacionProducto::class)
             ->withTimestamps();
     }
 
