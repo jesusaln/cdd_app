@@ -240,7 +240,7 @@ class VentaController extends Controller
             // Validar stock disponible para productos (considerando reservas)
             foreach ($validated['productos'] as $item) {
                 if ($item['tipo'] === 'producto') {
-                    $producto = Producto::find($item['id']);
+                    $producto = Producto::with('inventarios')->find($item['id']);
                     if (!$producto) {
                         return redirect()->back()->with('error', "Producto con ID {$item['id']} no encontrado");
                     }
@@ -315,7 +315,21 @@ class VentaController extends Controller
                 'fecha' => now(),
                 'estado' => EstadoVenta::Borrador,
                 'notas' => $request->notas,
+                'pagado' => false, // Asegurar que no esté pagado inicialmente
             ]);
+
+            // Crear cuenta por cobrar si la venta no está pagada
+            if (!$venta->pagado) {
+                CuentasPorCobrar::create([
+                    'venta_id' => $venta->id,
+                    'monto_total' => $venta->total,
+                    'monto_pagado' => 0,
+                    'monto_pendiente' => $venta->total,
+                    'fecha_vencimiento' => now()->addDays(30), // 30 días por defecto
+                    'estado' => 'pendiente',
+                    'notas' => 'Cuenta por cobrar generada automáticamente',
+                ]);
+            }
 
             // Crear items y reducir inventario
             foreach ($validated['productos'] as $item) {
