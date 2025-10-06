@@ -9,6 +9,7 @@ use App\Models\Producto;
 use App\Models\ProductoPrecioHistorial;
 use App\Models\Proveedor;
 use App\Models\Almacen;
+use App\Models\CuentasPorPagar;
 use App\Services\InventarioService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -166,7 +167,7 @@ class CompraController extends Controller
     public function create()
     {
         $proveedores = Proveedor::all();
-        $productos = Producto::all();
+        $productos = Producto::select('id', 'nombre', 'descripcion', 'precio_compra', 'stock', 'expires')->get();
         $almacenes = Almacen::where('estado', 'activo')->get();
         return Inertia::render('Compras/Create', [
             'proveedores' => $proveedores,
@@ -177,7 +178,7 @@ class CompraController extends Controller
 
     private function validateCompraRequest(Request $request)
     {
-        return $request->validate([
+        $rules = [
             'proveedor_id' => 'required|exists:proveedores,id',
             'almacen_id' => 'required|exists:almacenes,id',
             'descuento_general' => 'nullable|numeric|min:0',
@@ -186,7 +187,19 @@ class CompraController extends Controller
             'productos.*.cantidad' => 'required|integer|min:1',
             'productos.*.precio' => 'required|numeric|min:0',
             'productos.*.descuento' => 'nullable|numeric|min:0|max:100',
-        ]);
+        ];
+
+        // Agregar validación de lotes para productos que vencen
+        foreach ($request->productos ?? [] as $index => $producto) {
+            $productoModel = Producto::find($producto['id']);
+            if ($productoModel && $productoModel->expires) {
+                $rules["productos.{$index}.numero_lote"] = 'required|string|max:100';
+                $rules["productos.{$index}.fecha_caducidad"] = 'nullable|date|after:today';
+                $rules["productos.{$index}.costo_unitario"] = 'nullable|numeric|min:0';
+            }
+        }
+
+        return $request->validate($rules);
     }
 
     public function store(Request $request)
@@ -230,6 +243,17 @@ class CompraController extends Controller
                 'total' => $total,
             ]);
 
+            // Crear cuenta por pagar automáticamente
+            CuentasPorPagar::create([
+                'compra_id' => $compra->id,
+                'monto_total' => $total,
+                'monto_pagado' => 0,
+                'monto_pendiente' => $total,
+                'fecha_vencimiento' => now()->addDays(30), // 30 días por defecto
+                'estado' => 'pendiente',
+                'notas' => 'Cuenta generada automáticamente por compra',
+            ]);
+
             // Procesar productos y aumentar inventario
             foreach ($validatedData['productos'] as $productoData) {
                 $producto = Producto::findOrFail($productoData['id']);
@@ -258,8 +282,8 @@ class CompraController extends Controller
                     ]);
                 }
 
-                // Aumentar stock automáticamente al crear la compra
-                $this->inventarioService->entrada($producto, $cantidad, [
+                // Preparar contexto para entrada
+                $contexto = [
                     'motivo' => 'Compra procesada',
                     'almacen_id' => $validatedData['almacen_id'],
                     'detalles' => [
@@ -268,7 +292,17 @@ class CompraController extends Controller
                         'descuento' => $descuento,
                         'subtotal' => $subtotalFinal,
                     ],
-                ]);
+                ];
+
+                // Agregar información de lote si el producto vence
+                if ($producto->expires) {
+                    $contexto['numero_lote'] = $productoData['numero_lote'];
+                    $contexto['fecha_caducidad'] = $productoData['fecha_caducidad'] ?? null;
+                    $contexto['costo_unitario'] = $productoData['costo_unitario'] ?? $precio;
+                }
+
+                // Aumentar stock automáticamente al crear la compra
+                $this->inventarioService->entrada($producto, $cantidad, $contexto);
 
                 CompraItem::create([
                     'compra_id' => $compra->id,
@@ -288,7 +322,7 @@ class CompraController extends Controller
 
     public function show($id)
     {
-        $compra = Compra::with('proveedor', 'almacen')->findOrFail($id);
+        $compra = Compra::with('proveedor', 'almacen', 'cuentasPorPagar')->findOrFail($id);
 
         // Obtener los items de la compra con información del stock
         $compraItems = CompraItem::where('compra_id', $id)->with('comprable')->get();

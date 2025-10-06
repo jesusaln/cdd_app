@@ -6,6 +6,7 @@ use App\Models\AjusteInventario;
 use App\Models\Producto;
 use App\Models\Almacen;
 use App\Models\Inventario;
+use App\Services\InventarioService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -13,6 +14,10 @@ use Inertia\Inertia;
 
 class AjusteInventarioController extends Controller
 {
+    public function __construct(private readonly InventarioService $inventarioService)
+    {
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -191,22 +196,32 @@ class AjusteInventarioController extends Controller
                 throw new \Exception('El ajuste resultaría en stock negativo. Stock actual: ' . $cantidadAnterior);
             }
 
-            // Crear o actualizar inventario
-            if (!$inventario) {
-                $inventario = Inventario::create([
-                    'producto_id' => $productoId,
+            $producto = Producto::find($productoId);
+
+            // Usar el servicio para ajustar inventario
+            if ($tipo === 'incremento') {
+                $this->inventarioService->entrada($producto, $cantidadAjuste, [
                     'almacen_id' => $almacenId,
-                    'cantidad' => $cantidadNueva,
-                    'stock_minimo' => 0,
+                    'motivo' => 'Ajuste de inventario: ' . $request->motivo,
+                    'detalles' => [
+                        'tipo_ajuste' => $tipo,
+                        'cantidad_anterior' => $cantidadAnterior,
+                        'cantidad_nueva' => $cantidadNueva,
+                        'observaciones' => $request->observaciones,
+                    ],
                 ]);
             } else {
-                $inventario->update(['cantidad' => $cantidadNueva]);
+                $this->inventarioService->salida($producto, $cantidadAjuste, [
+                    'almacen_id' => $almacenId,
+                    'motivo' => 'Ajuste de inventario: ' . $request->motivo,
+                    'detalles' => [
+                        'tipo_ajuste' => $tipo,
+                        'cantidad_anterior' => $cantidadAnterior,
+                        'cantidad_nueva' => $cantidadNueva,
+                        'observaciones' => $request->observaciones,
+                    ],
+                ]);
             }
-
-            // Actualizar stock total en producto
-            $producto = Producto::find($productoId);
-            $totalStock = Inventario::where('producto_id', $productoId)->sum('cantidad');
-            $producto->update(['stock' => $totalStock]);
 
             // Registrar el ajuste
             AjusteInventario::create([
@@ -221,24 +236,6 @@ class AjusteInventarioController extends Controller
                 'observaciones' => $request->observaciones,
             ]);
 
-            // Registrar movimiento en inventario_logs
-            DB::table('inventario_logs')->insert([
-                'producto_id' => $productoId,
-                'almacen_id' => $almacenId,
-                'user_id' => auth()->id(),
-                'tipo' => $tipo === 'incremento' ? 'entrada' : 'salida',
-                'cantidad' => $cantidadAjuste,
-                'motivo' => 'Ajuste de inventario: ' . $request->motivo,
-                'detalles' => json_encode([
-                    'tipo_ajuste' => $tipo,
-                    'cantidad_anterior' => $cantidadAnterior,
-                    'cantidad_nueva' => $cantidadNueva,
-                    'observaciones' => $request->observaciones,
-                ]),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-
             Log::info('Ajuste de inventario realizado', [
                 'producto_id' => $productoId,
                 'almacen_id' => $almacenId,
@@ -246,7 +243,6 @@ class AjusteInventarioController extends Controller
                 'cantidad_anterior' => $cantidadAnterior,
                 'cantidad_ajuste' => $cantidadAjuste,
                 'cantidad_nueva' => $cantidadNueva,
-                'stock_total_actualizado' => $totalStock,
             ]);
         });
 

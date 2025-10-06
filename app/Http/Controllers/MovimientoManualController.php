@@ -6,6 +6,7 @@ use App\Models\MovimientoManual;
 use App\Models\Producto;
 use App\Models\Almacen;
 use App\Models\Inventario;
+use App\Services\InventarioService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -13,6 +14,10 @@ use Inertia\Inertia;
 
 class MovimientoManualController extends Controller
 {
+    public function __construct(private readonly InventarioService $inventarioService)
+    {
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -95,39 +100,9 @@ class MovimientoManualController extends Controller
         ]);
 
         DB::transaction(function () use ($request) {
-            $productoId = $request->producto_id;
-            $almacenId = $request->almacen_id;
+            $producto = Producto::findOrFail($request->producto_id);
             $tipo = $request->tipo;
             $cantidad = $request->cantidad;
-
-            // Obtener o crear inventario
-            $inventario = Inventario::where('producto_id', $productoId)
-                ->where('almacen_id', $almacenId)
-                ->first();
-
-            $stockActual = $inventario ? $inventario->cantidad : 0;
-
-            if ($tipo === 'salida' && $stockActual < $cantidad) {
-                throw new \Exception('Stock insuficiente para la salida. Stock actual: ' . $stockActual);
-            }
-
-            $nuevoStock = $tipo === 'entrada' ? $stockActual + $cantidad : $stockActual - $cantidad;
-
-            if (!$inventario) {
-                $inventario = Inventario::create([
-                    'producto_id' => $productoId,
-                    'almacen_id' => $almacenId,
-                    'cantidad' => $nuevoStock,
-                    'stock_minimo' => 0,
-                ]);
-            } else {
-                $inventario->update(['cantidad' => $nuevoStock]);
-            }
-
-            // Actualizar stock total en producto
-            $producto = Producto::find($productoId);
-            $totalStock = Inventario::where('producto_id', $productoId)->sum('cantidad');
-            $producto->update(['stock' => $totalStock]);
 
             // Calcular total si hay costo unitario
             $total = null;
@@ -137,8 +112,8 @@ class MovimientoManualController extends Controller
 
             // Registrar movimiento manual
             MovimientoManual::create([
-                'producto_id' => $productoId,
-                'almacen_id' => $almacenId,
+                'producto_id' => $request->producto_id,
+                'almacen_id' => $request->almacen_id,
                 'user_id' => auth()->id(),
                 'tipo' => $tipo,
                 'cantidad' => $cantidad,
@@ -150,32 +125,38 @@ class MovimientoManualController extends Controller
                 'referencia' => $request->referencia,
             ]);
 
-            // Registrar en inventario_logs
-            DB::table('inventario_logs')->insert([
-                'producto_id' => $productoId,
-                'almacen_id' => $almacenId,
-                'user_id' => auth()->id(),
-                'tipo' => $tipo,
-                'cantidad' => $cantidad,
-                'motivo' => $request->motivo ?: 'Movimiento manual',
-                'detalles' => json_encode([
-                    'categoria' => $request->categoria,
-                    'referencia' => $request->referencia,
-                    'costo_unitario' => $request->costo_unitario,
-                    'total' => $total,
-                    'observaciones' => $request->observaciones,
-                ]),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            // Usar el servicio para ajustar inventario
+            if ($tipo === 'entrada') {
+                $this->inventarioService->entrada($producto, $cantidad, [
+                    'almacen_id' => $request->almacen_id,
+                    'motivo' => $request->motivo ?: 'Movimiento manual',
+                    'detalles' => [
+                        'categoria' => $request->categoria,
+                        'referencia' => $request->referencia,
+                        'costo_unitario' => $request->costo_unitario,
+                        'total' => $total,
+                        'observaciones' => $request->observaciones,
+                    ],
+                ]);
+            } else {
+                $this->inventarioService->salida($producto, $cantidad, [
+                    'almacen_id' => $request->almacen_id,
+                    'motivo' => $request->motivo ?: 'Movimiento manual',
+                    'detalles' => [
+                        'categoria' => $request->categoria,
+                        'referencia' => $request->referencia,
+                        'costo_unitario' => $request->costo_unitario,
+                        'total' => $total,
+                        'observaciones' => $request->observaciones,
+                    ],
+                ]);
+            }
 
             Log::info('Movimiento manual registrado', [
-                'producto_id' => $productoId,
-                'almacen_id' => $almacenId,
+                'producto_id' => $request->producto_id,
+                'almacen_id' => $request->almacen_id,
                 'tipo' => $tipo,
                 'cantidad' => $cantidad,
-                'stock_anterior' => $stockActual,
-                'stock_nuevo' => $nuevoStock,
             ]);
         });
 

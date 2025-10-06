@@ -106,6 +106,84 @@
                     </div>
                 </div>
 
+                <!-- Operaciones -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-6">
+                    <div class="border-b border-gray-200">
+                        <button
+                            @click="accordionOpen = !accordionOpen"
+                            class="w-full px-6 py-4 text-left flex justify-between items-center hover:bg-gray-50 transition-colors"
+                        >
+                            <h3 class="text-lg font-semibold text-gray-900">Operaciones de Compra</h3>
+                            <svg
+                                :class="accordionOpen ? 'transform rotate-180' : ''"
+                                class="w-5 h-5 text-gray-500 transition-transform"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div v-show="accordionOpen" class="px-6 py-4">
+                        <!-- Sección de Cuentas por Pagar -->
+                        <div class="border-t border-gray-200 pt-4">
+                            <div class="px-4 py-5 sm:p-0">
+                                <dl>
+                                    <div class="sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 sm:py-5">
+                                        <dt class="text-sm font-medium text-gray-500">
+                                            Estado de Pago
+                                        </dt>
+                                        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                                            <span v-if="compra.cuentas_por_pagar"
+                                                  :class="{
+                                                      'bg-red-100 text-red-800': compra.cuentas_por_pagar.estado === 'vencido',
+                                                      'bg-yellow-100 text-yellow-800': compra.cuentas_por_pagar.estado === 'parcial',
+                                                      'bg-green-100 text-green-800': compra.cuentas_por_pagar.estado === 'pagado',
+                                                      'bg-gray-100 text-gray-800': compra.cuentas_por_pagar.estado === 'pendiente'
+                                                  }"
+                                                  class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                                                {{ compra.cuentas_por_pagar.estado }}
+                                            </span>
+                                            <span v-else class="text-gray-500">No registrada</span>
+                                        </dd>
+                                    </div>
+
+                                    <div v-if="compra.cuentas_por_pagar" class="sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 sm:py-5">
+                                        <dt class="text-sm font-medium text-gray-500">
+                                            Monto Pendiente
+                                        </dt>
+                                        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                                            ${{ compra.cuentas_por_pagar.monto_pendiente.toFixed(2) }}
+                                        </dd>
+                                    </div>
+
+                                    <div class="sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 sm:py-5">
+                                        <dt class="text-sm font-medium text-gray-500">
+                                            Acciones
+                                        </dt>
+                                        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                                            <div class="flex space-x-2">
+                                                <Link v-if="!compra.cuentas_por_pagar"
+                                                      :href="route('cuentas-por-pagar.create', { compra_id: compra.id })"
+                                                      class="text-indigo-600 hover:text-indigo-900">
+                                                    Crear Cuenta por Pagar
+                                                </Link>
+                                                <Link v-else
+                                                      :href="route('cuentas-por-pagar.edit', compra.cuentas_por_pagar.id)"
+                                                      class="text-indigo-600 hover:text-indigo-900">
+                                                    Gestionar Pagos
+                                                </Link>
+                                            </div>
+                                        </dd>
+                                    </div>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Acciones -->
                 <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                     <div class="p-6 flex flex-wrap gap-3">
@@ -207,6 +285,7 @@ const items = computed(() => {
 
 // Estado
 const mostrarVistaPrevia = ref(false);
+const accordionOpen = ref(false);
 </script>
 
   <style scoped>

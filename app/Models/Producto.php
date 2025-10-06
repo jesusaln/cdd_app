@@ -15,6 +15,8 @@ class Producto extends Model
     use HasFactory;
 
     protected $casts = [
+        'precio_compra' => 'decimal:2',
+        'precio_venta' => 'decimal:2',
         'margen_ganancia' => 'decimal:2',
         'comision_vendedor' => 'decimal:2',
     ];
@@ -32,6 +34,7 @@ class Producto extends Model
         'stock',
         'reservado',
         'stock_minimo',
+        'expires',
         'precio_compra',
         'precio_venta',
         'margen_ganancia',
@@ -100,6 +103,12 @@ class Producto extends Model
     public function precioHistorial(): HasMany
     {
         return $this->hasMany(ProductoPrecioHistorial::class);
+    }
+
+    /** @return HasMany<Lote> */
+    public function lotes(): HasMany
+    {
+        return $this->hasMany(Lote::class);
     }
 
     /* =========================================================================

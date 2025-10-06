@@ -6,6 +6,7 @@ use App\Models\InventarioMovimiento;
 use App\Models\Producto;
 use App\Models\Almacen;
 use App\Models\User;
+use App\Models\Lote;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
@@ -21,12 +22,20 @@ class InventarioService
 
     public function entrada(Producto $producto, int $cantidad, array $contexto = []): void
     {
-        $this->ajustar($producto, 'entrada', $cantidad, $contexto);
+        if ($producto->expires) {
+            $this->entradaConLote($producto, $cantidad, $contexto);
+        } else {
+            $this->ajustar($producto, 'entrada', $cantidad, $contexto);
+        }
     }
 
     public function salida(Producto $producto, int $cantidad, array $contexto = []): void
     {
-        $this->ajustar($producto, 'salida', $cantidad, $contexto);
+        if ($producto->expires) {
+            $this->salidaConLote($producto, $cantidad, $contexto);
+        } else {
+            $this->ajustar($producto, 'salida', $cantidad, $contexto);
+        }
     }
 
     protected function ajustar(Producto $producto, string $tipo, int $cantidad, array $contexto = []): void
@@ -86,22 +95,28 @@ class InventarioService
             $totalStock = \App\Models\Inventario::where('producto_id', $producto->id)->sum('cantidad');
             $producto->update(['stock' => $totalStock]);
 
-            // Registrar en inventario_logs
+            // Registrar movimiento en inventario_movimientos
             $userId = Arr::get($contexto, 'user_id');
             if (!$userId && $this->usuarioAutenticado()) {
                 $userId = Auth::id();
             }
 
-            DB::table('inventario_logs')->insert([
+            $referencia = Arr::get($contexto, 'referencia');
+            $referenciaType = $referencia ? get_class($referencia) : null;
+            $referenciaId = $referencia ? $referencia->id : null;
+
+            \App\Models\InventarioMovimiento::create([
                 'producto_id' => $producto->id,
                 'almacen_id' => $almacenId,
-                'user_id' => $userId,
                 'tipo' => $tipo,
                 'cantidad' => $cantidad,
+                'stock_anterior' => $stockAnterior,
+                'stock_posterior' => $nuevoStock,
                 'motivo' => Arr::get($contexto, 'motivo', 'Movimiento de inventario'),
-                'detalles' => json_encode(Arr::get($contexto, 'detalles', [])),
-                'created_at' => now(),
-                'updated_at' => now(),
+                'referencia_type' => $referenciaType,
+                'referencia_id' => $referenciaId,
+                'user_id' => $userId,
+                'detalles' => Arr::get($contexto, 'detalles', []),
             ]);
         });
     }
@@ -225,5 +240,175 @@ class InventarioService
             ->orderBy('total_movimientos', 'desc')
             ->limit($limite)
             ->get();
+    }
+
+    /**
+     * Entrada de productos con manejo de lotes
+     */
+    protected function entradaConLote(Producto $producto, int $cantidad, array $contexto = []): void
+    {
+        $numeroLote = Arr::get($contexto, 'numero_lote');
+        $fechaCaducidad = Arr::get($contexto, 'fecha_caducidad');
+        $costoUnitario = Arr::get($contexto, 'costo_unitario');
+
+        if (!$numeroLote) {
+            throw new InvalidArgumentException('Número de lote requerido para productos que vencen');
+        }
+
+        $this->db->transaction(function () use ($producto, $cantidad, $contexto, $numeroLote, $fechaCaducidad, $costoUnitario) {
+            $almacenId = Arr::get($contexto, 'almacen_id');
+            if (!$almacenId) {
+                $almacenId = Almacen::where('estado', 'activo')->first()?->id;
+                if (!$almacenId) {
+                    throw new RuntimeException('No hay almacenes activos disponibles.');
+                }
+            }
+
+            // Crear o actualizar lote
+            $lote = Lote::firstOrCreate(
+                [
+                    'producto_id' => $producto->id,
+                    'numero_lote' => $numeroLote,
+                ],
+                [
+                    'fecha_caducidad' => $fechaCaducidad,
+                    'cantidad_inicial' => 0,
+                    'cantidad_actual' => 0,
+                    'costo_unitario' => $costoUnitario,
+                ]
+            );
+
+            $lote->increment('cantidad_inicial', $cantidad);
+            $lote->increment('cantidad_actual', $cantidad);
+
+            // Actualizar inventario general
+            $inventario = \App\Models\Inventario::firstOrCreate(
+                [
+                    'producto_id' => $producto->id,
+                    'almacen_id' => $almacenId,
+                ],
+                [
+                    'cantidad' => 0,
+                    'stock_minimo' => 0,
+                ]
+            );
+
+            $stockAnterior = $inventario->cantidad;
+            $inventario->increment('cantidad', $cantidad);
+
+            // Actualizar stock total del producto
+            $totalStock = \App\Models\Inventario::where('producto_id', $producto->id)->sum('cantidad');
+            $producto->update(['stock' => $totalStock]);
+
+            // Registrar movimiento
+            $userId = Arr::get($contexto, 'user_id');
+            if (!$userId && $this->usuarioAutenticado()) {
+                $userId = Auth::id();
+            }
+
+            $referencia = Arr::get($contexto, 'referencia');
+            $referenciaType = $referencia ? get_class($referencia) : null;
+            $referenciaId = $referencia ? $referencia->id : null;
+
+            \App\Models\InventarioMovimiento::create([
+                'producto_id' => $producto->id,
+                'almacen_id' => $almacenId,
+                'lote_id' => $lote->id,
+                'tipo' => 'entrada',
+                'cantidad' => $cantidad,
+                'stock_anterior' => $stockAnterior,
+                'stock_posterior' => $stockAnterior + $cantidad,
+                'motivo' => Arr::get($contexto, 'motivo', 'Entrada con lote'),
+                'referencia_type' => $referenciaType,
+                'referencia_id' => $referenciaId,
+                'user_id' => $userId,
+                'detalles' => Arr::get($contexto, 'detalles', []),
+            ]);
+        });
+    }
+
+    /**
+     * Salida de productos con manejo de lotes (FIFO)
+     */
+    protected function salidaConLote(Producto $producto, int $cantidad, array $contexto = []): void
+    {
+        $this->db->transaction(function () use ($producto, $cantidad, $contexto) {
+            $almacenId = Arr::get($contexto, 'almacen_id');
+            if (!$almacenId) {
+                $almacenId = Almacen::where('estado', 'activo')->first()?->id;
+                if (!$almacenId) {
+                    throw new RuntimeException('No hay almacenes activos disponibles.');
+                }
+            }
+
+            // Obtener lotes disponibles ordenados por fecha de caducidad (FIFO)
+            $lotes = $producto->lotes()
+                ->where('cantidad_actual', '>', 0)
+                ->where(function ($q) {
+                    $q->whereNull('fecha_caducidad')
+                      ->orWhere('fecha_caducidad', '>', now());
+                })
+                ->orderBy('fecha_caducidad', 'asc')
+                ->get();
+
+            $cantidadRestante = $cantidad;
+            $lotesUsados = [];
+
+            foreach ($lotes as $lote) {
+                if ($cantidadRestante <= 0) break;
+
+                $cantidadLote = min($cantidadRestante, $lote->cantidad_actual);
+                $lote->decrement('cantidad_actual', $cantidadLote);
+                $cantidadRestante -= $cantidadLote;
+                $lotesUsados[] = ['lote' => $lote, 'cantidad' => $cantidadLote];
+            }
+
+            if ($cantidadRestante > 0) {
+                throw new RuntimeException("Stock insuficiente. Faltan {$cantidadRestante} unidades del producto '{$producto->nombre}'.");
+            }
+
+            // Actualizar inventario general
+            $inventario = \App\Models\Inventario::where('producto_id', $producto->id)
+                ->where('almacen_id', $almacenId)
+                ->first();
+
+            if (!$inventario || $inventario->cantidad < $cantidad) {
+                throw new RuntimeException("Stock insuficiente en almacén para el producto '{$producto->nombre}'.");
+            }
+
+            $stockAnterior = $inventario->cantidad;
+            $inventario->decrement('cantidad', $cantidad);
+
+            // Actualizar stock total del producto
+            $totalStock = \App\Models\Inventario::where('producto_id', $producto->id)->sum('cantidad');
+            $producto->update(['stock' => $totalStock]);
+
+            // Registrar movimientos por lote
+            $userId = Arr::get($contexto, 'user_id');
+            if (!$userId && $this->usuarioAutenticado()) {
+                $userId = Auth::id();
+            }
+
+            $referencia = Arr::get($contexto, 'referencia');
+            $referenciaType = $referencia ? get_class($referencia) : null;
+            $referenciaId = $referencia ? $referencia->id : null;
+
+            foreach ($lotesUsados as $loteData) {
+                \App\Models\InventarioMovimiento::create([
+                    'producto_id' => $producto->id,
+                    'almacen_id' => $almacenId,
+                    'lote_id' => $loteData['lote']->id,
+                    'tipo' => 'salida',
+                    'cantidad' => $loteData['cantidad'],
+                    'stock_anterior' => $stockAnterior,
+                    'stock_posterior' => $stockAnterior - $cantidad,
+                    'motivo' => Arr::get($contexto, 'motivo', 'Salida con lote'),
+                    'referencia_type' => $referenciaType,
+                    'referencia_id' => $referenciaId,
+                    'user_id' => $userId,
+                    'detalles' => Arr::get($contexto, 'detalles', []),
+                ]);
+            }
+        });
     }
 }

@@ -7,6 +7,7 @@ use App\Models\Almacen;
 use App\Models\MovimientoManual;
 use App\Models\AjusteInventario;
 use App\Models\Traspaso;
+use App\Models\InventarioMovimiento;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -155,25 +156,30 @@ class ReportesInventarioController extends Controller
         $fechaFin = $request->get('fecha_fin', now()->format('Y-m-d'));
         $tipo = $request->get('tipo'); // entrada, salida, todos
 
-        // Movimientos de inventario_logs
-        $query = DB::table('inventario_logs')
-            ->join('productos', 'inventario_logs.producto_id', '=', 'productos.id')
-            ->join('almacenes', 'inventario_logs.almacen_id', '=', 'almacenes.id')
-            ->leftJoin('users', 'inventario_logs.user_id', '=', 'users.id')
-            ->whereBetween('inventario_logs.created_at', [$fechaInicio . ' 00:00:00', $fechaFin . ' 23:59:59'])
-            ->select([
-                'inventario_logs.*',
-                'productos.nombre as producto_nombre',
-                'productos.codigo as producto_codigo',
-                'almacenes.nombre as almacen_nombre',
-                'users.name as usuario_nombre',
-            ]);
+        // Movimientos de inventario_movimientos
+        $query = InventarioMovimiento::with(['producto', 'almacen', 'user'])
+            ->whereBetween('created_at', [$fechaInicio . ' 00:00:00', $fechaFin . ' 23:59:59']);
 
         if ($tipo && $tipo !== 'todos') {
-            $query->where('inventario_logs.tipo', $tipo);
+            $query->where('tipo', $tipo);
         }
 
-        $movimientos = $query->orderBy('inventario_logs.created_at', 'desc')->get();
+        $movimientos = $query->orderBy('created_at', 'desc')->get()->map(function ($movimiento) {
+            return [
+                'id' => $movimiento->id,
+                'tipo' => $movimiento->tipo,
+                'cantidad' => $movimiento->cantidad,
+                'motivo' => $movimiento->motivo,
+                'created_at' => $movimiento->created_at,
+                'producto_id' => $movimiento->producto_id,
+                'almacen_id' => $movimiento->almacen_id,
+                'user_id' => $movimiento->user_id,
+                'producto_nombre' => $movimiento->producto->nombre ?? 'Producto no encontrado',
+                'producto_codigo' => $movimiento->producto->codigo ?? '',
+                'almacen_nombre' => $movimiento->almacen->nombre ?? 'Almacén no encontrado',
+                'usuario_nombre' => $movimiento->user->name ?? 'Usuario no encontrado',
+            ];
+        });
 
         // Estadísticas del período
         $stats = [
@@ -272,22 +278,20 @@ class ReportesInventarioController extends Controller
         switch ($tipoCosto) {
             case 'ultimo':
                 // Último costo de entrada
-                $ultimoMovimiento = DB::table('inventario_logs')
-                    ->where('producto_id', $productoId)
+                $ultimoMovimiento = InventarioMovimiento::where('producto_id', $productoId)
                     ->where('tipo', 'entrada')
-                    ->whereNotNull('detalles->costo_unitario')
+                    ->whereJsonContains('detalles', ['costo_unitario'])
                     ->orderBy('created_at', 'desc')
                     ->first();
 
-                return $ultimoMovimiento ? json_decode($ultimoMovimiento->detalles)->costo_unitario ?? 0 : 0;
+                return $ultimoMovimiento ? $ultimoMovimiento->detalles['costo_unitario'] ?? 0 : 0;
 
             case 'promedio':
             default:
                 // Costo promedio ponderado
-                $movimientosEntrada = DB::table('inventario_logs')
-                    ->where('producto_id', $productoId)
+                $movimientosEntrada = InventarioMovimiento::where('producto_id', $productoId)
                     ->where('tipo', 'entrada')
-                    ->whereNotNull('detalles->costo_unitario')
+                    ->whereJsonContains('detalles', ['costo_unitario'])
                     ->get();
 
                 if ($movimientosEntrada->isEmpty()) {
@@ -298,9 +302,8 @@ class ReportesInventarioController extends Controller
                 $totalCosto = 0;
 
                 foreach ($movimientosEntrada as $movimiento) {
-                    $detalles = json_decode($movimiento->detalles);
                     $cantidad = $movimiento->cantidad;
-                    $costo = $detalles->costo_unitario ?? 0;
+                    $costo = $movimiento->detalles['costo_unitario'] ?? 0;
 
                     $totalCantidad += $cantidad;
                     $totalCosto += ($cantidad * $costo);
@@ -315,8 +318,7 @@ class ReportesInventarioController extends Controller
      */
     private function getUltimoMovimiento($productoId)
     {
-        $ultimo = DB::table('inventario_logs')
-            ->where('producto_id', $productoId)
+        $ultimo = InventarioMovimiento::where('producto_id', $productoId)
             ->orderBy('created_at', 'desc')
             ->first();
 

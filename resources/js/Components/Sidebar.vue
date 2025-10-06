@@ -119,6 +119,9 @@
             <NavLink href="/ordenescompra" icon="file-invoice-dollar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Órdenes de Compra' : null">
               Órdenes de Compra
             </NavLink>
+            <NavLink href="/cuentas-por-pagar" icon="file-invoice-dollar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Cuentas por Pagar' : null">
+              Cuentas por Pagar
+            </NavLink>
             <NavLink href="/proveedores" icon="truck" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Proveedores' : null">
               Proveedores
             </NavLink>
@@ -499,7 +502,7 @@ const getCurrentSection = () => {
     return 'inventario';
   } else if (path.includes('/cotizaciones') || path.includes('/pedidos') || path.includes('/ventas') || path.includes('/cobranza')) {
     return 'ventas';
-  } else if (path.includes('/compras') || path.includes('/ordenescompra') || path.includes('/proveedores')) {
+  } else if (path.includes('/compras') || path.includes('/ordenescompra') || path.includes('/proveedores') || path.includes('/cuentas-por-pagar')) {
     return 'compras';
   } else if (path.includes('/servicios') || path.includes('/categorias') || path.includes('/marcas') || path.includes('/almacenes')) {
     return 'catalogos';

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\Concerns\Blameable;
@@ -64,6 +65,12 @@ class Compra extends Model
     public function ordenCompra(): BelongsTo
     {
         return $this->belongsTo(OrdenCompra::class);
+    }
+
+    /** Relación con cuentas por pagar */
+    public function cuentasPorPagar(): HasOne
+    {
+        return $this->hasOne(CuentasPorPagar::class);
     }
 
     // Relaciones de "culpables"

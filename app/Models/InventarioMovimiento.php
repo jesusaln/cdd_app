@@ -19,6 +19,8 @@ class InventarioMovimiento extends Model
      */
     protected $fillable = [
         'producto_id',
+        'almacen_id',
+        'lote_id',
         'tipo',
         'cantidad',
         'stock_anterior',
@@ -59,5 +61,21 @@ class InventarioMovimiento extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * @return BelongsTo<Almacen, InventarioMovimiento>
+     */
+    public function almacen(): BelongsTo
+    {
+        return $this->belongsTo(Almacen::class);
+    }
+
+    /**
+     * @return BelongsTo<Lote, InventarioMovimiento>
+     */
+    public function lote(): BelongsTo
+    {
+        return $this->belongsTo(Lote::class);
     }
 }

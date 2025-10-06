@@ -8,12 +8,17 @@ use App\Models\Producto;
 use App\Models\Almacen;
 use App\Models\Inventario;
 use App\Models\Traspaso;
+use App\Services\InventarioService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\User;
 
 class TraspasoController extends Controller
 {
+    public function __construct(private readonly InventarioService $inventarioService)
+    {
+    }
+
     public function index(Request $request)
     {
         $perPage = (int) ($request->integer('per_page') ?: 10);
@@ -201,52 +206,20 @@ class TraspasoController extends Controller
                 'costo_transporte' => $request->costo_transporte,
             ]);
 
-            // Reducir stock en origen
-            $inventarioOrigen->decrement('cantidad', $cantidad);
-
-            // Aumentar stock en destino (o crear si no existe)
-            $inventarioDestino = Inventario::firstOrCreate(
-                [
-                    'producto_id' => $productoId,
-                    'almacen_id' => $almacenDestinoId,
-                ],
-                [
-                    'cantidad' => 0,
-                    'stock_minimo' => 0,
-                ]
-            );
-
-            $inventarioDestino->increment('cantidad', $cantidad);
-
-            // Actualizar stock total en producto
             $producto = Producto::find($productoId);
-            $totalStock = Inventario::where('producto_id', $productoId)->sum('cantidad');
-            $producto->update(['stock' => $totalStock]);
 
-            // Registrar movimientos en inventario_logs
-            DB::table('inventario_logs')->insert([
-                [
-                    'producto_id' => $productoId,
-                    'almacen_id' => $almacenOrigenId,
-                    'user_id' => auth()->id(),
-                    'tipo' => 'salida',
-                    'cantidad' => $cantidad,
-                    'motivo' => 'Traspaso a almacén ' . $almacenDestino->nombre,
-                    'detalles' => json_encode(['traspaso_id' => $traspaso->id, 'destino' => $almacenDestinoId]),
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ],
-                [
-                    'producto_id' => $productoId,
-                    'almacen_id' => $almacenDestinoId,
-                    'user_id' => auth()->id(),
-                    'tipo' => 'entrada',
-                    'cantidad' => $cantidad,
-                    'motivo' => 'Traspaso desde almacén ' . $almacenOrigen->nombre,
-                    'detalles' => json_encode(['traspaso_id' => $traspaso->id, 'origen' => $almacenOrigenId]),
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]
+            // Salida del almacén origen
+            $this->inventarioService->salida($producto, $cantidad, [
+                'almacen_id' => $almacenOrigenId,
+                'motivo' => 'Traspaso a almacén ' . $almacenDestino->nombre,
+                'detalles' => ['traspaso_id' => $traspaso->id, 'destino' => $almacenDestinoId],
+            ]);
+
+            // Entrada al almacén destino
+            $this->inventarioService->entrada($producto, $cantidad, [
+                'almacen_id' => $almacenDestinoId,
+                'motivo' => 'Traspaso desde almacén ' . $almacenOrigen->nombre,
+                'detalles' => ['traspaso_id' => $traspaso->id, 'origen' => $almacenOrigenId],
             ]);
 
             Log::info('Traspaso realizado', [
@@ -255,7 +228,6 @@ class TraspasoController extends Controller
                 'origen' => $almacenOrigenId,
                 'destino' => $almacenDestinoId,
                 'cantidad' => $cantidad,
-                'stock_total_actualizado' => $totalStock,
             ]);
         });
 
