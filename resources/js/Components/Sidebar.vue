@@ -89,9 +89,6 @@
             <NavLink href="/ventas" icon="dollar-sign" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Ventas Realizadas' : null">
               Ventas Realizadas
             </NavLink>
-            <NavLink href="/cobranza" icon="dollar-sign" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Cobranza' : null">
-              Cobranza
-            </NavLink>
             <NavLink href="/cuentas-por-cobrar" icon="file-invoice-dollar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Cuentas por Cobrar' : null">
               Cuentas por Cobrar
             </NavLink>
@@ -346,8 +343,8 @@
             <NavLink href="/equipos" icon="laptop" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Equipos' : null">
               Equipos
             </NavLink>
-            <NavLink href="/cuentas-por-cobrar" icon="file-invoice-dollar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Cuentas por Cobrar' : null">
-              Cuentas por Cobrar
+            <NavLink href="/cobranza" icon="dollar-sign" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Cobranza' : null">
+              Cobranza
             </NavLink>
           </div>
         </div>
@@ -506,7 +503,7 @@ const getCurrentSection = () => {
   // Verificar inventario primero (mÃƒÂ¡s especÃƒÂ­fico)
   if (path.includes('/productos') || path.includes('/traspasos') || path.includes('/movimientos-inventario') || path.includes('/ajustes-inventario') || path.includes('/movimientos-manuales')) {
     return 'inventario';
-  } else if (path.includes('/cotizaciones') || path.includes('/pedidos') || path.includes('/ventas') || path.includes('/cobranza') || path.includes('/cuentas-por-cobrar')) {
+  } else if (path.includes('/cotizaciones') || path.includes('/pedidos') || path.includes('/ventas') || path.includes('/cuentas-por-cobrar')) {
     return 'ventas';
   } else if (path.includes('/compras') || path.includes('/ordenescompra') || path.includes('/proveedores') || path.includes('/cuentas-por-pagar')) {
     return 'compras';
@@ -520,7 +517,7 @@ const getCurrentSection = () => {
     return 'usuario';
   } else if (path.includes('/reportes')) {
     return 'reportes';
-  } else if (path.includes('/rentas') || path.includes('/equipos')) {
+  } else if (path.includes('/rentas') || path.includes('/equipos') || path.includes('/cobranza')) {
     return 'rentas';
   } else if (path.includes('/carros') || path.includes('/mantenimientos') || path.includes('/tecnicos') || path.includes('/herramientas')) {
     return 'taller';

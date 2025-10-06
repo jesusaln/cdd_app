@@ -147,11 +147,11 @@ class Producto extends Model
 
     public function getStockDisponibleAttribute()
     {
-        // Stock disponible = suma de inventarios - cantidad reservada
-        $inventarioTotal = $this->inventarios->sum('cantidad');
+        // Stock disponible = stock total - cantidad reservada
+        $stockTotal = (int) $this->stock;
         $reservado = (int) $this->reservado;
 
-        return max(0, $inventarioTotal - $reservado);
+        return max(0, $stockTotal - $reservado);
     }
 
     public function getStockTotalAttribute()

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\EstadoCompra;
 use App\Models\Compra; // <-- Importa el modelo Compra aquí
+use App\Models\CuentasPorPagar;
 use App\Models\OrdenCompra;
 use App\Models\Producto;
 use App\Models\ProductoPrecioHistorial;
@@ -787,6 +788,17 @@ class OrdenCompraController extends Controller
                 'iva' => $iva,
                 'total' => $total,
                 'estado' => EstadoCompra::Procesada,
+            ]);
+
+            // Crear cuenta por pagar automáticamente (igual que en CompraController)
+            CuentasPorPagar::create([
+                'compra_id' => $compra->id,
+                'monto_total' => $total,
+                'monto_pagado' => 0,
+                'monto_pendiente' => $total,
+                'fecha_vencimiento' => now()->addDays(30), // 30 días por defecto
+                'estado' => 'pendiente',
+                'notas' => 'Cuenta generada automáticamente por recepción de orden de compra',
             ]);
 
             // Crea los items de la compra
