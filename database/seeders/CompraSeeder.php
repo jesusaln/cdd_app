@@ -8,10 +8,15 @@ use App\Models\CompraItem;
 use App\Models\Proveedor;
 use App\Models\Producto;
 use App\Models\InventarioMovimiento;
+use App\Services\InventarioService;
 use Carbon\Carbon;
 
 class CompraSeeder extends Seeder
 {
+    public function __construct(private readonly InventarioService $inventarioService)
+    {
+    }
+
     public function run(): void
     {
         // Obtener proveedores existentes
@@ -21,41 +26,57 @@ class CompraSeeder extends Seeder
             return; // No hay proveedores, no podemos crear compras
         }
 
-        // Obtener categorías existentes
-        $categorias = \App\Models\Categoria::all();
+        // Obtener productos existentes con stock suficiente para compras
+        $productos = Producto::where('estado', 'activo')->get();
 
-        // Crear algunas compras de ejemplo
+        if ($productos->isEmpty()) {
+            return; // No hay productos disponibles, no podemos crear compras
+        }
+
+        // Obtener almacenes existentes
+        $almacenes = \App\Models\Almacen::all();
+
+        if ($almacenes->isEmpty()) {
+            return; // No hay almacenes, no podemos crear compras
+        }
+
+        // Crear algunas compras de ejemplo usando productos existentes
         $compras = [
             [
                 'proveedor_id' => $proveedores->random()->id,
                 'estado' => 'procesada',
                 'notas' => 'Compra inicial de productos básicos',
-                'productos' => [
-                    ['nombre' => 'Producto A', 'cantidad' => 50, 'precio_unitario' => 10.00, 'categoria' => $categorias->random()->nombre],
-                    ['nombre' => 'Producto B', 'cantidad' => 30, 'precio_unitario' => 25.00, 'categoria' => $categorias->random()->nombre],
-                    ['nombre' => 'Producto C', 'cantidad' => 20, 'precio_unitario' => 15.00, 'categoria' => $categorias->random()->nombre],
-                ]
+                'productos' => $productos->random(min(3, $productos->count()))->map(function ($producto) {
+                    return [
+                        'producto_id' => $producto->id,
+                        'cantidad' => rand(10, 50),
+                        'precio_unitario' => $producto->precio_compra ?: rand(10, 100),
+                    ];
+                })->toArray()
             ],
             [
                 'proveedor_id' => $proveedores->random()->id,
-
                 'estado' => 'procesada',
                 'notas' => 'Compra de repuestos',
-                'productos' => [
-                    ['nombre' => 'Repuesto X', 'cantidad' => 40, 'precio_unitario' => 8.00, 'categoria' => $categorias->random()->nombre],
-                    ['nombre' => 'Repuesto Y', 'cantidad' => 25, 'precio_unitario' => 12.00, 'categoria' => $categorias->random()->nombre],
-                ]
+                'productos' => $productos->random(min(2, $productos->count()))->map(function ($producto) {
+                    return [
+                        'producto_id' => $producto->id,
+                        'cantidad' => rand(5, 30),
+                        'precio_unitario' => $producto->precio_compra ?: rand(8, 50),
+                    ];
+                })->toArray()
             ],
             [
                 'proveedor_id' => $proveedores->random()->id,
-
                 'estado' => 'procesada',
                 'notas' => 'Compra de materiales',
-                'productos' => [
-                    ['nombre' => 'Material P', 'cantidad' => 100, 'precio_unitario' => 5.00, 'categoria' => 'Materiales'],
-                    ['nombre' => 'Material Q', 'cantidad' => 75, 'precio_unitario' => 7.50, 'categoria' => 'Materiales'],
-                    ['nombre' => 'Material R', 'cantidad' => 60, 'precio_unitario' => 9.00, 'categoria' => 'Materiales'],
-                ]
+                'productos' => $productos->random(min(3, $productos->count()))->map(function ($producto) {
+                    return [
+                        'producto_id' => $producto->id,
+                        'cantidad' => rand(20, 100),
+                        'precio_unitario' => $producto->precio_compra ?: rand(5, 25),
+                    ];
+                })->toArray()
             ],
         ];
 
@@ -69,29 +90,20 @@ class CompraSeeder extends Seeder
             }
             $compraData['total'] = $total;
 
+            // Elegir el almacén principal para esta compra
+            $almacenCompra = $almacenes->first();
+
+            $compraData['almacen_id'] = $almacenCompra->id;
+
             $compra = Compra::create($compraData);
 
-            // Crear productos si no existen y asociarlos a la compra
+            // Asociar productos existentes a la compra
             foreach ($productos as $productoData) {
-                $producto = Producto::firstOrCreate(
-                    ['nombre' => $productoData['nombre']],
-                    [
-                        'descripcion' => 'Producto creado desde compra',
-                        'codigo' => 'COMP-' . strtoupper(substr(md5($productoData['nombre']), 0, 8)),
-                        'codigo_barras' => 'CB' . rand(100000000000, 999999999999),
-                        'precio_compra' => $productoData['precio_unitario'],
-                        'precio_venta' => $productoData['precio_unitario'] * 1.5, // Precio de venta = costo * 1.5
-                        'stock' => $productoData['cantidad'],
-                        'stock_minimo' => 10,
-                        'impuesto' => 16.00,
-                        'unidad_medida' => 'Pieza',
-                        'tipo_producto' => 'fisico',
-                        'estado' => 'activo',
-                        'categoria_id' => \App\Models\Categoria::where('nombre', $productoData['categoria'])->first()?->id ?? 1,
-                        'marca_id' => \App\Models\Marca::first()?->id ?? 1,
-                        'proveedor_id' => $compra->proveedor_id,
-                    ]
-                );
+                $producto = Producto::find($productoData['producto_id']);
+
+                if (!$producto) {
+                    continue; // Saltar si el producto no existe
+                }
 
                 // Asociar producto a la compra
                 CompraItem::create([
@@ -105,24 +117,49 @@ class CompraSeeder extends Seeder
                     'descuento_monto' => 0,
                 ]);
 
-                // Registrar movimiento de inventario
-                $stockAnterior = $producto->stock;
-                $producto->increment('stock', $productoData['cantidad']);
-                $stockPosterior = $producto->stock;
-
-                InventarioMovimiento::create([
-                    'producto_id' => $producto->id,
-                    'tipo' => 'entrada',
-                    'cantidad' => $productoData['cantidad'],
-                    'stock_anterior' => $stockAnterior,
-                    'stock_posterior' => $stockPosterior,
+                // Usar servicio de inventario para entrada correcta
+                $this->inventarioService->entrada($producto, $productoData['cantidad'], [
+                    'almacen_id' => $almacenCompra->id,
                     'motivo' => 'Compra procesada',
                     'referencia_type' => 'App\Models\Compra',
                     'referencia_id' => $compra->id,
-                    'user_id' => 1, // Usuario por defecto
-                    'detalles' => "Compra #{$compra->numero_compra} - {$productoData['nombre']}",
+                    'user_id' => $this->obtenerUsuarioAdminId(),
+                    'detalles' => [
+                        'compra_numero' => $compra->numero_compra,
+                        'producto_nombre' => $producto->nombre,
+                        'precio_unitario' => $productoData['precio_unitario']
+                    ],
                 ]);
             }
         }
+    }
+
+    /**
+     * Obtener el ID del usuario administrador existente
+     */
+    private function obtenerUsuarioAdminId(): int
+    {
+        // Buscar usuario administrador por email (como se crea en RolesAndPermissionsSeeder)
+        $adminUser = \App\Models\User::where('email', 'jesuslopeznoriega@hotmail.com')->first();
+
+        if ($adminUser) {
+            return $adminUser->id;
+        }
+
+        // Si no existe el usuario administrador, buscar cualquier usuario existente
+        $anyUser = \App\Models\User::first();
+
+        if ($anyUser) {
+            return $anyUser->id;
+        }
+
+        // Si no hay usuarios, crear uno temporal para evitar errores
+        $tempUser = \App\Models\User::create([
+            'name' => 'Usuario Temporal',
+            'email' => 'temp-' . time() . '@temp.com',
+            'password' => bcrypt('temp123'),
+        ]);
+
+        return $tempUser->id;
     }
 }

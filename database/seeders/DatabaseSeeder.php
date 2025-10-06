@@ -24,32 +24,35 @@ class DatabaseSeeder extends Seeder
             // 2) Proveedores (necesarios para compras)
             ProveedorSeeder::class,
 
-            // 3) Compras (crean productos automáticamente)
-            CompraSeeder::class,
+            // 3) Productos básicos (sin stock inicial)
+            ProductoSeeder::class,
 
-            // 4) Clientes (para cotizaciones y ventas)
+            // 4) Compras (agregan stock a productos existentes)
+            //CompraSeeder::class,
+
+            // 5) Clientes (para cotizaciones y ventas)
             ClienteSeeder::class,
 
-            // 5) Técnicos (para asignaciones)
+            // 6) Técnicos (para asignaciones)
             TecnicoSeeder::class,
 
-            // 6) Cotizaciones y pedidos (basados en productos existentes)
+            // 7) Cotizaciones y pedidos (basados en productos existentes)
             CotizacionSeeder::class,
             CotizacionItemSeeder::class,
 
-            // 7) Órdenes de compra (pueden crear compras)
+            // 8) Órdenes de compra (pueden crear compras)
             OrdenCompraSeeder::class,
 
-            // 8) Herramientas y equipos
+            // 9) Herramientas y equipos
             HerramientaSeeder::class,
             EquipoSeeder::class,
 
-            // 9) Carros y mantenimientos
+            // 10) Carros y mantenimientos
             CarroSeeder::class,
             CitaSeeder::class,
 
-            // 10) Ventas (basadas en productos existentes)
-            VentaSeeder::class,
+            // 11) Ventas (basadas en productos existentes)
+            //VentaSeeder::class,
 
             // 11) Datos que referencian usuarios/clientes/etc.
             BitacoraActividadSeeder::class,

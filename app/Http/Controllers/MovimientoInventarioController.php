@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use App\Models\Producto;
 use App\Models\Almacen;
@@ -51,15 +52,59 @@ class MovimientoInventarioController extends Controller
         }
 
         $movimientos = $query->paginate($perPage)->through(function ($movimiento) {
+            // Obtener información detallada del producto
+            $producto = $movimiento->producto;
+            $productoInfo = null;
+            if ($producto) {
+                $productoInfo = [
+                    'id' => $producto->id,
+                    'nombre' => $producto->nombre,
+                    'codigo' => $producto->codigo,
+                    'categoria' => $producto->categoria ? [
+                        'id' => $producto->categoria->id,
+                        'nombre' => $producto->categoria->nombre,
+                    ] : null,
+                ];
+            }
+
+            // Obtener información detallada del almacén
+            $almacen = $movimiento->almacen;
+            $almacenInfo = null;
+            if ($almacen) {
+                $almacenInfo = [
+                    'id' => $almacen->id,
+                    'nombre' => $almacen->nombre,
+                    'ubicacion' => $almacen->ubicacion,
+                ];
+            }
+
+            // Obtener información detallada del usuario
+            $usuario = $movimiento->user;
+            $usuarioInfo = null;
+            if ($usuario) {
+                $usuarioInfo = [
+                    'id' => $usuario->id,
+                    'name' => $usuario->name,
+                    'email' => $usuario->email,
+                ];
+            }
+
             return [
                 'id' => $movimiento->id,
                 'tipo' => $movimiento->tipo,
                 'cantidad' => $movimiento->cantidad,
                 'motivo' => $movimiento->motivo,
                 'created_at' => $movimiento->created_at,
-                'producto_nombre' => $movimiento->producto->nombre ?? 'Producto no encontrado',
-                'almacen_nombre' => $movimiento->almacen->nombre ?? 'Almacén no encontrado',
-                'usuario_nombre' => $movimiento->user->name ?? 'Usuario no encontrado',
+                'producto' => $productoInfo,
+                'almacen' => $almacenInfo,
+                'usuario' => $usuarioInfo,
+                'producto_id' => $movimiento->producto_id,
+                'almacen_id' => $movimiento->almacen_id,
+                'user_id' => $movimiento->user_id,
+                // Para compatibilidad con el frontend existente
+                'producto_nombre' => $productoInfo ? $productoInfo['nombre'] : 'Producto eliminado',
+                'almacen_nombre' => $almacenInfo ? $almacenInfo['nombre'] : 'Almacén eliminado',
+                'usuario_nombre' => $usuarioInfo ? $usuarioInfo['name'] : 'Usuario eliminado',
             ];
         });
 
@@ -78,5 +123,70 @@ class MovimientoInventarioController extends Controller
             'almacenes' => Almacen::select('id', 'nombre')->get(),
             'filters' => $request->only(['search', 'producto_id', 'almacen_id', 'tipo']),
         ]);
+    }
+
+    /**
+     * Limpiar movimientos de inventario huérfanos
+     */
+    public function limpiarHuérfanos()
+    {
+        try {
+            $movimientosEliminados = 0;
+
+            // Eliminar movimientos con productos inexistentes
+            $productosInexistentes = DB::table('inventario_movimientos')
+                ->leftJoin('productos', 'inventario_movimientos.producto_id', '=', 'productos.id')
+                ->whereNull('productos.id')
+                ->pluck('inventario_movimientos.id');
+
+            if ($productosInexistentes->count() > 0) {
+                DB::table('inventario_movimientos')
+                    ->whereIn('id', $productosInexistentes)
+                    ->delete();
+                $movimientosEliminados += $productosInexistentes->count();
+            }
+
+            // Eliminar movimientos con almacenes inexistentes
+            $almacenesInexistentes = DB::table('inventario_movimientos')
+                ->leftJoin('almacens', 'inventario_movimientos.almacen_id', '=', 'almacens.id')
+                ->whereNull('almacens.id')
+                ->pluck('inventario_movimientos.id');
+
+            if ($almacenesInexistentes->count() > 0) {
+                DB::table('inventario_movimientos')
+                    ->whereIn('id', $almacenesInexistentes)
+                    ->delete();
+                $movimientosEliminados += $almacenesInexistentes->count();
+            }
+
+            // Eliminar movimientos con usuarios inexistentes
+            $usuariosInexistentes = DB::table('inventario_movimientos')
+                ->leftJoin('users', 'inventario_movimientos.user_id', '=', 'users.id')
+                ->whereNull('users.id')
+                ->pluck('inventario_movimientos.id');
+
+            if ($usuariosInexistentes->count() > 0) {
+                DB::table('inventario_movimientos')
+                    ->whereIn('id', $usuariosInexistentes)
+                    ->delete();
+                $movimientosEliminados += $usuariosInexistentes->count();
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Se eliminaron {$movimientosEliminados} movimientos huérfanos",
+                'detalles' => [
+                    'productos_inexistentes' => $productosInexistentes->count(),
+                    'almacenes_inexistentes' => $almacenesInexistentes->count(),
+                    'usuarios_inexistentes' => $usuariosInexistentes->count(),
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al limpiar movimientos huérfanos: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

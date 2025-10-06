@@ -136,6 +136,16 @@ class ProductoController extends Controller
         // Set stock to 0 since it will be managed through purchases
         $validated['stock'] = 0;
 
+        // Set default values for required fields that might be null
+        if (empty($validated['descripcion'])) {
+            $validated['descripcion'] = 'Sin descripción disponible';
+        }
+
+        // Set default values for missing fillable fields
+        $validated['reservado'] = $validated['reservado'] ?? 0;
+        $validated['expires'] = $validated['expires'] ?? false;
+        $validated['margen_ganancia'] = $validated['margen_ganancia'] ?? 0;
+
         $producto = Producto::create($validated);
 
         // Log initial prices

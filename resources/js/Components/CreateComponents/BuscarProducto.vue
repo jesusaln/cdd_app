@@ -110,14 +110,14 @@
                 </span>
                 <span class="text-sm font-medium text-gray-900">{{ item.nombre }}</span>
               </div>
-              <div class="text-xs text-gray-500 mt-1">{{ item.categoria || 'Sin categoría' }}</div>
+              <div class="text-xs text-gray-500 mt-1">{{ typeof item.categoria === 'string' ? item.categoria : (item.categoria?.nombre || 'Sin categoría') }}</div>
             </div>
             <div class="text-right">
               <div class="text-sm font-semibold text-green-600">
                 ${{ formatearPrecio(item.tipo === 'producto' ? item.precio_venta : item.precio) }}
               </div>
               <div v-if="item.tipo === 'producto'" class="text-xs text-gray-500">
-                Stock: {{ item.stock }}
+                Stock: {{ item.stock_total || item.stock || 0 }}
               </div>
             </div>
           </div>
@@ -185,7 +185,7 @@
             </div>
             <!-- Categoría -->
             <div class="col-span-2">
-              <span class="text-sm text-gray-600">{{ item.categoria || 'Sin categoría' }}</span>
+              <span class="text-sm text-gray-600">{{ typeof item.categoria === 'string' ? item.categoria : (item.categoria?.nombre || 'Sin categoría') }}</span>
             </div>
             <!-- Precio -->
             <div class="col-span-2">
@@ -197,11 +197,11 @@
             <div class="col-span-1">
               <span v-if="item.tipo === 'producto'" :class="[
                 'text-xs px-2 py-1 rounded-full font-medium',
-                item.stock > 10 ? 'bg-green-100 text-green-800' :
-                item.stock > 0 ? 'bg-yellow-100 text-yellow-800' :
+                (item.stock_total || item.stock) > 10 ? 'bg-green-100 text-green-800' :
+                (item.stock_total || item.stock) > 0 ? 'bg-yellow-100 text-yellow-800' :
                 'bg-red-100 text-red-800'
               ]">
-                {{ item.stock }}
+                {{ item.stock_total || item.stock || 0 }}
               </span>
               <span v-else class="text-xs text-gray-400">∞</span>
             </div>
@@ -210,10 +210,10 @@
               <button
                 type="button"
                 @click="agregarItem(item)"
-                :disabled="item.tipo === 'producto' && item.stock <= 0"
+                :disabled="item.tipo === 'producto' && (item.stock_total || item.stock) <= 0"
                 :class="[
                   'w-full px-2 py-1 text-xs font-medium rounded-md transition-colors duration-200',
-                  item.tipo === 'producto' && item.stock <= 0
+                  item.tipo === 'producto' && (item.stock_total || item.stock) <= 0
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     : 'bg-green-500 text-white hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1'
                 ]"
@@ -306,7 +306,11 @@ const itemsFiltrados = computed(() => {
     items = items.filter(item =>
       item.nombre.toLowerCase().includes(termino) ||
       (item.codigo && item.codigo.toLowerCase().includes(termino)) ||
-      (item.categoria && item.categoria.toLowerCase().includes(termino)) ||
+      (item.categoria && (
+        typeof item.categoria === 'string'
+          ? item.categoria.toLowerCase().includes(termino)
+          : item.categoria.nombre.toLowerCase().includes(termino)
+      )) ||
       (item.descripcion && item.descripcion.toLowerCase().includes(termino))
     );
   }
@@ -325,11 +329,11 @@ const serviciosCount = computed(() => {
 // Sugerencias rápidas (productos más vendidos o servicios populares)
 const sugerenciasRapidas = computed(() => {
   return todosLosItems.value
-    .filter(item => item.tipo === 'producto' ? item.stock > 0 : true)
+    .filter(item => item.tipo === 'producto' ? (item.stock_total || item.stock) > 0 : true)
     .sort((a, b) => {
       // Ordenar por stock para productos y por precio para servicios
       if (a.tipo === 'producto' && b.tipo === 'producto') {
-        return b.stock - a.stock;
+        return (b.stock_total || b.stock) - (a.stock_total || a.stock);
       }
       return 0;
     })
@@ -344,7 +348,7 @@ const filtrarItems = () => {
 
 const agregarItem = (item) => {
   // Verificar stock para productos
-  if (item.tipo === 'producto' && item.stock <= 0) {
+  if (item.tipo === 'producto' && (item.stock_total || item.stock) <= 0) {
     return;
   }
   // Agregar a productos recientes

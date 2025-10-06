@@ -142,27 +142,115 @@
               <p class="mt-1 text-xs text-gray-500">
                 Los productos comprados se agregarán automáticamente al inventario de este almacén
               </p>
+              <!-- Recordatorio del almacén predeterminado -->
+              <div v-if="props.recordatorio_almacen" class="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                <p class="text-xs text-blue-700">
+                  <svg class="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                  {{ props.recordatorio_almacen }}
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Productos y Servicios -->
+        <!-- Productos Disponibles -->
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <div class="bg-gradient-to-r from-green-500 to-green-600 px-6 py-4">
             <h2 class="text-lg font-semibold text-white flex items-center">
               <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
               </svg>
-              Productos y Servicios
+              Productos Disponibles
             </h2>
           </div>
           <div class="p-6">
-            <BuscarProducto
-              ref="buscarProductoRef"
-              :productos="props.productos"
-              :servicios="props.servicios"
-              @agregar-producto="agregarProducto"
-            />
+            <!-- Productos para selección directa -->
+            <div v-if="productosDisponibles.length > 0" class="mb-6">
+              <h3 class="text-sm font-medium text-gray-700 mb-3">Selecciona productos para comprar:</h3>
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div
+                  v-for="producto in productosDisponibles"
+                  :key="producto.id"
+                  @click="seleccionarProducto(producto)"
+                  :class="[
+                    'p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md',
+                    productoSeleccionado?.id === producto.id
+                      ? 'border-green-500 bg-green-50'
+                      : 'border-gray-200 hover:border-green-300 hover:bg-green-50'
+                  ]"
+                >
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      {{ producto.codigo || 'N/A' }}
+                    </span>
+                    <span class="text-xs text-gray-500">{{ producto.unidad_medida }}</span>
+                  </div>
+
+                  <h4 class="font-medium text-gray-900 text-sm mb-1">{{ producto.nombre }}</h4>
+
+                  <div v-if="producto.categoria" class="text-xs text-gray-500 mb-2">
+                    {{ typeof producto.categoria === 'string' ? producto.categoria : producto.categoria.nombre }}
+                  </div>
+
+                  <div class="space-y-1">
+                    <div class="flex justify-between text-sm">
+                      <span class="text-gray-600">Precio compra:</span>
+                      <span class="font-semibold text-green-600">${{ formatearPrecio(producto.precio_compra) }}</span>
+                    </div>
+
+                    <div class="flex justify-between text-sm">
+                      <span class="text-gray-600">Precio venta:</span>
+                      <span class="font-semibold text-blue-600">${{ formatearPrecio(producto.precio_venta) }}</span>
+                    </div>
+
+                    <div class="flex justify-between text-sm">
+                      <span class="text-gray-600">Stock disponible:</span>
+                      <span :class="[
+                        'font-semibold',
+                        producto.stock_total > 10 ? 'text-green-600' :
+                        producto.stock_total > 0 ? 'text-yellow-600' : 'text-red-600'
+                      ]">
+                        {{ producto.stock_total }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Indicador de stock por almacén -->
+                  <div v-if="producto.stock_por_almacen" class="mt-2 pt-2 border-t border-gray-100">
+                    <div class="text-xs text-gray-500 mb-1">Stock por almacén:</div>
+                    <div class="space-y-1">
+                      <div v-for="(stockInfo, almacenId) in producto.stock_por_almacen" :key="almacenId" class="flex justify-between text-xs">
+                        <span class="text-gray-600">{{ stockInfo.almacen_nombre }}:</span>
+                        <span class="font-medium">{{ stockInfo.cantidad }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Mensaje cuando no hay productos -->
+            <div v-else class="text-center py-8">
+              <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+              </svg>
+              <p class="text-gray-500 text-lg font-medium">No hay productos disponibles</p>
+              <p class="text-gray-400 text-sm mt-1">Los productos aparecerán aquí cuando tengan información completa</p>
+            </div>
+
+            <!-- Buscador tradicional (como respaldo) -->
+            <div class="mt-6 pt-6 border-t border-gray-200">
+              <BuscarProducto
+                ref="buscarProductoRef"
+                :productos="props.productos"
+                :servicios="props.servicios"
+                @agregar-producto="agregarProducto"
+              />
+            </div>
+
+            <!-- Productos seleccionados -->
             <ProductosSeleccionados
               :selected-products="selectedProducts"
               :productos="props.productos"
@@ -313,6 +401,8 @@ const props = defineProps({
   productos: { type: Array, default: () => [] },
   servicios: { type: Array, default: () => [] },
   almacenes: { type: Array, default: () => [] },
+  almacen_predeterminado: { type: [String, Number], default: null },
+  recordatorio_almacen: { type: String, default: null },
 });
 
 // Copia reactiva de proveedores para evitar mutación de props
@@ -335,7 +425,7 @@ const form = useForm({
   numero_compra: numeroCompraFijo,
   fecha_compra: getCurrentDate(),
   proveedor_id: '',
-  almacen_id: '',
+  almacen_id: props.almacen_predeterminado || '',
   descuento_general: 0,
   subtotal: 0,
   descuento_items: 0,
@@ -355,6 +445,51 @@ const prices = ref({});
 const discounts = ref({});
 const mostrarVistaPrevia = ref(false);
 const mostrarAtajos = ref(true);
+const productoSeleccionado = ref(null);
+
+// Productos disponibles para selección directa
+const productosDisponibles = computed(() => {
+  return props.productos.filter(producto => {
+    // Filtrar productos que tienen información completa
+    return producto.nombre &&
+           producto.precio_compra > 0 &&
+           producto.codigo &&
+           producto.categoria;
+  });
+});
+
+// Función para seleccionar producto con click
+const seleccionarProducto = (producto) => {
+  productoSeleccionado.value = producto;
+
+  // Agregar automáticamente a la lista de productos seleccionados
+  const itemEntry = { id: producto.id, tipo: 'producto' };
+  const exists = selectedProducts.value.some(
+    (entry) => entry.id === producto.id && entry.tipo === 'producto'
+  );
+
+  if (!exists) {
+    selectedProducts.value.push(itemEntry);
+    const key = `producto-${producto.id}`;
+    quantities.value[key] = 1;
+    prices.value[key] = producto.precio_compra || 0;
+    discounts.value[key] = 0;
+    calcularTotal();
+    saveState();
+    showNotification(`Producto seleccionado: ${producto.nombre}`);
+  } else {
+    showNotification('Este producto ya está seleccionado', 'info');
+  }
+};
+
+// Función para formatear precios
+const formatearPrecio = (precio) => {
+  const precioNum = Number.parseFloat(precio) || 0;
+  return precioNum.toLocaleString('es-MX', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+};
 
 // Guardar y cargar estado en localStorage
 const saveToLocalStorage = (key, data) => {

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\EstadoVenta;
+use App\Models\Almacen;
 use App\Models\Cliente;
 use App\Models\Producto;
 use App\Models\Servicio;
@@ -121,9 +122,64 @@ class VentaController extends Controller
      */
     public function create()
     {
+        // Obtener productos con información enriquecida (igual que en compras)
+        $productosBase = Producto::where('estado', 'activo')->get();
+        $almacenes = Almacen::where('estado', 'activo')->get();
+
+        $productos = $productosBase->filter(function ($producto) use ($almacenes) {
+            // Solo incluir productos que tienen stock en algún almacén
+            foreach ($almacenes as $almacen) {
+                $inventario = \App\Models\Inventario::where('producto_id', $producto->id)
+                    ->where('almacen_id', $almacen->id)
+                    ->first();
+
+                if ($inventario && $inventario->cantidad > 0) {
+                    return true; // Tiene stock en este almacén
+                }
+            }
+            return false; // No tiene stock en ningún almacén
+        })->map(function ($producto) use ($almacenes) {
+            // Obtener stock disponible en cada almacén
+            $stockPorAlmacen = [];
+            foreach ($almacenes as $almacen) {
+                $inventario = \App\Models\Inventario::where('producto_id', $producto->id)
+                    ->where('almacen_id', $almacen->id)
+                    ->first();
+
+                $stockPorAlmacen[$almacen->id] = [
+                    'almacen_id' => $almacen->id,
+                    'almacen_nombre' => $almacen->nombre,
+                    'cantidad' => $inventario ? $inventario->cantidad : 0,
+                ];
+            }
+
+            return [
+                'id' => $producto->id,
+                'codigo' => $producto->codigo,
+                'nombre' => $producto->nombre,
+                'descripcion' => $producto->descripcion,
+                'categoria' => $producto->categoria ? [
+                    'id' => $producto->categoria->id,
+                    'nombre' => $producto->categoria->nombre,
+                ] : null,
+                'marca' => $producto->marca ? [
+                    'id' => $producto->marca->id,
+                    'nombre' => $producto->marca->nombre,
+                ] : null,
+                'precio_compra' => (float) $producto->precio_compra,
+                'precio_venta' => (float) $producto->precio_venta,
+                'stock_total' => (int) $producto->stock,
+                'stock_por_almacen' => $stockPorAlmacen,
+                'expires' => (bool) $producto->expires,
+                'unidad_medida' => $producto->unidad_medida,
+                'tipo_producto' => $producto->tipo_producto,
+                'estado' => $producto->estado,
+            ];
+        });
+
         return Inertia::render('Ventas/Create', [
             'clientes' => Cliente::activos()->select('id', 'nombre_razon_social', 'email', 'telefono')->get(),
-            'productos' => Producto::select('id', 'nombre', 'precio_venta', 'descripcion')->get(),
+            'productos' => $productos,
             'servicios' => Servicio::select('id', 'nombre', 'precio', 'descripcion')->get(),
             'usuarios' => User::select('id', 'name', 'email')->get(),
             'tecnicos' => Tecnico::select('id', 'nombre', 'apellido', 'email')->get(),
@@ -389,7 +445,62 @@ class VentaController extends Controller
         ])->findOrFail($id);
 
         $clientes = Cliente::activos()->get();
-        $productos = Producto::all();
+
+        // Obtener productos con información enriquecida (igual que en create)
+        $productosBase = Producto::where('estado', 'activo')->get();
+        $almacenes = Almacen::where('estado', 'activo')->get();
+
+        $productos = $productosBase->filter(function ($producto) use ($almacenes) {
+            // Solo incluir productos que tienen stock en algún almacén
+            foreach ($almacenes as $almacen) {
+                $inventario = \App\Models\Inventario::where('producto_id', $producto->id)
+                    ->where('almacen_id', $almacen->id)
+                    ->first();
+
+                if ($inventario && $inventario->cantidad > 0) {
+                    return true; // Tiene stock en este almacén
+                }
+            }
+            return false; // No tiene stock en ningún almacén
+        })->map(function ($producto) use ($almacenes) {
+            // Obtener stock disponible en cada almacén
+            $stockPorAlmacen = [];
+            foreach ($almacenes as $almacen) {
+                $inventario = \App\Models\Inventario::where('producto_id', $producto->id)
+                    ->where('almacen_id', $almacen->id)
+                    ->first();
+
+                $stockPorAlmacen[$almacen->id] = [
+                    'almacen_id' => $almacen->id,
+                    'almacen_nombre' => $almacen->nombre,
+                    'cantidad' => $inventario ? $inventario->cantidad : 0,
+                ];
+            }
+
+            return [
+                'id' => $producto->id,
+                'codigo' => $producto->codigo,
+                'nombre' => $producto->nombre,
+                'descripcion' => $producto->descripcion,
+                'categoria' => $producto->categoria ? [
+                    'id' => $producto->categoria->id,
+                    'nombre' => $producto->categoria->nombre,
+                ] : null,
+                'marca' => $producto->marca ? [
+                    'id' => $producto->marca->id,
+                    'nombre' => $producto->marca->nombre,
+                ] : null,
+                'precio_compra' => (float) $producto->precio_compra,
+                'precio_venta' => (float) $producto->precio_venta,
+                'stock_total' => (int) $producto->stock,
+                'stock_por_almacen' => $stockPorAlmacen,
+                'expires' => (bool) $producto->expires,
+                'unidad_medida' => $producto->unidad_medida,
+                'tipo_producto' => $producto->tipo_producto,
+                'estado' => $producto->estado,
+            ];
+        });
+
         $servicios = Servicio::all();
 
         return Inertia::render('Ventas/Edit', [

@@ -9,20 +9,49 @@ use App\Models\Cliente;
 use App\Models\Producto;
 use App\Models\User;
 use App\Models\InventarioMovimiento;
+use App\Services\InventarioService;
 use Carbon\Carbon;
 
 class VentaSeeder extends Seeder
 {
+    public function __construct(private readonly InventarioService $inventarioService)
+    {
+    }
+
     public function run(): void
     {
         // Obtener datos necesarios
         $clientes = Cliente::all();
-        $productos = Producto::where('stock', '>', 0)->get();
+        $productos = Producto::where('estado', 'activo')->get(); // Obtener productos activos (el stock se valida por almacén)
         $usuarios = User::all();
+        $almacenes = \App\Models\Almacen::where('estado', 'activo')->get();
 
         if ($clientes->isEmpty() || $productos->isEmpty()) {
+            $this->command->info('No hay clientes o productos para crear ventas. VentaSeeder completado.');
             return; // No hay clientes o productos para crear ventas
         }
+
+        // Verificar si hay stock disponible en almacenes
+        $productosConStockIds = [];
+        foreach ($productos as $producto) {
+            $inventario = \App\Models\Inventario::where('producto_id', $producto->id)
+                ->where('almacen_id', $almacenes->first()->id)
+                ->where('cantidad', '>', 0)
+                ->first();
+
+            if ($inventario) {
+                $productosConStockIds[] = $producto->id;
+            }
+        }
+
+        if (empty($productosConStockIds)) {
+            $this->command->info('No hay productos con stock disponible para ventas. Ejecuta primero CompraSeeder.');
+            return; // No hay productos con stock para vender
+        }
+
+        // Obtener productos con stock como colección
+        $productosConStock = Producto::whereIn('id', $productosConStockIds)->get();
+        $this->command->info('Productos con stock disponible: ' . $productosConStock->count());
 
         // Crear algunas ventas de ejemplo
         $ventas = [
@@ -33,10 +62,18 @@ class VentaSeeder extends Seeder
                 'fecha' => Carbon::now()->subDays(rand(1, 15)),
                 'estado' => 'pagado',
                 'notas' => 'Venta realizada exitosamente',
-                'productos' => $productos->random(min(3, $productos->count()))->map(function ($producto) {
+                'productos' => $productosConStock->random(min(3, $productosConStock->count()))->map(function ($producto) use ($almacenes) {
+                    $almacen = $almacenes->first();
+                    $inventario = \App\Models\Inventario::where('producto_id', $producto->id)
+                        ->where('almacen_id', $almacen->id)
+                        ->first();
+
+                    $stockDisponible = $inventario ? $inventario->cantidad : 0;
+                    $cantidadMaxima = min(5, max(1, $stockDisponible));
+
                     return [
                         'producto_id' => $producto->id,
-                        'cantidad' => rand(1, min(5, $producto->stock)),
+                        'cantidad' => rand(1, max(1, $cantidadMaxima)),
                         'precio_unitario' => $producto->precio_venta,
                     ];
                 })->toArray()
@@ -48,10 +85,18 @@ class VentaSeeder extends Seeder
                 'fecha' => Carbon::now()->subDays(rand(1, 15)),
                 'estado' => 'pagado',
                 'notas' => 'Venta de productos varios',
-                'productos' => $productos->random(min(2, $productos->count()))->map(function ($producto) {
+                'productos' => $productosConStock->random(min(2, $productosConStock->count()))->map(function ($producto) use ($almacenes) {
+                    $almacen = $almacenes->first();
+                    $inventario = \App\Models\Inventario::where('producto_id', $producto->id)
+                        ->where('almacen_id', $almacen->id)
+                        ->first();
+
+                    $stockDisponible = $inventario ? $inventario->cantidad : 0;
+                    $cantidadMaxima = min(3, max(1, $stockDisponible));
+
                     return [
                         'producto_id' => $producto->id,
-                        'cantidad' => rand(1, min(3, $producto->stock)),
+                        'cantidad' => rand(1, max(1, $cantidadMaxima)),
                         'precio_unitario' => $producto->precio_venta,
                     ];
                 })->toArray()
@@ -63,10 +108,18 @@ class VentaSeeder extends Seeder
                 'fecha' => Carbon::now()->subDays(rand(1, 15)),
                 'estado' => 'pendiente',
                 'notas' => 'Venta pendiente de pago',
-                'productos' => $productos->random(min(1, $productos->count()))->map(function ($producto) {
+                'productos' => $productosConStock->random(min(1, $productosConStock->count()))->map(function ($producto) use ($almacenes) {
+                    $almacen = $almacenes->first();
+                    $inventario = \App\Models\Inventario::where('producto_id', $producto->id)
+                        ->where('almacen_id', $almacen->id)
+                        ->first();
+
+                    $stockDisponible = $inventario ? $inventario->cantidad : 0;
+                    $cantidadMaxima = min(2, max(1, $stockDisponible));
+
                     return [
                         'producto_id' => $producto->id,
-                        'cantidad' => rand(1, min(2, $producto->stock)),
+                        'cantidad' => rand(1, max(1, $cantidadMaxima)),
                         'precio_unitario' => $producto->precio_venta,
                     ];
                 })->toArray()
@@ -101,24 +154,20 @@ class VentaSeeder extends Seeder
                     'descuento_monto' => 0,
                 ]);
 
-                // Registrar movimiento de inventario y reducir stock
+                // Usar servicio de inventario para salida correcta
                 $producto = Producto::find($productoData['producto_id']);
                 if ($producto) {
-                    $stockAnterior = $producto->stock;
-                    $producto->decrement('stock', $productoData['cantidad']);
-                    $stockPosterior = $producto->stock;
-
-                    InventarioMovimiento::create([
-                        'producto_id' => $producto->id,
-                        'tipo' => 'salida',
-                        'cantidad' => $productoData['cantidad'],
-                        'stock_anterior' => $stockAnterior,
-                        'stock_posterior' => $stockPosterior,
+                    $this->inventarioService->salida($producto, $productoData['cantidad'], [
+                        'almacen_id' => $almacenes->first()->id,
                         'motivo' => 'Venta realizada',
                         'referencia_type' => 'App\Models\Venta',
                         'referencia_id' => $venta->id,
                         'user_id' => $venta->vendedor_id,
-                        'detalles' => "Venta #{$venta->numero_venta} - {$producto->nombre}",
+                        'detalles' => [
+                            'venta_numero' => $venta->numero_venta,
+                            'producto_nombre' => $producto->nombre,
+                            'precio_unitario' => $productoData['precio_unitario']
+                        ],
                     ]);
                 }
             }

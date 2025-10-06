@@ -167,12 +167,72 @@ class CompraController extends Controller
     public function create()
     {
         $proveedores = Proveedor::all();
-        $productos = Producto::select('id', 'nombre', 'descripcion', 'precio_compra', 'stock', 'expires')->get();
+
+        // Obtener productos con información de stock por almacén
+        $productosBase = Producto::where('estado', 'activo')->get();
         $almacenes = Almacen::where('estado', 'activo')->get();
+
+        $productos = $productosBase->map(function ($producto) use ($almacenes) {
+            // Obtener stock disponible en cada almacén
+            $stockPorAlmacen = [];
+            foreach ($almacenes as $almacen) {
+                $inventario = \App\Models\Inventario::where('producto_id', $producto->id)
+                    ->where('almacen_id', $almacen->id)
+                    ->first();
+
+                $stockPorAlmacen[$almacen->id] = [
+                    'almacen_id' => $almacen->id,
+                    'almacen_nombre' => $almacen->nombre,
+                    'cantidad' => $inventario ? $inventario->cantidad : 0,
+                ];
+            }
+
+            return [
+                'id' => $producto->id,
+                'codigo' => $producto->codigo,
+                'nombre' => $producto->nombre,
+                'descripcion' => $producto->descripcion,
+                'categoria' => $producto->categoria ? [
+                    'id' => $producto->categoria->id,
+                    'nombre' => $producto->categoria->nombre,
+                ] : null,
+                'marca' => $producto->marca ? [
+                    'id' => $producto->marca->id,
+                    'nombre' => $producto->marca->nombre,
+                ] : null,
+                'precio_compra' => (float) $producto->precio_compra,
+                'precio_venta' => (float) $producto->precio_venta,
+                'stock_total' => (int) $producto->stock,
+                'stock_por_almacen' => $stockPorAlmacen,
+                'expires' => (bool) $producto->expires,
+                'unidad_medida' => $producto->unidad_medida,
+                'tipo_producto' => $producto->tipo_producto,
+                'estado' => $producto->estado,
+            ];
+        });
+
+        // Obtener almacén principal para establecer como predeterminado
+        $almacenPrincipal = Almacen::where('estado', 'activo')
+            ->where(function ($query) {
+                $query->where('nombre', 'Almacén Principal')
+                      ->orWhere('nombre', 'LIKE', '%Principal%');
+            })
+            ->orderBy('id', 'asc')
+            ->first();
+
+        // Si no encuentra almacén principal, usar el primero activo
+        if (!$almacenPrincipal) {
+            $almacenPrincipal = Almacen::where('estado', 'activo')
+                ->orderBy('id', 'asc')
+                ->first();
+        }
+
         return Inertia::render('Compras/Create', [
             'proveedores' => $proveedores,
             'productos' => $productos,
-            'almacenes' => $almacenes
+            'almacenes' => $almacenes,
+            'almacen_predeterminado' => $almacenPrincipal ? $almacenPrincipal->id : null,
+            'recordatorio_almacen' => $almacenPrincipal ? "Almacén Principal - {$almacenPrincipal->ubicacion}" : null
         ]);
     }
 
@@ -180,7 +240,7 @@ class CompraController extends Controller
     {
         $rules = [
             'proveedor_id' => 'required|exists:proveedores,id',
-            'almacen_id' => 'required|exists:almacenes,id',
+            'almacen_id' => 'nullable|exists:almacenes,id',
             'descuento_general' => 'nullable|numeric|min:0',
             'productos' => 'required|array|min:1',
             'productos.*.id' => 'required|exists:productos,id',
@@ -205,6 +265,16 @@ class CompraController extends Controller
     public function store(Request $request)
     {
         $validatedData = $this->validateCompraRequest($request);
+
+        // Asignar almacén principal si no se especificó
+        if (!isset($validatedData['almacen_id']) || $validatedData['almacen_id'] === null) {
+            $almacen = Almacen::where('estado', 'activo')->orderBy('id')->first();
+            if ($almacen) {
+                $validatedData['almacen_id'] = $almacen->id;
+            } else {
+                return redirect()->back()->with('error', 'No hay almacenes activos disponibles.');
+            }
+        }
 
         DB::transaction(function () use ($validatedData) {
             // Calcular totales con descuentos
@@ -286,6 +356,9 @@ class CompraController extends Controller
                 $contexto = [
                     'motivo' => 'Compra procesada',
                     'almacen_id' => $validatedData['almacen_id'],
+                    'user_id' => Auth::id(), // ← Usuario que realiza la compra
+                    'referencia_type' => 'App\Models\Compra',
+                    'referencia_id' => $compra->id,
                     'detalles' => [
                         'compra_id' => $compra->id,
                         'precio_unitario' => $precio,
@@ -384,14 +457,75 @@ class CompraController extends Controller
                 'descuento_monto' => $producto->pivot->descuento_monto,
             ];
         });
+
         $proveedores = Proveedor::all();
-        $productos = Producto::all();
+
+        // Obtener productos con información de stock por almacén (igual que en create)
+        $productosBase = Producto::where('estado', 'activo')->get();
         $almacenes = Almacen::where('estado', 'activo')->get();
+
+        $productos = $productosBase->map(function ($producto) use ($almacenes) {
+            // Obtener stock disponible en cada almacén
+            $stockPorAlmacen = [];
+            foreach ($almacenes as $almacen) {
+                $inventario = \App\Models\Inventario::where('producto_id', $producto->id)
+                    ->where('almacen_id', $almacen->id)
+                    ->first();
+
+                $stockPorAlmacen[$almacen->id] = [
+                    'almacen_id' => $almacen->id,
+                    'almacen_nombre' => $almacen->nombre,
+                    'cantidad' => $inventario ? $inventario->cantidad : 0,
+                ];
+            }
+
+            return [
+                'id' => $producto->id,
+                'codigo' => $producto->codigo,
+                'nombre' => $producto->nombre,
+                'descripcion' => $producto->descripcion,
+                'categoria' => $producto->categoria ? [
+                    'id' => $producto->categoria->id,
+                    'nombre' => $producto->categoria->nombre,
+                ] : null,
+                'marca' => $producto->marca ? [
+                    'id' => $producto->marca->id,
+                    'nombre' => $producto->marca->nombre,
+                ] : null,
+                'precio_compra' => (float) $producto->precio_compra,
+                'precio_venta' => (float) $producto->precio_venta,
+                'stock_total' => (int) $producto->stock,
+                'stock_por_almacen' => $stockPorAlmacen,
+                'expires' => (bool) $producto->expires,
+                'unidad_medida' => $producto->unidad_medida,
+                'tipo_producto' => $producto->tipo_producto,
+                'estado' => $producto->estado,
+            ];
+        });
+
+        // Obtener almacén principal para establecer como predeterminado
+        $almacenPrincipal = Almacen::where('estado', 'activo')
+            ->where(function ($query) {
+                $query->where('nombre', 'Almacén Principal')
+                      ->orWhere('nombre', 'LIKE', '%Principal%');
+            })
+            ->orderBy('id', 'asc')
+            ->first();
+
+        // Si no encuentra almacén principal, usar el primero activo
+        if (!$almacenPrincipal) {
+            $almacenPrincipal = Almacen::where('estado', 'activo')
+                ->orderBy('id', 'asc')
+                ->first();
+        }
+
         return Inertia::render('Compras/Edit', [
             'compra' => $compra,
             'proveedores' => $proveedores,
             'productos' => $productos,
-            'almacenes' => $almacenes
+            'almacenes' => $almacenes,
+            'almacen_predeterminado' => $almacenPrincipal ? $almacenPrincipal->id : null,
+            'recordatorio_almacen' => $almacenPrincipal ? "Almacén Principal - {$almacenPrincipal->ubicacion}" : null
         ]);
     }
 
@@ -420,6 +554,9 @@ class CompraController extends Controller
                 $this->inventarioService->salida($producto, $item->cantidad, [
                     'motivo' => 'Edición de compra: reversa de stock previo',
                     'almacen_id' => $compra->almacen_id,
+                    'user_id' => Auth::id(), // ← Usuario que edita la compra
+                    'referencia_type' => 'App\Models\Compra',
+                    'referencia_id' => $compra->id,
                     'detalles' => [
                         'compra_id' => $compra->id,
                         'compra_item_id' => $item->id,
@@ -498,6 +635,9 @@ class CompraController extends Controller
                 $this->inventarioService->entrada($producto, $cantidad, [
                     'motivo' => 'Edición de compra: stock actualizado',
                     'almacen_id' => $validatedData['almacen_id'],
+                    'user_id' => Auth::id(), // ← Usuario que edita la compra
+                    'referencia_type' => 'App\Models\Compra',
+                    'referencia_id' => $compra->id,
                     'detalles' => [
                         'compra_id' => $compra->id,
                         'producto_id' => $productoData['id'],
@@ -572,6 +712,9 @@ class CompraController extends Controller
                     $this->inventarioService->salida($producto, $item->cantidad, [
                         'motivo' => 'Cancelación de compra',
                         'almacen_id' => $compra->almacen_id,
+                        'user_id' => Auth::id(), // ← Usuario que cancela la compra
+                        'referencia_type' => 'App\Models\Compra',
+                        'referencia_id' => $compra->id,
                         'detalles' => [
                             'compra_id' => $compra->id,
                             'compra_item_id' => $item->id,

@@ -51,8 +51,8 @@ class InventarioService
         $this->db->transaction(function () use ($producto, $tipo, $cantidad, $contexto) {
             $almacenId = Arr::get($contexto, 'almacen_id');
             if (!$almacenId) {
-                // Si no se especifica almacén, usar el primer almacén activo como fallback
-                $almacenId = Almacen::where('estado', 'activo')->first()?->id;
+                // Si no se especifica almacén, usar el almacén principal (primer activo) como fallback
+                $almacenId = Almacen::where('estado', 'activo')->orderBy('id')->first()?->id;
                 if (!$almacenId) {
                     throw new RuntimeException('No hay almacenes activos disponibles.');
                 }
@@ -258,7 +258,7 @@ class InventarioService
         $this->db->transaction(function () use ($producto, $cantidad, $contexto, $numeroLote, $fechaCaducidad, $costoUnitario) {
             $almacenId = Arr::get($contexto, 'almacen_id');
             if (!$almacenId) {
-                $almacenId = Almacen::where('estado', 'activo')->first()?->id;
+                $almacenId = Almacen::where('estado', 'activo')->orderBy('id')->first()?->id;
                 if (!$almacenId) {
                     throw new RuntimeException('No hay almacenes activos disponibles.');
                 }
@@ -335,7 +335,7 @@ class InventarioService
         $this->db->transaction(function () use ($producto, $cantidad, $contexto) {
             $almacenId = Arr::get($contexto, 'almacen_id');
             if (!$almacenId) {
-                $almacenId = Almacen::where('estado', 'activo')->first()?->id;
+                $almacenId = Almacen::where('estado', 'activo')->orderBy('id')->first()?->id;
                 if (!$almacenId) {
                     throw new RuntimeException('No hay almacenes activos disponibles.');
                 }

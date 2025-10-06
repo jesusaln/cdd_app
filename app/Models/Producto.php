@@ -47,6 +47,14 @@ class Producto extends Model
         'estado',
     ];
 
+    protected $attributes = [
+        'descripcion' => 'Sin descripción disponible',
+        'reservado' => 0,
+        'expires' => false,
+        'margen_ganancia' => 0,
+        'comision_vendedor' => 0,
+    ];
+
     /* =========================
      * Relaciones base
      * ========================= */
