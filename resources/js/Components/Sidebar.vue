@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <aside
     :class="{
       'w-64': !props.isSidebarCollapsed,
@@ -44,7 +44,7 @@
       </button>
     </div>
 
-    <!-- Navegación -->
+    <!-- NavegaciÃ³n -->
     <nav class="flex-1 overflow-y-auto pt-4">
       <div class="px-2 pb-4">
         <!-- Dashboard -->
@@ -95,7 +95,7 @@
           </div>
         </div>
 
-        <!-- OperaciÃƒÂ³n de Compra -->
+        <!-- Operación de Compra -->
         <div class="mb-4">
           <div
             @click="toggleAccordion('compras')"
@@ -116,8 +116,8 @@
             <NavLink href="/compras" icon="cart-shopping" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Compras a Proveedores' : null">
               Compras a Proveedores
             </NavLink>
-             <NavLink href="/ordenescompra" icon="file-invoice-dollar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Órdenes de Compra' : null">
-              Órdenes de Compra
+             <NavLink href="/ordenescompra" icon="file-invoice-dollar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Ã“Órdenes de Compra' : null">
+              Ã“Órdenes de Compra
             </NavLink>
             <NavLink href="/cuentas-por-pagar" icon="file-invoice-dollar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Cuentas por Pagar' : null">
               Cuentas por Pagar
@@ -128,7 +128,7 @@
           </div>
         </div>
 
-        <!-- CatÃƒÂ¡logos -->
+        <!-- Catálogos -->
         <div class="mb-4">
           <div
             @click="toggleAccordion('catalogos')"
@@ -146,7 +146,7 @@
             </svg>
           </div>
           <div v-show="accordionStates.catalogos" class="mt-2 space-y-1">
-            <NavLink href="/categorias" icon="tags" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Categorías' : null">
+            <NavLink href="/Categorías" icon="tags" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Categorías' : null">
               Categorías
             </NavLink>
             <NavLink href="/marcas" icon="trademark" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Marcas de Productos' : null">
@@ -162,7 +162,7 @@
         </div>
 
 
-        <!-- AdministraciÃƒÂ³n -->
+        <!-- Administración -->
         <div class="mb-4">
            <div
              @click="toggleAccordion('administracion')"
@@ -211,8 +211,8 @@
            <NavLink href="/usuarios" icon="user" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Usuarios' : null">
              Usuarios
            </NavLink>
-          <NavLink href="/bitacora" icon="clipboard-list" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Bitácora' : null">
-             Bitácora
+          <NavLink href="/Bitácora" icon="clipboard-list" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'BitÃ¡cora' : null">
+             BitÃ¡cora
            </NavLink>
          </div>
        </div>
@@ -262,61 +262,11 @@
            </svg>
          </div>
          <div v-show="accordionStates.reportes" class="mt-2 space-y-1">
-           <!-- Centro de Reportes -->
-           <NavLink href="/reportes/dashboard" icon="chart-bar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Centro de Reportes' : null">
-             Centro de Reportes
-           </NavLink>
-
-           <!-- Reportes de Inventario -->
-           <NavLink href="/reportes/inventario/dashboard" icon="clipboard-list" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Dashboard Inventario' : null">
-             Dashboard Inventario
-           </NavLink>
-          <NavLink href="/reportes/inventario/stock-por-almacen" icon="warehouse" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Stock por Almacén' : null">
-             Stock por Almacén
-           </NavLink>
-           <NavLink href="/reportes/inventario/productos-bajo-stock" icon="exclamation-triangle" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Productos Bajo Stock' : null">
-             Productos Bajo Stock
-           </NavLink>
-           <NavLink href="/reportes/inventario/movimientos-por-periodo" icon="history" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Movimientos por Período' : null">
-             Movimientos por Período
-           </NavLink>
-           <NavLink href="/reportes/inventario/costos" icon="dollar-sign" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Costos de Inventario' : null">
-             Costos de Inventario
-           </NavLink>
-
-           <!-- Reportes de Ventas -->
-           <NavLink href="/reportes/ventas" icon="chart-line" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Reportes de Ventas' : null">
-             Reportes de Ventas
-           </NavLink>
-           <NavLink href="/reportes/cobranza" icon="dollar-sign" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Reportes de Cobranza' : null">
-             Reportes de Cobranza
-           </NavLink>
-
-           <!-- Reportes de Compras -->
-           <NavLink href="/reportes/compras" icon="shopping-cart" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Reportes de Compras' : null">
-             Reportes de Compras
-           </NavLink>
-
-           <!-- Reportes de Clientes -->
-           <NavLink href="/reportes/clientes" icon="users" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Reportes de Clientes' : null">
-             Reportes de Clientes
-           </NavLink>
-
-           <!-- Reportes de Proveedores -->
-           <NavLink href="/reportes/proveedores" icon="truck" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Reportes de Proveedores' : null">
-             Reportes de Proveedores
-           </NavLink>
-
-           <!-- Reportes de Servicios -->
-           <NavLink href="/reportes/servicios" icon="wrench" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Reportes de Servicios' : null">
-             Reportes de Servicios
-           </NavLink>
-
-           <!-- Reportes de Citas -->
-           <NavLink href="/reportes/citas" icon="calendar-alt" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Reportes de Citas' : null">
-             Reportes de Citas
-           </NavLink>
-         </div>
+  <!-- Centro de Reportes Único -->
+  <NavLink href="/reportes" icon="chart-bar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Centro de Reportes' : null">
+    Centro de Reportes
+  </NavLink>
+</div>
        </div>
 
        <!-- Rentas y Equipos -->
@@ -349,7 +299,7 @@
           </div>
         </div>
 
-        <!-- Taller Mantenimiento y VehÃƒÂ­culos -->
+        <!-- Taller Mantenimiento y VehÃƒÆ’Ã‚Â­culos -->
         <div class="mb-4">
           <div
             @click="toggleAccordion('taller')"
@@ -373,8 +323,8 @@
             <NavLink href="/mantenimientos" icon="tools" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Mantenimientos' : null">
               Mantenimientos
             </NavLink>
-             <NavLink href="/tecnicos" icon="user-cog" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Técnicos' : null">
-              Técnicos
+             <NavLink href="/tecnicos" icon="user-cog" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'TÃ©cnicos' : null">
+              TÃ©cnicos
             </NavLink>
             <NavLink href="/herramientas" icon="toolbox" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Herramientas' : null">
               Herramientas
@@ -469,7 +419,7 @@ const props = defineProps({
 // Emits
 const emit = defineEmits(['toggleSidebar']);
 
-// Estado del acordeÃƒÂ³n
+// Estado del acordeÃƒÆ’Ã‚Â³n
 const accordionStates = ref({
   ventas: false,
   compras: false,
@@ -483,37 +433,37 @@ const accordionStates = ref({
   taller: false
 });
 
-// FunciÃƒÂ³n para alternar acordeÃƒÂ³n
+// FunciÃƒÆ’Ã‚Â³n para alternar acordeÃƒÆ’Ã‚Â³n
 const toggleAccordion = (section) => {
-  // Si el sidebar estÃƒÂ¡ colapsado, expandir la secciÃƒÂ³n
+  // Si el sidebar estÃƒÆ’Ã‚Â¡ colapsado, expandir la secciÃƒÆ’Ã‚Â³n
   if (props.isSidebarCollapsed) {
     Object.keys(accordionStates.value).forEach(key => {
       accordionStates.value[key] = key === section;
     });
   } else {
-    // Si no estÃƒÂ¡ colapsado, alternar normalmente
+    // Si no estÃƒÆ’Ã‚Â¡ colapsado, alternar normalmente
     accordionStates.value[section] = !accordionStates.value[section];
   }
 };
 
-// FunciÃƒÂ³n para determinar la secciÃƒÂ³n actual basada en la URL
+// FunciÃƒÆ’Ã‚Â³n para determinar la secciÃƒÆ’Ã‚Â³n actual basada en la URL
 const getCurrentSection = () => {
   const path = window.location.pathname;
 
-  // Verificar inventario primero (mÃƒÂ¡s especÃƒÂ­fico)
+  // Verificar inventario primero (mÃƒÆ’Ã‚Â¡s especÃƒÆ’Ã‚Â­fico)
   if (path.includes('/productos') || path.includes('/traspasos') || path.includes('/movimientos-inventario') || path.includes('/ajustes-inventario') || path.includes('/movimientos-manuales')) {
     return 'inventario';
   } else if (path.includes('/cotizaciones') || path.includes('/pedidos') || path.includes('/ventas') || path.includes('/cuentas-por-cobrar')) {
     return 'ventas';
   } else if (path.includes('/compras') || path.includes('/ordenescompra') || path.includes('/proveedores') || path.includes('/cuentas-por-pagar')) {
     return 'compras';
-  } else if (path.includes('/servicios') || path.includes('/categorias') || path.includes('/marcas') || path.includes('/almacenes')) {
+  } else if (path.includes('/servicios') || path.includes('/Categorías') || path.includes('/marcas') || path.includes('/almacenes')) {
     return 'catalogos';
   } else if (path.includes('/clientes') || path.includes('/citas')) {
     return 'clientes_citas';
   } else if (path.includes('/backup') || path.includes('/entregas-dinero')) {
     return 'administracion';
-  } else if (path.includes('/usuarios') || path.includes('/bitacora')) {
+  } else if (path.includes('/usuarios') || path.includes('/Bitácora')) {
     return 'usuario';
   } else if (path.includes('/reportes')) {
     return 'reportes';
@@ -526,7 +476,7 @@ const getCurrentSection = () => {
   return null;
 };
 
-// Auto-expandir la secciÃƒÂ³n actual cuando se carga la pÃƒÂ¡gina
+// Auto-expandir la secciÃƒÆ’Ã‚Â³n actual cuando se carga la pÃƒÆ’Ã‚Â¡gina
 const autoExpandCurrentSection = () => {
   const currentSection = getCurrentSection();
   if (currentSection) {
@@ -537,7 +487,7 @@ const autoExpandCurrentSection = () => {
 // Helper para tolerar ausencia de Ziggy route()
 const routeOr = (fallback) => {
   try {
-    // si Ziggy estÃƒÂ¡ disponible
+    // si Ziggy estÃƒÆ’Ã‚Â¡ disponible
     if (typeof route === 'function') return route('backup.index');
     return fallback;
   } catch {
@@ -551,7 +501,7 @@ const toggleSidebar = () => {
 
 // Lifecycle hooks
 onMounted(() => {
-  // Auto-expandir la secciÃƒÂ³n actual cuando se carga la pÃƒÂ¡gina
+  // Auto-expandir la secciÃƒÆ’Ã‚Â³n actual cuando se carga la pÃƒÆ’Ã‚Â¡gina
   autoExpandCurrentSection();
 });
 
@@ -575,7 +525,7 @@ aside::-webkit-scrollbar-thumb:hover { background: rgba(156, 163, 175, 0.7); }
 /* Suaves */
 .transition-opacity { transition: opacity 0.3s ease-in-out; }
 
-/* Animaciones del acordeÃƒÂ³n */
+/* Animaciones del acordeÃƒÆ’Ã‚Â³n */
 .accordion-section {
   transition: all 0.3s ease-in-out;
 }
@@ -592,7 +542,7 @@ aside::-webkit-scrollbar-thumb:hover { background: rgba(156, 163, 175, 0.7); }
   transform: rotate(90deg);
 }
 
-/* Responsive mÃƒÂ³vil */
+/* Responsive mÃƒÆ’Ã‚Â³vil */
 @media (max-width: 768px) {
   aside {
     position: fixed;
@@ -605,3 +555,7 @@ aside::-webkit-scrollbar-thumb:hover { background: rgba(156, 163, 175, 0.7); }
   }
 }
 </style>
+
+
+
+

@@ -63,9 +63,7 @@ class Venta extends Model
             'ventable_id'
         )->withPivot('cantidad', 'precio', 'descuento', 'costo_unitario')
         ->wherePivot('ventable_type', Producto::class)
-        ->whereHasMorph('ventable', Producto::class, function ($query) {
-            $query->active();
-        });
+        ->active();
     }
 
     // Relaci�n polim�rfica para servicios
@@ -79,9 +77,7 @@ class Venta extends Model
             'ventable_id'
         )->withPivot('cantidad', 'precio', 'descuento', 'costo_unitario')
         ->wherePivot('ventable_type', Servicio::class)
-        ->whereHasMorph('ventable', Servicio::class, function ($query) {
-            $query->active();
-        });
+        ->active();
     }
 
     // Todos los �tems (productos + servicios)
@@ -151,11 +147,23 @@ class Venta extends Model
     {
         $costoTotal = 0;
 
-        // Costo de productos
-        foreach ($this->productos as $producto) {
-            $pivot = $producto->pivot;
-            $costo = $pivot->costo_unitario ?? $producto->precio_compra;
-            $costoTotal += $costo * $pivot->cantidad;
+        // Costo de productos usando costo histórico correcto
+        // Iterar sobre items para obtener productos correctamente relacionados
+        foreach ($this->items as $item) {
+            if ($item->ventable_type === \App\Models\Producto::class && $item->ventable) {
+                $producto = $item->ventable;
+
+                // Priorizar costo_unitario del item (ya calculado históricamente)
+                // Si no existe, calcular costo histórico basado en movimientos recientes
+                if ($item->costo_unitario && $item->costo_unitario > 0) {
+                    $costo = $item->costo_unitario;
+                } else {
+                    // Fallback: calcular costo histórico basado en movimientos recientes
+                    $costo = $producto->calcularCostoHistorico($item->cantidad);
+                }
+
+                $costoTotal += $costo * $item->cantidad;
+            }
         }
 
         // Costo de servicios (considerando margen de ganancia)
@@ -168,5 +176,27 @@ class Venta extends Model
         }
 
         return $costoTotal;
+    }
+
+    /**
+     * Recalcula y actualiza los costos históricos de todos los productos en esta venta
+     */
+    public function recalcularCostosHistoricos()
+    {
+        foreach ($this->items as $item) {
+            if ($item->ventable_type === \App\Models\Producto::class && $item->ventable) {
+                $producto = $item->ventable;
+
+                // Calcular costo histórico correcto
+                $nuevoCostoUnitario = $producto->calcularCostoPorLotes($item->cantidad);
+
+                // Actualizar el costo unitario en el item si es diferente
+                if ($nuevoCostoUnitario != $item->costo_unitario) {
+                    $item->update(['costo_unitario' => $nuevoCostoUnitario]);
+                }
+            }
+        }
+
+        return $this->calcularCostoTotal();
     }
 }

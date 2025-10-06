@@ -31,7 +31,7 @@ class ReporteController extends Controller
         $pagado = $request->get('pagado'); // null, true, false
 
         // Reporte de Ventas con filtros
-        $ventasQuery = Venta::with(['productos', 'cliente', 'vendedor'])
+        $ventasQuery = Venta::with(['productos', 'cliente', 'vendedor', 'items.ventable'])
             ->whereBetween('fecha', [$fechaInicio, $fechaFin]);
 
         if ($clienteId) {
@@ -88,8 +88,8 @@ class ReporteController extends Controller
 
     public function ventas()
     {
-        // Obtener todas las ventas con sus productos
-        $ventas = Venta::with('productos')->get();
+        // Obtener todas las ventas con sus productos e items
+        $ventas = Venta::with(['productos', 'items.ventable'])->get();
 
         // Calcular el corte total (suma de todos los totales de ventas)
         $corte = $ventas->sum('total');

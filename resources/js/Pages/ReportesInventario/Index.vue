@@ -203,10 +203,16 @@
 </template>
 
 <script setup>
-import { Head, Link } from '@inertiajs/vue3'
+import { Head, Link, router } from '@inertiajs/vue3'
+import { onMounted } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
 defineOptions({ layout: AppLayout })
+
+// Redirigir al acordeón centralizado (sección Inventario)
+onMounted(() => {
+  router.visit('/reportes?tab=inventario')
+})
 
 // Props
 const props = defineProps({

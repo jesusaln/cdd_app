@@ -164,7 +164,10 @@ class ReportesDashboardController extends Controller
     public function indexTabs(Request $request)
     {
         // Obtener datos para las tabs
-        $ventas = Venta::with(['cliente', 'items.ventable', 'productos', 'servicios'])->get()->map(function ($venta) {
+        // Evitar eager load de relaciones que causan conflicto ('productos', 'servicios')
+        // con definiciones polimórficas. Cargamos cliente e items; productos/servicios
+        // se cargarán perezosamente cuando calcularCostoTotal() los necesite.
+        $ventas = Venta::with(['cliente', 'items.ventable'])->get()->map(function ($venta) {
             $venta->costo_total = $venta->calcularCostoTotal();
             return $venta;
         });

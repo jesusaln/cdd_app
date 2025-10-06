@@ -344,6 +344,13 @@ class VentaController extends Controller
                 $subtotalItem = $item['cantidad'] * $item['precio'];
                 $descuentoMontoItem = $subtotalItem * ($item['descuento'] / 100);
 
+                // Calcular costo histórico correcto para productos
+                $costoUnitario = 0;
+                if ($item['tipo'] === 'producto') {
+                    // Usar costo histórico basado en lotes o movimientos recientes
+                    $costoUnitario = $modelo->calcularCostoPorLotes($item['cantidad']);
+                }
+
                 $ventaItem = VentaItem::create([
                     'venta_id' => $venta->id,
                     'ventable_id' => $item['id'],
@@ -353,7 +360,7 @@ class VentaController extends Controller
                     'descuento' => $item['descuento'],
                     'subtotal' => $subtotalItem,
                     'descuento_monto' => $descuentoMontoItem,
-                    'costo_unitario' => $item['tipo'] === 'producto' ? $modelo->precio_compra : 0,
+                    'costo_unitario' => $costoUnitario,
                 ]);
 
                 // Reducir inventario solo para productos (priorizar reservas)
@@ -649,6 +656,13 @@ class VentaController extends Controller
                 $subtotalItem = $itemData['cantidad'] * $itemData['precio'];
                 $descuentoMontoItem = $subtotalItem * ($itemData['descuento'] / 100);
 
+                // Calcular costo histórico correcto para productos
+                $costoUnitario = 0;
+                if ($itemData['tipo'] === 'producto') {
+                    // Usar costo histórico basado en lotes o movimientos recientes
+                    $costoUnitario = $modelo->calcularCostoPorLotes($itemData['cantidad']);
+                }
+
                 VentaItem::create([
                     'venta_id' => $venta->id,
                     'ventable_id' => $itemData['id'],
@@ -658,7 +672,7 @@ class VentaController extends Controller
                     'descuento' => $itemData['descuento'],
                     'subtotal' => $subtotalItem,
                     'descuento_monto' => $descuentoMontoItem,
-                    'costo_unitario' => $itemData['tipo'] === 'producto' ? $modelo->precio_compra : 0,
+                    'costo_unitario' => $costoUnitario,
                 ]);
             }
         });
@@ -772,6 +786,16 @@ class VentaController extends Controller
                     continue; // Saltar este ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­tem
                 }
 
+                // Recalcular costo histórico correcto para productos
+                $costoUnitario = $item->costo_unitario ?? 0;
+                if ($item->ventable_type === Producto::class) {
+                    $producto = $item->ventable;
+                    if ($producto) {
+                        // Usar costo histórico basado en lotes o movimientos recientes
+                        $costoUnitario = $producto->calcularCostoPorLotes($item->cantidad);
+                    }
+                }
+
                 $nuevaVenta->items()->create([
                     'ventable_id' => $item->ventable_id,
                     'ventable_type' => $item->ventable_type,
@@ -780,7 +804,7 @@ class VentaController extends Controller
                     'descuento' => $item->descuento,
                     'subtotal' => $item->subtotal,
                     'descuento_monto' => $item->descuento_monto,
-                    'costo_unitario' => $item->costo_unitario ?? 0,
+                    'costo_unitario' => $costoUnitario,
                 ]);
 
                 $itemsDuplicados++;

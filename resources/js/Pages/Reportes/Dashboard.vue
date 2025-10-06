@@ -71,10 +71,16 @@
 </template>
 
 <script setup>
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
+import { onMounted } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
 defineOptions({ layout: AppLayout });
+
+// Redirigir a la vista centralizada del acordeón de reportes
+onMounted(() => {
+  router.visit('/reportes');
+});
 
 const reportCards = [
     {

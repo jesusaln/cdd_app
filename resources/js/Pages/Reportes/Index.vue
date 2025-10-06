@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <Head title="Centro de Reportes" />
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -60,122 +60,37 @@
                 </div>
             </div>
 
-            <!-- Tabs -->
-            <div class="border-b border-gray-200">
-                <nav class="flex">
-                    <button
-                        @click="activeTab = 'ventas'"
-                        :class="tabClass('ventas')"
-                        class="px-6 py-3 text-sm font-medium border-b-2 transition-colors"
-                    >
-                        Ventas
-                    </button>
-                    <button
-                        @click="activeTab = 'compras'"
-                        :class="tabClass('compras')"
-                        class="px-6 py-3 text-sm font-medium border-b-2 transition-colors"
-                    >
-                        Compras
-                    </button>
-                    <button
-                        @click="activeTab = 'inventario'"
-                        :class="tabClass('inventario')"
-                        class="px-6 py-3 text-sm font-medium border-b-2 transition-colors"
-                    >
-                        Inventario
-                    </button>
-                    <button
-                        @click="activeTab = 'corte'"
-                        :class="tabClass('corte')"
-                        class="px-6 py-3 text-sm font-medium border-b-2 transition-colors"
-                    >
-                        Corte Diario
-                    </button>
-                    <button
-                        @click="activeTab = 'clientes'"
-                        :class="tabClass('clientes')"
-                        class="px-6 py-3 text-sm font-medium border-b-2 transition-colors"
-                    >
-                        Clientes
-                    </button>
-                    <button
-                        @click="activeTab = 'servicios'"
-                        :class="tabClass('servicios')"
-                        class="px-6 py-3 text-sm font-medium border-b-2 transition-colors"
-                    >
-                        Servicios
-                    </button>
-                    <button
-                        @click="activeTab = 'citas'"
-                        :class="tabClass('citas')"
-                        class="px-6 py-3 text-sm font-medium border-b-2 transition-colors"
-                    >
-                        Citas
-                    </button>
-                    <button
-                        @click="activeTab = 'mantenimientos'"
-                        :class="tabClass('mantenimientos')"
-                        class="px-6 py-3 text-sm font-medium border-b-2 transition-colors"
-                    >
-                        Mantenimientos
-                    </button>
-                    <button
-                        @click="activeTab = 'rentas'"
-                        :class="tabClass('rentas')"
-                        class="px-6 py-3 text-sm font-medium border-b-2 transition-colors"
-                    >
-                        Rentas
-                    </button>
-                    <button
-                        @click="activeTab = 'ganancias'"
-                        :class="tabClass('ganancias')"
-                        class="px-6 py-3 text-sm font-medium border-b-2 transition-colors"
-                    >
-                        Ganancias
-                    </button>
-                    <button
-                        @click="activeTab = 'proveedores'"
-                        :class="tabClass('proveedores')"
-                        class="px-6 py-3 text-sm font-medium border-b-2 transition-colors"
-                    >
-                        Proveedores
-                    </button>
-                    <button
-                        @click="activeTab = 'personal'"
-                        :class="tabClass('personal')"
-                        class="px-6 py-3 text-sm font-medium border-b-2 transition-colors"
-                    >
-                        Personal
-                    </button>
-                    <button
-                        @click="activeTab = 'auditoria'"
-                        :class="tabClass('auditoria')"
-                        class="px-6 py-3 text-sm font-medium border-b-2 transition-colors"
-                    >
-                        Auditoría
-                    </button>
-                    <button
-                        @click="activeTab = 'productos'"
-                        :class="tabClass('productos')"
-                        class="px-6 py-3 text-sm font-medium border-b-2 transition-colors"
-                    >
-                        Productos
-                    </button>
-                    <button
-                        @click="activeTab = 'cobranzas'"
-                        :class="tabClass('cobranzas')"
-                        class="px-6 py-3 text-sm font-medium border-b-2 transition-colors"
-                    >
-                        Cobranzas
-                    </button>
-                    <button
-                        @click="activeTab = 'movimientos'"
-                        :class="tabClass('movimientos')"
-                        class="px-6 py-3 text-sm font-medium border-b-2 transition-colors"
-                    >
-                        Movimientos Inventario
-                    </button>
-                </nav>
+            <!-- No Tabs - Reports Disabled -->
+            <div class="border-b border-gray-200 hidden">
+                <div class="px-6 py-4 text-center">
+                    <p class="text-gray-500">Los reportes estÃ¡n temporalmente deshabilitados</p>
+                </div>
+            </div>
+
+            <!-- AcordeÃ³n de Reportes -->
+            <div class="border-b border-gray-200 bg-white">
+                <div class="px-6 py-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                        <button
+                            v-for="tab in tabs"
+                            :key="tab.key"
+                            type="button"
+                            @click="activeTab = tab.key"
+                            :class="[
+                                'w-full text-left px-3 py-2 rounded-md border transition-colors',
+                                activeTab === tab.key
+                                    ? 'bg-blue-50 border-blue-200 text-blue-700'
+                                    : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                            ]"
+                            :title="tab.tooltip || tab.label"
+                        >
+                            <span class="font-medium">{{ tab.label }}</span>
+                        </button>
+                    </div>
+                    <div class="text-xs text-gray-500 pt-2">
+                        Todos los reportes estÃ¡n centralizados aquÃ­. Usa el acordeÃ³n para navegar.
+                    </div>
+                </div>
             </div>
 
             <!-- Contenido de Tabs -->
@@ -195,7 +110,7 @@
                             </div>
                             <div class="bg-purple-50 p-4 rounded-lg">
                                 <div class="text-2xl font-bold text-purple-600">{{ ventasFiltradas.length }}</div>
-                                <div class="text-sm text-purple-600">Número de Ventas</div>
+                                <div class="text-sm text-purple-600">NÃºmero de Ventas</div>
                             </div>
                             <div class="bg-orange-50 p-4 rounded-lg">
                                 <div class="text-2xl font-bold text-orange-600">{{ clientesUnicosVentas }}</div>
@@ -204,13 +119,29 @@
                         </div>
                     </div>
 
+                    <!-- Accesos directos a reportes avanzados de inventario -->
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        <Link :href="route('reportes.inventario.stock-por-almacen')" class="inline-flex items-center px-3 py-2 text-sm rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200">
+                            Stock por almacÃ©n
+                        </Link>
+                        <Link :href="route('reportes.inventario.productos-bajo-stock')" class="inline-flex items-center px-3 py-2 text-sm rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200">
+                            Productos bajo stock
+                        </Link>
+                        <Link :href="route('reportes.inventario.movimientos-por-periodo')" class="inline-flex items-center px-3 py-2 text-sm rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200">
+                            Movimientos por perÃ­odo
+                        </Link>
+                        <Link :href="route('reportes.inventario.costos')" class="inline-flex items-center px-3 py-2 text-sm rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200">
+                            Costos de inventario
+                        </Link>
+                    </div>
+
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">N° Venta</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">NÂ° Venta</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Costo</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Utilidad</th>
@@ -218,7 +149,8 @@
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
-                                <tr v-for="venta in ventasFiltradas" :key="venta.id" class="hover:bg-gray-50">
+                                <template v-for="venta in ventasFiltradas" :key="venta.id">
+                                <tr class="hover:bg-gray-50">
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ formatDate(venta.created_at) }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ venta.cliente?.nombre_razon_social || 'N/A' }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">{{ venta.numero_venta || venta.id }}</td>
@@ -237,11 +169,53 @@
                                         }" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
                                             {{ venta.pagado ? 'Pagada' : 'Pendiente' }} - {{ venta.estado || 'Borrador' }}
                                         </span>
+                                        <button
+                                            class="ml-3 text-xs text-blue-600 hover:text-blue-800 underline"
+                                            @click="toggleVentaDetails(venta.id)"
+                                        >
+                                            {{ expandedVentas[venta.id] ? 'Ocultar detalles' : 'Ver detalles' }}
+                                        </button>
                                     </td>
                                 </tr>
+                                <tr v-if="expandedVentas[venta.id]" class="bg-gray-50">
+                                    <td colspan="7" class="px-6 py-4">
+                                        <div class="text-sm text-gray-700 font-medium mb-2">Detalle de productos y costos</div>
+                                        <div class="overflow-x-auto">
+                                            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                                                <thead class="bg-gray-100">
+                                                    <tr>
+                                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Tipo</th>
+                                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Nombre</th>
+                                                        <th class="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Cant.</th>
+                                                        <th class="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Precio Venta</th>
+                                                        <th class="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Costo Unitario</th>
+                                                        <th class="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Costo Total</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="bg-white divide-y divide-gray-200">
+                                                    <tr v-for="item in (venta.items || [])" :key="item.id">
+                                                        <td class="px-4 py-2 whitespace-nowrap text-gray-600">{{ item.ventable_type?.includes('Producto') ? 'Producto' : 'Servicio' }}</td>
+                                                        <td class="px-4 py-2 whitespace-nowrap text-gray-900">
+                                                            {{ item.ventable?.nombre || 'N/A' }}
+                                                        </td>
+                                                        <td class="px-4 py-2 whitespace-nowrap text-right">{{ item.cantidad || 0 }}</td>
+                                                        <td class="px-4 py-2 whitespace-nowrap text-right">{{ formatCurrency(item.precio || 0) }}</td>
+                                                        <td class="px-4 py-2 whitespace-nowrap text-right">
+                                                            {{ formatCurrency(item.costo_unitario || 0) }}
+                                                        </td>
+                                                        <td class="px-4 py-2 whitespace-nowrap text-right">
+                                                            {{ formatCurrency(((item.costo_unitario || 0) * (item.cantidad || 0))) }}
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </td>
+                                </tr>
+                                </template>
                                 <tr v-if="ventasFiltradas.length === 0">
                                     <td colspan="7" class="px-6 py-12 text-center text-gray-500">
-                                        No hay ventas en el período seleccionado
+                                        No hay ventas en el perÃ­odo seleccionado
                                     </td>
                                 </tr>
                             </tbody>
@@ -296,7 +270,7 @@
                             </div>
                             <div class="bg-orange-50 p-4 rounded-lg">
                                 <div class="text-2xl font-bold text-orange-600">{{ comprasFiltradas.length }}</div>
-                                <div class="text-sm text-orange-600">Número de Compras</div>
+                                <div class="text-sm text-orange-600">NÃºmero de Compras</div>
                             </div>
                             <div class="bg-blue-50 p-4 rounded-lg">
                                 <div class="text-2xl font-bold text-blue-600">{{ proveedoresUnicos }}</div>
@@ -342,7 +316,7 @@
                                 </tr>
                                 <tr v-if="comprasFiltradas.length === 0">
                                     <td colspan="6" class="px-6 py-12 text-center text-gray-500">
-                                        No hay compras en el período seleccionado
+                                        No hay compras en el perÃ­odo seleccionado
                                     </td>
                                 </tr>
                             </tbody>
@@ -391,7 +365,7 @@
                             <thead class="bg-gray-50">
                                 <tr>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoría</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CategorÃ­a</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio Compra</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio Venta</th>
@@ -472,7 +446,7 @@
                                 <tr>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teléfono</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">TelÃ©fono</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ventas</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rentas</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
@@ -531,11 +505,11 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                             </svg>
                         </div>
-                        <h3 class="text-lg font-medium text-gray-900 mb-2">Servicios Más Vendidos</h3>
-                        <p class="text-sm text-gray-500 mb-4">Análisis de servicios por volumen de ventas</p>
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">Servicios MÃ¡s Vendidos</h3>
+                        <p class="text-sm text-gray-500 mb-4">AnÃ¡lisis de servicios por volumen de ventas</p>
                         <div class="bg-gray-50 p-6 rounded-lg max-w-2xl mx-auto">
                             <div class="text-center">
-                                <p class="text-gray-600">Los datos de servicios se cargan desde el controlador específico</p>
+                                <p class="text-gray-600">Los datos de servicios se cargan desde el controlador especÃ­fico</p>
                                 <a
                                     href="/reportes/servicios"
                                     class="inline-flex items-center mt-4 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
@@ -577,7 +551,7 @@
                 <!-- Tab Ganancias -->
                 <div v-show="activeTab === 'ganancias'">
                     <div class="mb-6">
-                        <h3 class="text-lg font-medium text-gray-900 mb-4">Análisis Financiero</h3>
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">AnÃ¡lisis Financiero</h3>
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div class="bg-green-50 p-4 rounded-lg">
                                 <div class="text-2xl font-bold text-green-600">{{ formatCurrency(totalIngresos) }}</div>
@@ -598,10 +572,10 @@
                         </div>
                     </div>
 
-                    <!-- Gráficos de ingresos vs gastos -->
+                    <!-- GrÃ¡ficos de ingresos vs gastos -->
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                         <div class="bg-gray-50 p-6 rounded-lg">
-                            <h4 class="text-md font-medium text-gray-900 mb-4">Ingresos por Categoría</h4>
+                            <h4 class="text-md font-medium text-gray-900 mb-4">Ingresos por CategorÃ­a</h4>
                             <div class="space-y-3">
                                 <div class="flex justify-between items-center">
                                     <span class="text-sm text-gray-600">Ventas de Productos:</span>
@@ -619,7 +593,7 @@
                         </div>
 
                         <div class="bg-gray-50 p-6 rounded-lg">
-                            <h4 class="text-md font-medium text-gray-900 mb-4">Gastos por Categoría</h4>
+                            <h4 class="text-md font-medium text-gray-900 mb-4">Gastos por CategorÃ­a</h4>
                             <div class="space-y-3">
                                 <div class="flex justify-between items-center">
                                     <span class="text-sm text-gray-600">Costo de Ventas:</span>
@@ -644,7 +618,7 @@
                             </svg>
                         </div>
                         <h3 class="text-lg font-medium text-gray-900 mb-2">Reporte Financiero Detallado</h3>
-                        <p class="text-sm text-gray-500 mb-4">Análisis completo de ingresos, gastos y ganancias</p>
+                        <p class="text-sm text-gray-500 mb-4">AnÃ¡lisis completo de ingresos, gastos y ganancias</p>
                         <a
                             href="/reportes/ganancias"
                             class="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors"
@@ -660,7 +634,7 @@
                 <!-- Tab Proveedores -->
                 <div v-show="activeTab === 'proveedores'">
                     <div class="mb-6">
-                        <h3 class="text-lg font-medium text-gray-900 mb-4">Análisis de Proveedores</h3>
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">AnÃ¡lisis de Proveedores</h3>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div class="bg-blue-50 p-4 rounded-lg">
                                 <div class="text-2xl font-bold text-blue-600">{{ proveedoresTotales }}</div>
@@ -683,11 +657,11 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                             </svg>
                         </div>
-                        <h3 class="text-lg font-medium text-gray-900 mb-2">Proveedores Más Utilizados</h3>
-                        <p class="text-sm text-gray-500 mb-4">Análisis de proveedores por volumen de compras</p>
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">Proveedores MÃ¡s Utilizados</h3>
+                        <p class="text-sm text-gray-500 mb-4">AnÃ¡lisis de proveedores por volumen de compras</p>
                         <div class="bg-gray-50 p-6 rounded-lg max-w-2xl mx-auto">
                             <div class="text-center">
-                                <p class="text-gray-600">Los datos de proveedores se cargan desde el controlador específico</p>
+                                <p class="text-gray-600">Los datos de proveedores se cargan desde el controlador especÃ­fico</p>
                                 <a
                                     href="/reportes/proveedores"
                                     class="inline-flex items-center mt-4 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
@@ -706,11 +680,11 @@
                 <div v-show="activeTab === 'personal'">
                     <div class="text-center py-12">
                         <h3 class="text-lg font-medium text-gray-900 mb-2">Reporte de Personal</h3>
-                        <p class="text-sm text-gray-500">Empleados, técnicos y rendimiento</p>
+                        <p class="text-sm text-gray-500">Empleados, tÃ©cnicos y rendimiento</p>
                     </div>
                 </div>
 
-                <!-- Tab Auditoría -->
+                <!-- Tab AuditorÃ­a -->
                 <div v-show="activeTab === 'auditoria'">
                     <div class="mb-6">
                         <h3 class="text-lg font-medium text-gray-900 mb-4">Registro de Actividades</h3>
@@ -740,16 +714,16 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
                         </div>
-                        <h3 class="text-lg font-medium text-gray-900 mb-2">Bitácora de Actividades</h3>
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">BitÃ¡cora de Actividades</h3>
                         <p class="text-sm text-gray-500 mb-4">Registro completo de todas las operaciones del sistema</p>
                         <div class="bg-gray-50 p-6 rounded-lg max-w-2xl mx-auto">
                             <div class="text-center">
-                                <p class="text-gray-600">Los datos de auditoría se cargan desde el controlador específico</p>
+                                <p class="text-gray-600">Los datos de auditorÃ­a se cargan desde el controlador especÃ­fico</p>
                                 <a
                                     href="/reportes/auditoria"
                                     class="inline-flex items-center mt-4 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
                                 >
-                                    Ver Bitácora Completa
+                                    Ver BitÃ¡cora Completa
                                     <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                                     </svg>
@@ -762,7 +736,7 @@
                 <!-- Tab Productos -->
                 <div v-show="activeTab === 'productos'">
                     <div class="mb-6">
-                        <h3 class="text-lg font-medium text-gray-900 mb-4">Productos Más Vendidos</h3>
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Productos MÃ¡s Vendidos</h3>
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div class="bg-blue-50 p-4 rounded-lg">
                                 <div class="text-2xl font-bold text-blue-600">{{ productosTotales }}</div>
@@ -789,11 +763,11 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                             </svg>
                         </div>
-                        <h3 class="text-lg font-medium text-gray-900 mb-2">Productos Más Vendidos</h3>
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">Productos MÃ¡s Vendidos</h3>
                         <p class="text-sm text-gray-500 mb-4">Ranking detallado por volumen y ganancias</p>
                         <div class="bg-gray-50 p-6 rounded-lg max-w-2xl mx-auto">
                             <div class="text-center">
-                                <p class="text-gray-600">Los datos de productos se cargan desde el controlador específico</p>
+                                <p class="text-gray-600">Los datos de productos se cargan desde el controlador especÃ­fico</p>
                                 <a
                                     href="/reportes/productos"
                                     class="inline-flex items-center mt-4 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
@@ -842,16 +816,16 @@
                         <p class="text-sm text-gray-500 mb-4">Estado detallado de pagos de rentas</p>
                         <div class="bg-gray-50 p-6 rounded-lg max-w-2xl mx-auto">
                             <div class="text-center">
-                                <p class="text-gray-600">Los datos de cobranzas se cargan desde el controlador específico</p>
-                                <a
-                                    href="/reportes/cobranzas"
+                                <p class="text-gray-600">Los datos de cobranzas se cargan desde el controlador especÃ­fico</p>
+                                <Link
+                                    href="/reportes?tab=cobranzas"
                                     class="inline-flex items-center mt-4 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors"
                                 >
                                     Ver Reporte Detallado de Cobranzas
                                     <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                                     </svg>
-                                </a>
+                                </Link>
                             </div>
                         </div>
                     </div>
@@ -872,7 +846,7 @@
                             </div>
                             <div class="bg-blue-50 p-4 rounded-lg">
                                 <div class="text-2xl font-bold text-blue-600">{{ movimientosFiltrados.length }}</div>
-                                <div class="text-sm text-blue-600">Número de Movimientos</div>
+                                <div class="text-sm text-blue-600">NÃºmero de Movimientos</div>
                             </div>
                         </div>
                     </div>
@@ -933,6 +907,30 @@ const props = defineProps({
 const page = usePage();
 const urlParams = new URLSearchParams(page.url.split('?')[1] || '');
 const activeTab = ref(urlParams.get('tab') || 'ventas');
+// Ventas: control de filas expandibles para ver costo por producto
+const expandedVentas = ref({});
+const toggleVentaDetails = (id) => {
+    expandedVentas.value[id] = !expandedVentas.value[id];
+};
+// DefiniciÃ³n del acordeÃ³n (pestaÃ±as centralizadas)
+const tabs = [
+    { key: 'ventas', label: 'Ventas' },
+    { key: 'compras', label: 'Compras' },
+    { key: 'inventario', label: 'Inventario' },
+    { key: 'movimientos', label: 'Movimientos Inventario' },
+    { key: 'corte', label: 'Corte Diario' },
+    { key: 'clientes', label: 'Clientes' },
+    { key: 'servicios', label: 'Servicios' },
+    { key: 'citas', label: 'Citas' },
+    { key: 'mantenimientos', label: 'Mantenimientos' },
+    { key: 'rentas', label: 'Rentas' },
+    { key: 'ganancias', label: 'Ganancias' },
+    { key: 'proveedores', label: 'Proveedores' },
+    { key: 'personal', label: 'Personal' },
+    { key: 'auditoria', label: 'AuditorÃ­a' },
+    { key: 'productos', label: 'Productos' },
+    { key: 'cobranzas', label: 'Cobranzas' },
+];
 const fechaInicio = ref('');
 const fechaFin = ref('');
 
@@ -943,7 +941,7 @@ const formatDate = (date) => {
     try {
         return format(new Date(date), 'MMM d, yyyy h:mm a', { locale: es });
     } catch {
-        return 'Fecha inválida';
+        return 'Fecha invÃ¡lida';
     }
 };
 
@@ -960,7 +958,7 @@ const filtrarPorFecha = (items) => {
 };
 
 const filtrarDatos = () => {
-    // Los computed se actualizan automáticamente
+    // Los computed se actualizan automÃ¡ticamente
 };
 
 const limpiarFiltros = () => {
@@ -1054,7 +1052,7 @@ const topClientes = computed(() => {
         .slice(0, 5); // Top 5 clientes
 });
 
-// Datos de clientes (simulados por ahora, en producción vendrían del controlador)
+// Datos de clientes (simulados por ahora, en producciÃ³n vendrÃ­an del controlador)
 const clientesActivos = computed(() => {
     // Por ahora devolveremos datos simulados basados en las ventas
     const clientesUnicos = {};
@@ -1088,23 +1086,23 @@ const clientesConRentas = computed(() => {
 });
 
 const clientesDeudores = computed(() => {
-    // Por ahora devolveremos 0, en producción vendría del controlador
+    // Por ahora devolveremos 0, en producciÃ³n vendrÃ­a del controlador
     return 0;
 });
 
 // Datos de servicios (simulados por ahora)
 const serviciosTotales = computed(() => {
-    // En producción esto vendría del controlador
+    // En producciÃ³n esto vendrÃ­a del controlador
     return 0;
 });
 
 const serviciosVendidos = computed(() => {
-    // En producción esto vendría del controlador
+    // En producciÃ³n esto vendrÃ­a del controlador
     return 0;
 });
 
 const ingresosServicios = computed(() => {
-    // En producción esto vendría del controlador
+    // En producciÃ³n esto vendrÃ­a del controlador
     return formatCurrency(0);
 });
 
@@ -1131,7 +1129,7 @@ const ingresosProductos = computed(() => {
 });
 
 const ingresosCobranzas = computed(() => {
-    return formatCurrency(0); // En producción vendría del controlador
+    return formatCurrency(0); // En producciÃ³n vendrÃ­a del controlador
 });
 
 const costoVentas = computed(() => {
@@ -1143,7 +1141,7 @@ const gastosCompras = computed(() => {
 });
 
 const otrosGastos = computed(() => {
-    return formatCurrency(0); // En producción vendría del controlador
+    return formatCurrency(0); // En producciÃ³n vendrÃ­a del controlador
 });
 
 // Datos de productos (simulados por ahora)
@@ -1152,18 +1150,18 @@ const productosTotales = computed(() => {
 });
 
 const productosVendidos = computed(() => {
-    // En producción esto vendría del controlador
+    // En producciÃ³n esto vendrÃ­a del controlador
     return 0;
 });
 
 const unidadesVendidas = computed(() => {
-    // En producción esto vendría del controlador
+    // En producciÃ³n esto vendrÃ­a del controlador
     return 0;
 });
 
 // Datos de proveedores (simulados por ahora)
 const proveedoresTotales = computed(() => {
-    // En producción esto vendría del controlador
+    // En producciÃ³n esto vendrÃ­a del controlador
     return proveedoresUnicos.value;
 });
 
@@ -1177,42 +1175,42 @@ const montoTotalProveedores = computed(() => {
 
 // Datos de cobranzas (simulados por ahora)
 const cobranzasTotales = computed(() => {
-    // En producción esto vendría del controlador
+    // En producciÃ³n esto vendrÃ­a del controlador
     return 0;
 });
 
 const cobranzasPagadas = computed(() => {
-    // En producción esto vendría del controlador
+    // En producciÃ³n esto vendrÃ­a del controlador
     return 0;
 });
 
 const cobranzasPendientes = computed(() => {
-    // En producción esto vendría del controlador
+    // En producciÃ³n esto vendrÃ­a del controlador
     return 0;
 });
 
 const montoCobrado = computed(() => {
-    return formatCurrency(0); // En producción vendría del controlador
+    return formatCurrency(0); // En producciÃ³n vendrÃ­a del controlador
 });
 
-// Datos de auditoría (simulados por ahora)
+// Datos de auditorÃ­a (simulados por ahora)
 const actividadesHoy = computed(() => {
-    // En producción esto vendría del controlador
+    // En producciÃ³n esto vendrÃ­a del controlador
     return 0;
 });
 
 const usuariosActivos = computed(() => {
-    // En producción esto vendría del controlador
+    // En producciÃ³n esto vendrÃ­a del controlador
     return 0;
 });
 
 const actividadesTotales = computed(() => {
-    // En producción esto vendría del controlador
+    // En producciÃ³n esto vendrÃ­a del controlador
     return 0;
 });
 
 const actividadesLogin = computed(() => {
-    // En producción esto vendría del controlador
+    // En producciÃ³n esto vendrÃ­a del controlador
     return 0;
 });
 
@@ -1239,3 +1237,4 @@ const tabClass = (tab) => ({
     max-width: 1200px;
 }
 </style>
+

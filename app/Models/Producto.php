@@ -185,4 +185,87 @@ class Producto extends Model
     {
         return $query->where('estado', 'activo');
     }
+
+    /**
+     * Calcula el costo histórico promedio basado en los últimos movimientos de entrada
+     */
+    public function calcularCostoHistorico($cantidad = null)
+    {
+        try {
+            // Si no hay movimientos de entrada, usar el precio de compra actual
+            $movimientosEntrada = $this->movimientos()
+                ->where('tipo', 'entrada')
+                ->where('cantidad', '>', 0)
+                ->orderBy('created_at', 'desc');
+
+            if ($cantidad) {
+                $movimientosEntrada->limit($cantidad);
+            }
+
+            $movimientos = $movimientosEntrada->get();
+
+            if ($movimientos->isEmpty()) {
+                return $this->precio_compra ?: 0;
+            }
+
+            // Calcular costo promedio ponderado
+            $totalCantidad = 0;
+            $totalCosto = 0;
+
+            foreach ($movimientos as $movimiento) {
+                $costoUnitario = $movimiento->detalles['costo_unitario'] ?? $this->precio_compra ?: 0;
+                $totalCosto += $costoUnitario * $movimiento->cantidad;
+                $totalCantidad += $movimiento->cantidad;
+            }
+
+            return $totalCantidad > 0 ? $totalCosto / $totalCantidad : ($this->precio_compra ?: 0);
+        } catch (\Exception $e) {
+            // En caso de error, devolver el precio de compra actual
+            return $this->precio_compra ?: 0;
+        }
+    }
+
+    /**
+     * Calcula el costo histórico usando el sistema de lotes (si aplica)
+     */
+    public function calcularCostoPorLotes($cantidadNecesaria = null)
+    {
+        try {
+            if (!$this->expires) {
+                return $this->calcularCostoHistorico($cantidadNecesaria);
+            }
+
+            // Para productos con lotes, calcular basado en los lotes disponibles
+            $lotes = $this->lotes()
+                ->where('cantidad_actual', '>', 0)
+                ->where(function ($q) {
+                    $q->whereNull('fecha_caducidad')
+                      ->orWhere('fecha_caducidad', '>', now());
+                })
+                ->orderBy('fecha_caducidad', 'asc') // FIFO
+                ->get();
+
+            if ($lotes->isEmpty()) {
+                return $this->precio_compra ?: 0;
+            }
+
+            $cantidadRestante = $cantidadNecesaria ?? $this->stock;
+            $costoTotal = 0;
+
+            foreach ($lotes as $lote) {
+                if ($cantidadRestante <= 0) break;
+
+                $cantidadUsar = min($cantidadRestante, $lote->cantidad_actual);
+                $costoUnitario = $lote->costo_unitario ?: $this->precio_compra ?: 0;
+                $costoTotal += $costoUnitario * $cantidadUsar;
+                $cantidadRestante -= $cantidadUsar;
+            }
+
+            $cantidadUsada = ($cantidadNecesaria ?? $this->stock) - $cantidadRestante;
+            return $cantidadUsada > 0 ? $costoTotal / $cantidadUsada : ($this->precio_compra ?: 0);
+        } catch (\Exception $e) {
+            // En caso de error, devolver el precio de compra actual
+            return $this->precio_compra ?: 0;
+        }
+    }
 }
