@@ -92,6 +92,9 @@
             <NavLink href="/cuentas-por-cobrar" icon="file-invoice-dollar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Cuentas por Cobrar' : null">
               Cuentas por Cobrar
             </NavLink>
+            <NavLink href="/entregas-dinero" icon="dollar-sign" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Entregas de Dinero' : null">
+              Entregas de Dinero
+            </NavLink>
           </div>
         </div>
 
@@ -182,10 +185,6 @@
            <div v-show="accordionStates.administracion" class="mt-2 space-y-1">
              <NavLink :href="routeOr('/backup')" icon="database" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Copia de Seguridad' : null">
                Copia de Seguridad
-             </NavLink>
-             <!-- NUEVO: Entregas de Dinero (Solo para administradores) -->
-             <NavLink v-if="props.usuario.is_admin || (props.usuario.roles && props.usuario.roles.some(role => role.name === 'admin'))" href="/entregas-dinero" icon="dollar-sign" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Entregas de Dinero' : null">
-               Entregas de Dinero
              </NavLink>
            </div>
          </div>
@@ -453,7 +452,7 @@ const getCurrentSection = () => {
   // Verificar inventario primero (mÃƒÆ’Ã‚Â¡s especÃƒÆ’Ã‚Â­fico)
   if (path.includes('/productos') || path.includes('/traspasos') || path.includes('/movimientos-inventario') || path.includes('/ajustes-inventario') || path.includes('/movimientos-manuales')) {
     return 'inventario';
-  } else if (path.includes('/cotizaciones') || path.includes('/pedidos') || path.includes('/ventas') || path.includes('/cuentas-por-cobrar')) {
+  } else if (path.includes('/cotizaciones') || path.includes('/pedidos') || path.includes('/ventas') || path.includes('/cuentas-por-cobrar') || path.includes('/entregas-dinero')) {
     return 'ventas';
   } else if (path.includes('/compras') || path.includes('/ordenescompra') || path.includes('/proveedores') || path.includes('/cuentas-por-pagar')) {
     return 'compras';
@@ -461,7 +460,7 @@ const getCurrentSection = () => {
     return 'catalogos';
   } else if (path.includes('/clientes') || path.includes('/citas')) {
     return 'clientes_citas';
-  } else if (path.includes('/backup') || path.includes('/entregas-dinero')) {
+  } else if (path.includes('/backup') ) {
     return 'administracion';
   } else if (path.includes('/usuarios') || path.includes('/bitacora')) {
     return 'usuario';
@@ -555,6 +554,7 @@ aside::-webkit-scrollbar-thumb:hover { background: rgba(156, 163, 175, 0.7); }
   }
 }
 </style>
+
 
 
 

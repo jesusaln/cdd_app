@@ -267,7 +267,7 @@ class ReporteController extends Controller
                 'concepto' => 'Venta',
                 'total' => $venta->total,
                 'metodo_pago' => $venta->metodo_pago,
-                'fecha_pago' => $venta->fecha_pago ? $venta->fecha_pago->format('Y-m-d H:i') : null,
+                'fecha_pago' => $venta->fecha_pago ? $venta->fecha_pago->toIso8601String() : null,
                 'notas_pago' => $venta->notas_pago,
                 'pagado_por' => $venta->pagadoPor?->name ?? 'Sistema',
             ];
@@ -282,7 +282,7 @@ class ReporteController extends Controller
                 'concepto' => $cobranza->concepto ?? 'Cobranza',
                 'total' => $cobranza->monto_pagado,
                 'metodo_pago' => $cobranza->metodo_pago,
-                'fecha_pago' => $cobranza->fecha_pago ? $cobranza->fecha_pago->format('Y-m-d H:i') : null,
+                'fecha_pago' => $cobranza->fecha_pago ? $cobranza->fecha_pago->toIso8601String() : null,
                 'notas_pago' => $cobranza->notas_pago,
                 'pagado_por' => $cobranza->responsableCobro?->name ?? 'Sistema',
             ];
@@ -400,7 +400,7 @@ class ReporteController extends Controller
                 'concepto' => 'Venta',
                 'metodo_pago' => $venta->metodo_pago,
                 'total' => $venta->total,
-                'fecha_pago' => $venta->fecha_pago ? $venta->fecha_pago->format('Y-m-d H:i:s') : null,
+                'fecha_pago' => $venta->fecha_pago ? $venta->fecha_pago->toIso8601String() : null,
                 'notas_pago' => $venta->notas_pago,
                 'pagado_por' => $venta->pagadoPor?->name ?? 'Sistema',
             ];
@@ -414,7 +414,7 @@ class ReporteController extends Controller
                 'concepto' => $cobranza->concepto ?? 'Cobranza',
                 'metodo_pago' => $cobranza->metodo_pago,
                 'total' => $cobranza->monto_pagado,
-                'fecha_pago' => $cobranza->fecha_pago ? $cobranza->fecha_pago->format('Y-m-d H:i:s') : null,
+                'fecha_pago' => $cobranza->fecha_pago ? $cobranza->fecha_pago->toIso8601String() : null,
                 'notas_pago' => $cobranza->notas_pago,
                 'pagado_por' => $cobranza->responsableCobro?->name ?? 'Sistema',
             ];
@@ -897,7 +897,7 @@ class ReporteController extends Controller
                 'monto_pagado' => $cobranza->monto_pagado,
                 'estado' => $cobranza->estado,
                 'metodo_pago' => $cobranza->metodo_pago,
-                'fecha_pago' => $cobranza->fecha_pago?->format('Y-m-d H:i'),
+                'fecha_pago' => $cobranza->fecha_pago?->toIso8601String(),
                 'notas_pago' => $cobranza->notas_pago,
                 'responsable' => $cobranza->responsableCobro?->name,
             ];
@@ -1146,7 +1146,7 @@ class ReporteController extends Controller
                 'datos_anteriores' => $bitacora->datos_anteriores,
                 'datos_nuevos' => $bitacora->datos_nuevos,
                 'ip' => $bitacora->ip,
-                'fecha' => $bitacora->created_at->format('Y-m-d H:i:s'),
+                'fecha' => $bitacora->created_at->toIso8601String(),
             ];
         });
 

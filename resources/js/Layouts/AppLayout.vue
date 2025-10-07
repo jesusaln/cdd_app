@@ -146,7 +146,7 @@ import {
     faCalendar, faWrench, faTools, faCarAlt, faChartBar, faCartShopping,
     faCircle, faHome, faUsers, faBox, faTags, faTrademark, faTruck,
     faWarehouse, faFileAlt, faTruckLoading, faDollarSign, faUser,
-    faCalculator,
+    faCalculator, faHandHoldingUsd,
 } from '@fortawesome/free-solid-svg-icons';
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import { router } from '@inertiajs/vue3';

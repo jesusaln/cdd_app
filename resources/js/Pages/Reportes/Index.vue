@@ -1142,6 +1142,16 @@ const formatDate = (date) => {
     }
 };
 
+// Fecha y hora corta para Corte Diario
+const formatDateTime = (date) => {
+    if (!date) return '-';
+    try {
+        return format(new Date(date), 'yyyy-MM-dd HH:mm', { locale: es });
+    } catch {
+        return '-';
+    }
+};
+
 const filtrarPorFecha = (items) => {
     if (!fechaInicio.value || !fechaFin.value) return items;
 
@@ -1431,6 +1441,10 @@ const tabClass = (tab) => ({
     max-width: 1200px;
 }
 </style>
+
+
+
+
 
 
 

@@ -37,6 +37,7 @@ const selectedId = ref(null)
 const showMontoModal = ref(false)
 const selectedRegistro = ref(null)
 const montoRecibido = ref('')
+const metodoPagoEntrega = ref('')
 const notasRecibido = ref('')
 
 // Filtros
@@ -170,12 +171,21 @@ const marcarRecibida = (entrega) => {
 const marcarAutomaticoRecibido = (registro) => {
   selectedRegistro.value = registro
   montoRecibido.value = (registro.saldo_pendiente || registro.total).toString() // Valor por defecto: el saldo pendiente
+  metodoPagoEntrega.value = '' // Se deja vacío para que el usuario elija
   notasRecibido.value = ''
   showMontoModal.value = true
 }
 
 const confirmarMontoRecibido = () => {
   const monto = parseFloat(montoRecibido.value)
+
+  // Validar método de pago
+  if (!metodoPagoEntrega.value) {
+    notyf.error('Debe seleccionar un método de pago en entrega')
+    return
+  }
+
+  // Validar monto
   if (!montoRecibido.value || isNaN(monto) || monto <= 0) {
     notyf.error('Debe ingresar un monto válido mayor a cero')
     return
@@ -192,6 +202,7 @@ const confirmarMontoRecibido = () => {
     id_origen: selectedRegistro.value.id_origen
   }), {
     monto_recibido: parseFloat(montoRecibido.value),
+    metodo_pago_entrega: metodoPagoEntrega.value,
     notas_recibido: notasRecibido.value
   }, {
     onSuccess: () => {
@@ -212,7 +223,49 @@ const cerrarMontoModal = () => {
   showMontoModal.value = false
   selectedRegistro.value = null
   montoRecibido.value = ''
+  metodoPagoEntrega.value = ''
   notasRecibido.value = ''
+}
+
+const getMetodoPagoLabel = (registro) => {
+  // Para registros automáticos necesitamos obtener el método de pago del registro original
+  if (registro.registro_original && registro.registro_original.metodo_pago) {
+    const metodos = {
+      'efectivo': 'Efectivo',
+      'transferencia': 'Transferencia',
+      'cheque': 'Cheque',
+      'tarjeta': 'Tarjeta',
+      'otros': 'Otros'
+    }
+    return metodos[registro.registro_original.metodo_pago] || registro.registro_original.metodo_pago
+  }
+  // Si no tiene registro_original pero tiene metodo_pago directamente
+  if (registro.metodo_pago) {
+    const metodos = {
+      'efectivo': 'Efectivo',
+      'transferencia': 'Transferencia',
+      'cheque': 'Cheque',
+      'tarjeta': 'Tarjeta',
+      'otros': 'Otros'
+    }
+    return metodos[registro.metodo_pago] || registro.metodo_pago
+  }
+  return 'No especificado'
+}
+
+const getMetodoPagoClass = (registro) => {
+  const metodoPago = registro.registro_original?.metodo_pago || registro.metodo_pago
+  if (metodoPago) {
+    const clases = {
+      'efectivo': 'bg-green-100 text-green-800',
+      'transferencia': 'bg-blue-100 text-blue-800',
+      'cheque': 'bg-purple-100 text-purple-800',
+      'tarjeta': 'bg-orange-100 text-orange-800',
+      'otros': 'bg-gray-100 text-gray-800'
+    }
+    return clases[metodoPago] || 'bg-gray-100 text-gray-800'
+  }
+  return 'bg-gray-100 text-gray-800'
 }
 
 // Paginación
@@ -670,19 +723,64 @@ const handlePageChange = (newPage) => {
           <div class="p-6">
             <div v-if="selectedRegistro" class="space-y-4">
               <!-- Información del registro -->
-              <div class="bg-gray-50 p-4 rounded-lg">
+              <div class="bg-gray-50 p-4 rounded-lg space-y-3">
+                <div class="flex justify-between items-center">
+                  <span class="text-sm font-medium text-gray-700">Tipo:</span>
+                  <span class="text-sm text-gray-900">
+                    <span :class="selectedRegistro.tipo === 'cobranza' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'"
+                          class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">
+                      {{ selectedRegistro.tipo === 'cobranza' ? 'Cobranza' : 'Venta' }}
+                    </span>
+                  </span>
+                </div>
                 <div class="flex justify-between items-center">
                   <span class="text-sm font-medium text-gray-700">Concepto:</span>
                   <span class="text-sm text-gray-900">{{ selectedRegistro.concepto }}</span>
                 </div>
-                <div class="flex justify-between items-center mt-2">
+                <div class="flex justify-between items-center">
+                  <span class="text-sm font-medium text-gray-700">Cliente:</span>
+                  <span class="text-sm text-gray-900">{{ selectedRegistro.cliente }}</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-sm font-medium text-gray-700">Método de Pago Original:</span>
+                  <span class="text-sm font-semibold text-gray-900">
+                    <span :class="getMetodoPagoClass(selectedRegistro)">
+                      {{ getMetodoPagoLabel(selectedRegistro) }}
+                    </span>
+                  </span>
+                </div>
+                <div class="flex justify-between items-center">
                   <span class="text-sm font-medium text-gray-700">Saldo Pendiente:</span>
                   <span class="text-lg font-bold text-gray-900">${{ formatNumber(selectedRegistro.saldo_pendiente || selectedRegistro.total) }}</span>
                 </div>
-                <div v-if="selectedRegistro.ya_entregado > 0" class="flex justify-between items-center mt-1">
+                <div v-if="selectedRegistro.ya_entregado > 0" class="flex justify-between items-center">
                   <span class="text-sm font-medium text-gray-600">Ya entregado:</span>
                   <span class="text-sm text-blue-600">${{ formatNumber(selectedRegistro.ya_entregado) }}</span>
                 </div>
+                <div class="flex justify-between items-center pt-2 border-t border-gray-200">
+                  <span class="text-sm font-medium text-gray-700">Total Original:</span>
+                  <span class="text-sm text-gray-900">${{ formatNumber(selectedRegistro.total) }}</span>
+                </div>
+              </div>
+
+              <!-- Método de Pago en Entrega -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Método de Pago en Entrega *</label>
+                <select
+                  v-model="metodoPagoEntrega"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                >
+                  <option value="">Seleccionar método de pago</option>
+                  <option value="efectivo">Efectivo</option>
+                  <option value="transferencia">Transferencia</option>
+                  <option value="cheque">Cheque</option>
+                  <option value="tarjeta">Tarjeta</option>
+                  <option value="otros">Otros</option>
+                </select>
+                <p class="text-xs text-gray-500 mt-1">
+                  Especifica cómo se entrega físicamente el dinero
+                </p>
               </div>
 
               <!-- Monto recibido -->
@@ -722,7 +820,7 @@ const handlePageChange = (newPage) => {
             </button>
             <button
               @click="confirmarMontoRecibido"
-              :disabled="!montoRecibido || isNaN(parseFloat(montoRecibido)) || parseFloat(montoRecibido) <= 0"
+              :disabled="!montoRecibido || !metodoPagoEntrega || isNaN(parseFloat(montoRecibido)) || parseFloat(montoRecibido) <= 0"
               class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               Registrar Monto

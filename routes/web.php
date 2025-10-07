@@ -202,6 +202,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::get('/reportes/corte-diario', function () {
         return redirect('/reportes?tab=corte');
     })->name('reportes.corte-diario');
+    // Registrar entrega directa desde Corte Diario
+    Route::post('/reportes/corte/entrega', [EntregaDineroController::class, 'storeDesdeCorte'])
+        ->name('reportes.corte.entrega');
     Route::get('/reportes/export', [ReporteController::class, 'exportarCorteDiario'])->name('reportes.export');
     Route::get('/reportes/tecnicos', function () {
         return redirect('/reportes?tab=personal');
@@ -317,7 +320,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::post('/cobranza/generar-automaticas', [CobranzaController::class, 'generarCobranzas'])->name('cobranza.generar-automaticas');
 
     Route::get('/entregas-dinero/pendientes-por-usuario', [EntregaDineroController::class, 'pendientesPorUsuario'])->name('entregas-dinero.pendientes-por-usuario');
+    Route::get('/entregas-dinero/reporte-pagos', [EntregaDineroController::class, 'reportePagosRecibidos'])->name('entregas-dinero.reporte-pagos');
     Route::post('/entregas-dinero/marcar-automatico/{tipo_origen}/{id_origen}', [EntregaDineroController::class, 'marcarAutomaticoRecibido'])->name('entregas-dinero.marcar-automatico');
+    Route::post('/entregas-dinero/{id}/marcar-entregado-responsable', [EntregaDineroController::class, 'marcarEntregadoResponsable'])->name('entregas-dinero.marcar-entregado-responsable');
     Route::resource('entregas-dinero', EntregaDineroController::class);
 
     Route::resource('bitacora-actividades', BitacoraActividadController::class)->names('bitacora-actividades');

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\DB;
 use App\Models\Venta;
 use App\Models\Compra;
 use App\Models\Cliente;
@@ -13,6 +14,7 @@ use App\Models\Cita;
 use App\Models\Mantenimiento;
 use App\Models\Renta;
 use App\Models\Cobranza;
+use Spatie\Activitylog\Models\Activity as ActivityLog;
 use App\Models\User;
 use Carbon\Carbon;
 
@@ -163,10 +165,15 @@ class ReportesDashboardController extends Controller
      */
     public function indexTabs(Request $request)
     {
+        $tab = $request->get('tab', 'ventas');
+
+        // Si es el tab de corte, mostrar vista específica de corte diario
+        if ($tab === 'corte') {
+            return $this->mostrarCorteDiario($request);
+        }
+
         // Obtener datos para las tabs
-        // Evitar eager load de relaciones que causan conflicto ('productos', 'servicios')
-        // con definiciones polimórficas. Cargamos cliente e items; productos/servicios
-        // se cargarán perezosamente cuando calcularCostoTotal() los necesite.
+        // Evitar eager load conflictivo: cargamos cliente e items (productos/servicios se resuelven al calcular costo)
         $ventas = Venta::with(['cliente', 'items.ventable'])->get()->map(function ($venta) {
             $venta->costo_total = $venta->calcularCostoTotal();
             return $venta;
@@ -174,6 +181,96 @@ class ReportesDashboardController extends Controller
         $compras = Compra::with(['proveedor', 'productos'])->get();
         $inventario = Producto::with('categoria')->get();
         $movimientos = \App\Models\InventarioMovimiento::with(['producto', 'user'])->latest()->get();
+
+        // Corte diario de hoy (ventas/cobranzas/egresos)
+        $hoy = now()->format('Y-m-d');
+        $ventasPagadas = Venta::with(['cliente', 'pagadoPor'])
+            ->where('pagado', true)
+            ->whereBetween('fecha_pago', [$hoy . ' 00:00:00', $hoy . ' 23:59:59'])
+            ->get()
+            ->map(function ($venta) {
+                return [
+                    'id' => $venta->id,
+                    'tipo' => 'venta',
+                    'numero' => $venta->numero_venta,
+                    'cliente' => $venta->cliente->nombre_razon_social ?? 'Sin cliente',
+                    'concepto' => 'Venta de productos/servicios',
+                    'total' => (float) $venta->total,
+                    'metodo_pago' => $venta->metodo_pago,
+                    'fecha_pago' => optional($venta->fecha_pago)->toIso8601String(),
+                    'notas_pago' => $venta->notas_pago,
+                    'cobrado_por' => optional($venta->pagadoPor)->name ?? 'Sistema',
+                    'pagado_por' => $venta->pagado_por,
+                ];
+            });
+
+        $cobranzasPagadas = Cobranza::with(['renta.cliente', 'responsableCobro'])
+            ->whereIn('estado', ['pagado', 'parcial'])
+            ->whereBetween('fecha_pago', [$hoy . ' 00:00:00', $hoy . ' 23:59:59'])
+            ->get()
+            ->map(function ($cobranza) {
+                return [
+                    'id' => $cobranza->id,
+                    'tipo' => 'renta',
+                    'numero' => $cobranza->renta->numero_contrato ?? 'N/A',
+                    'cliente' => $cobranza->renta->cliente->nombre_razon_social ?? 'Sin cliente',
+                    'concepto' => $cobranza->concepto ?? 'Cobranza de renta',
+                    'total' => (float) $cobranza->monto_pagado,
+                    'metodo_pago' => $cobranza->metodo_pago,
+                    'fecha_pago' => optional($cobranza->fecha_pago)->toIso8601String(),
+                    'notas_pago' => $cobranza->notas_pago,
+                    'cobrado_por' => optional($cobranza->responsableCobro)->name ?? 'Sistema',
+                    'pagado_por' => $cobranza->user_id,
+                ];
+            });
+
+        $comprasPagadas = \App\Models\CuentasPorPagar::with(['compra.proveedor'])
+            ->where('estado', 'pagado')
+            ->whereBetween('updated_at', [$hoy . ' 00:00:00', $hoy . ' 23:59:59'])
+            ->get()
+            ->map(function ($cpp) {
+                return [
+                    'id' => $cpp->id,
+                    'tipo' => 'compra',
+                    'numero' => optional($cpp->compra)->numero_compra ?? 'N/A',
+                    'cliente' => optional(optional($cpp->compra)->proveedor)->nombre_razon_social ?? 'Proveedor',
+                    'concepto' => 'Compra pagada',
+                    'total' => -1 * (float) $cpp->monto_total,
+                    'metodo_pago' => 'otros',
+                    'fecha_pago' => optional($cpp->updated_at)->toIso8601String(),
+                    'notas_pago' => $cpp->notas,
+                    'cobrado_por' => 'Sistema',
+                    'pagado_por' => null,
+                ];
+            });
+
+        $entregas = \App\Models\EntregaDinero::with(['usuario'])
+            ->where('estado', 'recibido')
+            ->whereBetween('fecha_entrega', [$hoy, $hoy])
+            ->get()
+            ->map(function ($e) {
+                return [
+                    'id' => $e->id,
+                    'tipo' => 'entrega',
+                    'numero' => 'ENT-' . str_pad($e->id, 4, '0', STR_PAD_LEFT),
+                    'cliente' => optional($e->usuario)->name ?? 'Usuario',
+                    'concepto' => 'Entrega de dinero',
+                    'total' => -1 * (float) $e->total,
+                    'metodo_pago' => 'otros',
+                    'fecha_pago' => optional($e->fecha_entrega)->format('Y-m-d') . ' 00:00:00',
+                    'notas_pago' => $e->notas,
+                    'cobrado_por' => optional($e->usuario)->name ?? 'Usuario',
+                    'pagado_por' => $e->user_id,
+                ];
+            });
+
+        $corteDiario = collect()
+            ->merge($ventasPagadas)
+            ->merge($cobranzasPagadas)
+            ->merge($comprasPagadas)
+            ->merge($entregas)
+            ->sortByDesc('fecha_pago')
+            ->values();
 
         return Inertia::render('Reportes/Index', [
             'reportesVentas' => $ventas,
@@ -185,6 +282,8 @@ class ReportesDashboardController extends Controller
             'totalCompras' => $compras->sum('total'),
             'inventario' => $inventario,
             'movimientosInventario' => $movimientos,
+            'corteDiario' => $corteDiario,
+            'usuarios' => User::select('id', 'name')->get(),
         ]);
     }
 
@@ -226,134 +325,378 @@ class ReportesDashboardController extends Controller
         }
     }
 
-    private function obtenerLabelPeriodo(string $periodo): string
+    /**
+     * Obtener estadísticas generales para el dashboard entre dos fechas (Carbon)
+     *
+     * Devuelve un arreglo con claves usadas por el controlador; cada cálculo está envuelto
+     * en try/catch para evitar errores si alguna columna o relación no existe.
+     */
+    private function obtenerEstadisticasGenerales($inicio, $fin): array
     {
-        $labels = [
-            'dia' => 'Hoy',
-            'semana' => 'Esta Semana',
-            'mes' => 'Este Mes',
-            'trimestre' => 'Este Trimestre',
-            'año' => 'Este Año',
+        // Valores por defecto
+        $defaults = [
+            'ventas' => ['total' => 0, 'utilidad' => 0, 'productos_vendidos' => 0],
+            'rentas' => ['rentas_activas' => 0, 'total_cobrado' => 0, 'pendiente_cobrar' => 0],
+            'clientes' => ['total' => 0, 'activos' => 0, 'deudores' => 0],
+            'inventario' => ['total_productos' => 0, 'productos_bajos' => 0, 'valor_inventario' => 0],
+            'servicios' => ['citas_completadas' => 0, 'mantenimientos' => 0, 'ingresos_servicios' => 0],
+            'finanzas' => ['ingresos_totales' => 0, 'gastos_totales' => 0, 'ganancia_neta' => 0],
+            'personal' => ['total_empleados' => 0, 'tecnicos_activos' => 0, 'ventas_por_tecnico' => []],
+            'auditoria' => ['actividades_hoy' => 0, 'usuarios_activos' => 0],
         ];
 
-        return $labels[$periodo] ?? 'Este Mes';
-    }
+        try {
+            // Ventas
+            $ventasCol = Venta::with('items.ventable')
+                ->whereBetween('created_at', [$inicio, $fin])
+                ->get();
 
-    private function obtenerEstadisticasGenerales(Carbon $fechaInicio, Carbon $fechaFin): array
-    {
-        // Ventas
-        $ventas = Venta::whereBetween('fecha', [$fechaInicio, $fechaFin])->get();
-        $totalVentas = $ventas->sum('total');
-        $utilidadVentas = $ventas->sum(function ($venta) {
-            return $venta->total - $venta->calcularCostoTotal();
-        });
-        // Calcular productos vendidos usando los items de venta
-        $productosVendidos = 0;
-        foreach ($ventas as $venta) {
-            foreach ($venta->items as $item) {
-                if ($item->ventable_type === \App\Models\Producto::class) {
-                    $productosVendidos += $item->cantidad;
+            $totalVentas = (float) $ventasCol->sum('total');
+            $utilidad = (float) $ventasCol->sum(function ($v) {
+                try {
+                    return $v->total - $v->calcularCostoTotal();
+                } catch (\Throwable $e) {
+                    return 0;
                 }
-            }
+            });
+            $productosVendidos = (int) $ventasCol->pluck('items')->flatten()->sum('cantidad');
+
+            $defaults['ventas'] = [
+                'total' => $totalVentas,
+                'utilidad' => $utilidad,
+                'productos_vendidos' => $productosVendidos,
+            ];
+        } catch (\Throwable $e) {
+            // keep defaults
         }
 
-        // Clientes
-        $clientes = Cliente::all();
-        $clientesActivos = $clientes->filter(function ($cliente) {
-            return $cliente->ventas()->exists() || $cliente->rentas()->exists();
-        })->count();
-        $clientesDeudores = Renta::where('estado', 'activa')
-            ->with('cobranzas')
-            ->get()
-            ->filter(function ($renta) {
-                $pagado = $renta->cobranzas->whereIn('estado', ['pagado', 'parcial'])->sum('monto_pagado');
-                return $renta->monto_total > $pagado;
-            })->count();
+        try {
+            // Rentas / cobranzas
+            $totalCobrado = (float) Cobranza::whereBetween('fecha_pago', [$inicio, $fin])->sum('monto_pagado');
+            $pendiente = 0;
+            try {
+                $pendiente = (float) Renta::whereBetween('created_at', [$inicio, $fin])->sum('saldo');
+            } catch (\Throwable $_) {
+                $pendiente = 0;
+            }
+            $rentasActivas = 0;
+            try {
+                $rentasActivas = Renta::where('estado', 'activa')->count();
+            } catch (\Throwable $_) {
+                $rentasActivas = Renta::count() ?? 0;
+            }
 
-        // Inventario
-        $productos = Producto::all();
-        $productosBajos = $productos->where('stock', '<=', 'stock_minimo')->where('stock', '>', 0)->count();
-        $valorInventario = $productos->sum(function ($producto) {
-            return $producto->stock * $producto->precio_compra;
-        });
+            $defaults['rentas'] = [
+                'rentas_activas' => $rentasActivas,
+                'total_cobrado' => $totalCobrado,
+                'pendiente_cobrar' => $pendiente,
+            ];
+        } catch (\Throwable $e) {
+            // keep defaults
+        }
 
-        // Servicios
-        $citasCompletadas = Cita::whereBetween('fecha', [$fechaInicio, $fechaFin])
-            ->where('estado', 'completada')->count();
-        $mantenimientos = Mantenimiento::whereBetween('fecha', [$fechaInicio, $fechaFin])->count();
-        $ingresosServicios = Cita::whereBetween('fecha', [$fechaInicio, $fechaFin])
-            ->where('estado', 'completada')->sum('precio');
+        try {
+            // Clientes
+            $totalClientes = Cliente::count();
+            $activos = 0;
+            $deudores = 0;
+            try {
+                $activos = Cliente::where('activo', 1)->count();
+            } catch (\Throwable $_) {
+                $activos = 0;
+            }
+            try {
+                $deudores = Cliente::where('saldo', '>', 0)->count();
+            } catch (\Throwable $_) {
+                $deudores = 0;
+            }
 
-        // Rentas
-        $rentasActivas = Renta::where('estado', 'activa')->count();
-        $totalCobrado = Cobranza::whereBetween('fecha_pago', [$fechaInicio, $fechaFin])
-            ->whereIn('estado', ['pagado', 'parcial'])->sum('monto_pagado');
-        $pendienteCobrar = Renta::where('estado', 'activa')
-            ->with('cobranzas')
-            ->get()
-            ->sum(function ($renta) {
-                $pagado = $renta->cobranzas->whereIn('estado', ['pagado', 'parcial'])->sum('monto_pagado');
-                return $renta->monto_total - $pagado;
+            $defaults['clientes'] = [
+                'total' => $totalClientes,
+                'activos' => $activos,
+                'deudores' => $deudores,
+            ];
+        } catch (\Throwable $e) {
+            // keep defaults
+        }
+
+        try {
+            // Inventario
+            $productos = Producto::all();
+            $totalProductos = $productos->count();
+            $productosBajos = 0;
+            try {
+                // attempt to detect common stock/reorder fields safely
+                $productosBajos = $productos->filter(function ($p) {
+                    if (isset($p->stock) && isset($p->reorder_point)) {
+                        return $p->stock <= $p->reorder_point;
+                    }
+                    return false;
+                })->count();
+            } catch (\Throwable $_) {
+                $productosBajos = 0;
+            }
+            $valorInventario = (float) $productos->sum(function ($p) {
+                $stock = $p->stock ?? 0;
+                $costo = $p->costo ?? ($p->precio_compra ?? 0);
+                return $stock * $costo;
             });
 
-        // Finanzas
-        $compras = Compra::whereBetween('fecha', [$fechaInicio, $fechaFin])->sum('total');
-        $ingresosTotales = $totalVentas + $ingresosServicios + $totalCobrado;
-        $gastosTotales = $compras + $ventas->sum(function ($venta) {
-            return $venta->calcularCostoTotal();
-        });
-        $gananciaNeta = $ingresosTotales - $gastosTotales;
-
-        // Personal
-        $totalEmpleados = User::count();
-        $tecnicosActivos = User::whereHas('tecnico')->count();
-        $ventasPorTecnico = Venta::where('vendedor_type', 'App\Models\Tecnico')
-            ->whereBetween('fecha', [$fechaInicio, $fechaFin])->count();
-
-        // Auditoría
-        $actividadesHoy = \App\Models\BitacoraActividad::whereDate('created_at', Carbon::today())->count();
-        $usuariosActivos = User::where('activo', true)->count();
-
-        return [
-            'ventas' => [
-                'total' => $totalVentas,
-                'utilidad' => $utilidadVentas,
-                'productos_vendidos' => $productosVendidos,
-            ],
-            'clientes' => [
-                'total' => $clientes->count(),
-                'activos' => $clientesActivos,
-                'deudores' => $clientesDeudores,
-            ],
-            'inventario' => [
-                'total_productos' => $productos->count(),
+            $defaults['inventario'] = [
+                'total_productos' => $totalProductos,
                 'productos_bajos' => $productosBajos,
                 'valor_inventario' => $valorInventario,
-            ],
-            'servicios' => [
+            ];
+        } catch (\Throwable $e) {
+            // keep defaults
+        }
+
+        try {
+            // Servicios (citas/mantenimientos/ingresos)
+            $citasCompletadas = 0;
+            try {
+                $citasCompletadas = Cita::whereBetween('fecha', [$inicio, $fin])->where('estado', 'completada')->count();
+            } catch (\Throwable $_) {
+                $citasCompletadas = Cita::whereBetween('fecha', [$inicio, $fin])->count();
+            }
+            $mantenimientos = 0;
+            try {
+                $mantenimientos = Mantenimiento::whereBetween('created_at', [$inicio, $fin])->count();
+            } catch (\Throwable $_) {
+                $mantenimientos = 0;
+            }
+            $ingresosServicios = 0;
+            try {
+                $ingresosServicios = (float) Servicio::whereBetween('created_at', [$inicio, $fin])->sum('precio');
+            } catch (\Throwable $_) {
+                $ingresosServicios = 0;
+            }
+
+            $defaults['servicios'] = [
                 'citas_completadas' => $citasCompletadas,
                 'mantenimientos' => $mantenimientos,
                 'ingresos_servicios' => $ingresosServicios,
-            ],
-            'rentas' => [
-                'rentas_activas' => $rentasActivas,
-                'total_cobrado' => $totalCobrado,
-                'pendiente_cobrar' => $pendienteCobrar,
-            ],
-            'finanzas' => [
-                'ingresos_totales' => $ingresosTotales,
-                'gastos_totales' => $gastosTotales,
-                'ganancia_neta' => $gananciaNeta,
-            ],
-            'personal' => [
+            ];
+        } catch (\Throwable $e) {
+            // keep defaults
+        }
+
+        try {
+            // Finanzas
+            $ingresos = $defaults['ventas']['total'] + $defaults['rentas']['total_cobrado'];
+            $gastos = 0;
+            try {
+                $gastos = (float) Compra::whereBetween('created_at', [$inicio, $fin])->sum('total');
+            } catch (\Throwable $_) {
+                $gastos = 0;
+            }
+            $defaults['finanzas'] = [
+                'ingresos_totales' => $ingresos,
+                'gastos_totales' => $gastos,
+                'ganancia_neta' => $ingresos - $gastos,
+            ];
+        } catch (\Throwable $e) {
+            // keep defaults
+        }
+
+        try {
+            // Personal
+            $totalEmpleados = 0;
+            try {
+                $totalEmpleados = User::where('is_employee', 1)->count();
+            } catch (\Throwable $_) {
+                $totalEmpleados = User::count();
+            }
+            $tecnicosActivos = 0;
+            try {
+                $tecnicosActivos = User::where('role', 'tecnico')->count();
+            } catch (\Throwable $_) {
+                $tecnicosActivos = 0;
+            }
+            $ventasPorTecnico = [];
+            try {
+                $ventasPorTecnico = Venta::select('responsable_id', DB::raw('SUM(total) as total'))
+                    ->whereBetween('created_at', [$inicio, $fin])
+                    ->groupBy('responsable_id')
+                    ->get()
+                    ->mapWithKeys(function ($r) {
+                        return [$r->responsable_id => (float) $r->total];
+                    })->toArray();
+            } catch (\Throwable $_) {
+                $ventasPorTecnico = [];
+            }
+
+            $defaults['personal'] = [
                 'total_empleados' => $totalEmpleados,
                 'tecnicos_activos' => $tecnicosActivos,
                 'ventas_por_tecnico' => $ventasPorTecnico,
-            ],
-            'auditoria' => [
+            ];
+        } catch (\Throwable $e) {
+            // keep defaults
+        }
+
+        try {
+            // Auditoría
+            $actividadesHoy = 0;
+            try {
+                // Use the DB table directly to avoid depending on the Spatie model class (which may be missing)
+                $actividadesHoy = DB::table('activity_log')
+                    ->whereBetween('created_at', [$inicio, $fin])
+                    ->count();
+            } catch (\Throwable $_) {
+                $actividadesHoy = 0;
+            }
+            $usuariosActivos = 0;
+            try {
+                $usuariosActivos = User::whereBetween('last_login_at', [$inicio, $fin])->count();
+            } catch (\Throwable $_) {
+                $usuariosActivos = 0;
+            }
+
+            $defaults['auditoria'] = [
                 'actividades_hoy' => $actividadesHoy,
                 'usuarios_activos' => $usuariosActivos,
-            ],
+            ];
+        } catch (\Throwable $e) {
+            // keep defaults
+        }
+
+        return $defaults;
+    }
+
+    /**
+     * Mostrar corte de pagos por período
+     */
+    private function mostrarCorteDiario(Request $request)
+    {
+        $periodo = $request->get('periodo', 'diario');
+        $fecha = $request->get('fecha', now()->format('Y-m-d'));
+
+        // Calcular fechas de inicio y fin según el período
+        $fecha_inicio = $fecha_fin = $fecha;
+        $periodoLabel = 'Diario';
+
+        if ($periodo === 'diario') {
+            $fecha_inicio = $fecha_fin = $fecha;
+            $periodoLabel = 'Diario';
+        } elseif ($periodo === 'semanal') {
+            $carbon = Carbon::parse($fecha);
+            $fecha_inicio = $carbon->startOfWeek()->format('Y-m-d');
+            $fecha_fin = $carbon->endOfWeek()->format('Y-m-d');
+            $periodoLabel = 'Semanal';
+        } elseif ($periodo === 'mensual') {
+            $carbon = Carbon::parse($fecha);
+            $fecha_inicio = $carbon->startOfMonth()->format('Y-m-d');
+            $fecha_fin = $carbon->endOfMonth()->format('Y-m-d');
+            $periodoLabel = 'Mensual';
+        } elseif ($periodo === 'anual') {
+            $carbon = Carbon::parse($fecha);
+            $fecha_inicio = $carbon->startOfYear()->format('Y-m-d');
+            $fecha_fin = $carbon->endOfYear()->format('Y-m-d');
+            $periodoLabel = 'Anual';
+        } elseif ($periodo === 'personalizado') {
+            $fecha_inicio = $request->get('fecha_inicio', $fecha);
+            $fecha_fin = $request->get('fecha_fin', $fecha);
+            $periodoLabel = 'Personalizado';
+        }
+
+        // Obtener ventas pagadas en el período especificado
+        $ventasPagadas = Venta::with(['cliente', 'items.ventable'])
+            ->where('pagado', true)
+            ->where('fecha_pago', '>=', $fecha_inicio . ' 00:00:00')
+            ->where('fecha_pago', '<=', $fecha_fin . ' 23:59:59')
+            ->orderBy('fecha_pago', 'desc')
+            ->get();
+
+        // Obtener cobranzas pagadas en el período especificado
+        $cobranzasPagadas = Cobranza::with(['renta.cliente', 'responsableCobro'])
+            ->whereIn('estado', ['pagado', 'parcial'])
+            ->where('fecha_pago', '>=', $fecha_inicio . ' 00:00:00')
+            ->where('fecha_pago', '<=', $fecha_fin . ' 23:59:59')
+            ->orderBy('fecha_pago', 'desc')
+            ->get();
+
+        // Calcular totales por método de pago
+        $totalesPorMetodo = [
+            'efectivo' => 0,
+            'transferencia' => 0,
+            'cheque' => 0,
+            'tarjeta' => 0,
+            'otros' => 0,
         ];
+
+        $totalGeneral = 0;
+
+        // Procesar ventas
+        foreach ($ventasPagadas as $venta) {
+            $metodo = $venta->metodo_pago ?? 'otros';
+            if (isset($totalesPorMetodo[$metodo])) {
+                $totalesPorMetodo[$metodo] += $venta->total;
+            } else {
+                $totalesPorMetodo['otros'] += $venta->total;
+            }
+            $totalGeneral += $venta->total;
+        }
+
+        // Procesar cobranzas
+        foreach ($cobranzasPagadas as $cobranza) {
+            $metodo = $cobranza->metodo_pago ?? 'otros';
+            if (isset($totalesPorMetodo[$metodo])) {
+                $totalesPorMetodo[$metodo] += $cobranza->monto_pagado;
+            } else {
+                $totalesPorMetodo['otros'] += $cobranza->monto_pagado;
+            }
+            $totalGeneral += $cobranza->monto_pagado;
+        }
+
+        // Formatear datos para la vista
+        $ventasFormateadas = $ventasPagadas->map(function ($venta) {
+            return [
+                'id' => $venta->id,
+                'tipo' => 'venta',
+                'numero' => $venta->numero_venta,
+                'cliente' => $venta->cliente->nombre_razon_social ?? 'Sin cliente',
+                'concepto' => 'Venta',
+                'total' => $venta->total,
+                'metodo_pago' => $venta->metodo_pago,
+                'fecha_pago' => $venta->fecha_pago ? $venta->fecha_pago->toIso8601String() : null,
+                'notas_pago' => $venta->notas_pago,
+                'pagado_por' => $venta->pagadoPor?->name ?? 'Sistema',
+            ];
+        });
+
+        $cobranzasFormateadas = $cobranzasPagadas->map(function ($cobranza) {
+            return [
+                'id' => $cobranza->id,
+                'tipo' => 'cobranza',
+                'numero' => $cobranza->renta->numero_contrato ?? 'N/A',
+                'cliente' => $cobranza->renta->cliente->nombre_razon_social ?? 'Sin cliente',
+                'concepto' => $cobranza->concepto ?? 'Cobranza',
+                'total' => $cobranza->monto_pagado,
+                'metodo_pago' => $cobranza->metodo_pago,
+                'fecha_pago' => $cobranza->fecha_pago ? $cobranza->fecha_pago->toIso8601String() : null,
+                'notas_pago' => $cobranza->notas_pago,
+                'pagado_por' => $cobranza->responsableCobro?->name ?? 'Sistema',
+            ];
+        });
+
+        // Combinar y ordenar por fecha de pago
+        $pagosFormateados = collect([...$ventasFormateadas, ...$cobranzasFormateadas])
+            ->sortByDesc('fecha_pago')
+            ->values();
+
+        return Inertia::render('Reportes/CorteDiario', [
+            'pagos' => $pagosFormateados,
+            'totalesPorMetodo' => $totalesPorMetodo,
+            'totalGeneral' => $totalGeneral,
+            'periodo' => $periodo,
+            'periodoLabel' => $periodoLabel,
+            'fecha' => $fecha,
+            'fecha_inicio' => $fecha_inicio,
+            'fecha_fin' => $fecha_fin,
+            'fechaFormateada' => $periodo === 'personalizado'
+                ? "Del " . Carbon::parse($fecha_inicio)->locale('es')->isoFormat('D [de] MMMM [de] YYYY') . " al " . Carbon::parse($fecha_fin)->locale('es')->isoFormat('D [de] MMMM [de] YYYY')
+                : Carbon::parse($fecha)->locale('es')->isoFormat($periodo === 'diario' ? 'dddd, D [de] MMMM [de] YYYY' : ($periodo === 'semanal' ? '[Semana del] D [de] MMMM [de] YYYY' : ($periodo === 'mensual' ? 'MMMM [de] YYYY' : 'YYYY'))),
+        ]);
     }
 }

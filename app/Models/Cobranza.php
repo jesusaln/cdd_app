@@ -39,14 +39,14 @@ class Cobranza extends Model
      */
     protected $casts = [
         'fecha_cobro' => 'date',
-        'fecha_pago' => 'date',
+        'fecha_pago' => 'datetime',
         'monto_cobrado' => 'decimal:2',
         'monto_pagado' => 'decimal:2',
         'responsable_cobro' => 'integer',
     ];
 
     /**
-     * Relación con Renta.
+     * RelaciÃ³n con Renta.
      */
     public function renta(): BelongsTo
     {
@@ -79,7 +79,7 @@ class Cobranza extends Model
     }
 
     /**
-     * Relación con el usuario responsable del cobro.
+     * RelaciÃ³n con el usuario responsable del cobro.
      */
     public function responsableCobro(): BelongsTo
     {
@@ -98,3 +98,4 @@ class Cobranza extends Model
             ->whereMonth('fecha_cobro', $mes);
     }
 }
+

@@ -93,11 +93,19 @@ class CuentasPorCobrarController extends Controller
      */
     public function store(Request $request)
     {
+        // validate venta_id first so we can use its monto_total in the rules
+        $request->validate([
+            'venta_id' => 'required|exists:ventas,id',
+        ]);
+
+        $ventaForValidation = Venta::findOrFail($request->get('venta_id'));
+
         $validated = $request->validate([
             'venta_id' => 'required|exists:ventas,id',
-            'monto_total' => 'required|numeric|min:0',
-            'fecha_vencimiento' => 'nullable|date|after:today',
+            'monto_pagado' => 'nullable|numeric|min:0|max:' . $ventaForValidation->monto_total,
+            'fecha_vencimiento' => 'nullable|date',
             'notas' => 'nullable|string|max:1000',
+            'metodo_pago' => 'nullable|in:efectivo,transferencia,cheque,tarjeta,otros',
         ]);
 
         $venta = Venta::with('cuentaPorCobrar')->findOrFail($validated['venta_id']);
@@ -145,24 +153,25 @@ class CuentasPorCobrarController extends Controller
         ]);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, string $id)
     {
         $cuenta = CuentasPorCobrar::with('venta')->findOrFail($id);
 
+        $ventaMax = $cuenta->venta ? $cuenta->venta->monto_total : PHP_INT_MAX;
+
         $validated = $request->validate([
-            'monto_pagado' => 'nullable|numeric|min:0|max:' . $cuenta->monto_total,
+            'monto_pagado' => 'nullable|numeric|min:0|max:' . $ventaMax,
             'fecha_vencimiento' => 'nullable|date',
             'notas' => 'nullable|string|max:1000',
+            'metodo_pago' => 'nullable|in:efectivo,transferencia,cheque,tarjeta,otros',
         ]);
 
         DB::transaction(function () use ($cuenta, $validated) {
             if (isset($validated['monto_pagado'])) {
                 $diferencia = $validated['monto_pagado'] - $cuenta->monto_pagado;
                 if ($diferencia > 0) {
-                    $cuenta->registrarPago($diferencia, 'Pago registrado desde edición');
+                    $cuenta->registrarPago($diferencia, $validated['notas'] ?? 'Pago registrado desde edición');
+                    $cuenta->refresh();
                 }
             }
 
@@ -175,7 +184,7 @@ class CuentasPorCobrarController extends Controller
                 $cuenta->venta->update([
                     'pagado' => true,
                     'estado' => EstadoVenta::Aprobada,
-                    'fecha_pago' => now(), // Siempre establecer fecha actual cuando se completa el pago
+                    'fecha_pago' => now(),
                 ]);
             }
         });
@@ -199,42 +208,38 @@ class CuentasPorCobrarController extends Controller
         return redirect()->route('cuentas-por-cobrar.index')->with('success', 'Cuenta por cobrar eliminada correctamente.');
     }
 
-    /**
-      * Registrar un pago parcial.
-      */
     public function registrarPago(Request $request, string $id)
     {
         $cuenta = CuentasPorCobrar::with('venta')->findOrFail($id);
 
         $validated = $request->validate([
-            'monto' => 'required|numeric|min:0.01|max:' . $cuenta->monto_pendiente,
-            'metodo_pago' => 'required|in:efectivo,transferencia,cheque,tarjeta,otros',
-            'notas' => 'nullable|string|max:500',
+            'monto' => 'required|numeric|min:0|max:' . $cuenta->monto_pendiente,
+            'fecha_vencimiento' => 'nullable|date',
+            'notas' => 'nullable|string|max:1000',
+            'metodo_pago' => 'nullable|in:efectivo,transferencia,cheque,tarjeta,otros',
         ]);
 
         DB::transaction(function () use ($cuenta, $validated, $request) {
-            $cuenta->registrarPago($validated['monto'], $validated['notas']);
+            $cuenta->registrarPago($validated['monto'], $validated['notas'] ?? null);
             $cuenta->refresh();
 
             if ($cuenta->venta) {
                 if ($cuenta->monto_pendiente <= 0) {
-                    // Venta completamente pagada - establecer fecha de pago actual
                     $cuenta->venta->update([
                         'pagado' => true,
                         'estado' => EstadoVenta::Aprobada,
-                        'fecha_pago' => now(), // Siempre establecer fecha actual cuando se completa el pago
-                        'metodo_pago' => $validated['metodo_pago'],
-                        'notas_pago' => $validated['notas'],
-                        'pagado_por' => $request->user()->id,
+                        'fecha_pago' => now(),
+                        'metodo_pago' => $validated['metodo_pago'] ?? null,
+                        'notas_pago' => $validated['notas'] ?? null,
+                        'pagado_por' => $request->user() ? $request->user()->id : null,
                     ]);
                 } else {
-                    // Venta parcialmente pagada - establecer fecha de pago actual para el pago parcial
                     $cuenta->venta->update([
                         'pagado' => false,
-                        'fecha_pago' => now(), // Establecer fecha del último pago parcial
-                        'metodo_pago' => $validated['metodo_pago'],
-                        'notas_pago' => $validated['notas'],
-                        'pagado_por' => $request->user()->id,
+                        'fecha_pago' => now(),
+                        'metodo_pago' => $validated['metodo_pago'] ?? null,
+                        'notas_pago' => $validated['notas'] ?? null,
+                        'pagado_por' => $request->user() ? $request->user()->id : null,
                     ]);
                 }
             }

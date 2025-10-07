@@ -79,6 +79,7 @@ class EntregaDineroController extends Controller
                     'estado' => 'por_entregar',
                     'usuario' => $cobranza->responsableCobro,
                     'registro_original' => $cobranza,
+                    'metodo_pago' => $cobranza->metodo_pago ?? 'efectivo',
                 ];
             });
 
@@ -115,6 +116,7 @@ class EntregaDineroController extends Controller
                     'estado' => 'por_entregar',
                     'usuario' => $venta->pagadoPor,
                     'registro_original' => $venta,
+                    'metodo_pago' => $venta->metodo_pago,
                 ];
             });
 
@@ -176,6 +178,37 @@ class EntregaDineroController extends Controller
         ]);
 
         return redirect()->route('entregas-dinero.index')->with('success', 'Entrega de dinero registrada correctamente');
+    }
+
+    /**
+     * Registrar entrega rápida desde Corte Diario (marca como recibida).
+     */
+    public function storeDesdeCorte(Request $request)
+    {
+        $this->middleware(['auth', 'verified']);
+
+        $data = $request->validate([
+            'fecha' => 'required|date',
+            'monto' => 'required|numeric|min:0.01',
+            'notas' => 'nullable|string|max:500',
+        ]);
+
+        $userId = auth()->id();
+
+        EntregaDinero::create([
+            'user_id' => $userId,
+            'fecha_entrega' => $data['fecha'],
+            'monto_efectivo' => $data['monto'],
+            'monto_cheques' => 0,
+            'monto_tarjetas' => 0,
+            'total' => $data['monto'],
+            'notas' => $data['notas'] ?? null,
+            'estado' => 'recibido',
+            'recibido_por' => $userId,
+            'fecha_recibido' => now(),
+        ]);
+
+        return back()->with('success', 'Entrega registrada en el corte');
     }
 
     /**
@@ -301,12 +334,137 @@ class EntregaDineroController extends Controller
     }
 
     /**
+     * Reporte detallado de pagos recibidos con información de quién recibió y método de pago
+     */
+    public function reportePagosRecibidos(Request $request)
+    {
+        $query = EntregaDinero::with(['usuario', 'recibidoPor'])
+            ->where('estado', 'recibido');
+
+        // Filtros
+        if ($request->filled('fecha_inicio')) {
+            $query->where('fecha_entrega', '>=', $request->fecha_inicio);
+        }
+
+        if ($request->filled('fecha_fin')) {
+            $query->where('fecha_entrega', '<=', $request->fecha_fin);
+        }
+
+        if ($request->filled('usuario_id')) {
+            $query->where('user_id', $request->usuario_id);
+        }
+
+        if ($request->filled('recibido_por')) {
+            $query->where('recibido_por', $request->recibido_por);
+        }
+
+        $entregas = $query->orderBy('fecha_recibido', 'desc')->get();
+
+        // Agrupar por método de pago y calcular totales
+        $reportePorMetodo = $entregas->groupBy(function ($entrega) {
+            if ($entrega->monto_efectivo > 0 && $entrega->monto_cheques == 0 && $entrega->monto_tarjetas == 0) {
+                return 'efectivo';
+            } elseif ($entrega->monto_cheques > 0 && $entrega->monto_efectivo == 0 && $entrega->monto_tarjetas == 0) {
+                return 'cheque';
+            } elseif ($entrega->monto_tarjetas > 0 && $entrega->monto_efectivo == 0 && $entrega->monto_cheques == 0) {
+                return 'tarjeta';
+            } else {
+                return 'mixto';
+            }
+        });
+
+        $resumenMetodos = [];
+        foreach ($reportePorMetodo as $metodo => $entregasMetodo) {
+            $resumenMetodos[] = [
+                'metodo' => $metodo,
+                'label' => $this->getLabelMetodoPago($metodo),
+                'total' => $entregasMetodo->sum('total'),
+                'cantidad' => $entregasMetodo->count(),
+                'entregas' => $entregasMetodo->map(function ($entrega) {
+                    return [
+                        'id' => $entrega->id,
+                        'fecha_entrega' => $entrega->fecha_entrega->format('Y-m-d'),
+                        'fecha_recibido' => $entrega->fecha_recibido->format('Y-m-d H:i:s'),
+                        'usuario' => $entrega->usuario->name,
+                        'recibido_por' => $entrega->recibidoPor->name,
+                        'monto_efectivo' => $entrega->monto_efectivo,
+                        'monto_cheques' => $entrega->monto_cheques,
+                        'monto_tarjetas' => $entrega->monto_tarjetas,
+                        'total' => $entrega->total,
+                        'notas' => $entrega->notas,
+                        'notas_recibido' => $entrega->notas_recibido,
+                        'tipo_origen' => $entrega->tipo_origen,
+                        'id_origen' => $entrega->id_origen,
+                    ];
+                })
+            ];
+        }
+
+        // Estadísticas generales
+        $stats = [
+            'total_recibido' => $entregas->sum('total'),
+            'total_efectivo' => $entregas->sum('monto_efectivo'),
+            'total_cheques' => $entregas->sum('monto_cheques'),
+            'total_tarjetas' => $entregas->sum('monto_tarjetas'),
+            'cantidad_entregas' => $entregas->count(),
+            'usuarios_unicos' => $entregas->pluck('user_id')->unique()->count(),
+            'responsables_unicos' => $entregas->pluck('recibido_por')->unique()->count(),
+        ];
+
+        // Estadísticas por método de pago en entrega
+        $metodoEntregaStats = [
+            'efectivo' => $entregas->where('monto_efectivo', '>', 0)->sum('monto_efectivo'),
+            'cheque' => $entregas->where('monto_cheques', '>', 0)->sum('monto_cheques'),
+            'tarjeta' => $entregas->where('monto_tarjetas', '>', 0)->sum('monto_tarjetas'),
+            'mixto' => $entregas->where('monto_efectivo', '>', 0)
+                              ->where(function($q) {
+                                  $q->where('monto_cheques', '>', 0)->orWhere('monto_tarjetas', '>', 0);
+                              })->sum('total'),
+        ];
+
+        // Obtener usuarios y responsables para los filtros
+        $usuarios = \App\Models\User::select('id', 'name')
+            ->whereIn('id', $entregas->pluck('user_id')->unique())
+            ->get();
+
+        $responsables = \App\Models\User::select('id', 'name')
+            ->whereIn('id', $entregas->pluck('recibido_por')->unique())
+            ->get();
+
+        return Inertia::render('EntregasDinero/ReportePagos', [
+            'entregas' => $entregas,
+            'resumenMetodos' => $resumenMetodos,
+            'stats' => $stats,
+            'metodoEntregaStats' => $metodoEntregaStats,
+            'usuarios' => $usuarios,
+            'responsables' => $responsables,
+            'filters' => $request->only(['fecha_inicio', 'fecha_fin', 'usuario_id', 'recibido_por']),
+        ]);
+    }
+
+    /**
+     * Obtener label para método de pago
+     */
+    private function getLabelMetodoPago($metodo)
+    {
+        $labels = [
+            'efectivo' => 'Efectivo',
+            'cheque' => 'Cheque',
+            'tarjeta' => 'Tarjeta',
+            'mixto' => 'Mixto'
+        ];
+
+        return $labels[$metodo] ?? 'Desconocido';
+    }
+
+    /**
      * Marcar un registro automático (cobranza o venta) como recibido (puede ser parcial)
      */
     public function marcarAutomaticoRecibido(Request $request, $tipo_origen, $id_origen)
     {
         $request->validate([
             'monto_recibido' => 'required|numeric|min:0.01',
+            'metodo_pago_entrega' => 'required|in:efectivo,transferencia,cheque,tarjeta,otros',
             'notas_recibido' => 'nullable|string|max:500',
         ]);
 
@@ -360,22 +518,74 @@ class EntregaDineroController extends Controller
             return response()->json(['error' => 'El monto recibido excede el saldo pendiente'], 422);
         }
 
+        // Asignar el monto al método de pago correspondiente
+        $montoEfectivo = 0;
+        $montoCheques = 0;
+        $montoTarjetas = 0;
+
+        switch ($request->metodo_pago_entrega) {
+            case 'efectivo':
+                $montoEfectivo = $request->monto_recibido;
+                break;
+            case 'cheque':
+                $montoCheques = $request->monto_recibido;
+                break;
+            case 'tarjeta':
+                $montoTarjetas = $request->monto_recibido;
+                break;
+            default:
+                // Para transferencia u otros métodos, lo ponemos como efectivo por defecto
+                $montoEfectivo = $request->monto_recibido;
+                break;
+        }
+
         EntregaDinero::create([
-            'user_id'         => $usuarioEntrega, // Usuario que cobró (no el admin)
+            'user_id'         => $usuarioEntrega, // Usuario que realizó la venta/cobranza originalmente
             'fecha_entrega'   => $fecha?->format('Y-m-d') ?? now()->toDateString(),
-            'monto_efectivo'  => $request->monto_recibido,
-            'monto_cheques'   => 0,
-            'monto_tarjetas'  => 0,
+            'monto_efectivo'  => $montoEfectivo,
+            'monto_cheques'   => $montoCheques,
+            'monto_tarjetas'  => $montoTarjetas,
             'total'           => $request->monto_recibido,
             'estado'          => 'recibido',
-            'notas'           => "Entrega automática - {$concepto}",
+            'notas'           => "Entrega automática - {$concepto} - Método entrega: {$request->metodo_pago_entrega}",
             'tipo_origen'     => $tipo_origen,
             'id_origen'       => $id_origen,
-            'recibido_por'    => $userId, // Admin que recibió
+            'recibido_por'    => $userId, // Usuario que recibe físicamente el dinero
             'fecha_recibido'  => now(),
             'notas_recibido'  => $request->notas_recibido,
         ]);
 
         return redirect()->route('entregas-dinero.index')->with('success', 'Monto registrado correctamente');
+    }
+
+    /**
+     * Marcar entrega como entregada al responsable de la organización
+     */
+    public function marcarEntregadoResponsable(Request $request, $id)
+    {
+        $request->validate([
+            'responsable_nombre' => 'required|string|max:255',
+            'notas_entrega' => 'nullable|string|max:500',
+        ]);
+
+        $entrega = EntregaDinero::findOrFail($id);
+
+        // Solo se pueden marcar como entregadas al responsable las entregas que ya están recibidas
+        if ($entrega->estado !== 'recibido') {
+            return response()->json([
+                'success' => false,
+                'error' => 'Solo se pueden entregar al responsable las entregas que ya han sido recibidas'
+            ], 400);
+        }
+
+        $entrega->marcarEntregadoResponsable(
+            $request->responsable_nombre,
+            $request->notas_entrega
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Entrega marcada como entregada al responsable correctamente'
+        ]);
     }
 }
