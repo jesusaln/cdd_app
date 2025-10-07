@@ -9,23 +9,29 @@
                 <div>
                     <h1 class="text-2xl font-bold text-gray-800">Crear Mantenimiento</h1>
                     <p class="text-gray-600">Registra un nuevo servicio de mantenimiento para tu vehículo</p>
+                    <p class="text-sm text-blue-600 mt-1">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Fecha de hoy: {{ todayFormatted }}
+                    </p>
                 </div>
             </div>
 
             <form @submit.prevent="submit" class="space-y-6">
+                <!-- COMPONENTE: VehicleSelect -->
                 <!-- Selección de Carro -->
                 <div class="bg-gray-50 p-4 rounded-lg">
-                    <label class="block text-gray-700 text-sm font-semibold mb-3">
+                    <label for="carro-select" class="block text-gray-700 text-sm font-semibold mb-3">
                         <i class="fas fa-car mr-2"></i>Seleccionar Vehículo
                     </label>
                     <select
-                        v-model="form.carro_id"
+                        id="carro-select"
+                        v-model.number="form.carro_id"
                         class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                         required
                         @change="updateKilometraje"
                     >
                         <option value="" disabled>Selecciona un vehículo</option>
-                        <option v-for="carro in carros" :key="carro.id" :value="carro.id">
+                        <option v-for="carro in props.carros" :key="carro.id" :value="carro.id">
                             {{ carro.marca }} {{ carro.modelo }} {{ carro.año || '' }} - {{ formatNumber(carro.kilometraje) }} km
                         </option>
                     </select>
@@ -46,6 +52,7 @@
                 </div>
 
                 <div class="grid md:grid-cols-2 gap-6">
+                    <!-- COMPONENTE: ServicePicker -->
                     <!-- Tipo de Servicio -->
                     <div>
                         <label class="block text-gray-700 text-sm font-semibold mb-3">
@@ -97,7 +104,7 @@
                             <i class="fas fa-tachometer-alt mr-2"></i>Kilometraje del Servicio
                         </label>
                         <input
-                            v-model="form.kilometraje_actual"
+                            v-model.number="form.kilometraje_actual"
                             type="number"
                             :min="selectedCarro?.kilometraje || 0"
                             placeholder="Ingresa el kilometraje actual"
@@ -116,7 +123,7 @@
                                 <strong>Sugerencias para {{ selectedCarro.marca }} {{ selectedCarro.modelo }}:</strong>
                             </div>
                             <div class="text-xs text-yellow-700 mt-1">
-                                {{ getSugerenciasContextuales() }}
+                                {{ sugerenciasContextuales }}
                             </div>
                         </div>
                     </div>
@@ -167,7 +174,7 @@
                         </label>
                         <div class="flex gap-2">
                             <input
-                                v-model="form.costo"
+                                v-model.number="form.costo"
                                 type="number"
                                 step="0.01"
                                 min="0"
@@ -178,14 +185,15 @@
                                 v-if="form.tipo && getCostoSugerido() > 0"
                                 type="button"
                                 @click="form.costo = getCostoSugerido()"
-                                class="px-3 py-3 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm font-medium"
+                                :disabled="form.costo > 0"
+                                class="px-3 py-3 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 disabled:bg-gray-100 disabled:text-gray-400 transition-colors text-sm font-medium"
                                 title="Usar costo sugerido"
                             >
                                 💰 Sugerido
                             </button>
                         </div>
                         <p v-if="form.tipo && getCostoSugerido() > 0" class="text-xs text-gray-500 mt-1">
-                            Costo sugerido para {{ form.tipo }}: ${{ formatNumber(getCostoSugerido()) }}
+                            Costo sugerido para {{ form.tipo }}: {{ formatMoney(getCostoSugerido()) }}
                         </p>
                     </div>
 
@@ -203,6 +211,7 @@
                     </div>
                 </div>
 
+                <!-- COMPONENTE: AlertConfig -->
                 <!-- Configuración de Alertas y Prioridad -->
                 <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
                     <h3 class="text-lg font-semibold text-blue-800 mb-4 flex items-center">
@@ -237,7 +246,7 @@
                                 <i class="fas fa-clock mr-2"></i>Días de Anticipación
                             </label>
                             <input
-                                v-model="form.dias_anticipacion_alerta"
+                                v-model.number="form.dias_anticipacion_alerta"
                                 type="number"
                                 min="1"
                                 max="365"
@@ -292,6 +301,7 @@
                     </div>
                 </div>
 
+                <!-- COMPONENTE: MaintenanceSummary -->
                 <!-- Resumen del Mantenimiento -->
                 <div v-if="form.carro_id && form.tipo && form.fecha" class="bg-green-50 p-4 rounded-lg border border-green-200">
                     <h3 class="text-lg font-semibold text-green-800 mb-3 flex items-center">
@@ -321,7 +331,7 @@
                             <strong>Días de Anticipación:</strong> {{ form.dias_anticipacion_alerta }} días
                         </div>
                         <div v-if="form.costo">
-                            <strong>Costo:</strong> ${{ formatNumber(form.costo) }}
+                            <strong>Costo:</strong> {{ formatMoney(form.costo) }}
                         </div>
                         <div v-if="form.taller">
                             <strong>Taller:</strong> {{ form.taller }}
@@ -376,12 +386,12 @@
 
                         <button
                             type="submit"
-                            :disabled="isSubmitting"
+                            :disabled="form.processing || !form.carro_id || !form.tipo"
                             class="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-blue-300 transition-all duration-200 flex items-center min-w-[160px]"
                         >
-                            <i v-if="!isSubmitting" class="fas fa-save mr-2"></i>
+                            <i v-if="!form.processing" class="fas fa-save mr-2"></i>
                             <i v-else class="fas fa-spinner fa-spin mr-2"></i>
-                            {{ isSubmitting ? 'Guardando...' : 'Crear Mantenimiento' }}
+                            {{ form.processing ? 'Guardando...' : 'Crear Mantenimiento' }}
                         </button>
                     </div>
                 </div>
@@ -391,7 +401,7 @@
 </template>
 
 <script setup>
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, useForm } from '@inertiajs/vue3';
 import { reactive, computed, ref } from 'vue';
 import { Notyf } from 'notyf';
 import 'notyf/notyf.min.css';
@@ -426,21 +436,146 @@ const notyf = new Notyf({
     ],
 });
 
-const form = reactive({
-    carro_id: '',
+// Fecha de hoy compatible con zona horaria (Hermosillo) - definir primero
+const today = computed(() => {
+    const d = new Date();
+    // Ajuste específico para zona horaria de Hermosillo (UTC-7)
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0,10);
+});
+
+// Fecha formateada para mostrar al usuario (más legible)
+const todayFormatted = computed(() => {
+    return new Date(today.value).toLocaleDateString('es-MX', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+});
+
+// Función para formatear fechas en zona horaria local
+const formatDateLocal = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString + 'T00:00:00');
+    return date.toLocaleDateString('es-MX', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    });
+};
+
+// Valores iniciales seguros para reset
+const initialForm = () => ({
+    carro_id: null,
     tipo: '',
     otro_servicio: '',
-    fecha: '',
+    fecha: today.value,
     proximo_mantenimiento: '',
     notas: '',
     kilometraje_actual: '',
     costo: '',
     taller: '',
-    prioridad: 'media', // Valor por defecto
-    dias_anticipacion_alerta: 30, // Valor por defecto
+    prioridad: 'media',
+    dias_anticipacion_alerta: 30,
     requiere_aprobacion: false,
     observaciones_alerta: '',
 });
+
+// Usar useForm de Inertia para mejor manejo de errores y estado
+const form = useForm(initialForm());
+
+// ==========================================
+// ESTRUCTURA PARA FUTURA COMPONENTIZACIÓN
+// ==========================================
+// Sugerencias de componentes:
+// 1. VehicleSelect - selección de vehículo
+// 2. ServicePicker - tipo de servicio + campo personalizado
+// 3. AlertConfig - configuración de alertas y prioridad
+// 4. MaintenanceSummary - resumen del mantenimiento
+// 5. CostInput - input de costo con botón sugerido
+// ==========================================
+
+// Configuración de servicios con días separados (anticipación vs intervalo)
+const SERVICE_CONFIG = {
+    'Cambio de aceite': {
+        prioridad: 'media',
+        anticipacionDias: 30,     // para alertas
+        intervaloDias: 180,       // para proximo_mantenimiento
+        costo: 800,
+        descripcion: 'Mantenimiento preventivo básico del motor',
+    },
+    'Revisión periódica': {
+        prioridad: 'media',
+        anticipacionDias: 60,
+        intervaloDias: 365,
+        costo: 1200,
+        descripcion: 'Inspección completa del vehículo',
+    },
+    'Servicio de frenos': {
+        prioridad: 'alta',
+        anticipacionDias: 90,
+        intervaloDias: 180,
+        costo: 2500,
+        descripcion: 'Mantenimiento crítico para seguridad',
+    },
+    'Servicio de llantas': {
+        prioridad: 'media',
+        anticipacionDias: 180,
+        intervaloDias: 365,
+        costo: 600,
+        descripcion: 'Rotación y revisión de neumáticos',
+    },
+    'Servicio de batería': {
+        prioridad: 'alta',
+        anticipacionDias: 180,
+        intervaloDias: 730,
+        costo: 1800,
+        descripcion: 'Pruebas y posible reemplazo de batería',
+    },
+    'Servicio de motor': {
+        prioridad: 'alta',
+        anticipacionDias: 120,
+        intervaloDias: 365,
+        costo: 3500,
+        descripcion: 'Mantenimiento mayor del sistema motor',
+    },
+    'Revisión de luces': {
+        prioridad: 'baja',
+        anticipacionDias: 30,
+        intervaloDias: 180,
+        costo: 300,
+        descripcion: 'Verificación del sistema eléctrico',
+    },
+    'Alineación y balanceo': {
+        prioridad: 'media',
+        anticipacionDias: 180,
+        intervaloDias: 180,
+        costo: 800,
+        descripcion: 'Ajuste de suspensión y dirección',
+    },
+    'Cambio de filtros': {
+        prioridad: 'media',
+        anticipacionDias: 60,
+        intervaloDias: 180,
+        costo: 400,
+        descripcion: 'Reemplazo de filtros de aire, aceite y combustible',
+    },
+    'Revisión de transmisión': {
+        prioridad: 'critica',
+        anticipacionDias: 120,
+        intervaloDias: 365,
+        costo: 2000,
+        descripcion: 'Mantenimiento especializado de transmisión',
+    },
+    'Otro servicio': {
+        prioridad: 'media',
+        anticipacionDias: 30,
+        intervaloDias: 30,
+        costo: 0,
+        descripcion: 'Servicio personalizado',
+    }
+};
 
 // Tipos de servicio predefinidos
 const tiposServicio = [
@@ -457,19 +592,239 @@ const tiposServicio = [
     { value: 'Otro servicio', label: '📝 Otro servicio' },
 ];
 
-// Fecha de hoy
-const today = computed(() => {
-    return new Date().toISOString().split('T')[0];
-});
-
 // Carro seleccionado
 const selectedCarro = computed(() => {
-    return props.carros.find(carro => carro.id === form.carro_id);
+    return props.carros?.find(carro => carro.id === form.carro_id);
 });
 
-// Formatear números
+// Formatear números y moneda
 const formatNumber = (number) => {
-    return new Intl.NumberFormat('es-ES').format(number);
+    return new Intl.NumberFormat('es-MX').format(Number(number) || 0);
+};
+
+// Formatear moneda mexicana
+const formatMoney = (value) => {
+    return new Intl.NumberFormat('es-MX', {
+        style: 'currency',
+        currency: 'MXN'
+    }).format(Number(value) || 0);
+};
+
+// Formatear moneda en tiempo real mientras escribe
+const formatMoneyInput = (value) => {
+    const numValue = Number(value) || 0;
+    if (numValue === 0) return '';
+    return formatMoney(numValue);
+};
+
+// Función para formatear kilometraje con separadores de miles
+const formatKilometraje = (value) => {
+    const numValue = Number(value) || 0;
+    return new Intl.NumberFormat('es-MX').format(numValue) + ' km';
+};
+
+// ==========================================
+// REGLAS DE NEGOCIO PARA ESTADOS DE MANTENIMIENTO
+// ==========================================
+// Vencido: proximo_mantenimiento < hoy y estado != completado.
+// Por vencer: alert_at <= hoy <= proximo_mantenimiento y estado != completado.
+// Al día: hoy < alert_at y estado != completado.
+// Completado: estado = completado (excluir de alertas).
+//
+// alert_at = proximo_mantenimiento - dias_anticipacion_alerta (días)
+// ==========================================
+
+// Función auxiliar para comparar fechas
+const isAfter = (dateA, dateB) => {
+    return new Date(dateA).getTime() > new Date(dateB).getTime();
+};
+
+// Función auxiliar para comparar fechas (igualdad)
+const isSameOrBefore = (dateA, dateB) => {
+    return new Date(dateA).getTime() <= new Date(dateB).getTime();
+};
+
+// Función auxiliar para comparar fechas (solo antes)
+const isBefore = (dateA, dateB) => {
+    return new Date(dateA).getTime() < new Date(dateB).getTime();
+};
+
+/**
+ * Calcular fecha de alerta basada en próximo mantenimiento y días de anticipación
+ * @param {string} proximoMantenimiento - Fecha del próximo mantenimiento (YYYY-MM-DD)
+ * @param {number} diasAnticipacion - Días de anticipación para la alerta
+ * @returns {Date} Fecha en que debe activarse la alerta
+ */
+const calcularFechaAlerta = (proximoMantenimiento, diasAnticipacion) => {
+    const fecha = new Date(proximoMantenimiento);
+    fecha.setDate(fecha.getDate() - diasAnticipacion);
+    return fecha;
+};
+
+/**
+ * Determinar el estado de un mantenimiento según las reglas de negocio
+ * @param {Object} mantenimiento - Objeto con datos del mantenimiento
+ * @param {string} mantenimiento.proximo_mantenimiento - Fecha del próximo mantenimiento
+ * @param {number} mantenimiento.dias_anticipacion_alerta - Días de anticipación
+ * @param {string} mantenimiento.estado - Estado actual del mantenimiento
+ * @returns {Object} Estado calculado con explicación
+ */
+const calcularEstadoMantenimiento = (mantenimiento) => {
+    const hoy = new Date(today.value);
+    const proximo = new Date(mantenimiento.proximo_mantenimiento);
+    const estado = mantenimiento.estado;
+
+    // Si ya está completado, excluir de alertas
+    if (estado === 'completado') {
+        return {
+            estado: 'completado',
+            descripcion: 'Servicio completado',
+            clase: 'text-green-700 bg-green-100',
+            diasRestantes: 0,
+            esVencido: false,
+            esProximo: false
+        };
+    }
+
+    // Calcular fecha de alerta
+    const alertAt = calcularFechaAlerta(mantenimiento.proximo_mantenimiento, mantenimiento.dias_anticipacion_alerta);
+
+    // Calcular días restantes
+    const diasRestantes = Math.ceil((proximo.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
+
+    // Aplicar reglas de negocio
+    if (isBefore(proximo, hoy)) {
+        // VENCIDO: proximo_mantenimiento < hoy y estado != completado
+        return {
+            estado: 'vencido',
+            descripcion: `Vencido hace ${Math.abs(diasRestantes)} días`,
+            clase: 'text-red-700 bg-red-100',
+            diasRestantes: diasRestantes,
+            esVencido: true,
+            esProximo: false
+        };
+    } else if (isSameOrBefore(alertAt, hoy) && isBefore(hoy, proximo)) {
+        // POR VENCER: alert_at <= hoy <= proximo_mantenimiento y estado != completado
+        return {
+            estado: 'por_vencer',
+            descripcion: `Vence en ${diasRestantes} días (alerta activa)`,
+            clase: 'text-orange-700 bg-orange-100',
+            diasRestantes: diasRestantes,
+            esVencido: false,
+            esProximo: true
+        };
+    } else {
+        // AL DÍA: hoy < alert_at y estado != completado
+        return {
+            estado: 'al_dia',
+            descripcion: `Próximo en ${diasRestantes} días`,
+            clase: 'text-blue-700 bg-blue-100',
+            diasRestantes: diasRestantes,
+            esVencido: false,
+            esProximo: false
+        };
+    }
+};
+
+/**
+ * Función auxiliar para formatear días restantes de manera legible
+ * @param {number} dias - Número de días
+ * @returns {string} Texto formateado
+ */
+const formatearDiasRestantes = (dias) => {
+    if (dias === 0) return 'Hoy';
+    if (dias === 1) return '1 día';
+    if (dias === -1) return '1 día atrasado';
+    if (dias > 0) return `${dias} días`;
+    return `${Math.abs(dias)} días atrasado`;
+};
+
+// ==========================================
+// GUÍA DE QA MANUAL - VERIFICACIÓN FINAL
+// ==========================================
+// PASOS PARA VERIFICAR EL MÓDULO COMPLETO:
+//
+// 1. EJECUTAR SEEDER:
+//    php artisan db:seed --class=MantenimientoSeeder
+//
+// 2. VERIFICAR CREATE.VUE:
+//    - Crear mantenimiento con vehículo existente
+//    - Verificar tipos seguros (v-model.number)
+//    - Verificar fecha local de Hermosillo
+//    - Verificar validaciones de duplicados recientes
+//    - Verificar auto-completado inteligente
+//
+// 3. VERIFICAR INDEX.VUE:
+//    - Ver estadísticas por reglas de negocio
+//    - Probar filtros (estado, tipo, vehículo, prioridad)
+//    - Verificar ordenación por urgencia
+//    - Probar acciones rápidas (completar, posponer)
+//    - Verificar estados calculados correctamente
+//
+// 4. VERIFICAR REGLAS DE NEGOCIO:
+//    - Vencido: proximo_mantenimiento < hoy
+//    - Por vencer: alert_at <= hoy <= proximo_mantenimiento
+//    - Al día: hoy < alert_at
+//    - Completado: excluir de alertas
+//
+// 5. VERIFICAR FORM REQUEST:
+//    - Validar reglas de validación mejoradas
+//    - Verificar mensajes de error personalizados
+//    - Probar límites de fechas y costos
+//
+// 6. VERIFICAR CONTROLADOR:
+//    - Filtros avanzados funcionan correctamente
+//    - Estadísticas se calculan correctamente
+//    - Rutas PATCH responden adecuadamente
+//
+// 7. VERIFICAR ZONA HORARIA:
+//    - Fechas se muestran correctamente en Hermosillo
+//    - Cálculos de días restantes son precisos
+//    - Estados se calculan con zona horaria correcta
+// ==========================================
+
+// Configuración de días mínimos entre servicios del mismo tipo
+const DIAS_MINIMOS_ENTRE_SERVICIOS = {
+    'Cambio de aceite': 30,
+    'Revisión periódica': 90,
+    'Servicio de frenos': 180,
+    'Servicio de llantas': 60,
+    'Servicio de batería': 180,
+    'Servicio de motor': 365,
+    'Revisión de luces': 90,
+    'Alineación y balanceo': 90,
+    'Cambio de filtros': 60,
+    'Revisión de transmisión': 365,
+    'Otro servicio': 7 // Muy permisivo para servicios personalizados
+};
+
+// Buscar servicios existentes del mismo tipo
+const buscarServiciosExistentes = async (carroId, tipoServicio) => {
+    try {
+        // En producción, usar la ruta correcta de tu aplicación
+        const response = await fetch(`/mantenimientos/api/${carroId}/servicios/${encodeURIComponent(tipoServicio)}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                // Agregar token CSRF si es necesario
+                // 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+            }
+        });
+
+        if (response.ok) {
+            const servicios = await response.json();
+            console.log(`Encontrados ${servicios.length} servicios existentes de ${tipoServicio} para vehículo ${carroId}`);
+            return servicios;
+        } else {
+            console.warn('Error al buscar servicios existentes:', response.status);
+            return [];
+        }
+    } catch (error) {
+        console.error('Error de conexión buscando servicios existentes:', error);
+        // Retornar array vacío para no bloquear el formulario
+        return [];
+    }
 };
 
 // Función para actualizar el kilometraje cuando se selecciona un carro
@@ -497,23 +852,9 @@ const handleServiceChange = () => {
 
     // Mostrar notificación de ayuda
     if (form.tipo && form.tipo !== 'Otro servicio') {
-        const config = {
-            'Cambio de aceite': { prioridad: 'media', dias: 90, costo: 800 },
-            'Revisión periódica': { prioridad: 'media', dias: 180, costo: 1200 },
-            'Servicio de frenos': { prioridad: 'alta', dias: 180, costo: 2500 },
-            'Servicio de llantas': { prioridad: 'media', dias: 365, costo: 600 },
-            'Servicio de batería': { prioridad: 'alta', dias: 730, costo: 1800 },
-            'Servicio de motor': { prioridad: 'alta', dias: 365, costo: 3500 },
-            'Revisión de luces': { prioridad: 'baja', dias: 180, costo: 300 },
-            'Alineación y balanceo': { prioridad: 'media', dias: 180, costo: 800 },
-            'Cambio de filtros': { prioridad: 'media', dias: 180, costo: 400 },
-            'Revisión de transmisión': { prioridad: 'critica', dias: 365, costo: 2000 },
-            'Otro servicio': { prioridad: 'media', dias: 30, costo: 0 }
-        };
-
-        const servicio = config[form.tipo];
-        if (servicio) {
-            notyf.success(`Configuración aplicada: Prioridad ${servicio.prioridad}, ${servicio.dias} días de anticipación, costo sugerido $${servicio.costo}`);
+        const cfg = SERVICE_CONFIG[form.tipo];
+        if (cfg) {
+            notyf.success(`Config aplicada: prioridad ${cfg.prioridad}, alerta ${cfg.anticipacionDias} días, intervalo ${cfg.intervaloDias} días, costo $${cfg.costo}`);
         }
     }
 };
@@ -530,8 +871,8 @@ const calcularProximoMantenimiento = (meses) => {
     form.proximo_mantenimiento = fechaServicio.toISOString().split('T')[0];
 };
 
-// Validaciones
-const validateForm = () => {
+// Validaciones (ahora asíncrona)
+const validateForm = async () => {
     const errors = [];
 
     // Validaciones básicas de campos requeridos
@@ -553,12 +894,19 @@ const validateForm = () => {
         errors.push(`El kilometraje debe ser mayor o igual a ${formatNumber(selectedCarro.value.kilometraje)} km (kilometraje actual del vehículo)`);
     }
 
-    if (form.fecha > today.value) {
+    if (isAfter(form.fecha, today.value)) {
         errors.push('La fecha del servicio no puede ser futura');
     }
 
-    if (form.proximo_mantenimiento <= form.fecha) {
-        errors.push('La fecha del próximo mantenimiento debe ser posterior a la fecha del servicio');
+    if (!isAfter(form.proximo_mantenimiento, form.fecha)) {
+        errors.push('El próximo mantenimiento debe ser posterior a la fecha del servicio');
+    }
+
+    // Validar servicios duplicados recientes
+    if (form.carro_id && form.tipo && form.fecha) {
+        const diasMinimos = DIAS_MINIMOS_ENTRE_SERVICIOS[form.tipo] || 7;
+        const erroresDuplicados = await validarServiciosDuplicados(form.carro_id, form.tipo, form.fecha, diasMinimos);
+        errors.push(...erroresDuplicados);
     }
 
     // Validar que los días de anticipación estén en un rango razonable
@@ -595,26 +943,22 @@ const validateForm = () => {
     return errors;
 };
 
-// Limpiar formulario
+// Reset seguro que preserva tipos y valores por defecto
 const resetForm = () => {
-    Object.keys(form).forEach(key => {
-        form[key] = '';
-    });
+    Object.assign(form, initialForm());
     notyf.success('Formulario limpiado');
 };
 
-// Enviar formulario
+// Enviar formulario usando useForm de Inertia
 const submit = async () => {
-    const errors = validateForm();
-
+    // Validación adicional del lado del cliente
+    const errors = await validateForm();
     if (errors.length > 0) {
         errors.forEach(error => notyf.error(error));
         return;
     }
 
-    isSubmitting.value = true;
-
-    // Log de debug para ver los datos que se envían
+    // Datos preparados para envío
     const datosAEnviar = {
         ...form,
         requiere_aprobacion: Boolean(form.requiere_aprobacion),
@@ -623,69 +967,20 @@ const submit = async () => {
 
     console.log('Datos a enviar:', datosAEnviar);
 
-    // Verificar campos requeridos
-    const camposRequeridos = ['carro_id', 'tipo', 'fecha', 'proximo_mantenimiento', 'kilometraje_actual', 'prioridad', 'dias_anticipacion_alerta'];
-    const camposFaltantes = camposRequeridos.filter(campo => !datosAEnviar[campo]);
-
-    if (camposFaltantes.length > 0) {
-        notyf.error(`Campos requeridos faltantes: ${camposFaltantes.join(', ')}`);
-        isSubmitting.value = false;
-        return;
-    }
-
-    // Mostrar resumen de validación antes de enviar
-    const resumen = `
-    📋 Resumen del mantenimiento:
-    • Vehículo: ${selectedCarro.value?.marca} ${selectedCarro.value?.modelo}
-    • Servicio: ${form.tipo === 'Otro servicio' ? form.otro_servicio : form.tipo}
-    • Fecha: ${new Date(form.fecha).toLocaleDateString('es-MX')}
-    • Próximo: ${new Date(form.proximo_mantenimiento).toLocaleDateString('es-MX')}
-    • Kilometraje: ${formatNumber(form.kilometraje_actual)} km
-    • Prioridad: ${getLabelPrioridad(form.prioridad)}
-    • Días de alerta: ${form.dias_anticipacion_alerta}
-    ${form.costo ? `• Costo: $${formatNumber(form.costo)}` : ''}
-    ${form.taller ? `• Taller: ${form.taller}` : ''}
-    `;
-
-    console.log('Resumen de validación:', resumen);
-
-    try {
-        await router.post(route('mantenimientos.store'), form, {
-            onSuccess: () => {
-                notyf.success('¡Mantenimiento creado exitosamente!');
-                resetForm();
-            },
-            onError: (error) => {
-                console.error('Error al crear el mantenimiento:', error);
-
-                // Mostrar errores específicos de validación
-                if (error.kilometraje_actual) {
-                    notyf.error('Kilometraje: ' + error.kilometraje_actual);
-                }
-                if (error.prioridad) {
-                    notyf.error('Prioridad: ' + error.prioridad);
-                }
-                if (error.dias_anticipacion_alerta) {
-                    notyf.error('Días de anticipación: ' + error.dias_anticipacion_alerta);
-                }
-                if (error.general) {
-                    notyf.error('Error general: ' + error.general);
-                }
-
-                // Si no hay errores específicos, mostrar mensaje genérico
-                if (!error.kilometraje_actual && !error.prioridad && !error.dias_anticipacion_alerta && !error.general) {
-                    notyf.error('Hubo un error al crear el mantenimiento. Verifica los datos e intenta nuevamente.');
-                }
-            },
-            onFinish: () => {
-                isSubmitting.value = false;
-            }
-        });
-    } catch (error) {
-        console.error('Error inesperado:', error);
-        notyf.error('Ocurrió un error inesperado');
-        isSubmitting.value = false;
-    }
+    // Usar useForm para envío con manejo integrado de errores
+    form.post(route('mantenimientos.store'), {
+        onSuccess: (response) => {
+            notyf.success('¡Mantenimiento creado exitosamente!');
+            resetForm();
+        },
+        onError: (errors) => {
+            // Mostrar errores específicos usando el sistema de errores de Inertia
+            Object.values(errors).forEach(error => notyf.error(String(error)));
+        },
+        onFinish: () => {
+            // Resetear estado de carga
+        }
+    });
 };
 
 // Funciones para manejar prioridades y alertas
@@ -720,39 +1015,13 @@ const getLabelPrioridad = (prioridad) => {
 };
 
 const getDiasAnticipacionSugeridos = () => {
-    const sugerencias = {
-        'Cambio de aceite': 30,
-        'Revisión periódica': 60,
-        'Servicio de frenos': 90,
-        'Servicio de llantas': 180,
-        'Servicio de batería': 180,
-        'Servicio de motor': 120,
-        'Revisión de luces': 30,
-        'Alineación y balanceo': 180,
-        'Cambio de filtros': 60,
-        'Revisión de transmisión': 120,
-        'Otro servicio': 30
-    };
-
-    return sugerencias[form.tipo] || 30;
+    if (!form.tipo) return 30;
+    return SERVICE_CONFIG[form.tipo]?.anticipacionDias || 30;
 };
 
 const getCostoSugerido = () => {
-    const costos = {
-        'Cambio de aceite': 800,
-        'Revisión periódica': 1200,
-        'Servicio de frenos': 2500,
-        'Servicio de llantas': 600,
-        'Servicio de batería': 1800,
-        'Servicio de motor': 3500,
-        'Revisión de luces': 300,
-        'Alineación y balanceo': 800,
-        'Cambio de filtros': 400,
-        'Revisión de transmisión': 2000,
-        'Otro servicio': 0
-    };
-
-    return costos[form.tipo] || 0;
+    if (!form.tipo) return 0;
+    return SERVICE_CONFIG[form.tipo]?.costo || 0;
 };
 
 // Auto-llenar costo sugerido
@@ -825,12 +1094,43 @@ const verificarIntegridadDatos = () => {
 
     // Verificar que la fecha del próximo mantenimiento sea posterior
     if (form.fecha && form.proximo_mantenimiento) {
-        const fechaServicio = new Date(form.fecha);
-        const fechaProximo = new Date(form.proximo_mantenimiento);
-
-        if (fechaProximo <= fechaServicio) {
+        if (!isAfter(form.proximo_mantenimiento, form.fecha)) {
             errores.push('La fecha del próximo mantenimiento debe ser posterior a la fecha del servicio');
         }
+    }
+
+    return errores;
+};
+
+// Función para validar servicios duplicados recientes
+const validarServiciosDuplicados = async (carroId, tipoServicio, fechaNueva, diasMinimos) => {
+    const errores = [];
+
+    try {
+        // Buscar servicios existentes del mismo tipo para este vehículo
+        const serviciosExistentes = await buscarServiciosExistentes(carroId, tipoServicio);
+
+        // Verificar cada servicio existente
+        for (const servicio of serviciosExistentes) {
+            const fechaServicioExistente = new Date(servicio.fecha);
+            const fechaNuevaDate = new Date(fechaNueva);
+
+            // Calcular días de diferencia
+            const diferenciaMs = Math.abs(fechaNuevaDate.getTime() - fechaServicioExistente.getTime());
+            const diferenciaDias = Math.ceil(diferenciaMs / (1000 * 60 * 60 * 24));
+
+            // Si el servicio nuevo está muy cerca de uno existente
+            if (diferenciaDias < diasMinimos) {
+                const tipoServicioLabel = tipoServicio === 'Otro servicio' ? servicio.otro_servicio || tipoServicio : tipoServicio;
+                errores.push(
+                    `Ya existe un servicio de "${tipoServicioLabel}" registrado el ${new Date(servicio.fecha).toLocaleDateString('es-MX')} (${diferenciaDias} días atrás). ` +
+                    `Debe esperar al menos ${diasMinimos} días entre servicios del mismo tipo.`
+                );
+            }
+        }
+    } catch (error) {
+        console.error('Error validando servicios duplicados:', error);
+        // No agregar errores aquí para no bloquear el formulario si hay problemas de conexión
     }
 
     return errores;
@@ -840,130 +1140,61 @@ const verificarIntegridadDatos = () => {
 const autoCompletarCamposInteligente = () => {
     if (!form.tipo) return;
 
-    const configuracionesServicio = {
-        'Cambio de aceite': {
-            prioridad: 'media',
-            dias: 90,
-            costo: 800,
-            descripcion: 'Mantenimiento preventivo básico del motor'
-        },
-        'Revisión periódica': {
-            prioridad: 'media',
-            dias: 180,
-            costo: 1200,
-            descripcion: 'Inspección completa del vehículo'
-        },
-        'Servicio de frenos': {
-            prioridad: 'alta',
-            dias: 180,
-            costo: 2500,
-            descripcion: 'Mantenimiento crítico para seguridad'
-        },
-        'Servicio de llantas': {
-            prioridad: 'media',
-            dias: 365,
-            costo: 600,
-            descripcion: 'Rotación y revisión de neumáticos'
-        },
-        'Servicio de batería': {
-            prioridad: 'alta',
-            dias: 730,
-            costo: 1800,
-            descripcion: 'Pruebas y posible reemplazo de batería'
-        },
-        'Servicio de motor': {
-            prioridad: 'alta',
-            dias: 365,
-            costo: 3500,
-            descripcion: 'Mantenimiento mayor del sistema motor'
-        },
-        'Revisión de luces': {
-            prioridad: 'baja',
-            dias: 180,
-            costo: 300,
-            descripcion: 'Verificación del sistema eléctrico'
-        },
-        'Alineación y balanceo': {
-            prioridad: 'media',
-            dias: 180,
-            costo: 800,
-            descripcion: 'Ajuste de suspensión y dirección'
-        },
-        'Cambio de filtros': {
-            prioridad: 'media',
-            dias: 180,
-            costo: 400,
-            descripcion: 'Reemplazo de filtros de aire, aceite y combustible'
-        },
-        'Revisión de transmisión': {
-            prioridad: 'critica',
-            dias: 365,
-            costo: 2000,
-            descripcion: 'Mantenimiento especializado de transmisión'
-        },
-        'Otro servicio': {
-            prioridad: 'media',
-            dias: 30,
-            costo: 0,
-            descripcion: 'Servicio personalizado'
-        }
-    };
-
-    const config = configuracionesServicio[form.tipo];
-    if (config) {
+    const cfg = SERVICE_CONFIG[form.tipo];
+    if (cfg) {
         // Solo auto-completar si el campo está vacío
-        if (!form.prioridad) form.prioridad = config.prioridad;
-        if (!form.dias_anticipacion_alerta) form.dias_anticipacion_alerta = config.dias;
-        if (!form.costo) form.costo = config.costo;
+        if (!form.prioridad) form.prioridad = cfg.prioridad;
+        if (!form.dias_anticipacion_alerta) form.dias_anticipacion_alerta = cfg.anticipacionDias;
+        if (!form.costo) form.costo = cfg.costo;
 
         // Agregar observaciones automáticas si no hay
-        if (!form.observaciones_alerta && config.descripcion) {
-            form.observaciones_alerta = `${config.descripcion}. Revisar manual del vehículo para especificaciones.`;
+        if (!form.observaciones_alerta && cfg.descripcion) {
+            form.observaciones_alerta = `${cfg.descripcion}. Revisar manual del vehículo para especificaciones.`;
         }
 
-        // Calcular fecha del próximo mantenimiento automáticamente
+        // Calcular fecha del próximo mantenimiento automáticamente usando intervaloDias
         if (form.fecha && !form.proximo_mantenimiento) {
-            const fechaActual = new Date(form.fecha);
-            fechaActual.setDate(fechaActual.getDate() + config.dias);
-            form.proximo_mantenimiento = fechaActual.toISOString().split('T')[0];
+            const d = new Date(form.fecha);
+            d.setDate(d.getDate() + cfg.intervaloDias);
+            form.proximo_mantenimiento = d.toISOString().split('T')[0];
         }
     }
 };
 
-// Función para obtener sugerencias contextuales basadas en el vehículo y servicio
-const getSugerenciasContextuales = () => {
+// Computed property para sugerencias contextuales (mejor rendimiento)
+const sugerenciasContextuales = computed(() => {
     if (!selectedCarro.value || !form.tipo) return '';
 
-    const kilometraje = selectedCarro.value.kilometraje;
-    const sugerencias = [];
+    const km = Number(selectedCarro.value.kilometraje) || 0;
+    const tips = [];
 
     // Sugerencias basadas en kilometraje
-    if (kilometraje < 10000) {
-        sugerencias.push('Vehículo nuevo: considerar mantenimientos preventivos básicos');
-    } else if (kilometraje < 50000) {
-        sugerencias.push('Vehículo en período de garantía: verificar servicios recomendados');
-    } else if (kilometraje < 100000) {
-        sugerencias.push('Vehículo maduro: considerar revisiones más frecuentes');
+    if (km < 10000) {
+        tips.push('Vehículo nuevo: mantenimientos preventivos básicos');
+    } else if (km < 50000) {
+        tips.push('En garantía: seguir servicios recomendados');
+    } else if (km < 100000) {
+        tips.push('Revisiones más frecuentes');
     } else {
-        sugerencias.push('Vehículo con alto kilometraje: priorizar mantenimientos preventivos');
+        tips.push('Alto kilometraje: priorizar preventivos');
     }
 
-    // Sugerencias específicas por tipo de servicio
-    const sugerenciasServicio = {
-        'Cambio de aceite': 'Recomendado cada 5,000-10,000 km según el aceite utilizado',
-        'Servicio de frenos': 'Revisar cada 10,000-15,000 km o si hay ruidos anormales',
-        'Servicio de llantas': 'Rotación cada 8,000-10,000 km, reemplazo según desgaste',
+    // Sugerencias específicas por servicio
+    const porServicio = {
+        'Cambio de aceite': 'Cada 5,000–10,000 km según aceite',
+        'Servicio de frenos': 'Cada 10,000–15,000 km o si hay ruidos',
+        'Servicio de llantas': 'Rotación cada 8,000–10,000 km',
         'Servicio de batería': 'Revisar cada 6 meses, reemplazar cada 2-3 años',
         'Revisión de transmisión': 'Servicio mayor cada 60,000-100,000 km',
-        'Cambio de filtros': 'Cada 10,000-15,000 km o según condiciones de manejo'
+        'Cambio de filtros': 'Cada 10,000–15,000 km según condiciones'
     };
 
-    if (sugerenciasServicio[form.tipo]) {
-        sugerencias.push(sugerenciasServicio[form.tipo]);
+    if (porServicio[form.tipo]) {
+        tips.push(porServicio[form.tipo]);
     }
 
-    return sugerencias.join('. ');
-};
+    return tips.join('. ');
+});
 
 // Establecer fecha por defecto al montar el componente
 if (!form.fecha) {

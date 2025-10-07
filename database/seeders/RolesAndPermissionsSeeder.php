@@ -24,6 +24,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'delete clientes',
             'export clientes',
             'stats clientes',
+            // Permisos para respaldos de base de datos
+            'manage-backups',
         ];
 
         // Crear los permisos si no existen

@@ -305,6 +305,16 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::post('mantenimientos/{mantenimiento}/completar', [MantenimientoController::class, 'completar'])->name('mantenimientos.completar');
     Route::post('mantenimientos/{mantenimiento}/marcar-realizado-hoy', [MantenimientoController::class, 'marcarRealizadoHoy'])->name('mantenimientos.marcar-realizado-hoy');
     Route::post('mantenimientos/generar-recurrentes', [MantenimientoController::class, 'generarRecurrentes'])->name('mantenimientos.generar-recurrentes');
+
+    // Rutas API para validaciones de mantenimiento
+    Route::get('mantenimientos/api/{carroId}/servicios/{tipoServicio}', [MantenimientoController::class, 'getServiciosPorTipo'])->name('mantenimientos.api.servicios-por-tipo');
+    Route::post('mantenimientos/api/validar-servicio', [MantenimientoController::class, 'validarServicio'])->name('mantenimientos.api.validar-servicio');
+    Route::get('mantenimientos/api/estadisticas', [MantenimientoController::class, 'getEstadisticasMantenimientos'])->name('mantenimientos.api.estadisticas');
+
+    // Rutas PATCH para acciones rápidas de mantenimiento
+    Route::patch('mantenimientos/{mantenimiento}/completar', [MantenimientoController::class, 'completar'])->name('mantenimientos.completar');
+    Route::patch('mantenimientos/{mantenimiento}/posponer', [MantenimientoController::class, 'posponer'])->name('mantenimientos.posponer');
+    Route::patch('mantenimientos/{mantenimiento}/reprogramar', [MantenimientoController::class, 'reprogramar'])->name('mantenimientos.reprogramar');
     Route::resource('equipos', EquipoController::class);
     Route::put('/equipos/{equipo}/toggle', [EquipoController::class, 'toggle'])->name('equipos.toggle');
     Route::get('/equipos/export', [EquipoController::class, 'export'])->name('equipos.export');
@@ -431,10 +441,11 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
         ->group(function () {
             Route::get('/', [DatabaseBackupController::class, 'index'])->name('index');
             Route::post('/create', [DatabaseBackupController::class, 'create'])->name('create');
-            Route::get('/download/{path}', [DatabaseBackupController::class, 'download'])->name('download');
-            Route::delete('/delete/{path}', [DatabaseBackupController::class, 'delete'])->name('delete');
-            Route::post('/restore/{path}', [DatabaseBackupController::class, 'restore'])->name('restore');
+            Route::get('/download/{filename}', [DatabaseBackupController::class, 'download'])->name('download');
+            Route::delete('/delete/{filename}', [DatabaseBackupController::class, 'delete'])->name('delete');
+            Route::post('/restore/{filename}', [DatabaseBackupController::class, 'restore'])->name('restore');
             Route::post('/clean', [DatabaseBackupController::class, 'clean'])->name('clean');
+            Route::get('/monitoring', [DatabaseBackupController::class, 'monitoring'])->name('monitoring');
         });
 
 

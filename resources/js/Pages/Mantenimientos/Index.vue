@@ -27,12 +27,13 @@ onMounted(() => {
 
   // Debug: Verificar todos los mantenimientos y sus valores
   console.log('=== DEBUG MANTENIMIENTOS ===')
-  mantenimientosData.value.forEach(m => {
+  const mantenimientos = mantenimientosData.value || [];
+  mantenimientos.forEach(m => {
     console.log(`ID: ${m.id}, Tipo: ${m.tipo}, Estado: "${m.estado}", Días restantes: ${m.dias_restantes}, Próximo: ${m.proximo_mantenimiento}`)
   })
 
   // Verificar si hay mantenimientos que requieren atención (vencidos o próximos)
-  const mantenimientosVencidos = mantenimientosData.value.filter(m => {
+  const mantenimientosVencidos = mantenimientos.filter(m => {
     const estadoLimpio = (m.estado || '').toString().toLowerCase().trim()
     const esVencido = m.dias_restantes <= 0 && estadoLimpio !== 'completado'
     const esProximo = m.dias_restantes <= 0 // Cualquier mantenimiento con 0 o menos días requiere atención
@@ -53,12 +54,40 @@ onMounted(() => {
 // Props
 const props = defineProps({
   mantenimientos: { type: [Object, Array], required: true },
-  stats: { type: Object, default: () => ({}) },
-  filters: { type: Object, default: () => ({}) },
+  estadisticas: { type: Object, default: () => ({}) },
+  filtros: { type: Object, default: () => ({}) },
   sorting: { type: Object, default: () => ({ sort_by: 'fecha', sort_direction: 'desc' }) },
   carros: { type: Array, default: () => [] },
   tiposMantenimiento: { type: Array, default: () => [] },
 })
+
+// Datos (definir después de props)
+const mantenimientosPaginator = computed(() => props.mantenimientos || {})
+const mantenimientosData = computed(() => {
+  // Verificar diferentes estructuras posibles de datos
+  if (Array.isArray(props.mantenimientos)) {
+    return props.mantenimientos;
+  }
+
+  if (props.mantenimientos?.data && Array.isArray(props.mantenimientos.data)) {
+    return props.mantenimientos.data;
+  }
+
+  return [];
+})
+
+// Debug: Verificar datos recibidos (después de definir mantenimientosData)
+console.log('=== DEBUG PROPS RECEIVED ===');
+console.log('Mantenimientos data:', mantenimientosData.value);
+console.log('Mantenimientos count:', mantenimientosData.value?.length || 0);
+console.log('Estadisticas:', props.estadisticas);
+console.log('Carros count:', props.carros?.length || 0);
+console.log('Tipos mantenimiento count:', props.tiposMantenimiento?.length || 0);
+
+// Debug adicional: Ver primeros mantenimientos
+if (mantenimientosData.value?.length > 0) {
+  console.log('Primer mantenimiento:', mantenimientosData.value[0]);
+}
 
 // Estado UI
   const showModal = ref(false)
@@ -97,26 +126,40 @@ const headerConfig = {
   searchPlaceholder: 'Buscar por tipo, descripción o vehículo...'
 }
 
-// Datos
-const mantenimientosPaginator = computed(() => props.mantenimientos)
-const mantenimientosData = computed(() => mantenimientosPaginator.value?.data || [])
+// Los datos ya están definidos arriba después de los props
 
-// Estadísticas
-const estadisticas = computed(() => ({
-  total: props.stats?.total ?? 0,
-  completados: props.stats?.completados ?? 0,
-  pendientes: props.stats?.pendientes ?? 0,
-  en_proceso: props.stats?.en_proceso ?? 0,
-  costo_total_mes: props.stats?.costo_total_mes ?? 0,
-  proximos_vencer: props.stats?.proximos_vencer ?? 0,
-  completadosPorcentaje: props.stats?.completados > 0 ? Math.round((props.stats.completados / props.stats.total) * 100) : 0,
-  pendientesPorcentaje: props.stats?.pendientes > 0 ? Math.round((props.stats.pendientes / props.stats.total) * 100) : 0,
-  enProcesoPorcentaje: props.stats?.en_proceso > 0 ? Math.round((props.stats.en_proceso / props.stats.total) * 100) : 0,
-  // Nuevas estadísticas de alertas
-  alertas_pendientes: props.stats?.alertas_pendientes ?? 0,
-  criticos: props.stats?.criticos ?? 0,
-  vencidos: props.stats?.vencidos ?? 0
-}))
+// Estadísticas usando las nuevas reglas de negocio
+const estadisticas = computed(() => {
+  const stats = props.estadisticas || {};
+
+  // Calcular totales
+  const totalActivos = stats.total_activos || 0;
+  const totalCompletados = stats.completados || 0;
+  const totalGeneral = totalActivos + totalCompletados;
+
+  return {
+    // Datos base
+    total: totalGeneral,
+    completados: totalCompletados,
+    activos: totalActivos,
+    vencidos: stats.vencidos || 0,
+    por_vencer: stats.por_vencer || 0,
+    al_dia: stats.al_dia || 0,
+
+    // Porcentajes calculados correctamente
+    completadosPorcentaje: totalGeneral > 0 ? Math.round((totalCompletados / totalGeneral) * 100) : 0,
+    activosPorcentaje: totalGeneral > 0 ? Math.round((totalActivos / totalGeneral) * 100) : 0,
+    vencidosPorcentaje: totalActivos > 0 ? Math.round((stats.vencidos / totalActivos) * 100) : 0,
+    porVencerPorcentaje: totalActivos > 0 ? Math.round((stats.por_vencer / totalActivos) * 100) : 0,
+    alDiaPorcentaje: totalActivos > 0 ? Math.round((stats.al_dia / totalActivos) * 100) : 0,
+
+    // Estadísticas adicionales para compatibilidad
+    pendientes: totalActivos,
+    en_proceso: 0,
+    pendientesPorcentaje: totalGeneral > 0 ? Math.round((totalActivos / totalGeneral) * 100) : 0,
+    enProcesoPorcentaje: 0,
+  };
+})
 
 // Transformación de datos
 const mantenimientosDocumentos = computed(() => {
@@ -235,14 +278,14 @@ const verHistorialVehiculo = async (carroId) => {
 
   try {
     // Buscar el vehículo en la lista de carros
-    const carro = props.carros.find(c => c.id === carroId)
+    const carro = props.carros?.find(c => c.id === carroId)
     if (!carro) {
       notyf.error('Vehículo no encontrado')
       return
     }
 
     // Obtener todos los mantenimientos de este vehículo
-    const mantenimientosDelVehiculo = mantenimientosData.value.filter(m => m.carro_id === carroId)
+    const mantenimientosDelVehiculo = mantenimientosData.value?.filter(m => m.carro_id === carroId) || []
 
     console.log('Mostrando historial del vehículo:', carro.marca + ' ' + carro.modelo)
     console.log('Total mantenimientos encontrados:', mantenimientosDelVehiculo.length)
@@ -313,37 +356,96 @@ const cerrarHistorialModal = () => {
 const abrirModalReprogramar = (mantenimiento) => {
   mantenimientoAReprogramar.value = mantenimiento
   costoReprogramar.value = mantenimiento.raw.costo || 0
-  // Calcular fecha próxima sugerida (3 meses después)
-  const fechaActual = new Date(mantenimiento.raw.fecha)
-  const proximaSugerida = new Date(fechaActual)
-  proximaSugerida.setMonth(proximaSugerida.getMonth() + 3)
-  proximaFecha.value = proximaSugerida.toISOString().split('T')[0]
+
+  // Si es un mantenimiento completado, sugerir fecha basada en el tipo de servicio
+  if (mantenimiento.raw.estado === 'completado') {
+    // Calcular fecha próxima sugerida basada en el tipo de servicio
+    const fechaBase = new Date()
+    let mesesSugeridos = 3 // Por defecto
+
+    switch (mantenimiento.raw.tipo) {
+      case 'Cambio de aceite':
+        mesesSugeridos = 6 // 6 meses
+        break
+      case 'Revisión periódica':
+        mesesSugeridos = 12 // 1 año
+        break
+      case 'Alineación y balanceo':
+        mesesSugeridos = 6 // 6 meses
+        break
+      case 'Cambio de filtros':
+        mesesSugeridos = 12 // 1 año
+        break
+    }
+
+    const proximaSugerida = new Date(fechaBase)
+    proximaSugerida.setMonth(proximaSugerida.getMonth() + mesesSugeridos)
+    proximaFecha.value = proximaSugerida.toISOString().split('T')[0]
+  } else {
+    // Para mantenimientos no completados, usar lógica existente
+    const fechaActual = new Date(mantenimiento.raw.fecha)
+    const proximaSugerida = new Date(fechaActual)
+    proximaSugerida.setMonth(proximaSugerida.getMonth() + 3)
+    proximaFecha.value = proximaSugerida.toISOString().split('T')[0]
+  }
+
   showReprogramarModal.value = true
 }
 
 const reprogramarMantenimiento = () => {
   if (!mantenimientoAReprogramar.value) return
 
-  const datos = {
-    costo: costoReprogramar.value,
-    proxima_fecha: proximaFecha.value
-  }
-
-  // Usar URL completa directamente
-  const url = `/mantenimientos/${mantenimientoAReprogramar.value.id}/completar`
-
-  router.post(url, datos, {
-    preserveScroll: true,
-    onSuccess: () => {
-      notyf.success('Mantenimiento reprogramado exitosamente')
-      cerrarModalReprogramar()
-      router.reload()
-    },
-    onError: (errors) => {
-      notyf.error('No se pudo reprogramar el mantenimiento')
-      console.error('Error al reprogramar mantenimiento:', errors)
+  // Si es un mantenimiento completado, crear uno nuevo en lugar de actualizar
+  if (mantenimientoAReprogramar.value.raw.estado === 'completado') {
+    // Crear nuevo mantenimiento recurrente
+    const datosNuevo = {
+      carro_id: mantenimientoAReprogramar.value.raw.carro_id,
+      tipo: mantenimientoAReprogramar.value.raw.tipo,
+      fecha: new Date().toISOString().split('T')[0], // Fecha de hoy
+      proximo_mantenimiento: proximaFecha.value,
+      descripcion: `Siguiente ${mantenimientoAReprogramar.value.raw.tipo} - Programado desde mantenimiento anterior ID: ${mantenimientoAReprogramar.value.id}`,
+      costo: costoReprogramar.value,
+      estado: 'pendiente',
+      kilometraje_actual: mantenimientoAReprogramar.value.raw.kilometraje_actual,
+      prioridad: mantenimientoAReprogramar.value.raw.prioridad,
+      dias_anticipacion_alerta: mantenimientoAReprogramar.value.raw.dias_anticipacion_alerta,
+      requiere_aprobacion: mantenimientoAReprogramar.value.raw.requiere_aprobacion,
+      observaciones_alerta: mantenimientoAReprogramar.value.raw.observaciones_alerta,
+      notas: `Generado automáticamente desde mantenimiento completado ID: ${mantenimientoAReprogramar.value.id}`
     }
-  })
+
+    router.post(route('mantenimientos.store'), datosNuevo, {
+      preserveScroll: true,
+      onSuccess: () => {
+        notyf.success('Nuevo mantenimiento programado exitosamente')
+        cerrarModalReprogramar()
+        router.reload()
+      },
+      onError: (errors) => {
+        notyf.error('No se pudo programar el nuevo mantenimiento')
+        console.error('Error al crear nuevo mantenimiento:', errors)
+      }
+    })
+  } else {
+    // Para mantenimientos no completados, usar reprogramación normal
+    const datos = {
+      costo: costoReprogramar.value,
+      proxima_fecha: proximaFecha.value
+    }
+
+    router.patch(route('mantenimientos.reprogramar', mantenimientoAReprogramar.value.id), datos, {
+      preserveScroll: true,
+      onSuccess: () => {
+        notyf.success('Mantenimiento reprogramado exitosamente')
+        cerrarModalReprogramar()
+        router.reload()
+      },
+      onError: (errors) => {
+        notyf.error('No se pudo reprogramar el mantenimiento')
+        console.error('Error al reprogramar mantenimiento:', errors)
+      }
+    })
+  }
 }
 
 const cerrarModalReprogramar = () => {
@@ -390,6 +492,170 @@ const cerrarModalCompletar = () => {
   costoCompletar.value = 0
   fechaCompletar.value = ''
   kilometrajeCompletar.value = 0
+}
+
+// ==========================================
+// NUEVAS ACCIONES RÁPIDAS PATCH
+// ==========================================
+
+/**
+ * Completar mantenimiento usando nueva ruta PATCH
+ */
+const completarMantenimientoRapido = async (mantenimiento) => {
+  try {
+    const datos = {
+      fecha_completado: new Date().toISOString().split('T')[0],
+      notas_completado: 'Completado desde acciones rápidas',
+      costo: mantenimiento.costo || 0
+    }
+
+    const response = await fetch(route('mantenimientos.completar', mantenimiento.id), {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+      },
+      body: JSON.stringify(datos)
+    })
+
+    if (response.ok) {
+      const result = await response.json()
+      notyf.success(result.message || 'Mantenimiento completado exitosamente')
+      router.reload()
+    } else {
+      const error = await response.json()
+      notyf.error(error.message || 'Error al completar el mantenimiento')
+    }
+  } catch (error) {
+    console.error('Error completando mantenimiento:', error)
+    notyf.error('Error de conexión al completar mantenimiento')
+  }
+}
+
+/**
+ * Posponer mantenimiento usando nueva ruta PATCH
+ */
+const posponerMantenimientoRapido = async (mantenimiento, dias = 30) => {
+  try {
+    const datos = {
+      nuevos_dias: dias,
+      motivo: `Pospuesto ${dias} días desde acciones rápidas`
+    }
+
+    const response = await fetch(route('mantenimientos.posponer', mantenimiento.id), {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+      },
+      body: JSON.stringify(datos)
+    })
+
+    if (response.ok) {
+      const result = await response.json()
+      notyf.success(result.message || `Mantenimiento pospuesto ${dias} días`)
+      router.reload()
+    } else {
+      const error = await response.json()
+      notyf.error(error.message || 'Error al posponer el mantenimiento')
+    }
+  } catch (error) {
+    console.error('Error posponiendo mantenimiento:', error)
+    notyf.error('Error de conexión al posponer mantenimiento')
+  }
+}
+
+/**
+ * Reprogramar mantenimiento usando nueva ruta PATCH
+ */
+const reprogramarMantenimientoRapido = async (mantenimiento, nuevaFecha) => {
+  try {
+    const datos = {
+      nueva_fecha: nuevaFecha,
+      motivo: 'Reprogramado desde acciones rápidas'
+    }
+
+    const response = await fetch(route('mantenimientos.reprogramar', mantenimiento.id), {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+      },
+      body: JSON.stringify(datos)
+    })
+
+    if (response.ok) {
+      const result = await response.json()
+      notyf.success(result.message || 'Mantenimiento reprogramado exitosamente')
+      router.reload()
+    } else {
+      const error = await response.json()
+      notyf.error(error.message || 'Error al reprogramar el mantenimiento')
+    }
+  } catch (error) {
+    console.error('Error reprogramando mantenimiento:', error)
+    notyf.error('Error de conexión al reprogramar mantenimiento')
+  }
+}
+
+/**
+ * Obtener estado del mantenimiento usando las nuevas reglas de negocio
+ */
+const obtenerEstadoMantenimiento = (mantenimiento) => {
+  // Usar el estado calculado que viene del backend si está disponible
+  if (mantenimiento.estado_calculado) {
+    return mantenimiento.estado_calculado
+  }
+
+  // Fallback a lógica del frontend
+  const hoy = new Date()
+  const proximo = new Date(mantenimiento.proximo_mantenimiento)
+  const diasRestantes = Math.ceil((proximo.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
+
+  if (mantenimiento.estado === 'completado') {
+    return {
+      estado: 'completado',
+      descripcion: 'Servicio completado',
+      clase: 'text-green-700 bg-green-100',
+      dias_restantes: 0,
+      es_vencido: false,
+      es_proximo: false
+    }
+  }
+
+  if (diasRestantes < 0) {
+    return {
+      estado: 'vencido',
+      descripcion: `Vencido hace ${Math.abs(diasRestantes)} días`,
+      clase: 'text-red-700 bg-red-100',
+      dias_restantes: diasRestantes,
+      es_vencido: true,
+      es_proximo: false
+    }
+  }
+
+  if (diasRestantes <= 30) {
+    return {
+      estado: 'por_vencer',
+      descripcion: `Vence en ${diasRestantes} días`,
+      clase: 'text-orange-700 bg-orange-100',
+      dias_restantes: diasRestantes,
+      es_vencido: false,
+      es_proximo: true
+    }
+  }
+
+  return {
+    estado: 'al_dia',
+    descripcion: `Próximo en ${diasRestantes} días`,
+    clase: 'text-blue-700 bg-blue-100',
+    dias_restantes: diasRestantes,
+    es_vencido: false,
+    es_proximo: false
+  }
 }
 
 const exportMantenimientos = () => {
@@ -750,12 +1016,21 @@ const obtenerTextoUrgencia = (mantenimiento) => {
               </div>
             </div>
 
-            <!-- Vencidos -->
+            <!-- Vencidos (basado en reglas de negocio) -->
             <div class="bg-white p-4 rounded-lg border border-red-200 shadow-sm">
               <div class="flex items-center justify-between">
                 <div>
                   <p class="text-sm font-medium text-slate-600">Vencidos</p>
                   <p class="text-2xl font-bold text-red-600">{{ formatNumber(estadisticas.vencidos) }}</p>
+                  <div class="mt-2 flex items-center gap-2">
+                    <div class="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        class="h-full bg-red-500 transition-all duration-300"
+                        :style="{ width: estadisticas.vencidosPorcentaje + '%' }"
+                      ></div>
+                    </div>
+                    <span class="text-xs text-red-600 font-medium">{{ estadisticas.vencidosPorcentaje }}%</span>
+                  </div>
                 </div>
                 <div class="bg-red-100 p-2 rounded-lg">
                   <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -765,12 +1040,21 @@ const obtenerTextoUrgencia = (mantenimiento) => {
               </div>
             </div>
 
-            <!-- Críticos -->
+            <!-- Por Vencer (basado en reglas de negocio) -->
             <div class="bg-white p-4 rounded-lg border border-orange-200 shadow-sm">
               <div class="flex items-center justify-between">
                 <div>
-                  <p class="text-sm font-medium text-slate-600">Críticos</p>
-                  <p class="text-2xl font-bold text-orange-600">{{ formatNumber(estadisticas.criticos) }}</p>
+                  <p class="text-sm font-medium text-slate-600">Por Vencer</p>
+                  <p class="text-2xl font-bold text-orange-600">{{ formatNumber(estadisticas.por_vencer) }}</p>
+                  <div class="mt-2 flex items-center gap-2">
+                    <div class="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        class="h-full bg-orange-500 transition-all duration-300"
+                        :style="{ width: estadisticas.porVencerPorcentaje + '%' }"
+                      ></div>
+                    </div>
+                    <span class="text-xs text-orange-600 font-medium">{{ estadisticas.porVencerPorcentaje }}%</span>
+                  </div>
                 </div>
                 <div class="bg-orange-100 p-2 rounded-lg">
                   <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -780,16 +1064,25 @@ const obtenerTextoUrgencia = (mantenimiento) => {
               </div>
             </div>
 
-            <!-- Alertas Pendientes -->
-            <div class="bg-white p-4 rounded-lg border border-yellow-200 shadow-sm">
+            <!-- Al Día (basado en reglas de negocio) -->
+            <div class="bg-white p-4 rounded-lg border border-blue-200 shadow-sm">
               <div class="flex items-center justify-between">
                 <div>
-                  <p class="text-sm font-medium text-slate-600">Alertas</p>
-                  <p class="text-2xl font-bold text-yellow-600">{{ formatNumber(estadisticas.alertas_pendientes) }}</p>
+                  <p class="text-sm font-medium text-slate-600">Al Día</p>
+                  <p class="text-2xl font-bold text-blue-600">{{ formatNumber(estadisticas.al_dia) }}</p>
+                  <div class="mt-2 flex items-center gap-2">
+                    <div class="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        class="h-full bg-blue-500 transition-all duration-300"
+                        :style="{ width: estadisticas.alDiaPorcentaje + '%' }"
+                      ></div>
+                    </div>
+                    <span class="text-xs text-blue-600 font-medium">{{ estadisticas.alDiaPorcentaje }}%</span>
+                  </div>
                 </div>
-                <div class="bg-yellow-100 p-2 rounded-lg">
-                  <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5v-5zM4.868 12.683A17.925 17.925 0 0112 21.5c3.04 0 5.952-.853 8.5-2.5M4.868 12.683A17.925 17.925 0 004.5 12c0-3.04.853-5.952 2.5-8.5m0 0A17.925 17.925 0 0112 4.5c3.04 0 5.952.853 8.5 2.5" />
+                <div class="bg-blue-100 p-2 rounded-lg">
+                  <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
               </div>
@@ -846,7 +1139,7 @@ const obtenerTextoUrgencia = (mantenimiento) => {
                 class="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
               >
                 <option value="">Todos los Tipos</option>
-                <option v-for="tipo in tiposMantenimiento" :key="tipo" :value="tipo">{{ tipo }}</option>
+                <option v-for="tipo in props.tiposMantenimiento" :key="tipo" :value="tipo">{{ tipo }}</option>
               </select>
             </div>
 
@@ -859,7 +1152,7 @@ const obtenerTextoUrgencia = (mantenimiento) => {
                 class="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
               >
                 <option value="">Todos los Vehículos</option>
-                <option v-for="carro in carros" :key="carro.id" :value="carro.id">
+                <option v-for="carro in props.carros" :key="carro.id" :value="carro.id">
                   {{ carro.marca }} {{ carro.modelo }}
                 </option>
               </select>
@@ -919,7 +1212,7 @@ const obtenerTextoUrgencia = (mantenimiento) => {
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-              <tr v-for="mantenimiento in mantenimientosDocumentos" :key="mantenimiento.id" :class="[
+              <tr v-for="(mantenimiento, index) in mantenimientosDocumentos" :key="mantenimiento.id" :class="[
                 'hover:bg-gray-50 transition-colors duration-150',
                 mantenimiento.raw.dias_restantes <= 0 ? 'bg-red-50' : '',
                 mantenimiento.raw.prioridad === 'critica' ? 'border-l-4 border-l-red-500' : '',
@@ -930,10 +1223,12 @@ const obtenerTextoUrgencia = (mantenimiento) => {
                 </td>
                 <td class="px-6 py-4">
                   <div class="text-sm font-medium text-gray-900">{{ mantenimiento.raw.carro ? mantenimiento.raw.carro.marca + ' ' + mantenimiento.raw.carro.modelo : 'N/A' }}</div>
-                  <div class="text-sm text-gray-500">{{ mantenimiento.raw.carro?.placa || '' }}</div>
+                  <div class="text-sm text-gray-500">{{ mantenimiento.raw.carro?.placas || '' }}</div>
                   <div v-if="mantenimiento.raw.kilometraje_actual" class="text-xs text-gray-400">
                     {{ formatNumber(mantenimiento.raw.kilometraje_actual) }} km
                   </div>
+                  <!-- Debug: mostrar ID para rastreo -->
+                  <div class="text-xs text-purple-500">ID: {{ mantenimiento.id }}</div>
                 </td>
                 <td class="px-6 py-4">
                   <div class="text-sm font-medium text-gray-900">{{ mantenimiento.titulo }}</div>
@@ -982,14 +1277,20 @@ const obtenerTextoUrgencia = (mantenimiento) => {
                 </td>
                 <td class="px-6 py-4">
                   <div class="flex flex-col gap-1">
-                    <span :class="obtenerClasesEstado(mantenimiento.estado)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
-                      {{ obtenerLabelEstado(mantenimiento.estado) }}
+                    <!-- Estado basado en reglas de negocio -->
+                    <span :class="obtenerEstadoMantenimiento(mantenimiento.raw).clase" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                      {{ obtenerEstadoMantenimiento(mantenimiento.raw).descripcion }}
                     </span>
-                    <div v-if="mantenimiento.estado === 'completado'" class="text-xs text-green-600">
-                      {{ formatearFecha(mantenimiento.raw.fecha) }}
+                    <!-- Información adicional -->
+                    <div v-if="obtenerEstadoMantenimiento(mantenimiento.raw).estado === 'completado'" class="text-xs text-green-600">
+                      Completado: {{ formatearFecha(mantenimiento.raw.fecha) }}
                     </div>
-                    <div v-else-if="mantenimiento.estado === 'pendiente'" class="text-xs text-blue-600">
-                      Programado: {{ formatearFecha(mantenimiento.raw.fecha) }}
+                    <div v-else class="text-xs text-gray-500">
+                      {{ formatearFecha(mantenimiento.raw.proximo_mantenimiento) }}
+                    </div>
+                    <!-- Indicador de días restantes -->
+                    <div v-if="mantenimiento.raw.dias_restantes !== null" class="text-xs" :class="mantenimiento.raw.dias_restantes <= 0 ? 'text-red-600 font-medium' : 'text-gray-500'">
+                      {{ mantenimiento.raw.dias_restantes <= 0 ? `${Math.abs(mantenimiento.raw.dias_restantes)} días vencido` : `${mantenimiento.raw.dias_restantes} días restantes` }}
                     </div>
                   </div>
                 </td>
@@ -1026,29 +1327,54 @@ const obtenerTextoUrgencia = (mantenimiento) => {
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
                     </button>
-                    <!-- Botón para reprogramar (cuando está próximo a vencer) -->
+                    <!-- Botón para completar mantenimiento (acciones rápidas) -->
                     <button
-                       v-if="mantenimiento.raw.dias_restantes !== null && mantenimiento.raw.dias_restantes <= 7 && mantenimiento.raw.dias_restantes > 0"
-                       @click="abrirModalReprogramar(mantenimiento)"
-                       class="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors duration-150"
-                       title="Reprogramar mantenimiento"
-                     >
-                       <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                       </svg>
-                     </button>
+                      v-if="mantenimiento.raw.estado !== 'completado'"
+                      @click="completarMantenimientoRapido(mantenimiento.raw)"
+                      class="w-8 h-8 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors duration-150"
+                      title="Completar mantenimiento"
+                    >
+                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </button>
 
-                     <!-- Botón para completar mantenimiento (siempre que tenga fecha programada) -->
-                     <button
-                       v-if="mantenimiento.raw.dias_restantes !== null"
-                       @click="abrirModalCompletar(mantenimiento)"
-                       class="w-8 h-8 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors duration-150"
-                       title="Completar mantenimiento"
-                     >
-                       <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                       </svg>
-                     </button>
+                    <!-- Botón para posponer mantenimiento (si está próximo) -->
+                    <button
+                      v-if="obtenerEstadoMantenimiento(mantenimiento.raw).estado === 'por_vencer'"
+                      @click="posponerMantenimientoRapido(mantenimiento.raw, 30)"
+                      class="w-8 h-8 bg-yellow-50 text-yellow-600 rounded-lg hover:bg-yellow-100 transition-colors duration-150"
+                      title="Posponer 30 días"
+                    >
+                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </button>
+
+                    <!-- Botón para reprogramar mantenimiento (si está vencido) -->
+                    <button
+                      v-if="obtenerEstadoMantenimiento(mantenimiento.raw).estado === 'vencido'"
+                      @click="abrirModalReprogramar(mantenimiento)"
+                      class="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors duration-150"
+                      title="Reprogramar mantenimiento"
+                    >
+                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    </button>
+
+                    <!-- Botón para reprogramar mantenimientos completados (agregar siguiente servicio) -->
+                    <button
+                      v-if="mantenimiento.raw.estado === 'completado'"
+                      @click="abrirModalReprogramar(mantenimiento)"
+                      class="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors duration-150"
+                      title="Programar siguiente mantenimiento"
+                    >
+                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      </svg>
+                    </button>
+
                     <button @click="confirmarEliminacion(mantenimiento.id)" class="w-8 h-8 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors duration-150" title="Eliminar">
                       <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -1152,7 +1478,7 @@ const obtenerTextoUrgencia = (mantenimiento) => {
               <p class="text-sm text-gray-600 mt-1" v-if="historialVehiculo">
                 {{ historialVehiculo.marca }} {{ historialVehiculo.modelo }}
                 <span class="text-gray-400">•</span>
-                Placa: {{ historialVehiculo.placa || 'N/A' }}
+                Placas: {{ historialVehiculo.placas || 'N/A' }}
               </p>
             </div>
             <button @click="cerrarHistorialModal" class="text-gray-400 hover:text-gray-600 transition-colors">
@@ -1401,11 +1727,16 @@ const obtenerTextoUrgencia = (mantenimiento) => {
           <!-- Header del modal -->
           <div class="flex items-center justify-between p-6 border-b border-gray-200">
             <div>
-              <h3 class="text-lg font-medium text-gray-900">Reprogramar Mantenimiento</h3>
+              <h3 class="text-lg font-medium text-gray-900">
+                {{ mantenimientoAReprogramar?.raw.estado === 'completado' ? 'Programar Siguiente Mantenimiento' : 'Reprogramar Mantenimiento' }}
+              </h3>
               <p class="text-sm text-gray-600 mt-1" v-if="mantenimientoAReprogramar">
                 {{ mantenimientoAReprogramar.titulo }} - {{ mantenimientoAReprogramar.raw.carro?.marca }} {{ mantenimientoAReprogramar.raw.carro?.modelo }}
               </p>
-              <p class="text-xs text-gray-500 mt-1">
+              <p class="text-xs text-gray-500 mt-1" v-if="mantenimientoAReprogramar?.raw.estado === 'completado'">
+                Servicio completado: {{ formatearFecha(mantenimientoAReprogramar.raw.fecha) }}
+              </p>
+              <p class="text-xs text-gray-500 mt-1" v-else>
                 Último servicio realizado: {{ formatearFecha(mantenimientoAReprogramar.raw.fecha) }}
               </p>
             </div>
@@ -1483,9 +1814,9 @@ const obtenerTextoUrgencia = (mantenimiento) => {
                   class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                   </svg>
-                  Reprogramar Mantenimiento
+                  {{ mantenimientoAReprogramar?.raw.estado === 'completado' ? 'Programar Siguiente' : 'Reprogramar Mantenimiento' }}
                 </button>
               </div>
             </form>

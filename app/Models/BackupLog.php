@@ -17,13 +17,21 @@ class BackupLog extends Model
         'method',
         'status',
         'message',
-        'metadata'
+        'metadata',
+        'checksum',
+        'is_encrypted',
+        'integrity_verified',
+        'security_warnings',
+        'user_id'
     ];
 
     protected $casts = [
         'metadata' => 'array',
         'created_at' => 'datetime',
-        'deleted_at' => 'datetime'
+        'deleted_at' => 'datetime',
+        'is_encrypted' => 'boolean',
+        'integrity_verified' => 'boolean',
+        'security_warnings' => 'array'
     ];
 
     public const UPDATED_AT = null;

@@ -164,31 +164,31 @@ class DatabaseBackupController extends Controller
     /**
      * Descargar un archivo de respaldo
      */
-    public function download($filename)
+    public function download($path)
     {
         try {
             // Sanitizar el nombre del archivo
-            $filename = basename($filename);
+            $path = basename($path);
 
             // Validar que el archivo existe y es seguro
-            if (!$this->backupService->backupExists($filename)) {
+            if (!$this->backupService->backupExists($path)) {
                 return redirect()->route('backup.index')->with('error', 'El archivo de respaldo no existe.');
             }
 
-            $filePath = $this->backupService->getBackupPath($filename);
+            $filePath = $this->backupService->getBackupPath($path);
 
             if (!file_exists($filePath)) {
                 return redirect()->route('backup.index')->with('error', 'El archivo físico no se encuentra en el servidor.');
             }
 
-            return response()->download($filePath, $filename, [
-                'Content-Type' => $this->getContentType($filename),
+            return response()->download($filePath, $path, [
+                'Content-Type' => $this->getContentType($path),
                 'Cache-Control' => 'no-cache, must-revalidate',
                 'Expires' => 'Sat, 26 Jul 1997 05:00:00 GMT'
             ]);
         } catch (Exception $e) {
             Log::error('Error downloading backup: ' . $e->getMessage(), [
-                'filename' => $filename,
+                'filename' => $path,
                 'user_id' => Auth::id()
             ]);
 
@@ -199,16 +199,16 @@ class DatabaseBackupController extends Controller
     /**
      * Eliminar un archivo de respaldo
      */
-    public function delete($filename)
+    public function delete($path)
     {
         try {
-            $filename = basename($filename);
+            $path = basename($path);
 
-            if (!$this->backupService->backupExists($filename)) {
+            if (!$this->backupService->backupExists($path)) {
                 return redirect()->route('backup.index')->with('error', 'El archivo de respaldo no existe.');
             }
 
-            $result = $this->backupService->deleteBackup($filename);
+            $result = $this->backupService->deleteBackup($path);
 
             if ($result['success']) {
                 return redirect()->route('backup.index')
@@ -218,7 +218,7 @@ class DatabaseBackupController extends Controller
             return redirect()->route('backup.index')->with('error', $result['message']);
         } catch (Exception $e) {
             Log::error('Error deleting backup: ' . $e->getMessage(), [
-                'filename' => $filename,
+                'filename' => $path,
                 'user_id' => Auth::id()
             ]);
 
@@ -227,14 +227,74 @@ class DatabaseBackupController extends Controller
     }
 
     /**
-     * Restaurar la base de datos desde un respaldo
+     * Restaurar tablas específicas desde un respaldo (granular restore)
      */
-    public function restore($filename)
+    public function granularRestore(Request $request, $filename)
     {
+        $validated = $request->validate([
+            'tables_to_restore' => 'array',
+            'tables_to_restore.*' => 'string',
+            'tables_to_exclude' => 'array',
+            'tables_to_exclude.*' => 'string',
+            'include_structure' => 'boolean',
+            'include_data' => 'boolean',
+            'dry_run' => 'boolean',
+            'remap_table_names' => 'array',
+            'where_conditions' => 'array'
+        ]);
+
         try {
             $filename = basename($filename);
 
             if (!$this->backupService->backupExists($filename)) {
+                return redirect()->route('backup.index')->with('error', 'El archivo de respaldo no existe.');
+            }
+
+            $result = $this->backupService->granularRestore($filename, [
+                'tables_to_restore' => $validated['tables_to_restore'] ?? [],
+                'tables_to_exclude' => $validated['tables_to_exclude'] ?? [],
+                'include_structure' => $validated['include_structure'] ?? true,
+                'include_data' => $validated['include_data'] ?? true,
+                'dry_run' => $validated['dry_run'] ?? false,
+                'remap_table_names' => $validated['remap_table_names'] ?? [],
+                'where_conditions' => $validated['where_conditions'] ?? []
+            ]);
+
+            if ($result['success']) {
+                $message = 'Restauración granular completada exitosamente.';
+
+                if (isset($result['dry_run']) && $result['dry_run']) {
+                    $message = 'Verificación de sintaxis completada (dry run).';
+                } else {
+                    $message .= ' Tablas procesadas: ' . ($result['tables_processed'] ?? 0);
+                    $message .= ', Filas afectadas: ' . ($result['rows_affected'] ?? 0);
+                }
+
+                return redirect()->route('backup.index')->with('success', $message);
+            }
+
+            return redirect()->route('backup.index')->with('error', $result['message']);
+        } catch (Exception $e) {
+            Log::error('Error in granular restore: ' . $e->getMessage(), [
+                'filename' => $filename,
+                'user_id' => Auth::id(),
+                'request_data' => $request->all()
+            ]);
+
+            return redirect()->route('backup.index')
+                ->with('error', 'Error crítico durante la restauración granular. Verifique el estado de la base de datos.');
+        }
+    }
+
+    /**
+     * Restaurar la base de datos desde un respaldo
+     */
+    public function restore($path)
+    {
+        try {
+            $path = basename($path);
+
+            if (!$this->backupService->backupExists($path)) {
                 return redirect()->route('backup.index')->with('error', 'El archivo de respaldo no existe.');
             }
 
@@ -249,7 +309,7 @@ class DatabaseBackupController extends Controller
                 Log::warning('Could not create pre-restore backup: ' . $preRestoreBackup['message']);
             }
 
-            $result = $this->backupService->restoreBackup($filename);
+            $result = $this->backupService->restoreBackup($path);
 
             if ($result['success']) {
                 $message = 'Base de datos restaurada exitosamente.';
@@ -263,7 +323,7 @@ class DatabaseBackupController extends Controller
             return redirect()->route('backup.index')->with('error', $result['message']);
         } catch (Exception $e) {
             Log::error('Error restoring backup: ' . $e->getMessage(), [
-                'filename' => $filename,
+                'filename' => $path,
                 'user_id' => Auth::id()
             ]);
 
@@ -366,6 +426,348 @@ class DatabaseBackupController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al verificar el respaldo'
+            ], 500);
+        }
+    }
+
+    /**
+     * Crear un respaldo incremental basado en cambios detectados
+     */
+    public function createIncremental(Request $request)
+    {
+        try {
+            $result = $this->backupService->createIncrementalBackup([
+                'name' => $request->input('name', 'backup_incremental_' . date('Y-m-d_H-i-s')),
+                'compress' => $request->boolean('compress', true),
+                'encrypt_sensitive' => $request->boolean('encrypt_sensitive', true),
+                'generate_checksum' => $request->boolean('generate_checksum', true)
+            ]);
+
+            if (isset($result['skipped']) && $result['skipped']) {
+                return redirect()->route('backup.index')
+                    ->with('info', $result['message']);
+            }
+
+            if ($result['success']) {
+                $message = $result['message'] . ' Tamaño: ' . $this->formatFileSize($result['size'] ?? 0);
+
+                if (isset($result['changes_detected'])) {
+                    $message .= ' Tablas modificadas: ' . $result['changes_detected'];
+                }
+
+                if (isset($result['encrypted']) && $result['encrypted']) {
+                    $message .= ' (Datos sensibles encriptados)';
+                }
+
+                return redirect()->route('backup.index')->with('success', $message);
+            }
+
+            return redirect()->route('backup.index')->with('error', $result['message']);
+        } catch (Exception $e) {
+            Log::error('Error creating incremental backup: ' . $e->getMessage(), [
+                'user_id' => Auth::id(),
+                'request_data' => $request->all()
+            ]);
+
+            return redirect()->route('backup.index')
+                ->with('error', 'Error interno al crear el respaldo incremental. Por favor, inténtelo de nuevo.');
+        }
+    }
+
+    /**
+     * Crear un respaldo seguro con opciones avanzadas
+     */
+    public function createSecure(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'nullable|string|max:255|regex:/^[a-zA-Z0-9_\-\.]+$/',
+            'encrypt_sensitive' => 'boolean',
+            'generate_checksum' => 'boolean',
+            'include_integrity_check' => 'boolean',
+            'require_confirmation' => 'boolean',
+            'confirmed' => 'boolean',
+            'compress' => 'boolean'
+        ], [
+            'name.regex' => 'El nombre del respaldo solo puede contener letras, números, guiones, guiones bajos y puntos.',
+            'name.max' => 'El nombre del respaldo no puede exceder 255 caracteres.'
+        ]);
+
+        try {
+            $backupName = $validated['name'] ?: $this->generateDefaultBackupName();
+
+            $result = $this->backupService->createSecureBackup([
+                'name' => $backupName,
+                'encrypt_sensitive' => $validated['encrypt_sensitive'] ?? true,
+                'generate_checksum' => $validated['generate_checksum'] ?? true,
+                'include_integrity_check' => $validated['include_integrity_check'] ?? true,
+                'require_confirmation' => $validated['require_confirmation'] ?? true,
+                'confirmed' => $validated['confirmed'] ?? false,
+                'compress' => $validated['compress'] ?? true
+            ]);
+
+            if (isset($result['requires_confirmation']) && $result['requires_confirmation']) {
+                return redirect()->route('backup.index')
+                    ->with('warning', $result['message'])
+                    ->with('show_confirmation_modal', true)
+                    ->with('backup_options', $validated);
+            }
+
+            if ($result['success']) {
+                $message = $result['message'] . ' Tamaño: ' . $this->formatFileSize($result['size'] ?? 0);
+                if (isset($result['encrypted']) && $result['encrypted']) {
+                    $message .= ' (Datos sensibles encriptados)';
+                }
+                if (isset($result['checksum'])) {
+                    $message .= ' Checksum: ' . substr($result['checksum'], 0, 16) . '...';
+                }
+
+                return redirect()->route('backup.index')->with('success', $message);
+            }
+
+            return redirect()->route('backup.index')->with('error', $result['message']);
+        } catch (Exception $e) {
+            Log::error('Error creating secure backup: ' . $e->getMessage(), [
+                'user_id' => Auth::id(),
+                'request_data' => $request->all()
+            ]);
+
+            return redirect()->route('backup.index')
+                ->with('error', 'Error interno al crear el respaldo seguro. Por favor, inténtelo de nuevo.');
+        }
+    }
+
+    /**
+     * Obtener estadísticas de seguridad del sistema de respaldos
+     */
+    public function securityStats()
+    {
+        try {
+            $stats = $this->backupService->getSecurityStats();
+
+            return response()->json($stats);
+        } catch (Exception $e) {
+            Log::error('Error getting security stats: ' . $e->getMessage());
+
+            return response()->json([
+                'error' => 'Error al obtener estadísticas de seguridad'
+            ], 500);
+        }
+    }
+
+    /**
+     * Verificar integridad avanzada de un respaldo específico
+     */
+    public function verifyAdvanced($filename)
+    {
+        try {
+            $filename = basename($filename);
+            $result = $this->backupService->verifyAdvancedIntegrity($filename);
+
+            if ($result['success']) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $result['message'],
+                    'data' => [
+                        'filename' => $filename,
+                        'checksums' => $result['checksums'] ?? null,
+                        'verification_level' => $result['verification_level'] ?? 'basic',
+                        'algorithms_verified' => $result['algorithms_verified'] ?? []
+                    ]
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => $result['message'],
+                'error_code' => $result['error_code'] ?? 'UNKNOWN',
+                'data' => [
+                    'filename' => $filename,
+                    'mismatches' => $result['mismatches'] ?? [],
+                    'expected_checksums' => $result['expected_checksums'] ?? null,
+                    'current_checksums' => $result['current_checksums'] ?? null
+                ]
+            ], $result['error_code'] === 'FILE_NOT_FOUND' ? 404 : 400);
+
+        } catch (Exception $e) {
+            Log::error('Error verifying advanced backup: ' . $e->getMessage(), [
+                'filename' => $filename,
+                'user_id' => Auth::id()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error interno al verificar el respaldo'
+            ], 500);
+        }
+    }
+
+    /**
+     * Generar reporte de salud completo del sistema de respaldos
+     */
+    public function healthReport()
+    {
+        try {
+            $report = $this->backupService->generateHealthReport();
+
+            return response()->json([
+                'success' => true,
+                'report' => $report
+            ]);
+
+        } catch (Exception $e) {
+            Log::error('Error generating health report: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error generando reporte de salud',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener datos avanzados de monitoreo del sistema de respaldos
+     */
+    public function monitoring()
+    {
+        try {
+            $monitoringData = $this->backupService->getAdvancedMonitoringData();
+
+            return response()->json([
+                'success' => true,
+                'monitoring' => $monitoringData
+            ]);
+
+        } catch (Exception $e) {
+            Log::error('Error getting monitoring data: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error obteniendo datos de monitoreo',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Crear backup remoto con almacenamiento en la nube
+     */
+    public function createRemote(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'nullable|string|max:255|regex:/^[a-zA-Z0-9_\-\.]+$/',
+            'provider' => 'required|string|in:s3,gcs,azure',
+            'compress' => 'boolean',
+            'encrypt' => 'boolean',
+            'sync_local' => 'boolean'
+        ]);
+
+        try {
+            $result = $this->backupService->createRemoteBackup([
+                'name' => $validated['name'] ?: 'remote_backup_' . date('Y-m-d_H-i-s'),
+                'compress' => $validated['compress'] ?? true,
+                'encrypt_sensitive' => $validated['encrypt'] ?? false,
+                'remote_provider' => $validated['provider'],
+                'sync_local_and_remote' => $validated['sync_local'] ?? true
+            ]);
+
+            if ($result['success']) {
+                $message = 'Backup remoto creado exitosamente.';
+
+                if ($result['remote_path']) {
+                    $message .= ' Archivo remoto: ' . $result['remote_path'];
+                }
+
+                if ($result['local_path']) {
+                    $message .= ' (Copia local mantenida)';
+                }
+
+                return redirect()->route('backup.index')->with('success', $message);
+            }
+
+            return redirect()->route('backup.index')->with('error', $result['message']);
+        } catch (Exception $e) {
+            Log::error('Error creating remote backup: ' . $e->getMessage(), [
+                'user_id' => Auth::id(),
+                'request_data' => $request->all()
+            ]);
+
+            return redirect()->route('backup.index')
+                ->with('error', 'Error interno al crear el backup remoto. Por favor, inténtelo de nuevo.');
+        }
+    }
+
+    /**
+     * Listar backups remotos desde almacenamiento en la nube
+     */
+    public function listRemote()
+    {
+        try {
+            $remoteBackups = $this->backupService->listRemoteBackups();
+
+            return response()->json([
+                'success' => true,
+                'remote_backups' => $remoteBackups
+            ]);
+
+        } catch (Exception $e) {
+            Log::error('Error listing remote backups: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error listando backups remotos'
+            ], 500);
+        }
+    }
+
+    /**
+     * Descargar backup desde almacenamiento remoto
+     */
+    public function downloadRemote($remotePath)
+    {
+        try {
+            $localPath = $this->backupService->downloadFromRemote($remotePath);
+
+            if (!$localPath) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error descargando archivo remoto'
+                ], 404);
+            }
+
+            return response()->download($localPath, basename($remotePath));
+
+        } catch (Exception $e) {
+            Log::error('Error downloading remote backup: ' . $e->getMessage(), [
+                'remote_path' => $remotePath
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error descargando backup remoto'
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener estadísticas de compresión del sistema
+     */
+    public function compressionStats()
+    {
+        try {
+            $stats = $this->backupService->getCompressionStats();
+
+            return response()->json([
+                'success' => true,
+                'stats' => $stats
+            ]);
+
+        } catch (Exception $e) {
+            Log::error('Error getting compression stats: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error obteniendo estadísticas de compresión'
             ], 500);
         }
     }

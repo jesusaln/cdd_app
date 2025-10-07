@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Carbon\Carbon;
 
 class Mantenimiento extends Model
 {
@@ -20,58 +21,45 @@ class Mantenimiento extends Model
         'costo',
         'estado',
         'kilometraje_actual',
-        'proximo_kilometraje',
         'prioridad',
-        'alerta_enviada',
-        'alerta_enviada_at',
         'dias_anticipacion_alerta',
-        'observaciones_alerta',
         'requiere_aprobacion',
-        'tipo_alerta',
-        'recordatorios_enviados',
-        'frecuencia_recordatorio_dias',
-        'km_anticipacion_alerta',
     ];
 
     protected $casts = [
         'fecha' => 'date',
         'proximo_mantenimiento' => 'date',
         'costo' => 'decimal:2',
-        'alerta_enviada' => 'boolean',
-        'alerta_enviada_at' => 'datetime',
-        'requiere_aprobacion' => 'boolean',
-        'recordatorios_enviados' => 'array',
+        'kilometraje_actual' => 'integer',
         'dias_anticipacion_alerta' => 'integer',
-        'frecuencia_recordatorio_dias' => 'integer',
-        'km_anticipacion_alerta' => 'integer',
+        'requiere_aprobacion' => 'boolean',
     ];
 
-    // Constantes para los estados
-    const ESTADO_COMPLETADO = 'completado';
+    // Estados del mantenimiento
     const ESTADO_PENDIENTE = 'pendiente';
     const ESTADO_EN_PROCESO = 'en_proceso';
+    const ESTADO_COMPLETADO = 'completado';
 
-    // Constantes para prioridades
+    // Prioridades
     const PRIORIDAD_BAJA = 'baja';
     const PRIORIDAD_MEDIA = 'media';
     const PRIORIDAD_ALTA = 'alta';
     const PRIORIDAD_CRITICA = 'critica';
 
-    // Constantes para tipos de alerta
-    const TIPO_ALERTA_AUTOMATICA = 'automatica';
-    const TIPO_ALERTA_MANUAL = 'manual';
-
-    // Constantes para tipos comunes de mantenimiento
-    const TIPO_CAMBIO_ACEITE = 'cambio_aceite';
-    const TIPO_REVISION_PERIODICA = 'revision_periodica';
-    const TIPO_FRENOS = 'frenos';
-    const TIPO_NEUMATICOS = 'neumaticos';
-    const TIPO_FILTROS = 'filtros';
-    const TIPO_BATERIA = 'bateria';
-    const TIPO_TRANSMISION = 'transmision';
-    const TIPO_REFRIGERANTE = 'refrigerante';
-    const TIPO_SUSPENSION = 'suspension';
-    const TIPO_OTRO = 'otro';
+    // Tipos de mantenimiento
+    const TIPOS = [
+        'Cambio de aceite',
+        'Revisión periódica',
+        'Servicio de frenos',
+        'Servicio de llantas',
+        'Servicio de batería',
+        'Servicio de motor',
+        'Revisión de luces',
+        'Alineación y balanceo',
+        'Cambio de filtros',
+        'Revisión de transmisión',
+        'Otro servicio'
+    ];
 
     /**
      * Relación con el modelo Carro
@@ -82,50 +70,57 @@ class Mantenimiento extends Model
     }
 
     /**
-     * Scope para obtener mantenimientos próximos a vencer
+     * Scope para filtrar por estado
      */
-    public function scopeProximosAVencer($query, $dias = 30)
-    {
-        return $query->where('proximo_mantenimiento', '<=', now()->addDays($dias))
-            ->where('estado', '!=', self::ESTADO_COMPLETADO);
-    }
-
-    /**
-     * Scope para obtener mantenimientos por estado
-     */
-    public function scopeByEstado($query, $estado)
+    public function scopeEstado($query, $estado)
     {
         return $query->where('estado', $estado);
     }
 
     /**
-     * Scope para obtener mantenimientos por tipo
+     * Scope para filtrar por tipo
      */
-    public function scopeByTipo($query, $tipo)
+    public function scopeTipo($query, $tipo)
     {
         return $query->where('tipo', $tipo);
     }
 
     /**
-     * Accessor para formatear el costo
+     * Scope para filtrar por carro
      */
-    public function getCostoFormateadoAttribute()
+    public function scopeCarro($query, $carroId)
     {
-        return '$' . number_format($this->costo, 2);
+        return $query->where('carro_id', $carroId);
     }
 
     /**
-     * Verificar si el mantenimiento está vencido
+     * Scope para mantenimientos activos (no completados)
      */
-    public function getEsVencidoAttribute()
+    public function scopeActivos($query)
     {
-        return $this->proximo_mantenimiento &&
-            $this->proximo_mantenimiento < now() &&
-            $this->estado !== self::ESTADO_COMPLETADO;
+        return $query->where('estado', '!=', self::ESTADO_COMPLETADO);
     }
 
     /**
-     * Obtener días restantes para el próximo mantenimiento
+     * Scope para mantenimientos próximos a vencer
+     */
+    public function scopeProximosAVencer($query, $dias = 30)
+    {
+        return $query->where('proximo_mantenimiento', '<=', now()->addDays($dias))
+                    ->where('estado', '!=', self::ESTADO_COMPLETADO);
+    }
+
+    /**
+     * Scope para mantenimientos vencidos
+     */
+    public function scopeVencidos($query)
+    {
+        return $query->where('proximo_mantenimiento', '<', now())
+                    ->where('estado', '!=', self::ESTADO_COMPLETADO);
+    }
+
+    /**
+     * Accessor para obtener días restantes
      */
     public function getDiasRestantesAttribute()
     {
@@ -133,58 +128,42 @@ class Mantenimiento extends Model
             return null;
         }
 
-        return round(now()->diffInDays($this->proximo_mantenimiento, false));
+        return now()->diffInDays($this->proximo_mantenimiento, false);
     }
 
     /**
-     * Scope para obtener mantenimientos por prioridad
+     * Accessor para obtener el estado formateado
      */
-    public function scopeByPrioridad($query, $prioridad)
+    public function getEstadoFormateadoAttribute()
     {
-        return $query->where('prioridad', $prioridad);
+        return match($this->estado) {
+            self::ESTADO_PENDIENTE => ['label' => 'Pendiente', 'color' => 'bg-yellow-100 text-yellow-800'],
+            self::ESTADO_EN_PROCESO => ['label' => 'En Proceso', 'color' => 'bg-blue-100 text-blue-800'],
+            self::ESTADO_COMPLETADO => ['label' => 'Completado', 'color' => 'bg-green-100 text-green-800'],
+            default => ['label' => 'Desconocido', 'color' => 'bg-gray-100 text-gray-800']
+        };
     }
 
     /**
-     * Scope para obtener mantenimientos con alertas pendientes
+     * Accessor para obtener la prioridad formateada
      */
-    public function scopeConAlertasPendientes($query, int $dias = 30)
+    public function getPrioridadFormateadaAttribute()
     {
-        return $query->where('alerta_enviada', false)
-            ->whereDate('proximo_mantenimiento', '<=', now()->addDays($dias));
+        return match($this->prioridad) {
+            self::PRIORIDAD_BAJA => ['label' => 'Baja', 'color' => 'bg-green-100 text-green-800'],
+            self::PRIORIDAD_MEDIA => ['label' => 'Media', 'color' => 'bg-blue-100 text-blue-800'],
+            self::PRIORIDAD_ALTA => ['label' => 'Alta', 'color' => 'bg-orange-100 text-orange-800'],
+            self::PRIORIDAD_CRITICA => ['label' => 'Crítica', 'color' => 'bg-red-100 text-red-800'],
+            default => ['label' => 'Media', 'color' => 'bg-blue-100 text-blue-800']
+        };
     }
 
     /**
-     * Km restantes hasta el próximo mantenimiento según odómetro actual del carro
+     * Accessor para formatear costo
      */
-    public function getKmRestantesAttribute()
+    public function getCostoFormateadoAttribute()
     {
-        if (!$this->proximo_kilometraje) {
-            return null;
-        }
-
-        $kilometrajeActualCarro = $this->carro?->kilometraje;
-        if ($kilometrajeActualCarro === null) {
-            return null;
-        }
-
-        return (int) ($this->proximo_kilometraje - $kilometrajeActualCarro);
-    }
-
-    /**
-     * Scope para obtener mantenimientos críticos (alta prioridad y próximos a vencer)
-     */
-    public function scopeCriticos($query)
-    {
-        return $query->whereIn('prioridad', [self::PRIORIDAD_ALTA, self::PRIORIDAD_CRITICA])
-            ->where('proximo_mantenimiento', '<=', now()->addDays(7));
-    }
-
-    /**
-     * Scope para obtener mantenimientos que requieren aprobación
-     */
-    public function scopeRequierenAprobacion($query)
-    {
-        return $query->where('requiere_aprobacion', true);
+        return '$' . number_format($this->costo ?? 0, 2);
     }
 
     /**
@@ -192,177 +171,43 @@ class Mantenimiento extends Model
      */
     public function getRequiereAlertaAttribute()
     {
-        if ($this->alerta_enviada) {
+        if ($this->estado === self::ESTADO_COMPLETADO) {
             return false;
         }
 
         if (!$this->proximo_mantenimiento) {
-            // Si no hay fecha, aún podríamos alertar por km si aplica
-            $kmRestantes = $this->km_restantes;
-            $umbralKm = $this->km_anticipacion_alerta ?? 500;
-            return $kmRestantes !== null && $kmRestantes <= $umbralKm;
+            return false;
         }
 
         $diasRestantes = $this->dias_restantes;
         $diasAnticipacion = $this->dias_anticipacion_alerta ?? 30;
 
-        $alertaPorFecha = $diasRestantes !== null && $diasRestantes <= $diasAnticipacion;
-
-        // También considerar alerta por km si hay datos
-        $kmRestantes = $this->km_restantes;
-        $umbralKm = $this->km_anticipacion_alerta ?? 500;
-        $alertaPorKm = $kmRestantes !== null && $kmRestantes <= $umbralKm;
-
-        return $alertaPorFecha || $alertaPorKm;
+        return $diasRestantes !== null && $diasRestantes <= $diasAnticipacion;
     }
 
     /**
-     * Obtener el nivel de urgencia basado en días restantes y prioridad
+     * Marcar como completado
      */
-    public function getNivelUrgenciaAttribute()
-    {
-        $diasRestantes = $this->dias_restantes;
-
-        if ($diasRestantes === null) {
-            return 'info';
-        }
-
-        if ($diasRestantes < 0) {
-            return 'danger'; // Vencido
-        }
-
-        if ($diasRestantes <= 3) {
-            return 'critical'; // Muy urgente
-        }
-
-        if ($diasRestantes <= 7) {
-            return 'warning'; // Urgente
-        }
-
-        if ($diasRestantes <= 15) {
-            return 'info'; // Moderado
-        }
-
-        return 'success'; // Todo bien
-    }
-
-    /**
-     * Obtener clases CSS para el nivel de urgencia
-     */
-    public function getClasesUrgenciaAttribute()
-    {
-        $niveles = [
-            'success' => 'bg-green-100 text-green-700 border-green-200',
-            'info' => 'bg-blue-100 text-blue-700 border-blue-200',
-            'warning' => 'bg-yellow-100 text-yellow-700 border-yellow-200',
-            'critical' => 'bg-orange-100 text-orange-700 border-orange-200',
-            'danger' => 'bg-red-100 text-red-700 border-red-200'
-        ];
-
-        return $niveles[$this->nivel_urgencia] ?? 'bg-gray-100 text-gray-700 border-gray-200';
-    }
-
-    /**
-     * Marcar alerta como enviada
-     */
-    public function marcarAlertaEnviada($tipo = 'automatica')
+    public function marcarCompletado($fechaCompletado = null, $notas = null)
     {
         $this->update([
-            'alerta_enviada' => true,
-            'alerta_enviada_at' => now(),
-            'tipo_alerta' => $tipo
+            'estado' => self::ESTADO_COMPLETADO,
+            'fecha' => $fechaCompletado ?? now()->format('Y-m-d'),
+            'notas' => $notas ? ($this->notas ? $this->notas . ' | ' . $notas : $notas) : $this->notas
         ]);
     }
 
     /**
-     * Agregar recordatorio enviado
+     * Cambiar estado
      */
-    public function agregarRecordatorioEnviado($tipo = 'email', $fecha = null)
+    public function cambiarEstado($nuevoEstado)
     {
-        $recordatorios = $this->recordatorios_enviados ?? [];
-        $recordatorios[] = [
-            'tipo' => $tipo,
-            'fecha' => $fecha ?? now()->toISOString(),
-            'timestamp' => now()->timestamp
-        ];
+        $estadosValidos = [self::ESTADO_PENDIENTE, self::ESTADO_EN_PROCESO, self::ESTADO_COMPLETADO];
 
-        $this->update(['recordatorios_enviados' => $recordatorios]);
-    }
-
-    /**
-     * Obtener estadísticas de alertas para dashboard
-     */
-    public static function getEstadisticasAlertas()
-    {
-        return [
-            'total_con_alerta_pendiente' => self::conAlertasPendientes()->count(),
-            'criticos' => self::criticos()->count(),
-            'por_vencer_7_dias' => self::where('proximo_mantenimiento', '<=', now()->addDays(7))
-                ->where('proximo_mantenimiento', '>=', now())
-                ->count(),
-            'vencidos' => self::where('proximo_mantenimiento', '<', now())
-                ->where('estado', '!=', self::ESTADO_COMPLETADO)
-                ->count(),
-            'requieren_aprobacion' => self::requierenAprobacion()->count(),
-        ];
-    }
-
-    /**
-     * Generar mantenimientos recurrentes para los vencidos (método legacy para datos antiguos)
-     * Nota: Esta funcionalidad ahora está integrada en el proceso de crear y completar mantenimientos
-     */
-    public static function generarMantenimientosRecurrentes()
-    {
-        $mantenimientosVencidos = self::where('proximo_mantenimiento', '<', now())
-            ->where('estado', '!=', self::ESTADO_COMPLETADO)
-            ->with('carro')
-            ->get();
-
-        $creados = 0;
-
-        foreach ($mantenimientosVencidos as $mantenimiento) {
-            // Calcular la fecha del próximo mantenimiento basado en el intervalo anterior
-            if ($mantenimiento->fecha && $mantenimiento->proximo_mantenimiento) {
-                $intervaloDias = $mantenimiento->fecha->diffInDays($mantenimiento->proximo_mantenimiento);
-
-                // Crear nuevo mantenimiento
-                $nuevoMantenimiento = self::create([
-                    'carro_id' => $mantenimiento->carro_id,
-                    'tipo' => $mantenimiento->tipo,
-                    'fecha' => $mantenimiento->proximo_mantenimiento, // La fecha vencida se convierte en la fecha del servicio
-                    'proximo_mantenimiento' => now()->addDays($intervaloDias), // Próximo mantenimiento
-                    'descripcion' => $mantenimiento->descripcion,
-                    'notas' => $mantenimiento->notas,
-                    'costo' => $mantenimiento->costo,
-                    'estado' => self::ESTADO_PENDIENTE, // Nuevo mantenimiento como pendiente
-                    'kilometraje_actual' => $mantenimiento->carro->kilometraje ?? $mantenimiento->kilometraje_actual,
-                    'proximo_kilometraje' => $mantenimiento->proximo_kilometraje,
-                    'prioridad' => $mantenimiento->prioridad,
-                    'dias_anticipacion_alerta' => $mantenimiento->dias_anticipacion_alerta,
-                    'requiere_aprobacion' => $mantenimiento->requiere_aprobacion,
-                    'observaciones_alerta' => $mantenimiento->observaciones_alerta,
-                ]);
-
-                // Marcar el mantenimiento anterior como completado
-                $mantenimiento->update([
-                    'estado' => self::ESTADO_COMPLETADO,
-                    'notas' => ($mantenimiento->notas ? $mantenimiento->notas . ' | ' : '') . 'Mantenimiento completado automáticamente - generado nuevo registro ID: ' . $nuevoMantenimiento->id
-                ]);
-
-                $creados++;
-            }
+        if (!in_array($nuevoEstado, $estadosValidos)) {
+            throw new \InvalidArgumentException('Estado no válido');
         }
 
-        return $creados;
-    }
-
-    /**
-     * Verificar si necesita generar mantenimiento recurrente
-     */
-    public function necesitaGenerarRecurrente()
-    {
-        return $this->proximo_mantenimiento &&
-               $this->proximo_mantenimiento < now() &&
-               $this->estado !== self::ESTADO_COMPLETADO;
+        $this->update(['estado' => $nuevoEstado]);
     }
 }

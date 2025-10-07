@@ -12,15 +12,19 @@
             </div>
 
             <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-              <Link
-                :href="route('backup.create')"
-                class="inline-flex items-center gap-2.5 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg"
+              <button
+                @click="createBackup"
+                :disabled="creating"
+                class="inline-flex items-center gap-2.5 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg v-if="!creating" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                 </svg>
-                <span>Nueva Copia</span>
-              </Link>
+                <svg v-else class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span>{{ creating ? 'Creando...' : 'Nueva Copia' }}</span>
+              </button>
 
               <button
                 @click="showCleanDialog = true"
@@ -31,9 +35,20 @@
                 </svg>
                 <span class="text-sm font-medium">Limpiar Antiguos</span>
               </button>
+
+              <button
+                @click="toggleAdvancedMetrics"
+                :class="showAdvancedMetrics ? 'bg-blue-100 text-blue-800' : 'bg-blue-50 text-blue-700'"
+                class="inline-flex items-center gap-2 px-4 py-3 rounded-xl hover:bg-blue-100 transition-all duration-200 border border-blue-200"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <span class="text-sm font-medium">{{ showAdvancedMetrics ? 'Ocultar Métricas' : 'Ver Métricas' }}</span>
+              </button>
             </div>
 
-            <!-- Estadísticas -->
+            <!-- Estadísticas Avanzadas -->
             <div class="flex flex-wrap items-center gap-4 text-sm">
               <div class="flex items-center gap-2 px-4 py-3 bg-slate-50 rounded-xl border border-slate-200">
                 <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -65,6 +80,24 @@
                 </svg>
                 <span class="font-medium text-slate-700">Tamaño Total:</span>
                 <span class="font-bold text-yellow-700 text-lg">{{ formatFileSize(stats.total_size) }}</span>
+              </div>
+
+              <!-- Métricas de Salud del Sistema -->
+              <div class="flex items-center gap-2 px-4 py-3 bg-green-50 rounded-xl border border-green-200">
+                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span class="font-medium text-slate-700">Salud Sistema:</span>
+                <span :class="getHealthColor(systemHealth)" class="font-bold text-lg">{{ systemHealth }}%</span>
+              </div>
+
+              <!-- Métricas de Rendimiento -->
+              <div class="flex items-center gap-2 px-4 py-3 bg-purple-50 rounded-xl border border-purple-200">
+                <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                <span class="font-medium text-slate-700">Tasa Éxito:</span>
+                <span class="font-bold text-purple-700 text-lg">{{ successRate }}%</span>
               </div>
             </div>
           </div>
@@ -98,6 +131,145 @@
               <option value="size-desc">Tamaño Mayor</option>
               <option value="size-asc">Tamaño Menor</option>
             </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel de Métricas Avanzadas -->
+      <div v-if="showAdvancedMetrics" class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-semibold text-gray-900">Métricas Avanzadas del Sistema</h3>
+          <p class="text-sm text-gray-600 mt-1">Información detallada sobre el rendimiento y salud del sistema de respaldos</p>
+        </div>
+
+        <div class="p-6">
+          <div v-if="loadingMetrics" class="flex items-center justify-center py-8">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span class="ml-3 text-gray-600">Cargando métricas avanzadas...</span>
+          </div>
+
+          <div v-else-if="monitoringData.monitoring" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Salud General -->
+            <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
+              <div class="flex items-center justify-between mb-2">
+                <h4 class="font-medium text-green-900">Salud General</h4>
+                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <div class="text-2xl font-bold text-green-700 mb-1">{{ monitoringData.monitoring.overview.health_score }}%</div>
+              <div class="text-sm text-green-600">{{ monitoringData.monitoring.overview.system_health }}</div>
+            </div>
+
+            <!-- Rendimiento -->
+            <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
+              <div class="flex items-center justify-between mb-2">
+                <h4 class="font-medium text-blue-900">Rendimiento</h4>
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+              <div class="text-2xl font-bold text-blue-700 mb-1">{{ monitoringData.monitoring.performance.avg_execution_time }}s</div>
+              <div class="text-sm text-blue-600">Tiempo promedio</div>
+            </div>
+
+            <!-- Capacidad -->
+            <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200">
+              <div class="flex items-center justify-between mb-2">
+                <h4 class="font-medium text-purple-900">Capacidad</h4>
+                <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                </svg>
+              </div>
+              <div class="text-2xl font-bold text-purple-700 mb-1">{{ monitoringData.monitoring.capacity.usage_percentage }}%</div>
+              <div class="text-sm text-purple-600">Espacio utilizado</div>
+            </div>
+
+            <!-- Predicciones -->
+            <div v-if="monitoringData.monitoring.predictions.storage_growth" class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4 border border-orange-200">
+              <div class="flex items-center justify-between mb-2">
+                <h4 class="font-medium text-orange-900">Crecimiento</h4>
+                <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                </svg>
+              </div>
+              <div class="text-lg font-bold text-orange-700 mb-1">{{ monitoringData.monitoring.predictions.storage_growth.weekly_mb }} MB/semana</div>
+              <div class="text-sm text-orange-600">Crecimiento estimado</div>
+            </div>
+
+            <!-- Confiabilidad -->
+            <div class="bg-gradient-to-br from-teal-50 to-teal-100 rounded-lg p-4 border border-teal-200">
+              <div class="flex items-center justify-between mb-2">
+                <h4 class="font-medium text-teal-900">Confiabilidad</h4>
+                <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div class="text-2xl font-bold text-teal-700 mb-1">{{ monitoringData.monitoring.reliability.reliability_score }}%</div>
+              <div class="text-sm text-teal-600">Puntuación de confiabilidad</div>
+            </div>
+
+            <!-- Tiempo hasta lleno -->
+            <div v-if="monitoringData.monitoring.predictions.storage_growth?.time_to_full" class="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-4 border border-red-200">
+              <div class="flex items-center justify-between mb-2">
+                <h4 class="font-medium text-red-900">Capacidad</h4>
+                <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div class="text-lg font-bold text-red-700 mb-1">{{ monitoringData.monitoring.predictions.storage_growth.time_to_full }}</div>
+              <div class="text-sm text-red-600">Tiempo hasta lleno</div>
+            </div>
+          </div>
+
+          <!-- Alertas -->
+          <div v-if="monitoringData.monitoring?.alerts?.length > 0" class="mt-6">
+            <h4 class="font-medium text-gray-900 mb-3">Alertas del Sistema</h4>
+            <div class="space-y-3">
+              <div v-for="alert in monitoringData.monitoring.alerts" :key="alert.timestamp"
+                   :class="alert.level === 'critical' ? 'bg-red-50 border-red-200' : 'bg-yellow-50 border-yellow-200'"
+                   class="p-4 rounded-lg border">
+                <div class="flex items-start">
+                  <div class="flex-shrink-0">
+                    <svg v-if="alert.level === 'critical'" class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                    <svg v-else class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                  </div>
+                  <div class="ml-3 flex-1">
+                    <h5 class="text-sm font-medium" :class="alert.level === 'critical' ? 'text-red-900' : 'text-yellow-900'">
+                      {{ alert.message }}
+                    </h5>
+                    <p class="text-sm mt-1" :class="alert.level === 'critical' ? 'text-red-700' : 'text-yellow-700'">
+                      {{ alert.description }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recomendaciones -->
+          <div v-if="monitoringData.monitoring?.recommendations?.length > 0" class="mt-6">
+            <h4 class="font-medium text-gray-900 mb-3">Recomendaciones</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div v-for="rec in monitoringData.monitoring.recommendations" :key="rec.title"
+                   class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <div class="flex items-start justify-between mb-2">
+                  <h5 class="text-sm font-medium text-gray-900">{{ rec.title }}</h5>
+                  <span :class="rec.priority === 'high' ? 'bg-red-100 text-red-800' : rec.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'"
+                        class="px-2 py-1 text-xs font-medium rounded-full">
+                    {{ rec.priority }}
+                  </span>
+                </div>
+                <p class="text-sm text-gray-600 mb-2">{{ rec.description }}</p>
+                <div class="text-xs text-gray-500">
+                  <span class="font-medium">Esfuerzo estimado:</span> {{ rec.estimated_effort }}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -414,11 +586,18 @@ const props = defineProps({
   total_size: { type: Number, default: 0 }
 })
 
+// Estado reactivo para métricas avanzadas
+const systemHealth = ref(100)
+const successRate = ref(100)
+const monitoringData = ref({})
+const showAdvancedMetrics = ref(false)
+
 // Estado UI
 const showCleanDialog = ref(false)
 const creating = ref(false)
 const restoring = ref(false)
 const deleting = ref(false)
+const loadingMetrics = ref(false)
 
 // Filtros
 const searchTerm = ref(props.filters?.search ?? '')
@@ -532,7 +711,7 @@ const executeRestore = async () => {
   restoring.value = true
 
   try {
-    await router.post(route('backup.restore', restoreDialog.value.backup.path), {}, {
+    await router.post(route('backup.restore', { filename: restoreDialog.value.backup.name }), {}, {
       onSuccess: () => {
         restoreDialog.value.show = false
         restoreDialog.value.backup = null
@@ -563,7 +742,7 @@ const executeDelete = async () => {
   deleting.value = true
 
   try {
-    await router.delete(route('backup.delete', deleteDialog.value.backup.path), {
+    await router.delete(route('backup.delete', { filename: deleteDialog.value.backup.name }), {
       onSuccess: () => {
         deleteDialog.value.show = false
         deleteDialog.value.backup = null
@@ -607,12 +786,56 @@ const executeClean = async () => {
 
 const downloadBackup = (backup) => {
   const link = document.createElement('a')
-  link.href = route('backup.download', backup.path)
+  link.href = route('backup.download', { filename: backup.name })
   link.download = backup.name
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
   notyf.success('Descarga iniciada')
+}
+
+// Métodos para métricas avanzadas
+const loadAdvancedMetrics = async () => {
+  loadingMetrics.value = true
+  try {
+    // Cargar datos de monitoreo avanzado
+    const monitoringResponse = await fetch(route('backup.monitoring'))
+    if (monitoringResponse.ok) {
+      monitoringData.value = await monitoringResponse.json()
+      if (monitoringData.value.success) {
+        systemHealth.value = monitoringData.value.monitoring.overview.health_score || 100
+        successRate.value = monitoringData.value.monitoring.overview.success_rate_30d || 100
+      }
+    }
+
+    // Cargar estadísticas de seguridad
+    const securityResponse = await fetch(route('backup.security.stats'))
+    if (securityResponse.ok) {
+      const securityData = await securityResponse.json()
+      if (securityData.success) {
+        // Actualizar métricas de seguridad si es necesario
+      }
+    }
+
+  } catch (error) {
+    console.error('Error loading advanced metrics:', error)
+  } finally {
+    loadingMetrics.value = false
+  }
+}
+
+const toggleAdvancedMetrics = () => {
+  showAdvancedMetrics.value = !showAdvancedMetrics.value
+  if (showAdvancedMetrics.value) {
+    loadAdvancedMetrics()
+  }
+}
+
+const getHealthColor = (health) => {
+  if (health >= 90) return 'text-green-700'
+  if (health >= 75) return 'text-yellow-700'
+  if (health >= 60) return 'text-orange-700'
+  return 'text-red-700'
 }
 
 // Helpers
