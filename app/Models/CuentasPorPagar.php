@@ -20,6 +20,11 @@ class CuentasPorPagar extends Model
         'fecha_vencimiento',
         'estado',
         'notas',
+        'pagado',
+        'metodo_pago',
+        'fecha_pago',
+        'pagado_por',
+        'notas_pago',
     ];
 
     protected $casts = [
@@ -27,6 +32,8 @@ class CuentasPorPagar extends Model
         'monto_pagado' => 'decimal:2',
         'monto_pendiente' => 'decimal:2',
         'fecha_vencimiento' => 'date',
+        'fecha_pago' => 'datetime',
+        'pagado' => 'boolean',
     ];
 
     /**
@@ -84,6 +91,31 @@ class CuentasPorPagar extends Model
             $this->notas = ($this->notas ? $this->notas . "\n" : '') . "Pago: {$monto} - {$notas}";
         }
         $this->actualizarEstado();
+    }
+
+    /**
+     * Marca la cuenta como pagada con información detallada
+     */
+    public function marcarPagado(string $metodoPago, string $notas = null): void
+    {
+        $this->update([
+            'pagado' => true,
+            'estado' => 'pagado',
+            'metodo_pago' => $metodoPago,
+            'fecha_pago' => now(),
+            'pagado_por' => auth()->id(),
+            'notas_pago' => $notas,
+            'monto_pagado' => $this->monto_total,
+            'monto_pendiente' => 0,
+        ]);
+    }
+
+    /**
+     * Relación con el usuario que pagó
+     */
+    public function pagadoPor()
+    {
+        return $this->belongsTo(User::class, 'pagado_por');
     }
 
     /**

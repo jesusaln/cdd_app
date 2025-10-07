@@ -180,6 +180,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::post('/compras/{id}/cancel', [CompraController::class, 'cancel'])->name('compras.cancel');
     Route::resource('cuentas-por-pagar', \App\Http\Controllers\CuentasPorPagarController::class)->names('cuentas-por-pagar');
     Route::post('/cuentas-por-pagar/{id}/registrar-pago', [\App\Http\Controllers\CuentasPorPagarController::class, 'registrarPago'])->name('cuentas-por-pagar.registrar-pago');
+    Route::post('/cuentas-por-pagar/{id}/marcar-pagado', [\App\Http\Controllers\CuentasPorPagarController::class, 'marcarPagado'])->name('cuentas-por-pagar.marcar-pagado');
     Route::resource('cuentas-por-cobrar', CuentasPorCobrarController::class)->names('cuentas-por-cobrar');
     Route::post('/cuentas-por-cobrar/{id}/registrar-pago', [CuentasPorCobrarController::class, 'registrarPago'])->name('cuentas-por-cobrar.registrar-pago');
     // =====================================================

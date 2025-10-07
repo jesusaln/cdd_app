@@ -117,7 +117,7 @@ class CuentasPorPagarController extends Controller
      */
     public function show(string $id)
     {
-        $cuenta = CuentasPorPagar::with(['compra.proveedor', 'compra.productos'])->findOrFail($id);
+        $cuenta = CuentasPorPagar::with(['compra.proveedor', 'compra.productos', 'pagadoPor'])->findOrFail($id);
 
         return Inertia::render('CuentasPorPagar/Show', [
             'cuenta' => $cuenta,
@@ -198,5 +198,48 @@ class CuentasPorPagarController extends Controller
         $cuenta->registrarPago($validated['monto'], $validated['notas']);
 
         return redirect()->back()->with('success', 'Pago registrado correctamente.');
+    }
+
+    /**
+     * Marcar cuenta como pagada con información detallada
+     */
+    public function marcarPagado(Request $request, string $id)
+    {
+        $request->validate([
+            'metodo_pago' => 'required|in:efectivo,transferencia,cheque,tarjeta,otros',
+            'notas_pago' => 'nullable|string|max:500'
+        ]);
+
+        $cuenta = CuentasPorPagar::findOrFail($id);
+
+        // Verificar que la cuenta no esté ya pagada
+        if ($cuenta->pagado) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Esta cuenta ya está marcada como pagada'
+            ], 400);
+        }
+
+        // Verificar que la cuenta no esté cancelada
+        if ($cuenta->estado === 'cancelada') {
+            return response()->json([
+                'success' => false,
+                'error' => 'No se puede marcar como pagada una cuenta cancelada'
+            ], 400);
+        }
+
+        $cuenta->marcarPagado($request->metodo_pago, $request->notas_pago);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Cuenta marcada como pagada exitosamente',
+            'cuenta' => [
+                'id' => $cuenta->id,
+                'pagado' => true,
+                'metodo_pago' => $cuenta->metodo_pago,
+                'fecha_pago' => $cuenta->fecha_pago->format('Y-m-d'),
+                'notas_pago' => $cuenta->notas_pago,
+            ]
+        ]);
     }
 }

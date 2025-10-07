@@ -124,6 +124,43 @@
                             </div>
                         </div>
 
+                        <!-- Información de Pago (si está pagada) -->
+                        <div v-if="cuenta.pagado" class="mb-6">
+                            <h3 class="text-lg font-medium text-gray-900 mb-4">Información de Pago</h3>
+                            <div class="bg-green-50 p-4 rounded-lg">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-6">
+                                    <div>
+                                        <dt class="text-sm font-medium text-gray-500">Estado de Pago</dt>
+                                        <dd class="mt-1">
+                                            <span class="bg-green-100 text-green-800 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                                                Pagado
+                                            </span>
+                                        </dd>
+                                    </div>
+                                    <div>
+                                        <dt class="text-sm font-medium text-gray-500">Método de Pago</dt>
+                                        <dd class="mt-1">
+                                            <span :class="getMetodoPagoClass(cuenta.metodo_pago)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                                                {{ getMetodoPagoLabel(cuenta.metodo_pago) }}
+                                            </span>
+                                        </dd>
+                                    </div>
+                                    <div>
+                                        <dt class="text-sm font-medium text-gray-500">Fecha de Pago</dt>
+                                        <dd class="mt-1 text-sm text-gray-900">{{ new Date(cuenta.fecha_pago).toLocaleDateString() }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt class="text-sm font-medium text-gray-500">Pagado Por</dt>
+                                        <dd class="mt-1 text-sm text-gray-900">{{ cuenta.pagado_por_usuario?.name || 'Usuario no encontrado' }}</dd>
+                                    </div>
+                                </div>
+                                <div v-if="cuenta.notas_pago" class="mt-4">
+                                    <dt class="text-sm font-medium text-gray-500">Notas de Pago</dt>
+                                    <dd class="mt-1 text-sm text-gray-700 bg-white p-3 rounded border">{{ cuenta.notas_pago }}</dd>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Notas -->
                         <div v-if="cuenta.notas" class="mb-6">
                             <h3 class="text-lg font-medium text-gray-900 mb-4">Notas</h3>
@@ -132,20 +169,62 @@
                             </div>
                         </div>
 
-                        <!-- Historial de Pagos (simulado) -->
+                        <!-- Historial de Pagos -->
                         <div class="mb-6">
-                            <h3 class="text-lg font-medium text-gray-900 mb-4">Historial de Pagos</h3>
+                            <h3 class="text-lg font-medium text-gray-900 mb-4">Gestión de Pagos</h3>
                             <div class="bg-gray-50 p-4 rounded-lg">
-                                <p class="text-sm text-gray-600">
-                                    Los pagos se registran en las notas de la cuenta. Para ver el historial completo,
-                                    edita la cuenta y registra nuevos pagos.
-                                </p>
-                                <div class="mt-4">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                    <!-- Información de pagos -->
+                                    <div class="space-y-2">
+                                        <div class="flex justify-between">
+                                            <span class="text-sm text-gray-600">Total de la cuenta:</span>
+                                            <span class="font-semibold">{{ formatCurrency(cuenta.monto_total) }}</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-sm text-gray-600">Pagado hasta ahora:</span>
+                                            <span class="font-semibold text-green-600">{{ formatCurrency(cuenta.monto_pagado) }}</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-sm text-gray-600">Pendiente:</span>
+                                            <span class="font-semibold text-red-600">{{ formatCurrency(cuenta.monto_pendiente) }}</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Acciones disponibles -->
+                                    <div class="flex flex-col justify-center space-y-2">
+                                        <button
+                                            v-if="cuenta.monto_pendiente > 0"
+                                            @click="showPagoParcialModal = true"
+                                            class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded text-sm"
+                                        >
+                                            + Registrar Pago Parcial
+                                        </button>
+                                        <button
+                                            v-if="!cuenta.pagado && cuenta.monto_pendiente > 0"
+                                            @click="showPagoModal = true"
+                                            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded text-sm"
+                                        >
+                                            ✓ Marcar como Pagado
+                                        </button>
+                                        <div v-if="cuenta.pagado" class="text-center">
+                                            <span class="bg-green-100 text-green-800 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                                                Cuenta Completamente Pagada
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Información adicional -->
+                                <div class="border-t border-gray-200 pt-4">
+                                    <p class="text-xs text-gray-500 mb-2">
+                                        <strong>Nota:</strong> Los pagos parciales se registran en el historial de notas.
+                                        Para ver el historial detallado, edita la cuenta.
+                                    </p>
                                     <Link
                                         :href="route('cuentas-por-pagar.edit', cuenta.id)"
-                                        class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+                                        class="text-blue-600 hover:text-blue-800 text-sm font-medium"
                                     >
-                                        Registrar Nuevo Pago
+                                        Ver historial completo de pagos →
                                     </Link>
                                 </div>
                             </div>
@@ -154,13 +233,183 @@
                 </div>
             </div>
         </div>
+
+        <!-- Modal para Marcar como Pagado -->
+        <div v-if="showPagoModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="showPagoModal = false">
+            <div class="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+                <!-- Header del modal -->
+                <div class="flex items-center justify-between p-6 border-b border-gray-200">
+                    <h3 class="text-lg font-medium text-gray-900">Marcar Cuenta como Pagada</h3>
+                    <button @click="showPagoModal = false" class="text-gray-400 hover:text-gray-600 transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="p-6">
+                    <div class="space-y-4">
+                        <!-- Información de la cuenta -->
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-sm font-medium text-gray-700">Cuenta:</span>
+                                <span class="text-sm text-gray-900">#{{ cuenta.id }}</span>
+                            </div>
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-sm font-medium text-gray-700">Proveedor:</span>
+                                <span class="text-sm text-gray-900">{{ cuenta.compra.proveedor.nombre_razon_social }}</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm font-medium text-gray-700">Monto Total:</span>
+                                <span class="text-lg font-bold text-gray-900">{{ formatCurrency(cuenta.monto_total) }}</span>
+                            </div>
+                        </div>
+
+                        <!-- Método de Pago -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Método de Pago *</label>
+                            <select
+                                v-model="metodoPago"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                required
+                            >
+                                <option value="">Seleccionar método de pago</option>
+                                <option value="efectivo">Efectivo</option>
+                                <option value="transferencia">Transferencia</option>
+                                <option value="cheque">Cheque</option>
+                                <option value="tarjeta">Tarjeta</option>
+                                <option value="otros">Otros</option>
+                            </select>
+                        </div>
+
+                        <!-- Notas de Pago -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Notas de Pago (opcional)</label>
+                            <textarea
+                                v-model="notasPago"
+                                rows="3"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="Agregar notas sobre el pago..."
+                            ></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer del modal -->
+                <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+                    <button @click="showPagoModal = false" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+                        Cancelar
+                    </button>
+                    <button
+                        @click="confirmarPago"
+                        :disabled="!metodoPago"
+                        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                        Marcar como Pagado
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal para Pago Parcial -->
+        <div v-if="showPagoParcialModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="showPagoParcialModal = false">
+            <div class="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+                <!-- Header del modal -->
+                <div class="flex items-center justify-between p-6 border-b border-gray-200">
+                    <h3 class="text-lg font-medium text-gray-900">Registrar Pago Parcial</h3>
+                    <button @click="showPagoParcialModal = false" class="text-gray-400 hover:text-gray-600 transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="p-6">
+                    <div class="space-y-4">
+                        <!-- Información de la cuenta -->
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-sm font-medium text-gray-700">Cuenta:</span>
+                                <span class="text-sm text-gray-900">#{{ cuenta.id }}</span>
+                            </div>
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-sm font-medium text-gray-700">Proveedor:</span>
+                                <span class="text-sm text-gray-900">{{ cuenta.compra.proveedor.nombre_razon_social }}</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm font-medium text-gray-700">Monto Total:</span>
+                                <span class="text-lg font-bold text-gray-900">{{ formatCurrency(cuenta.monto_total) }}</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm font-medium text-gray-700">Pendiente:</span>
+                                <span class="text-lg font-bold text-red-600">{{ formatCurrency(cuenta.monto_pendiente) }}</span>
+                            </div>
+                        </div>
+
+                        <!-- Monto del pago parcial -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Monto del Pago *</label>
+                            <input
+                                v-model="montoPagoParcial"
+                                type="number"
+                                step="0.01"
+                                min="0.01"
+                                :max="cuenta.monto_pendiente"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="0.00"
+                            />
+                            <p class="text-xs text-gray-500 mt-1">
+                                Máximo: {{ formatCurrency(cuenta.monto_pendiente) }}
+                            </p>
+                        </div>
+
+                        <!-- Notas del pago parcial -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Notas del Pago (opcional)</label>
+                            <textarea
+                                v-model="notasPagoParcial"
+                                rows="3"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="Agregar notas sobre este pago parcial..."
+                            ></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer del modal -->
+                <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+                    <button @click="showPagoParcialModal = false" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+                        Cancelar
+                    </button>
+                    <button
+                        @click="confirmarPagoParcial"
+                        :disabled="!montoPagoParcial || isNaN(parseFloat(montoPagoParcial)) || parseFloat(montoPagoParcial) <= 0"
+                        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                        Registrar Pago
+                    </button>
+                </div>
+            </div>
+        </div>
     </AppLayout>
 </template>
 
 <script setup>
-import { computed } from 'vue';
-import { Link } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import { Notyf } from 'notyf';
+import 'notyf/notyf.min.css';
+
+const notyf = new Notyf({
+    duration: 4000,
+    position: { x: 'right', y: 'top' },
+    types: [
+        { type: 'success', background: '#10b981', icon: false },
+        { type: 'error', background: '#ef4444', icon: false },
+        { type: 'warning', background: '#f59e0b', icon: false }
+    ]
+});
 
 const props = defineProps({
     cuenta: {
@@ -168,6 +417,13 @@ const props = defineProps({
         required: true,
     },
 });
+
+const showPagoModal = ref(false);
+const showPagoParcialModal = ref(false);
+const metodoPago = ref('');
+const notasPago = ref('');
+const montoPagoParcial = ref('');
+const notasPagoParcial = ref('');
 
 const currencyFormatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
 
@@ -194,4 +450,104 @@ const pagoProgress = computed(() => {
 
     return Math.min(100, Math.max(0, Math.round(porcentaje)));
 });
+
+const getMetodoPagoLabel = (metodo) => {
+    const metodos = {
+        'efectivo': 'Efectivo',
+        'transferencia': 'Transferencia',
+        'cheque': 'Cheque',
+        'tarjeta': 'Tarjeta',
+        'otros': 'Otros'
+    };
+    return metodos[metodo] || metodo || 'No especificado';
+};
+
+const getMetodoPagoClass = (metodo) => {
+    const clases = {
+        'efectivo': 'bg-green-100 text-green-800',
+        'transferencia': 'bg-blue-100 text-blue-800',
+        'cheque': 'bg-purple-100 text-purple-800',
+        'tarjeta': 'bg-orange-100 text-orange-800',
+        'otros': 'bg-gray-100 text-gray-800'
+    };
+    return clases[metodo] || 'bg-gray-100 text-gray-800';
+};
+
+const confirmarPago = async () => {
+    if (!metodoPago.value) {
+        notyf.error('Debe seleccionar un método de pago');
+        return;
+    }
+
+    try {
+        const response = await fetch(route('cuentas-por-pagar.marcar-pagado', props.cuenta.id), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({
+                metodo_pago: metodoPago.value,
+                notas_pago: notasPago.value || null
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            notyf.success('Cuenta marcada como pagada exitosamente');
+            showPagoModal.value = false;
+            metodoPago.value = '';
+            notasPago.value = '';
+            // Recargar la página para mostrar los nuevos datos
+            router.reload();
+        } else {
+            notyf.error(result.error || 'Error al marcar como pagada');
+        }
+    } catch (error) {
+        notyf.error('Error de conexión');
+    }
+};
+
+const confirmarPagoParcial = async () => {
+    const monto = parseFloat(montoPagoParcial.value);
+
+    if (!montoPagoParcial.value || isNaN(monto) || monto <= 0) {
+        notyf.error('Debe ingresar un monto válido mayor a cero');
+        return;
+    }
+
+    if (monto > props.cuenta.monto_pendiente) {
+        notyf.error(`El monto no puede ser mayor al pendiente de ${formatCurrency(props.cuenta.monto_pendiente)}`);
+        return;
+    }
+
+    try {
+        const response = await fetch(route('cuentas-por-pagar.registrar-pago', props.cuenta.id), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({
+                monto: monto,
+                notas: notasPagoParcial.value || null
+            })
+        });
+
+        if (response.ok) {
+            notyf.success('Pago parcial registrado exitosamente');
+            showPagoParcialModal.value = false;
+            montoPagoParcial.value = '';
+            notasPagoParcial.value = '';
+            // Recargar la página para mostrar los nuevos datos
+            router.reload();
+        } else {
+            const error = await response.json();
+            notyf.error(error.message || 'Error al registrar el pago parcial');
+        }
+    } catch (error) {
+        notyf.error('Error de conexión');
+    }
+};
 </script>
