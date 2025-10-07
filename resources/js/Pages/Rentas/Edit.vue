@@ -350,6 +350,7 @@ const actualizarRenta = () => {
     duracion_meses: form.duracion_meses,
     precio_mensual: form.subtotal,
     deposito_garantia: form.deposito_garantia || 0,
+    dia_pago: form.dia_pago,
     forma_pago: form.forma_pago,
     observaciones: form.observaciones,
     tiene_prorroga: false

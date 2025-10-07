@@ -113,6 +113,7 @@ class RentasController extends Controller
             'precio_mensual' => 'required|numeric|min:0',
             'deposito_garantia' => 'nullable|numeric|min:0',
             'forma_pago' => 'required|string|in:transferencia,efectivo,tarjeta,cheque',
+            'dia_pago' => 'nullable|integer|min:1|max:28',
             'observaciones' => 'nullable|string'
         ]);
 
@@ -144,11 +145,14 @@ class RentasController extends Controller
             'renovacion_automatica' => $request->tiene_prorroga,
             'meses_duracion' => $duracion,
             'estado' => 'activo',
-            'dia_pago' => 1, // Puedes hacerlo configurable
+            'dia_pago' => $request->input('dia_pago', 1),
         ]);
 
-        // Crear cobranza pendiente para el primer mes
-        $fechaCobro = $fechaInicio->copy()->addMonth()->startOfMonth()->day($renta->dia_pago);
+        // Crear cobranza del primer vencimiento (mismo mes si fecha_inicio <= dia_pago; si no, siguiente mes)
+        $fechaCobro = $fechaInicio->copy()->day(min($renta->dia_pago, $fechaInicio->daysInMonth));
+        if ($fechaCobro->lt($fechaInicio)) {
+            $fechaCobro = $fechaInicio->copy()->addMonthNoOverflow()->day(min($renta->dia_pago, $fechaInicio->copy()->addMonthNoOverflow()->daysInMonth));
+        }
         Cobranza::create([
             'renta_id' => $renta->id,
             'fecha_cobro' => $fechaCobro,
@@ -166,6 +170,33 @@ class RentasController extends Controller
                 'concepto' => 'deposito_garantia',
                 'estado' => 'pendiente',
             ]);
+        }
+
+        // Generar cobranzas restantes del contrato (evitar duplicar la primera)
+        $diaPago = (int) $renta->dia_pago;
+        // Primer vencimiento: mismo mes si fecha_inicio <= dia_pago; si no, siguiente mes
+        $primerVencimiento = $fechaInicio->copy()->day(min($diaPago, $fechaInicio->daysInMonth));
+        if ($primerVencimiento->lt($fechaInicio)) {
+            $primerVencimiento = $fechaInicio->copy()->addMonthNoOverflow()->day(min($diaPago, $fechaInicio->copy()->addMonthNoOverflow()->daysInMonth));
+        }
+
+        $fechaProgramada = $primerVencimiento->copy();
+        for ($i = 0; $i < $mesesTotales; $i++) {
+            $fechaCorte = $fechaProgramada->copy()->day(min($diaPago, $fechaProgramada->daysInMonth));
+            $yaExiste = Cobranza::where('renta_id', $renta->id)
+                ->whereDate('fecha_cobro', $fechaCorte->toDateString())
+                ->where('concepto', 'mensualidad')
+                ->exists();
+            if (!$yaExiste) {
+                Cobranza::create([
+                    'renta_id' => $renta->id,
+                    'fecha_cobro' => $fechaCorte,
+                    'monto_cobrado' => $renta->monto_mensual,
+                    'concepto' => 'mensualidad',
+                    'estado' => 'pendiente',
+                ]);
+            }
+            $fechaProgramada = $fechaProgramada->copy()->addMonthNoOverflow();
         }
 
         // Asociar equipos
@@ -251,6 +282,7 @@ class RentasController extends Controller
             'precio_mensual' => 'required|numeric|min:0',
             'deposito_garantia' => 'nullable|numeric|min:0',
             'forma_pago' => 'required|string|in:transferencia,efectivo,tarjeta,cheque',
+            'dia_pago' => 'nullable|integer|min:1|max:28',
             'observaciones' => 'nullable|string'
         ]);
 
@@ -276,7 +308,53 @@ class RentasController extends Controller
             'observaciones' => $request->observaciones,
             'renovacion_automatica' => $request->tiene_prorroga,
             'meses_duracion' => $duracion,
+            'dia_pago' => $request->input('dia_pago', $renta->dia_pago),
         ]);
+
+        // Regenerar calendario de cobranzas: conservar pagadas/parciales, recalcular pendientes/vencidas
+        $diaPago = (int) $renta->dia_pago;
+        $primerVencimiento = $fechaInicio->copy()->day(min($diaPago, $fechaInicio->daysInMonth));
+        if ($primerVencimiento->lt($fechaInicio)) {
+            $primerVencimiento = $fechaInicio->copy()->addMonthNoOverflow()->day(min($diaPago, $fechaInicio->copy()->addMonthNoOverflow()->daysInMonth));
+        }
+
+        $cobranzasPagadasOParciales = $renta->cobranzas()
+            ->where('concepto', 'mensualidad')
+            ->whereIn('estado', ['pagado', 'parcial'])
+            ->get();
+        $maxFechaPagada = $cobranzasPagadasOParciales->max('fecha_cobro');
+
+        $renta->cobranzas()
+            ->where('concepto', 'mensualidad')
+            ->whereIn('estado', ['pendiente', 'vencido'])
+            ->delete();
+
+        $fechaProgramada = $primerVencimiento->copy();
+        for ($i = 0; $i < $mesesTotales; $i++) {
+            $fechaCorte = $fechaProgramada->copy()->day(min($diaPago, $fechaProgramada->daysInMonth));
+
+            if ($maxFechaPagada && $fechaCorte->lte($maxFechaPagada)) {
+                $fechaProgramada = $fechaProgramada->copy()->addMonthNoOverflow();
+                continue;
+            }
+
+            $existe = $renta->cobranzas()
+                ->where('concepto', 'mensualidad')
+                ->whereDate('fecha_cobro', $fechaCorte->toDateString())
+                ->exists();
+
+            if (!$existe) {
+                Cobranza::create([
+                    'renta_id' => $renta->id,
+                    'fecha_cobro' => $fechaCorte,
+                    'monto_cobrado' => $renta->monto_mensual,
+                    'concepto' => 'mensualidad',
+                    'estado' => 'pendiente',
+                ]);
+            }
+
+            $fechaProgramada = $fechaProgramada->copy()->addMonthNoOverflow();
+        }
 
         // Obtener IDs de equipos actuales y nuevos
         $equiposActualesIds = $renta->equipos->pluck('id')->toArray();
