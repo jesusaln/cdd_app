@@ -2,162 +2,113 @@
 
 namespace App\Services;
 
+use App\Mail\AlertaMantenimientoMail;
 use App\Models\Mantenimiento;
-use App\Models\Carro;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Notification;
 use Carbon\Carbon;
 
 class AlertaMantenimientoService
 {
-    /**
-     * Verificar y enviar alertas para mantenimientos próximos a vencer
-     */
-    public function verificarYEnviarAlertas()
+    // Verifica y envía alertas por fecha y por km
+    public function verificarYEnviarAlertas(int $dias = 30, int $km = 500)
     {
-        $mantenimientosConAlertaPendiente = Mantenimiento::conAlertasPendientes()->get();
+        $porFecha = Mantenimiento::conAlertasPendientes($dias)
+            ->where('estado', '!=', Mantenimiento::ESTADO_COMPLETADO)
+            ->with('carro')
+            ->get();
 
-        $alertasEnviadas = 0;
+        $porKm = Mantenimiento::where('alerta_enviada', false)
+            ->where('estado', '!=', Mantenimiento::ESTADO_COMPLETADO)
+            ->whereNotNull('proximo_kilometraje')
+            ->with('carro')
+            ->get()
+            ->filter(function ($mto) use ($km) {
+                $umbral = $mto->km_anticipacion_alerta ?? $km;
+                $kmRestantes = $mto->km_restantes;
+                return $kmRestantes !== null && $kmRestantes <= $umbral;
+            });
+
+        $pendientes = $porFecha->concat($porKm)->unique('id');
+
+        $enviadas = 0;
         $errores = [];
 
-        foreach ($mantenimientosConAlertaPendiente as $mantenimiento) {
+        foreach ($pendientes as $mantenimiento) {
             try {
-                // Verificar si realmente requiere alerta
                 if (!$mantenimiento->requiere_alerta) {
                     continue;
                 }
 
-                // Enviar alerta
                 $this->enviarAlertaMantenimiento($mantenimiento);
-
-                // Marcar como enviada
                 $mantenimiento->marcarAlertaEnviada();
+                $enviadas++;
 
-                $alertasEnviadas++;
-
-                Log::info("Alerta de mantenimiento enviada", [
+                Log::info('Alerta de mantenimiento enviada', [
                     'mantenimiento_id' => $mantenimiento->id,
-                    'carro' => $mantenimiento->carro->marca . ' ' . $mantenimiento->carro->modelo,
+                    'carro' => optional($mantenimiento->carro)->marca . ' ' . optional($mantenimiento->carro)->modelo,
                     'tipo' => $mantenimiento->tipo,
-                    'dias_restantes' => $mantenimiento->dias_restantes
+                    'dias_restantes' => $mantenimiento->dias_restantes,
+                    'km_restantes' => $mantenimiento->km_restantes,
                 ]);
-
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 $errores[] = [
                     'mantenimiento_id' => $mantenimiento->id,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ];
-
-                Log::error("Error al enviar alerta de mantenimiento", [
+                Log::error('Error al enviar alerta de mantenimiento', [
                     'mantenimiento_id' => $mantenimiento->id,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
 
         return [
-            'alertas_enviadas' => $alertasEnviadas,
+            'alertas_enviadas' => $enviadas,
             'errores' => $errores,
-            'total_procesados' => $mantenimientosConAlertaPendiente->count()
+            'total_procesados' => $pendientes->count(),
         ];
     }
 
-    /**
-     * Enviar alerta de mantenimiento
-     */
-    private function enviarAlertaMantenimiento(Mantenimiento $mantenimiento)
+    // Arma datos y envía correo, registra recordatorio
+    private function enviarAlertaMantenimiento(Mantenimiento $mantenimiento): void
     {
         $carro = $mantenimiento->carro;
         $diasRestantes = $mantenimiento->dias_restantes;
-
-        // Determinar el tipo de alerta basado en la urgencia
         $tipoAlerta = $this->determinarTipoAlerta($diasRestantes, $mantenimiento->prioridad);
 
         $datosAlerta = [
             'carro' => $carro,
             'mantenimiento' => $mantenimiento,
             'dias_restantes' => $diasRestantes,
+            'km_restantes' => $mantenimiento->km_restantes,
             'tipo_alerta' => $tipoAlerta,
             'fecha_proximo' => $mantenimiento->proximo_mantenimiento,
-            'prioridad' => $mantenimiento->prioridad
+            'prioridad' => $mantenimiento->prioridad,
         ];
 
-        // Enviar notificación por email
-        $this->enviarNotificacionEmail($datosAlerta);
+        $to = config('mail.alertas_mantenimiento_to', env('ALERTAS_MANTENIMIENTO_TO', 'jesuslopeznoriega@hotmail.com'));
+        Mail::to($to)->queue(new AlertaMantenimientoMail($datosAlerta));
 
-        // Agregar recordatorio al historial
         $mantenimiento->agregarRecordatorioEnviado('email');
     }
 
-    /**
-     * Determinar el tipo de alerta basado en días restantes y prioridad
-     */
     private function determinarTipoAlerta($diasRestantes, $prioridad)
     {
-        if ($diasRestantes < 0) {
-            return 'vencido';
+        if ($diasRestantes === null) {
+            return 'informativa';
         }
-
-        if ($diasRestantes <= 3 || $prioridad === Mantenimiento::PRIORIDAD_CRITICA) {
-            return 'critica';
-        }
-
-        if ($diasRestantes <= 7 || $prioridad === Mantenimiento::PRIORIDAD_ALTA) {
-            return 'urgente';
-        }
-
-        if ($diasRestantes <= 15) {
-            return 'moderada';
-        }
-
+        if ($diasRestantes < 0) return 'vencido';
+        if ($diasRestantes <= 3 || $prioridad === Mantenimiento::PRIORIDAD_CRITICA) return 'critica';
+        if ($diasRestantes <= 7 || $prioridad === Mantenimiento::PRIORIDAD_ALTA) return 'urgente';
+        if ($diasRestantes <= 15) return 'moderada';
         return 'informativa';
     }
 
-    /**
-     * Enviar notificación por email
-     */
-    private function enviarNotificacionEmail($datosAlerta)
-    {
-        // Aquí se implementaría el envío de email
-        // Por ahora solo logueamos
-        Log::info("Enviando email de alerta de mantenimiento", [
-            'carro' => $datosAlerta['carro']->marca . ' ' . $datosAlerta['carro']->modelo,
-            'tipo' => $datosAlerta['mantenimiento']->tipo,
-            'dias_restantes' => $datosAlerta['dias_restantes'],
-            'tipo_alerta' => $datosAlerta['tipo_alerta']
-        ]);
-
-        // TODO: Implementar envío real de email
-        // Mail::to('admin@taller.com')->send(new AlertaMantenimiento($datosAlerta));
-    }
-
-    /**
-     * Obtener mantenimientos que requieren atención inmediata
-     */
-    public function getMantenimientosCriticos()
-    {
-        return [
-            'criticos' => Mantenimiento::criticos()->with('carro')->get(),
-            'vencidos' => Mantenimiento::where('proximo_mantenimiento', '<', now())
-                ->where('estado', '!=', Mantenimiento::ESTADO_COMPLETADO)
-                ->with('carro')
-                ->get(),
-            'proximos_3_dias' => Mantenimiento::where('proximo_mantenimiento', '<=', now()->addDays(3))
-                ->where('proximo_mantenimiento', '>=', now())
-                ->with('carro')
-                ->get()
-        ];
-    }
-
-    /**
-     * Generar reporte de alertas para dashboard
-     */
     public function generarReporteAlertas()
     {
         $estadisticas = Mantenimiento::getEstadisticasAlertas();
-
-        $reporte = [
+        return [
             'estadisticas' => $estadisticas,
             'alertas_por_prioridad' => Mantenimiento::select('prioridad')
                 ->selectRaw('COUNT(*) as total')
@@ -176,82 +127,56 @@ class AlertaMantenimientoService
                 ->where('proximo_mantenimiento', '<=', now()->addDays(30))
                 ->orderBy('proximo_mantenimiento', 'asc')
                 ->limit(10)
-                ->get()
+                ->get(),
         ];
-
-        return $reporte;
     }
 
-    /**
-     * Programar recordatorios automáticos
-     */
     public function programarRecordatoriosAutomaticos()
     {
-        $mantenimientosParaRecordatorio = Mantenimiento::where('alerta_enviada', true)
+        $mantenimientos = Mantenimiento::where('alerta_enviada', true)
             ->where('estado', '!=', Mantenimiento::ESTADO_COMPLETADO)
             ->where('proximo_mantenimiento', '>', now())
             ->get();
 
-        $recordatoriosEnviados = 0;
+        $enviados = 0;
+        foreach ($mantenimientos as $mantenimiento) {
+            $count = $this->contarRecordatoriosEnviados($mantenimiento);
+            if ($count >= 3) continue;
 
-        foreach ($mantenimientosParaRecordatorio as $mantenimiento) {
-            // Verificar si necesita recordatorio (máximo 3 recordatorios)
-            $recordatoriosEnviadosCount = $this->contarRecordatoriosEnviados($mantenimiento);
-            if ($recordatoriosEnviadosCount >= 3) {
-                continue;
-            }
-
-            $diasDesdeUltimoRecordatorio = $this->getDiasDesdeUltimoRecordatorio($mantenimiento);
-
-            if ($diasDesdeUltimoRecordatorio >= $mantenimiento->frecuencia_recordatorio_dias) {
+            $diasDesdeUltimo = $this->getDiasDesdeUltimoRecordatorio($mantenimiento);
+            if ($diasDesdeUltimo >= $mantenimiento->frecuencia_recordatorio_dias) {
                 $this->enviarRecordatorio($mantenimiento);
                 $mantenimiento->agregarRecordatorioEnviado('recordatorio_automatico');
-                $recordatoriosEnviados++;
+                $enviados++;
             }
         }
-
-        return $recordatoriosEnviados;
+        return $enviados;
     }
 
-    /**
-     * Contar recordatorios enviados (compatible con SQLite)
-     */
     private function contarRecordatoriosEnviados(Mantenimiento $mantenimiento)
     {
         $recordatorios = $mantenimiento->recordatorios_enviados ?? [];
         return is_array($recordatorios) ? count($recordatorios) : 0;
     }
 
-    /**
-     * Obtener días desde el último recordatorio
-     */
     private function getDiasDesdeUltimoRecordatorio(Mantenimiento $mantenimiento)
     {
         $recordatorios = $mantenimiento->recordatorios_enviados ?? [];
-
-        if (empty($recordatorios)) {
-            return PHP_INT_MAX; // Nunca se ha enviado recordatorio
-        }
-
-        $ultimoRecordatorio = collect($recordatorios)->sortByDesc('timestamp')->first();
-        $fechaUltimoRecordatorio = Carbon::parse($ultimoRecordatorio['fecha']);
-
-        return $fechaUltimoRecordatorio->diffInDays(now());
+        if (empty($recordatorios)) return PHP_INT_MAX;
+        $ultimo = collect($recordatorios)->sortByDesc('timestamp')->first();
+        $fechaUltimo = Carbon::parse($ultimo['fecha']);
+        return $fechaUltimo->diffInDays(now());
     }
 
-    /**
-     * Enviar recordatorio de mantenimiento
-     */
     private function enviarRecordatorio(Mantenimiento $mantenimiento)
     {
-        Log::info("Enviando recordatorio de mantenimiento", [
+        Log::info('Enviando recordatorio de mantenimiento', [
             'mantenimiento_id' => $mantenimiento->id,
-            'carro' => $mantenimiento->carro->marca . ' ' . $mantenimiento->carro->modelo,
+            'carro' => optional($mantenimiento->carro)->marca . ' ' . optional($mantenimiento->carro)->modelo,
             'tipo' => $mantenimiento->tipo,
-            'dias_restantes' => $mantenimiento->dias_restantes
+            'dias_restantes' => $mantenimiento->dias_restantes,
         ]);
-
-        // TODO: Implementar envío real de recordatorio
-        // Mail::to('admin@taller.com')->send(new RecordatorioMantenimiento($mantenimiento));
+        // Aquí podrías enviar un correo/notification real
     }
 }
+

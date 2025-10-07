@@ -161,6 +161,12 @@
             <NavLink href="/servicios" icon="wrench" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Servicios' : null">
               Servicios
             </NavLink>
+            <NavLink href="/tecnicos" icon="user-cog" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Técnicos' : null">
+              Técnicos
+            </NavLink>
+            <NavLink href="/herramientas" icon="toolbox" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Herramientas' : null">
+              Herramientas
+            </NavLink>
           </div>
         </div>
 
@@ -321,12 +327,6 @@
             </NavLink>
             <NavLink href="/mantenimientos" icon="tools" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Mantenimientos' : null">
               Mantenimientos
-            </NavLink>
-             <NavLink href="/tecnicos" icon="user-cog" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Técnicos' : null">
-              Técnicos
-             </NavLink>
-            <NavLink href="/herramientas" icon="toolbox" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Herramientas' : null">
-              Herramientas
             </NavLink>
           </div>
         </div>

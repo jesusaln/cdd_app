@@ -30,6 +30,7 @@ class Mantenimiento extends Model
         'tipo_alerta',
         'recordatorios_enviados',
         'frecuencia_recordatorio_dias',
+        'km_anticipacion_alerta',
     ];
 
     protected $casts = [
@@ -42,6 +43,7 @@ class Mantenimiento extends Model
         'recordatorios_enviados' => 'array',
         'dias_anticipacion_alerta' => 'integer',
         'frecuencia_recordatorio_dias' => 'integer',
+        'km_anticipacion_alerta' => 'integer',
     ];
 
     // Constantes para los estados
@@ -145,10 +147,27 @@ class Mantenimiento extends Model
     /**
      * Scope para obtener mantenimientos con alertas pendientes
      */
-    public function scopeConAlertasPendientes($query)
+    public function scopeConAlertasPendientes($query, int $dias = 30)
     {
         return $query->where('alerta_enviada', false)
-            ->where('proximo_mantenimiento', '<=', now()->addDays($this->dias_anticipacion_alerta ?? 30));
+            ->whereDate('proximo_mantenimiento', '<=', now()->addDays($dias));
+    }
+
+    /**
+     * Km restantes hasta el próximo mantenimiento según odómetro actual del carro
+     */
+    public function getKmRestantesAttribute()
+    {
+        if (!$this->proximo_kilometraje) {
+            return null;
+        }
+
+        $kilometrajeActualCarro = $this->carro?->kilometraje;
+        if ($kilometrajeActualCarro === null) {
+            return null;
+        }
+
+        return (int) ($this->proximo_kilometraje - $kilometrajeActualCarro);
     }
 
     /**
@@ -178,13 +197,23 @@ class Mantenimiento extends Model
         }
 
         if (!$this->proximo_mantenimiento) {
-            return false;
+            // Si no hay fecha, aún podríamos alertar por km si aplica
+            $kmRestantes = $this->km_restantes;
+            $umbralKm = $this->km_anticipacion_alerta ?? 500;
+            return $kmRestantes !== null && $kmRestantes <= $umbralKm;
         }
 
         $diasRestantes = $this->dias_restantes;
         $diasAnticipacion = $this->dias_anticipacion_alerta ?? 30;
 
-        return $diasRestantes !== null && $diasRestantes <= $diasAnticipacion;
+        $alertaPorFecha = $diasRestantes !== null && $diasRestantes <= $diasAnticipacion;
+
+        // También considerar alerta por km si hay datos
+        $kmRestantes = $this->km_restantes;
+        $umbralKm = $this->km_anticipacion_alerta ?? 500;
+        $alertaPorKm = $kmRestantes !== null && $kmRestantes <= $umbralKm;
+
+        return $alertaPorFecha || $alertaPorKm;
     }
 
     /**

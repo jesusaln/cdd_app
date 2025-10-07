@@ -113,4 +113,7 @@ return [
         'name' => env('MAIL_FROM_NAME', 'Example'),
     ],
 
+    // Destinatario por defecto para alertas de mantenimiento
+    'alertas_mantenimiento_to' => env('ALERTAS_MANTENIMIENTO_TO', 'jesuslopeznoriega@hotmail.com'),
+
 ];

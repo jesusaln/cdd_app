@@ -353,6 +353,38 @@ class MantenimientoController extends Controller
                 }
             }
 
+            // Calcular próximo kilometraje si aplica
+            $kilometrajeActual = $request->input('kilometraje');
+            if ($kilometrajeActual !== null) {
+                $kilometrajeActual = (int) $kilometrajeActual;
+            } else {
+                $kilometrajeActual = $mantenimiento->kilometraje_actual;
+            }
+
+            $nuevoProximoKm = $mantenimiento->proximo_kilometraje;
+            if ($mantenimiento->proximo_kilometraje && $mantenimiento->kilometraje_actual) {
+                $intervaloKm = (int) ($mantenimiento->proximo_kilometraje - $mantenimiento->kilometraje_actual);
+                if ($intervaloKm > 0 && $kilometrajeActual !== null) {
+                    $nuevoProximoKm = $kilometrajeActual + $intervaloKm;
+                }
+            }
+
+            // Calcular próximo kilometraje si aplica (usa km enviado desde modal)
+            $kilometrajeActual = $request->input('kilometraje');
+            if ($kilometrajeActual !== null) {
+                $kilometrajeActual = (int) $kilometrajeActual;
+            } else {
+                $kilometrajeActual = $mantenimiento->kilometraje_actual;
+            }
+
+            $nuevoProximoKm = $mantenimiento->proximo_kilometraje;
+            if ($mantenimiento->proximo_kilometraje && $mantenimiento->kilometraje_actual) {
+                $intervaloKm = (int) ($mantenimiento->proximo_kilometraje - $mantenimiento->kilometraje_actual);
+                if ($intervaloKm > 0 && $kilometrajeActual !== null) {
+                    $nuevoProximoKm = $kilometrajeActual + $intervaloKm;
+                }
+            }
+
             // Actualizar el mantenimiento
             $mantenimiento->update([
                 'carro_id' => $validated['carro_id'],
@@ -534,6 +566,16 @@ class MantenimientoController extends Controller
             // Calcular nueva fecha de próximo mantenimiento
             $nuevaFechaProximo = $proximaFechaServicio->copy()->addDays($intervaloDias);
 
+            // Ajustar proximo_kilometraje manteniendo el intervalo en km
+            $kilometrajeActual = $request->input('kilometraje', $mantenimiento->kilometraje_actual);
+            $nuevoProximoKm = $mantenimiento->proximo_kilometraje;
+            if ($mantenimiento->proximo_kilometraje && $mantenimiento->kilometraje_actual) {
+                $intervaloKm = (int) ($mantenimiento->proximo_kilometraje - $mantenimiento->kilometraje_actual);
+                if ($intervaloKm > 0 && $kilometrajeActual !== null) {
+                    $nuevoProximoKm = ((int) $kilometrajeActual) + $intervaloKm;
+                }
+            }
+
             // Opción B: Actualizar el registro existente con nueva información
             $mantenimiento->update([
                 // Mantener fecha del último servicio realizado (histórico)
@@ -545,7 +587,8 @@ class MantenimientoController extends Controller
                 // Actualizar costo del último servicio
                 'costo' => $request->input('costo', $mantenimiento->costo),
                 // Mantener kilometraje del último servicio
-                'kilometraje_actual' => $mantenimiento->kilometraje_actual,
+                'kilometraje_actual' => $kilometrajeActual,
+                'proximo_kilometraje' => $nuevoProximoKm,
                 // Actualizar notas con información del reprogramado
                 'notas' => 'Último servicio: ' . $mantenimiento->fecha . ' - Próximo programado: ' . $nuevaFechaProximo->format('d/m/Y'),
                 // Mantener otros campos sin cambios
@@ -589,7 +632,7 @@ class MantenimientoController extends Controller
     }
 
     // Marcar mantenimiento como realizado hoy
-    public function marcarRealizadoHoy(Mantenimiento $mantenimiento)
+    public function marcarRealizadoHoy(\Illuminate\Http\Request $request, Mantenimiento $mantenimiento)
     {
         DB::beginTransaction();
 
@@ -630,11 +673,11 @@ class MantenimientoController extends Controller
 
             // Actualizar kilometraje del carro si este es el mantenimiento más reciente
             $carro = $mantenimiento->carro;
-            if ($carro && $mantenimiento->kilometraje_actual) {
-                $carro->update(['kilometraje' => $mantenimiento->kilometraje_actual]);
+            if ($carro && $kilometrajeActual) {
+                $carro->update(['kilometraje' => $kilometrajeActual]);
                 Log::info('Kilometraje del carro actualizado tras marcar como realizado hoy', [
                     'carro_id' => $carro->id,
-                    'kilometraje_actualizado' => $mantenimiento->kilometraje_actual
+                    'kilometraje_actualizado' => $kilometrajeActual
                 ]);
             }
 
