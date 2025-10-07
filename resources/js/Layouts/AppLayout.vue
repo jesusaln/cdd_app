@@ -7,11 +7,18 @@
                         </div>
 
                     <div v-if="usuario" class="hidden md:flex items-center">
-                        <span class="text-gray-200 text-sm font-medium">
-                            {{ getGreeting() }},
-                            <span class="text-blue-300 font-semibold">{{ usuario.name }}</span>
-                        </span>
-                    </div>
+                         <span class="text-gray-200 text-sm font-medium">
+                             {{ getGreeting() }},
+                             <span class="text-blue-300 font-semibold">{{ usuario.name }}</span>
+                         </span>
+                     </div>
+
+                     <!-- Nombre de empresa en el header -->
+                     <div class="hidden lg:flex items-center">
+                         <span class="text-gray-300 text-sm">
+                             {{ empresaConfig.nombre_empresa || 'CDD Sistema' }}
+                         </span>
+                     </div>
 
                     <div class="flex items-center space-x-3">
                         <!-- Componente de Notificaciones Mejorado -->
@@ -152,6 +159,14 @@ import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import axios from 'axios';
 
+// Configuración de empresa
+const empresaConfig = ref({
+  nombre_empresa: 'CDD Sistema',
+  color_principal: '#3B82F6',
+  color_secundario: '#1E40AF',
+  logo_url: null,
+});
+
 // --- Font Awesome Icon Configuration ---
 library.add(
     faCalendar, faWrench, faTools, faCarAlt, faChartBar, faCartShopping,
@@ -167,6 +182,24 @@ const isProfileDropdownOpen = ref(false);
 const isSidebarCollapsed = ref(false);
 const isMobile = ref(false);
 const isLoading = ref(false);
+
+// Cargar configuración de empresa
+const cargarConfiguracionEmpresa = async () => {
+  try {
+    const response = await axios.get('/empresa/configuracion/api');
+    empresaConfig.value = response.data.configuracion;
+    aplicarColoresDinamicos();
+  } catch (error) {
+    console.error('Error al cargar configuración de empresa:', error);
+  }
+};
+
+// Aplicar colores dinámicos al CSS
+const aplicarColoresDinamicos = () => {
+  const root = document.documentElement;
+  root.style.setProperty('--empresa-color-primary', empresaConfig.value.color_principal || '#3B82F6');
+  root.style.setProperty('--empresa-color-secondary', empresaConfig.value.color_secundario || '#1E40AF');
+};
 
 // --- DOM References ---
 const profileContainer = ref(null);
@@ -266,6 +299,8 @@ onMounted(() => {
   // Check mobile state and set initial sidebar state
   checkMobile();
   window.addEventListener('resize', checkMobile);
+  // Cargar configuración de empresa
+  cargarConfiguracionEmpresa();
 });
 
 onBeforeUnmount(() => {

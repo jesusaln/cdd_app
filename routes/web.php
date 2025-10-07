@@ -49,6 +49,7 @@ use App\Http\Controllers\AjusteInventarioController;
 use App\Http\Controllers\MovimientoManualController;
 use App\Http\Controllers\ReportesInventarioController;
 use App\Http\Controllers\ReportesController;
+use App\Http\Controllers\EmpresaConfiguracionController;
 
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -337,6 +338,22 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::resource('entregas-dinero', EntregaDineroController::class);
 
     Route::resource('bitacora-actividades', BitacoraActividadController::class)->names('bitacora-actividades');
+
+    // =====================================================
+    // RUTAS DE CONFIGURACIÓN DE EMPRESA
+    // =====================================================
+    Route::prefix('empresa')->name('empresa-configuracion.')->group(function () {
+        Route::get('/configuracion', [EmpresaConfiguracionController::class, 'index'])->name('index');
+        Route::post('/configuracion', [EmpresaConfiguracionController::class, 'update'])->name('update');
+        Route::post('/configuracion/logo', [EmpresaConfiguracionController::class, 'subirLogo'])->name('subir-logo');
+        Route::post('/configuracion/favicon', [EmpresaConfiguracionController::class, 'subirFavicon'])->name('subir-favicon');
+        Route::post('/configuracion/logo-reportes', [EmpresaConfiguracionController::class, 'subirLogoReportes'])->name('subir-logo-reportes');
+        Route::delete('/configuracion/logo', [EmpresaConfiguracionController::class, 'eliminarLogo'])->name('eliminar-logo');
+        Route::delete('/configuracion/favicon', [EmpresaConfiguracionController::class, 'eliminarFavicon'])->name('eliminar-favicon');
+        Route::delete('/configuracion/logo-reportes', [EmpresaConfiguracionController::class, 'eliminarLogoReportes'])->name('eliminar-logo-reportes');
+        Route::get('/configuracion/api', [EmpresaConfiguracionController::class, 'getConfig'])->name('api');
+        Route::post('/configuracion/preview-colores', [EmpresaConfiguracionController::class, 'previewColores'])->name('preview-colores');
+    });
 
 
     // =====================================================

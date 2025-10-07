@@ -1,0 +1,235 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\EmpresaConfiguracion;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
+use Inertia\Inertia;
+
+class EmpresaConfiguracionController extends Controller
+{
+    /**
+     * Mostrar la configuración de la empresa
+     */
+    public function index()
+    {
+        $configuracion = EmpresaConfiguracion::getConfig();
+
+        return Inertia::render('EmpresaConfiguracion/Index', [
+            'configuracion' => $configuracion,
+        ]);
+    }
+
+    /**
+     * Actualizar la configuración de la empresa
+     */
+    public function update(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'nombre_empresa' => 'required|string|max:255',
+            'rfc' => 'nullable|string|size:13',
+            'razon_social' => 'nullable|string|max:255',
+            'direccion' => 'nullable|string|max:500',
+            'telefono' => 'nullable|string|max:20',
+            'email' => 'nullable|email|max:255',
+            'sitio_web' => 'nullable|url|max:255',
+            'codigo_postal' => 'nullable|string|max:10',
+            'ciudad' => 'nullable|string|max:255',
+            'estado' => 'nullable|string|max:255',
+            'pais' => 'nullable|string|max:255',
+            'descripcion_empresa' => 'nullable|string|max:1000',
+            'color_principal' => 'nullable|string|regex:/^#[0-9A-F]{6}$/i',
+            'color_secundario' => 'nullable|string|regex:/^#[0-9A-F]{6}$/i',
+            'pie_pagina_facturas' => 'nullable|string|max:1000',
+            'pie_pagina_cotizaciones' => 'nullable|string|max:1000',
+            'terminos_condiciones' => 'nullable|string|max:2000',
+            'politica_privacidad' => 'nullable|string|max:2000',
+            'iva_porcentaje' => 'nullable|numeric|min:0|max:100',
+            'moneda' => 'nullable|string|size:3',
+            'formato_numeros' => 'nullable|string|max:10',
+            'mantenimiento' => 'nullable|boolean',
+            'mensaje_mantenimiento' => 'nullable|string|max:500',
+            'registro_usuarios' => 'nullable|boolean',
+            'notificaciones_email' => 'nullable|boolean',
+            'formato_fecha' => 'nullable|string|max:20',
+            'formato_hora' => 'nullable|string|max:20',
+            'backup_automatico' => 'nullable|boolean',
+            'frecuencia_backup' => 'nullable|integer|min:1|max:365',
+            'retencion_backups' => 'nullable|integer|min:1|max:365',
+            'intentos_login' => 'nullable|integer|min:1|max:20',
+            'tiempo_bloqueo' => 'nullable|integer|min:1|max:1440',
+            'requerir_2fa' => 'nullable|boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+
+        $configuracion = EmpresaConfiguracion::getConfig();
+        $configuracion->update($request->only(array_keys($validator->getRules())));
+
+        return redirect()->route('empresa-configuracion.index')->with('success', 'Configuración actualizada correctamente.');
+    }
+
+    /**
+     * Subir logo de la empresa
+     */
+    public function subirLogo(Request $request)
+    {
+        $request->validate([
+            'logo' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+        ]);
+
+        $configuracion = EmpresaConfiguracion::getConfig();
+
+        // Eliminar logo anterior si existe
+        if ($configuracion->logo_path && Storage::exists($configuracion->logo_path)) {
+            Storage::delete($configuracion->logo_path);
+        }
+
+        // Guardar nuevo logo
+        $path = $request->file('logo')->store('logos', 'public');
+
+        $configuracion->update([
+            'logo_path' => $path,
+        ]);
+
+        return redirect()->back()->with('success', 'Logo subido correctamente.');
+    }
+
+    /**
+     * Subir favicon
+     */
+    public function subirFavicon(Request $request)
+    {
+        $request->validate([
+            'favicon' => 'required|image|mimes:jpeg,png,jpg,gif,ico|max:1024',
+        ]);
+
+        $configuracion = EmpresaConfiguracion::getConfig();
+
+        // Eliminar favicon anterior si existe
+        if ($configuracion->favicon_path && Storage::exists($configuracion->favicon_path)) {
+            Storage::delete($configuracion->favicon_path);
+        }
+
+        // Guardar nuevo favicon
+        $path = $request->file('favicon')->store('favicons', 'public');
+
+        $configuracion->update([
+            'favicon_path' => $path,
+        ]);
+
+        return redirect()->back()->with('success', 'Favicon subido correctamente.');
+    }
+
+    /**
+     * Subir logo para reportes
+     */
+    public function subirLogoReportes(Request $request)
+    {
+        $request->validate([
+            'logo_reportes' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+        ]);
+
+        $configuracion = EmpresaConfiguracion::getConfig();
+
+        // Eliminar logo anterior si existe
+        if ($configuracion->logo_reportes && Storage::exists($configuracion->logo_reportes)) {
+            Storage::delete($configuracion->logo_reportes);
+        }
+
+        // Guardar nuevo logo para reportes
+        $path = $request->file('logo_reportes')->store('logos_reportes', 'public');
+
+        $configuracion->update([
+            'logo_reportes' => $path,
+        ]);
+
+        return redirect()->back()->with('success', 'Logo para reportes subido correctamente.');
+    }
+
+    /**
+     * Eliminar logo
+     */
+    public function eliminarLogo()
+    {
+        $configuracion = EmpresaConfiguracion::getConfig();
+
+        if ($configuracion->logo_path && Storage::exists($configuracion->logo_path)) {
+            Storage::delete($configuracion->logo_path);
+        }
+
+        $configuracion->update([
+            'logo_path' => null,
+        ]);
+
+        return redirect()->back()->with('success', 'Logo eliminado correctamente.');
+    }
+
+    /**
+     * Eliminar favicon
+     */
+    public function eliminarFavicon()
+    {
+        $configuracion = EmpresaConfiguracion::getConfig();
+
+        if ($configuracion->favicon_path && Storage::exists($configuracion->favicon_path)) {
+            Storage::delete($configuracion->favicon_path);
+        }
+
+        $configuracion->update([
+            'favicon_path' => null,
+        ]);
+
+        return redirect()->back()->with('success', 'Favicon eliminado correctamente.');
+    }
+
+    /**
+     * Eliminar logo para reportes
+     */
+    public function eliminarLogoReportes()
+    {
+        $configuracion = EmpresaConfiguracion::getConfig();
+
+        if ($configuracion->logo_reportes && Storage::exists($configuracion->logo_reportes)) {
+            Storage::delete($configuracion->logo_reportes);
+        }
+
+        $configuracion->update([
+            'logo_reportes' => null,
+        ]);
+
+        return redirect()->back()->with('success', 'Logo para reportes eliminado correctamente.');
+    }
+
+    /**
+     * Obtener configuración actual (API)
+     */
+    public function getConfig()
+    {
+        $configuracion = EmpresaConfiguracion::getConfig();
+
+        return response()->json([
+            'configuracion' => $configuracion,
+        ]);
+    }
+
+    /**
+     * Probar configuración de colores
+     */
+    public function previewColores(Request $request)
+    {
+        $colores = $request->validate([
+            'color_principal' => 'required|string|regex:/^#[0-9A-F]{6}$/i',
+            'color_secundario' => 'required|string|regex:/^#[0-9A-F]{6}$/i',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'colores' => $colores,
+        ]);
+    }
+}

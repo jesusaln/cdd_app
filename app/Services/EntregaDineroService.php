@@ -8,6 +8,42 @@ use Carbon\Carbon;
 class EntregaDineroService
 {
     /**
+     * Decide estado por método según configuración.
+     */
+    public static function estadoPorMetodo(string $metodoPago): string
+    {
+        $auto = config('entregas.auto_recibido_metodos', ['transferencia']);
+        return in_array($metodoPago, $auto, true) ? 'recibido' : 'pendiente';
+    }
+
+    /**
+     * Crear entrega aplicando política de estado por método (parametrizable).
+     */
+    public static function crearAutoPorMetodo(
+        string $tipoOrigen,
+        int $idOrigen,
+        float $monto,
+        string $metodoPago,
+        string $fechaEntregaYmd,
+        int $userId,
+        ?string $notas = null,
+        ?int $recibidoPor = null
+    ): EntregaDinero {
+        $estado = self::estadoPorMetodo($metodoPago);
+        return self::crearDesdeOrigen(
+            $tipoOrigen,
+            $idOrigen,
+            $monto,
+            $metodoPago,
+            $fechaEntregaYmd,
+            $userId,
+            $estado,
+            $recibidoPor,
+            $notas
+        );
+    }
+
+    /**
      * Crear una Entrega de Dinero desde un registro de origen unificado.
      * - Mapea el método de pago a montos (efectivo/cheques/tarjetas).
      * - Permite crear en estado 'pendiente' o 'recibido'.
@@ -65,4 +101,3 @@ class EntregaDineroService
         return EntregaDinero::create($data);
     }
 }
-

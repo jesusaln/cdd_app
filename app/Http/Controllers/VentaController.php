@@ -406,17 +406,15 @@ class VentaController extends Controller
                 }
             }
 
-            // Crear entrega de dinero pendiente por el cobro de la venta (unificado)
-            EntregaDineroService::crearDesdeOrigen(
+            // Crear entrega de dinero con política por método (auto 'recibido' si transferencia)
+            EntregaDineroService::crearAutoPorMetodo(
                 'venta',
                 $venta->id,
                 (float) $venta->total,
                 $request->metodo_pago,
                 $venta->fecha_pago?->format('Y-m-d') ?? now()->toDateString(),
                 (int) $request->user()->id,
-                'pendiente',
-                null,
-                'Entrega automática pendiente - Venta #' . ($venta->numero_venta ?? $venta->id) . ' - Método: ' . $request->metodo_pago
+                'Entrega automática - Venta #' . ($venta->numero_venta ?? $venta->id) . ' - Método: ' . $request->metodo_pago
             );
 
             DB::commit();

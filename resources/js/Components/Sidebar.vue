@@ -192,6 +192,9 @@
              <NavLink :href="routeOr('/backup')" icon="database" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Copia de Seguridad' : null">
                Copia de Seguridad
              </NavLink>
+             <NavLink href="/empresa/configuracion" icon="cog" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Configuración de Empresa' : null">
+               Configuración de Empresa
+             </NavLink>
            </div>
          </div>
 
@@ -460,7 +463,7 @@ const getCurrentSection = () => {
     return 'catalogos';
   } else if (path.includes('/clientes') || path.includes('/citas')) {
     return 'clientes_citas';
-  } else if (path.includes('/backup') ) {
+  } else if (path.includes('/backup') || path.includes('/empresa/configuracion')) {
     return 'administracion';
   } else if (path.includes('/usuarios') || path.includes('/bitacora')) {
     return 'usuario';

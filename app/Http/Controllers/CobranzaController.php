@@ -360,30 +360,15 @@ class CobranzaController extends Controller
                 ->first();
 
             if ($delta > 0 && !$entregaExistente) {
-                $montoEfectivo = 0; $montoCheques = 0; $montoTarjetas = 0;
-                switch ($request->metodo_pago) {
-                    case 'efectivo':
-                    case 'transferencia':
-                    case 'otros':
-                        $montoEfectivo = $delta; break;
-                    case 'cheque':
-                        $montoCheques = $delta; break;
-                    case 'tarjeta':
-                        $montoTarjetas = $delta; break;
-                }
-
-                EntregaDinero::create([
-                    'user_id'        => $request->user()->id,
-                    'fecha_entrega'  => \Carbon\Carbon::parse($request->fecha_pago)->format('Y-m-d'),
-                    'monto_efectivo' => $montoEfectivo,
-                    'monto_cheques'  => $montoCheques,
-                    'monto_tarjetas' => $montoTarjetas,
-                    'total'          => $delta,
-                    'estado'         => 'pendiente',
-                    'notas'          => 'Entrega automática pendiente - Cobranza #' . $cobranza->id . ' - Renta ' . ($cobranza->renta->numero_contrato ?? 'N/A') . ' - Método: ' . $request->metodo_pago,
-                    'tipo_origen'    => 'cobranza',
-                    'id_origen'      => $cobranza->id,
-                ]);
+                EntregaDineroService::crearAutoPorMetodo(
+                    'cobranza',
+                    $cobranza->id,
+                    $delta,
+                    $request->metodo_pago,
+                    \Carbon\Carbon::parse($request->fecha_pago)->format('Y-m-d'),
+                    (int) $request->user()->id,
+                    'Entrega automática - Cobranza #' . $cobranza->id . ' - Renta ' . ($cobranza->renta->numero_contrato ?? 'N/A') . ' - Método: ' . $request->metodo_pago
+                );
             }
 
             // Bitácora
