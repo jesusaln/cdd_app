@@ -241,7 +241,7 @@ const confirmarPago = () => {
     return
   }
 
-  router.post(route('cobranza.venta.marcar-pagada', selectedCobranzaPago.value.id), {
+  router.post(route('cobranza.marcar-pagada', selectedCobranzaPago.value.id), {
     fecha_pago: fechaPago.value,
     monto_pagado: parseFloat(montoPagado.value),
     metodo_pago: metodoPago.value,

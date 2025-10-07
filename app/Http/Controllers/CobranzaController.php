@@ -5,7 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Cobranza;
 use App\Models\Renta;
 use App\Models\Reporte;
+use App\Models\EntregaDinero;
+use App\Services\EntregaDineroService;
 use App\Models\Venta;
+use App\Models\BitacoraActividad;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -119,7 +122,7 @@ class CobranzaController extends Controller
             'concepto' => $request->concepto,
             'estado' => 'pendiente',
             'notas' => $request->notas,
-            'responsable_cobro' => auth()->id(),
+            'responsable_cobro' => auth()->user()->id,
         ]);
 
         return redirect()->route('cobranza.index')->with('success', 'Cobranza creada exitosamente.');
@@ -207,18 +210,12 @@ class CobranzaController extends Controller
 
         // Verificar que la venta no esté ya pagada
         if ($venta->pagado) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Esta venta ya está marcada como pagada'
-            ], 400);
+            return redirect()->back()->withErrors(['error' => 'Esta venta ya está marcada como pagada']);
         }
 
         // Verificar que la venta no esté cancelada
         if ($venta->estado === 'cancelada') {
-            return response()->json([
-                'success' => false,
-                'error' => 'No se puede marcar como pagada una venta cancelada'
-            ], 400);
+            return redirect()->back()->withErrors(['error' => 'No se puede marcar como pagada una venta cancelada']);
         }
 
         $request->validate([
@@ -242,17 +239,7 @@ class CobranzaController extends Controller
 
             DB::commit();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Venta marcada como pagada exitosamente',
-                'venta' => [
-                    'id' => $venta->id,
-                    'pagado' => true,
-                    'metodo_pago' => $venta->metodo_pago,
-                    'fecha_pago' => $venta->fecha_pago->format('Y-m-d'),
-                    'notas_pago' => $venta->notas_pago,
-                ]
-            ]);
+            return redirect()->back()->with('success', 'Venta marcada como pagada exitosamente');
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -262,11 +249,7 @@ class CobranzaController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
 
-            return response()->json([
-                'success' => false,
-                'error' => 'Error interno al procesar el pago',
-                'details' => app()->environment('local') ? $e->getMessage() : null
-            ], 500);
+            return redirect()->back()->withErrors(['error' => 'Error interno al procesar el pago']);
         }
     }
 
@@ -288,22 +271,44 @@ class CobranzaController extends Controller
 
         // Verificar que la cobranza no esté ya pagada
         if ($cobranza->estado === 'pagado') {
-            return response()->json([
-                'success' => false,
-                'error' => 'Esta cobranza ya está marcada como pagada'
-            ], 400);
+            return redirect()->back()->withErrors(['error' => 'Esta cobranza ya está marcada como pagada']);
         }
 
         // Verificar que la cobranza no esté cancelada
         if ($cobranza->estado === 'cancelado') {
-            return response()->json([
-                'success' => false,
-                'error' => 'No se puede marcar como pagada una cobranza cancelada'
-            ], 400);
+            return redirect()->back()->withErrors(['error' => 'No se puede marcar como pagada una cobranza cancelada']);
+        }
+
+        // Bloqueo condicional si ya existen entregas recibidas
+        $montoEntregado = EntregaDinero::where('tipo_origen', 'cobranza')
+            ->where('id_origen', $cobranza->id)
+            ->where('estado', 'recibido')
+            ->sum('total');
+        $esAdmin = auth()->user() && method_exists(auth()->user(), 'hasRole') ? auth()->user()->hasRole('admin') : false;
+
+        if ($montoEntregado > 0) {
+            if ((float)$request->monto_pagado < (float)$montoEntregado) {
+                return redirect()->back()->withErrors(['error' => 'El monto pagado no puede ser menor al total ya entregado (' . number_format($montoEntregado, 2) . ')']);
+            }
+
+            $cambiaMetodo = $cobranza->metodo_pago && $request->metodo_pago !== $cobranza->metodo_pago;
+            $cambiaFecha = $cobranza->fecha_pago ? ($request->fecha_pago !== $cobranza->fecha_pago->format('Y-m-d')) : false;
+            $disminuyeMonto = $cobranza->monto_pagado && ((float)$request->monto_pagado < (float)$cobranza->monto_pagado);
+
+            if (($cambiaMetodo || $cambiaFecha || $disminuyeMonto) && !$esAdmin) {
+                return redirect()->back()->withErrors(['error' => 'No se pueden modificar método/fecha o disminuir el monto cuando existe una entrega recibida.']);
+            }
+
+            if (($cambiaMetodo || $cambiaFecha || $disminuyeMonto) && $esAdmin) {
+                $request->validate([
+                    'motivo_override' => 'required|string|min:5'
+                ]);
+            }
         }
 
         DB::beginTransaction();
         try {
+            $montoAnterior = (float) ($cobranza->monto_pagado ?? 0);
             // Determinar el estado basado en el monto pagado
             $estado = $request->monto_pagado >= $cobranza->monto_cobrado ? 'pagado' : 'parcial';
 
@@ -344,22 +349,61 @@ class CobranzaController extends Controller
                 ]);
             }
 
+            // Crear Entrega de Dinero pendiente por el delta cobrado
+            $montoNuevo = (float) $request->monto_pagado;
+            $delta = max(0, $montoNuevo - $montoAnterior);
+
+            // Verificar si ya existe una entrega automática pendiente para esta cobranza
+            $entregaExistente = EntregaDinero::where('tipo_origen', 'cobranza')
+                ->where('id_origen', $cobranza->id)
+                ->where('estado', 'pendiente')
+                ->first();
+
+            if ($delta > 0 && !$entregaExistente) {
+                $montoEfectivo = 0; $montoCheques = 0; $montoTarjetas = 0;
+                switch ($request->metodo_pago) {
+                    case 'efectivo':
+                    case 'transferencia':
+                    case 'otros':
+                        $montoEfectivo = $delta; break;
+                    case 'cheque':
+                        $montoCheques = $delta; break;
+                    case 'tarjeta':
+                        $montoTarjetas = $delta; break;
+                }
+
+                EntregaDinero::create([
+                    'user_id'        => $request->user()->id,
+                    'fecha_entrega'  => \Carbon\Carbon::parse($request->fecha_pago)->format('Y-m-d'),
+                    'monto_efectivo' => $montoEfectivo,
+                    'monto_cheques'  => $montoCheques,
+                    'monto_tarjetas' => $montoTarjetas,
+                    'total'          => $delta,
+                    'estado'         => 'pendiente',
+                    'notas'          => 'Entrega automática pendiente - Cobranza #' . $cobranza->id . ' - Renta ' . ($cobranza->renta->numero_contrato ?? 'N/A') . ' - Método: ' . $request->metodo_pago,
+                    'tipo_origen'    => 'cobranza',
+                    'id_origen'      => $cobranza->id,
+                ]);
+            }
+
+            // Bitácora
+            try {
+                BitacoraActividad::create([
+                    'user_id'     => $request->user()->id,
+                    'cliente_id'  => $cobranza->renta?->cliente_id,
+                    'titulo'      => 'Actualización de Cobranza #' . $cobranza->id,
+                    'descripcion' => 'Pago actualizado. Estado: ' . $estado . ', Monto: ' . number_format((float)$cobranza->monto_pagado, 2) . ', Método: ' . $cobranza->metodo_pago . ($request->filled('motivo_override') ? (' | Override admin: ' . $request->motivo_override) : ''),
+                    'fecha'       => now()->toDateString(),
+                    'tipo'        => 'update',
+                    'estado'      => 'completado',
+                ]);
+            } catch (\Throwable $e) {
+                // no-op
+            }
+
             DB::commit();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Cobranza marcada como pagada exitosamente',
-                'cobranza' => [
-                    'id' => $cobranza->id,
-                    'estado' => $estado,
-                    'fecha_pago' => $cobranza->fecha_pago->format('Y-m-d'),
-                    'monto_pagado' => $cobranza->monto_pagado,
-                    'metodo_pago' => $cobranza->metodo_pago,
-                    'referencia_pago' => $cobranza->referencia_pago,
-                    'recibido_por' => $cobranza->recibido_por,
-                    'notas_pago' => $cobranza->notas_pago,
-                ]
-            ]);
+            return redirect()->back()->with('success', 'Cobranza marcada como pagada exitosamente');
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -369,11 +413,7 @@ class CobranzaController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
 
-            return response()->json([
-                'success' => false,
-                'error' => 'Error interno al procesar el pago',
-                'details' => app()->environment('local') ? $e->getMessage() : null
-            ], 500);
+            return redirect()->back()->withErrors(['error' => 'Error interno al procesar el pago']);
         }
     }
 
@@ -410,7 +450,7 @@ class CobranzaController extends Controller
                     'concepto' => 'mensualidad',
                     'estado' => 'pendiente',
                     'notas' => "Cobranza automática generada para {$mes}/{$anio}",
-                    'responsable_cobro' => auth()->id(),
+                    'responsable_cobro' => auth()->user()->id,
                 ]);
                 $creadas++;
             }

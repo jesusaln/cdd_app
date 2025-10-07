@@ -6,6 +6,7 @@ use App\Models\EntregaDinero;
 use App\Models\Cobranza;
 use App\Models\Venta;
 use Illuminate\Http\Request;
+use App\Services\EntregaDineroService;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
@@ -518,42 +519,17 @@ class EntregaDineroController extends Controller
             return response()->json(['error' => 'El monto recibido excede el saldo pendiente'], 422);
         }
 
-        // Asignar el monto al método de pago correspondiente
-        $montoEfectivo = 0;
-        $montoCheques = 0;
-        $montoTarjetas = 0;
-
-        switch ($request->metodo_pago_entrega) {
-            case 'efectivo':
-                $montoEfectivo = $request->monto_recibido;
-                break;
-            case 'cheque':
-                $montoCheques = $request->monto_recibido;
-                break;
-            case 'tarjeta':
-                $montoTarjetas = $request->monto_recibido;
-                break;
-            default:
-                // Para transferencia u otros métodos, lo ponemos como efectivo por defecto
-                $montoEfectivo = $request->monto_recibido;
-                break;
-        }
-
-        EntregaDinero::create([
-            'user_id'         => $usuarioEntrega, // Usuario que realizó la venta/cobranza originalmente
-            'fecha_entrega'   => $fecha?->format('Y-m-d') ?? now()->toDateString(),
-            'monto_efectivo'  => $montoEfectivo,
-            'monto_cheques'   => $montoCheques,
-            'monto_tarjetas'  => $montoTarjetas,
-            'total'           => $request->monto_recibido,
-            'estado'          => 'recibido',
-            'notas'           => "Entrega automática - {$concepto} - Método entrega: {$request->metodo_pago_entrega}",
-            'tipo_origen'     => $tipo_origen,
-            'id_origen'       => $id_origen,
-            'recibido_por'    => $userId, // Usuario que recibe físicamente el dinero
-            'fecha_recibido'  => now(),
-            'notas_recibido'  => $request->notas_recibido,
-        ]);
+        EntregaDineroService::crearDesdeOrigen(
+            $tipo_origen,
+            $id_origen,
+            (float) $request->monto_recibido,
+            $request->metodo_pago_entrega,
+            $fecha?->format('Y-m-d') ?? now()->toDateString(),
+            (int) $usuarioEntrega,
+            'recibido',
+            (int) $userId,
+            'Entrega automática - ' . $concepto . ' - Método entrega: ' . $request->metodo_pago_entrega
+        );
 
         return redirect()->route('entregas-dinero.index')->with('success', 'Monto registrado correctamente');
     }

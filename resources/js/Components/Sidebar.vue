@@ -280,7 +280,7 @@
             @click="toggleAccordion('rentas')"
             class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
           >
-            <span>Rentas y Equipos</span>
+            <span>Rentas PDV</span>
             <svg
               :class="accordionStates.rentas ? 'rotate-90' : ''"
               class="w-3 h-3 transition-transform duration-200"
@@ -310,7 +310,7 @@
             @click="toggleAccordion('taller')"
             class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
           >
-            <span>Taller y Mantenimiento</span>
+            <span>Mantenimiento</span>
             <svg
               :class="accordionStates.taller ? 'rotate-90' : ''"
               class="w-3 h-3 transition-transform duration-200"

@@ -21,7 +21,13 @@ const notyf = new Notyf({
 
 // Props
 const props = defineProps({
-  rentas: { type: Array, default: () => [] }
+  rentas: { type: Array, default: () => [] },
+  errors: { type: Object, default: () => ({}) },
+  jetstream: { type: Object, default: () => ({}) },
+  auth: { type: Object, default: () => ({}) },
+  errorBags: { type: Object, default: () => ({}) },
+  flash: { type: Object, default: () => ({}) },
+  defaults: { type: Object, default: () => ({}) }
 })
 
 // Formulario

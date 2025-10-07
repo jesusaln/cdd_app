@@ -18,6 +18,7 @@ use App\Models\SatEstado;
 use App\Models\SatRegimenFiscal;
 use App\Models\SatUsoCfdi;
 use Illuminate\Http\Request;
+use App\Services\EntregaDineroService;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -404,6 +405,19 @@ class VentaController extends Controller
                     }
                 }
             }
+
+            // Crear entrega de dinero pendiente por el cobro de la venta (unificado)
+            EntregaDineroService::crearDesdeOrigen(
+                'venta',
+                $venta->id,
+                (float) $venta->total,
+                $request->metodo_pago,
+                $venta->fecha_pago?->format('Y-m-d') ?? now()->toDateString(),
+                (int) $request->user()->id,
+                'pendiente',
+                null,
+                'Entrega automática pendiente - Venta #' . ($venta->numero_venta ?? $venta->id) . ' - Método: ' . $request->metodo_pago
+            );
 
             DB::commit();
             return redirect()->route('ventas.index')->with('success', 'Venta creada con ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â©xito');
