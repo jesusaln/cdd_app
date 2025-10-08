@@ -1,395 +1,471 @@
-{{--
-Plantilla PDF para cotizaciones
-Ubicación: resources/views/cotizacion_pdf.blade.php
---}}
+{{-- resources/views/cotizacion_pdf.blade.php --}}
+@php
+    use Illuminate\Support\Str;
 
+    // Color principal saneado
+    $COLOR = ltrim($configuracion->color_principal ?? '#3B82F6', '#');
+    $HEX = "#{$COLOR}";
+    $money = fn($n) => number_format((float) $n, 2);
+@endphp
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="utf-8">
     <title>Cotización #{{ $cotizacion->numero_cotizacion }}</title>
     <style>
+        @page {
+            margin: 14mm 12mm 12mm 12mm;
+            size: auto;
+        }
+
+        html,
         body {
             font-family: 'DejaVu Sans', sans-serif;
-            font-size: 12px;
-            line-height: 1.4;
-            color: #333;
+            color: #222;
+            font-size: 10px;
+            line-height: 1.25;
             margin: 0;
-            padding: 20px;
+            padding: 0;
         }
 
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-            border-bottom: 2px solid #3B82F6;
-            padding-bottom: 20px;
-        }
-
-        .header h1 {
-            color: #{{ $configuracion->color_principal ?? '#3B82F6' }};
-            margin: 0;
-            font-size: 24px;
-        }
-
-        .header .subtitle {
+        .muted {
             color: #666;
-            margin: 5px 0 0 0;
-            font-size: 14px;
         }
 
-        .info-section {
+        .right {
+            text-align: right;
+        }
+
+        .center {
+            text-align: center;
+        }
+
+        .avoid-break {
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
+        tr,
+        td,
+        th {
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
+        /* Encabezado */
+        .header {
+            border-bottom: 2px solid {{ $HEX }};
+            padding: 2mm 0 3mm;
+            margin-bottom: 4mm;
+        }
+
+        .empresa {
+            font-size: 15px;
+            font-weight: 700;
+            color: {{ $HEX }};
+            text-align: center;
+            /* Centrado del nombre de la empresa */
+        }
+
+        /* Barra de cotización: UNA sola línea
+           Izquierda: Cotización
+           Centro: Fecha (centrado real)
+           Derecha: Validez
+        */
+        .cotizacion-bar {
+            margin-top: 1.5mm;
+            padding: 1.8mm 2mm;
+            background: #f5f7fa;
+            border: 1px solid #e6e9ef;
+            border-radius: 4px;
+
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            column-gap: 8mm;
+
+            font-size: 9.5px;
+            white-space: nowrap;
+        }
+
+        .cotizacion-left {
+            justify-self: start;
+        }
+
+        .cotizacion-center {
+            justify-self: center;
+            text-align: center;
+        }
+
+        .cotizacion-right {
+            justify-self: end;
+            text-align: right;
+        }
+
+        .cotizacion-bar b {
+            color: #333;
+        }
+
+        /* Info boxes (Empresa, Cliente) */
+        .info {
             display: table;
             width: 100%;
-            margin-bottom: 20px;
+            table-layout: fixed;
+            margin: 4mm 0;
         }
 
-        .info-block {
+        .info .col {
             display: table-cell;
-            width: 50%;
             vertical-align: top;
-            padding: 15px;
-            background-color: #f8f9fa;
-            border-radius: 8px;
+            padding: 3mm;
+            background: #f5f7fa;
+            border: 1px solid #e6e9ef;
+            border-radius: 4px;
         }
 
-        .info-block h3 {
-            color: #{{ $configuracion->color_principal ?? '#3B82F6' }};
-            margin: 0 0 10px 0;
-            font-size: 14px;
+        .info .col+.col {
+            padding-left: 3mm;
         }
 
-        .info-table {
+        .info h3 {
+            margin: 0 0 2mm;
+            font-size: 11px;
+            color: {{ $HEX }};
+        }
+
+        .kv {
             width: 100%;
             border-collapse: collapse;
         }
 
-        .info-table td {
-            padding: 3px 0;
-            font-size: 11px;
+        .kv td {
+            padding: .5mm 0;
+            vertical-align: top;
         }
 
-        .info-table td.label {
-            font-weight: bold;
+        .kv .k {
+            width: 22mm;
             color: #666;
-            width: 120px;
+            font-weight: 600;
         }
 
-        .products-section {
-            margin: 20px 0;
+        .kv .v {
+            word-wrap: break-word;
         }
 
-        .products-section h3 {
-            color: #{{ $configuracion->color_principal ?? '#3B82F6' }};
-            margin: 0 0 15px 0;
-            font-size: 16px;
-            border-bottom: 1px solid #{{ $configuracion->color_principal ?? '#3B82F6' }};
-            padding-bottom: 5px;
-        }
-
-        .products-table {
+        /* Tabla de conceptos */
+        .tbl {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
+            margin-top: 2mm;
         }
 
-        .products-table th {
-            background-color: #3B82F6;
-            color: white;
-            padding: 8px;
+        .tbl th {
+            background: {{ $HEX }};
+            color: #fff;
+            font-size: 9px;
+            font-weight: 700;
+            padding: 2.2mm 1.6mm;
             text-align: left;
-            font-size: 11px;
-            font-weight: bold;
         }
 
-        .products-table td {
-            padding: 8px;
-            border-bottom: 1px solid #dee2e6;
-            font-size: 10px;
+        .tbl td {
+            font-size: 9px;
+            padding: 2mm 1.6mm;
+            border-bottom: 1px solid #e8ecf2;
         }
 
-        .products-table tr:nth-child(even) {
-            background-color: #f8f9fa;
+        .tbl .c {
+            text-align: center;
         }
 
-        .totals-section {
-            margin-top: 30px;
-            padding: 20px;
-            background-color: #f8f9fa;
-            border-radius: 8px;
+        .tbl .r {
+            text-align: right;
+        }
+
+        .tbl tbody tr:nth-child(even) {
+            background: #fafbfc;
+        }
+
+        .item-name {
+            font-weight: 700;
+        }
+
+        .item-code {
+            font-size: 8px;
+            color: #555;
+        }
+
+        /* Totales ABAJO */
+        .totals {
+            margin-top: 4mm;
+            display: table;
+            width: 100%;
+        }
+
+        .totals .left {
+            display: table-cell;
+            vertical-align: top;
+            width: 55%;
+            padding-right: 3mm;
+        }
+
+        .totals .right {
+            display: table-cell;
+            vertical-align: top;
+            width: 45%;
         }
 
         .totals-table {
             width: 100%;
             border-collapse: collapse;
+            background: #f5f7fa;
+            border: 1px solid #e6e9ef;
+            border-radius: 4px;
         }
 
         .totals-table td {
-            padding: 5px 0;
+            padding: 1.6mm 2mm;
+            font-size: 9.5px;
+        }
+
+        .totals-table .k {
+            text-align: right;
+            font-weight: 700;
+            color: #444;
+        }
+
+        .totals-table .v {
+            text-align: right;
+            width: 30mm;
+        }
+
+        .grand {
+            margin-top: 2mm;
+            padding: 2.2mm 2mm;
+            background: #e7f5ea;
+            color: #127a2a;
+            font-weight: 800;
             font-size: 12px;
-        }
-
-        .totals-table td.label {
             text-align: right;
-            font-weight: bold;
-            padding-right: 20px;
+            border-radius: 3px;
         }
 
-        .totals-table td.value {
-            text-align: right;
-            width: 100px;
+        .note {
+            margin-top: 3mm;
+            padding: 2mm 2.2mm;
+            background: #fff7e0;
+            border-left: 3px solid #ffc107;
+            border-radius: 3px;
+            font-size: 9px;
         }
 
-        .total-final {
-            font-size: 16px;
-            font-weight: bold;
-            color: #28a745;
-            background-color: #d4edda;
-            padding: 10px;
-            border-radius: 5px;
-            margin-top: 10px;
+        /* Firmas al final */
+        .firmas-section {
+            margin-top: 10mm;
         }
 
-        .footer {
-            margin-top: 40px;
-            padding-top: 20px;
-            border-top: 1px solid #dee2e6;
+        .firmas-box {
+            min-height: 22mm;
+            display: flex;
+            gap: 10mm;
+            align-items: flex-end;
+            justify-content: space-between;
+        }
+
+        .firma {
+            width: 48%;
+            border-top: 1px solid #999;
+            padding-top: 1.5mm;
             text-align: center;
-            font-size: 10px;
-            color: #666;
+            font-size: 9px;
+            color: #555;
         }
 
-        .status-badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 10px;
-            font-weight: bold;
-            text-transform: uppercase;
+        .firma .label {
+            display: block;
+            font-weight: 700;
+            color: #333;
         }
 
-        .status-pendiente { background-color: #fff3cd; color: #856404; }
-        .status-aprobada { background-color: #d4edda; color: #155724; }
-        .status-rechazada { background-color: #f8d7da; color: #721c24; }
-        .status-borrador { background-color: #e2e3e5; color: #383d41; }
-        .status-enviada { background-color: #d1ecf1; color: #0c5460; }
-        .status-enviado_pedido { background-color: #fff3cd; color: #856404; }
-        .status-cancelado { background-color: #f8d7da; color: #721c24; }
+        /* Ajustes finos */
+        .tbl td,
+        .tbl th {
+            line-height: 1.15;
+        }
     </style>
 </head>
+
 <body>
-    <div class="header">
-        <h1>{{ $configuracion->nombre_empresa }}</h1>
-        <div class="subtitle">Cotización #{{ $cotizacion->numero_cotizacion }}</div>
-    </div>
+    {{-- ENCABEZADO --}}
+    <div class="header avoid-break">
+        <div class="empresa">{{ $configuracion->nombre_empresa }}</div>
 
-    <div class="info-section">
-        <div class="info-block">
-            <h3>Información de la Empresa</h3>
-            <table class="info-table">
-                <tr>
-                    <td class="label">Empresa:</td>
-                    <td>{{ $configuracion->nombre_empresa }}</td>
-                </tr>
-                @if($configuracion->rfc)
-                <tr>
-                    <td class="label">RFC:</td>
-                    <td>{{ $configuracion->rfc }}</td>
-                </tr>
-                @endif
-                @if($configuracion->telefono)
-                <tr>
-                    <td class="label">Teléfono:</td>
-                    <td>{{ $configuracion->telefono }}</td>
-                </tr>
-                @endif
-                @if($configuracion->email)
-                <tr>
-                    <td class="label">Email:</td>
-                    <td>{{ $configuracion->email }}</td>
-                </tr>
-                @endif
-                @if($configuracion->direccion_completa)
-                <tr>
-                    <td class="label">Dirección:</td>
-                    <td>{{ $configuracion->direccion_completa }}</td>
-                </tr>
-                @endif
-            </table>
-        </div>
-
-        <div class="info-block">
-            <h3>Información de la Cotización</h3>
-            <table class="info-table">
-                <tr>
-                    <td class="label">Número de Cotización:</td>
-                    <td>{{ $cotizacion->numero_cotizacion }}</td>
-                </tr>
-                <tr>
-                    <td class="label">Fecha:</td>
-                    <td>{{ $cotizacion->created_at->format('d/m/Y') }}</td>
-                </tr>
-                <tr>
-                    <td class="label">Estado:</td>
-                    <td>
-                        <span class="status-badge status-{{ $cotizacion->estado->value }}">
-                            {{ ucfirst($cotizacion->estado->label()) }}
-                        </span>
-                    </td>
-                </tr>
-                <tr>
-                    <td class="label">Validez:</td>
-                    <td>{{ $cotizacion->validez_dias ?? 30 }} días</td>
-                </tr>
-            </table>
+        {{-- Barra UNA SOLA FILA (izq-centrado-der) --}}
+        <div class="cotizacion-bar">
+            <div class="cotizacion-left">
+                <b>Cotización:</b> #{{ $cotizacion->numero_cotizacion }}
+            </div>
+            <div class="cotizacion-center">
+                <b>Fecha:</b> {{ $cotizacion->created_at->format('d/m/Y') }}
+            </div>
+            <div class="cotizacion-right">
+                <b>Validez:</b> {{ $cotizacion->validez_dias ?? 30 }} días
+            </div>
         </div>
     </div>
 
-    <div class="info-section">
-        <div class="info-block">
-            <h3>Información del Cliente</h3>
-            <table class="info-table">
+    {{-- BLOQUES INFO (Empresa, Cliente) - SIN FIRMAS ARRIBA --}}
+    <div class="info avoid-break">
+        <div class="col">
+            <h3>Empresa</h3>
+            <table class="kv">
                 <tr>
-                    <td class="label">Cliente:</td>
-                    <td>{{ $cotizacion->cliente->nombre_razon_social }}</td>
+                    <td class="k">Empresa:</td>
+                    <td class="v">{{ $configuracion->nombre_empresa }}</td>
                 </tr>
-                @if($cotizacion->cliente->email)
-                <tr>
-                    <td class="label">Email:</td>
-                    <td>{{ $cotizacion->cliente->email }}</td>
-                </tr>
+                @if ($configuracion->rfc)
+                    <tr>
+                        <td class="k">RFC:</td>
+                        <td class="v">{{ $configuracion->rfc }}</td>
+                    </tr>
                 @endif
-                @if($cotizacion->cliente->telefono)
-                <tr>
-                    <td class="label">Teléfono:</td>
-                    <td>{{ $cotizacion->cliente->telefono }}</td>
-                </tr>
+                @if ($configuracion->telefono)
+                    <tr>
+                        <td class="k">Tel:</td>
+                        <td class="v">{{ $configuracion->telefono }}</td>
+                    </tr>
                 @endif
-                @if($cotizacion->cliente->rfc)
-                <tr>
-                    <td class="label">RFC:</td>
-                    <td>{{ $cotizacion->cliente->rfc }}</td>
-                </tr>
+                @if ($configuracion->email)
+                    <tr>
+                        <td class="k">Email:</td>
+                        <td class="v">{{ $configuracion->email }}</td>
+                    </tr>
                 @endif
             </table>
         </div>
 
-        <div class="info-block">
-            <h3>Resumen Financiero</h3>
-            <table class="info-table">
+        <div class="col">
+            <h3>Cliente</h3>
+            <table class="kv">
                 <tr>
-                    <td class="label">Subtotal:</td>
-                    <td>${{ number_format($cotizacion->subtotal, 2) }}</td>
+                    <td class="k">Cliente:</td>
+                    <td class="v">{{ $cotizacion->cliente->nombre_razon_social }}</td>
                 </tr>
-                @if($cotizacion->descuento_general > 0)
-                <tr>
-                    <td class="label">Descuento General:</td>
-                    <td>- ${{ number_format($cotizacion->descuento_general, 2) }}</td>
-                </tr>
+                @if ($cotizacion->cliente->email)
+                    <tr>
+                        <td class="k">Email:</td>
+                        <td class="v">{{ $cotizacion->cliente->email }}</td>
+                    </tr>
                 @endif
-                <tr>
-                    <td class="label">IVA ({{ $configuracion->iva_porcentaje }}%):</td>
-                    <td>${{ number_format($cotizacion->iva, 2) }}</td>
-                </tr>
-                <tr>
-                    <td class="label" style="font-size: 14px; font-weight: bold; color: #28a745;">TOTAL:</td>
-                    <td style="font-size: 14px; font-weight: bold; color: #28a745;">${{ number_format($cotizacion->total, 2) }}</td>
-                </tr>
+                @if ($cotizacion->cliente->telefono)
+                    <tr>
+                        <td class="k">Tel:</td>
+                        <td class="v">{{ $cotizacion->cliente->telefono }}</td>
+                    </tr>
+                @endif
+                @if ($cotizacion->cliente->rfc)
+                    <tr>
+                        <td class="k">RFC:</td>
+                        <td class="v">{{ $cotizacion->cliente->rfc }}</td>
+                    </tr>
+                @endif
             </table>
         </div>
     </div>
 
-    <div class="products-section">
-        <h3>Productos y Servicios</h3>
-
-        <table class="products-table">
-            <thead>
-                <tr>
-                    <th style="width: 40%;">Descripción</th>
-                    <th style="width: 15%; text-align: center;">Cantidad</th>
-                    <th style="width: 15%; text-align: right;">Precio Unit.</th>
-                    <th style="width: 15%; text-align: right;">Descuento</th>
-                    <th style="width: 15%; text-align: right;">Subtotal</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($cotizacion->items as $item)
+    {{-- CONCEPTOS --}}
+    <table class="tbl avoid-break">
+        <thead>
+            <tr>
+                <th style="width:45%;">Producto / Servicio</th>
+                <th style="width:10%; text-align:center;">Cant.</th>
+                <th style="width:15%; text-align:right;">Precio</th>
+                <th style="width:12%; text-align:right;">Dto.</th>
+                <th style="width:18%; text-align:right;">Subtotal</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach ($cotizacion->items as $item)
+                @php
+                    $nombre = $item->cotizable->nombre ?? ($item->cotizable->descripcion ?? '—');
+                    $codigo = $item->cotizable->codigo ?? null;
+                @endphp
                 <tr>
                     <td>
-                        <strong>{{ $item->cotizable->nombre ?? $item->cotizable->descripcion }}</strong>
-                        <br>
-                        <small style="color: #666;">
-                            {{ $item->cotizable_type === 'App\Models\Producto' ? 'Producto' : 'Servicio' }}
-                            @if($item->cotizable->codigo ?? false)
-                                - Código: {{ $item->cotizable->codigo }}
-                            @endif
-                        </small>
-                    </td>
-                    <td style="text-align: center;">{{ $item->cantidad }}</td>
-                    <td style="text-align: right;">${{ number_format($item->precio, 2) }}</td>
-                    <td style="text-align: right;">
-                        @if($item->descuento > 0)
-                            {{ $item->descuento }}%<br>
-                            <small>- ${{ number_format($item->descuento_monto, 2) }}</small>
-                        @else
-                            0%
+                        <div class="item-name">{{ Str::limit($nombre, 60) }}</div>
+                        @if ($codigo)
+                            <div class="item-code">Cód: {{ Str::limit($codigo, 24) }}</div>
                         @endif
                     </td>
-                    <td style="text-align: right; font-weight: bold;">
-                        ${{ number_format($item->subtotal, 2) }}
+                    <td class="c">{{ $item->cantidad }}</td>
+                    <td class="r">${{ $money($item->precio) }}</td>
+                    <td class="r">
+                        @if (($item->descuento ?? 0) > 0)
+                            {{ rtrim(rtrim(number_format($item->descuento, 2), '0'), '.') }}%
+                        @else
+                            —
+                        @endif
                     </td>
+                    <td class="r"><strong>${{ $money($item->subtotal) }}</strong></td>
                 </tr>
-                @endforeach
-            </tbody>
-        </table>
-    </div>
+            @endforeach
+        </tbody>
+    </table>
 
-    <div class="totals-section">
-        <table class="totals-table">
-            <tr>
-                <td class="label">Subtotal:</td>
-                <td class="value">${{ number_format($cotizacion->subtotal, 2) }}</td>
-            </tr>
-            @if($cotizacion->descuento_general > 0)
-            <tr>
-                <td class="label">Descuento General:</td>
-                <td class="value">- ${{ number_format($cotizacion->descuento_general, 2) }}</td>
-            </tr>
+    {{-- TOTALES ABAJO + NOTAS --}}
+    <div class="totals avoid-break">
+        <div class="left">
+            @if ($cotizacion->notas)
+                <div class="note">
+                    <strong>📝 Notas</strong><br>
+                    {{ Str::limit($cotizacion->notas, 450) }}
+                </div>
             @endif
-            <tr>
-                <td class="label">IVA ({{ $configuracion->iva_porcentaje }}%):</td>
-                <td class="value">${{ number_format($cotizacion->iva, 2) }}</td>
-            </tr>
-            <tr>
-                <td class="label" style="font-size: 16px; font-weight: bold; color: #28a745; border-top: 2px solid #28a745; padding-top: 10px;">TOTAL:</td>
-                <td class="value" style="font-size: 16px; font-weight: bold; color: #28a745; border-top: 2px solid #28a745; padding-top: 10px;">
-                    ${{ number_format($cotizacion->total, 2) }}
-                </td>
-            </tr>
-        </table>
+
+            @if ($configuracion->pie_pagina_cotizaciones)
+                <div class="note" style="background:#f5f7fa; border-left-color: {{ $HEX }};">
+                    {!! nl2br(e(Str::limit($configuracion->pie_pagina_cotizaciones, 450))) !!}
+                </div>
+            @endif
+        </div>
+
+        <div class="right">
+            <table class="totals-table">
+                <tr>
+                    <td class="k">Subtotal:</td>
+                    <td class="v">${{ $money($cotizacion->subtotal) }}</td>
+                </tr>
+                @if (($cotizacion->descuento_general ?? 0) > 0)
+                    <tr>
+                        <td class="k">Descuento:</td>
+                        <td class="v">- ${{ $money($cotizacion->descuento_general) }}</td>
+                    </tr>
+                @endif
+                <tr>
+                    <td class="k">IVA:</td>
+                    <td class="v">${{ $money($cotizacion->iva) }}</td>
+                </tr>
+            </table>
+            <div class="grand">TOTAL &nbsp;&nbsp; ${{ $money($cotizacion->total) }}</div>
+        </div>
     </div>
 
-    @if($cotizacion->notas)
-    <div style="margin: 20px 0; padding: 15px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 5px;">
-        <h4 style="margin: 0 0 10px 0; color: #856404;">📝 Notas de la Cotización</h4>
-        <p style="margin: 0; color: #856404; font-size: 11px;">{{ $cotizacion->notas }}</p>
+    {{-- FIRMAS AL FINAL --}}
+    <div class="firmas-section avoid-break">
+        <div class="firmas-box">
+            <div class="firma">
+                <span class="label">Cliente</span>
+                {{ Str::limit($cotizacion->cliente->nombre_razon_social, 40) }}
+            </div>
+            <div class="firma">
+                <span class="label">Proveedor</span>
+                {{ Str::limit($configuracion->nombre_empresa, 40) }}
+            </div>
+        </div>
     </div>
-    @endif
 
-    @if($configuracion->pie_pagina_cotizaciones)
-    <div style="margin-top: 30px; padding: 15px; background-color: #f8f9fa; border-radius: 5px; text-align: center;">
-        <p style="margin: 0; font-size: 10px; color: #666; line-height: 1.3;">
-            {!! nl2br(e($configuracion->pie_pagina_cotizaciones)) !!}
-        </p>
-    </div>
-    @endif
-
-    <div class="footer">
-        <p style="margin: 0;">
-            Documento generado automáticamente por {{ $configuracion->nombre_empresa }} el {{ now()->format('d/m/Y \a \l\a\s H:i:s') }}
-        </p>
-        <p style="margin: 5px 0 0 0;">
-            Sistema de Gestión CDD - {{ $configuracion->nombre_empresa }} - Cotización #{{ $cotizacion->numero_cotizacion }}
-        </p>
-    </div>
 </body>
+
 </html>

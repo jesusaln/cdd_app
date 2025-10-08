@@ -216,9 +216,12 @@
                     v-if="doc.estado !== 'cancelado' && doc.cliente?.email"
                     @click="onEnviarEmail(doc)"
                     class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-1"
-                    title="Enviar por Email"
+                    :title="doc.email_enviado ? 'Reenviar por Email' : 'Enviar por Email'"
                   >
-                    <font-awesome-icon icon="envelope" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
+                    <font-awesome-icon
+                      :icon="doc.email_enviado ? 'envelope-open' : 'envelope'"
+                      class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110"
+                    />
                   </button>
 
                   <button

@@ -30,6 +30,10 @@ class Cotizacion extends Model
         'total',
         'notas',
         'estado',
+        // Campos para rastreo de email
+        'email_enviado',
+        'email_enviado_fecha',
+        'email_enviado_por',
     ];
 
     protected $casts = [
@@ -40,6 +44,9 @@ class Cotizacion extends Model
         'descuento_items'   => 'decimal:2',
         'iva'               => 'decimal:2',
         'total'             => 'decimal:2',
+        // Campos de email
+        'email_enviado'     => 'boolean',
+        'email_enviado_fecha' => 'datetime',
     ];
 
     /** Relación con cliente */
@@ -66,6 +73,11 @@ class Cotizacion extends Model
     public function deletedBy()
     {
         return $this->belongsTo(User::class, 'deleted_by');
+    }
+
+    public function emailEnviadoPor()
+    {
+        return $this->belongsTo(User::class, 'email_enviado_por');
     }
 
     /**

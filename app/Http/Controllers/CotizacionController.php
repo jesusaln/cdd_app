@@ -50,6 +50,7 @@ class CotizacionController extends Controller
             'items.cotizable',
             'createdBy:id,name',
             'updatedBy:id,name',
+            'emailEnviadoPor:id,name',
         ])
             ->orderBy('created_at', 'desc')
             ->get()
@@ -116,13 +117,20 @@ class CotizacionController extends Controller
                     // AuditorÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­a (para tu modal y vistas)
                     'creado_por_nombre'      => $cotizacion->createdBy?->name,
                     'actualizado_por_nombre' => $cotizacion->updatedBy?->name,
+                    'email_enviado_por_nombre' => $cotizacion->emailEnviadoPor?->name,
+
+                    // Información de email
+                    'email_enviado' => (bool) $cotizacion->email_enviado,
+                    'email_enviado_fecha' => $cotizacion->email_enviado_fecha?->format('d/m/Y H:i'),
 
                     // Redundancia segura para el modal (si espera un objeto metadata)
                     'metadata' => [
                         'creado_por'     => $cotizacion->createdBy?->name,
                         'actualizado_por' => $cotizacion->updatedBy?->name,
+                        'email_enviado_por' => $cotizacion->emailEnviadoPor?->name,
                         'creado_en'      => $createdAtIso,
                         'actualizado_en' => $updatedAtIso,
+                        'email_enviado_en' => $cotizacion->email_enviado_fecha?->format('d/m/Y H:i'),
                     ],
                 ];
             });
@@ -1153,6 +1161,27 @@ class CotizacionController extends Controller
                 ]
             ]);
 
+            // Registrar el envío en la cotización para mostrar en el frontend
+            $cotizacion->update([
+                'email_enviado' => true,
+                'email_enviado_fecha' => now(),
+                'email_enviado_por' => Auth::id(),
+            ]);
+
+            // Si es una petición AJAX, devolver JSON; de lo contrario, redirect
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Cotización enviada por email correctamente',
+                    'cotizacion' => [
+                        'id' => $cotizacion->id,
+                        'email_enviado' => true,
+                        'email_enviado_fecha' => $cotizacion->email_enviado_fecha?->format('d/m/Y H:i'),
+                        'estado' => $cotizacion->estado->value
+                    ]
+                ]);
+            }
+
             return redirect()->back()->with('success', 'Cotización enviada por email correctamente');
 
         } catch (\Exception $e) {
@@ -1160,21 +1189,69 @@ class CotizacionController extends Controller
                 'cotizacion_id' => $id,
                 'cliente_email' => $cotizacion->cliente->email ?? 'no disponible',
                 'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString()
             ]);
 
-            // Mensaje legible para el usuario
+            // Mensaje más específico para debugging
+            $errorMessage = $e->getMessage();
             $mensaje = 'Error al enviar cotización por email';
 
-            if (strpos($e->getMessage(), 'authentication failed') !== false) {
-                $mensaje = 'Error de autenticación SMTP. Verifica la configuración de correo.';
-            } elseif (strpos($e->getMessage(), 'Connection refused') !== false) {
-                $mensaje = 'No se pudo conectar al servidor SMTP.';
+            if (strpos($errorMessage, 'authentication failed') !== false) {
+                $mensaje = 'Error de autenticación SMTP. Verifica usuario/contraseña.';
+            } elseif (strpos($errorMessage, 'Connection refused') !== false) {
+                $mensaje = 'No se pudo conectar al servidor SMTP. Verifica host/puerto.';
+            } elseif (strpos($errorMessage, 'timeout') !== false) {
+                $mensaje = 'Timeout de conexión. Servidor no responde.';
+            } elseif (strpos($errorMessage, 'View') !== false) {
+                $mensaje = 'Error en plantilla de email. Verifica archivos de vistas.';
             }
 
             throw ValidationException::withMessages([
-                'email' => $mensaje,
+                'email' => $mensaje . ' | Detalle: ' . $errorMessage,
             ]);
+        }
+    }
+
+    /**
+     * Generar PDF de cotización usando plantilla Blade
+     */
+    public function generarPDF($id)
+    {
+        try {
+            // Obtener la cotización con todas las relaciones necesarias
+            $cotizacion = Cotizacion::with(['cliente', 'items.cotizable'])->findOrFail($id);
+
+            // Obtener configuración de empresa
+            $configuracion = \App\Models\EmpresaConfiguracion::getConfig();
+
+            // Generar PDF usando la plantilla Blade
+            $pdf = Pdf::loadView('cotizacion_pdf', [
+                'cotizacion' => $cotizacion,
+                'configuracion' => $configuracion,
+            ]);
+
+            // Configurar opciones del PDF
+            $pdf->setPaper('letter', 'portrait');
+            $pdf->setOptions([
+                'defaultFont' => 'sans-serif',
+                'isHtml5ParserEnabled' => true,
+                'isPhpEnabled' => true,
+            ]);
+
+            // Retornar PDF para descarga
+            return $pdf->download("cotizacion-{$cotizacion->numero_cotizacion}.pdf");
+
+        } catch (\Exception $e) {
+            Log::error("Error al generar PDF de cotización", [
+                'cotizacion_id' => $id,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return redirect()->back()->with('error', 'Error al generar el PDF de la cotización');
         }
     }
 }

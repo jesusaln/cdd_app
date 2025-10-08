@@ -55,6 +55,7 @@ import {
   faSave,
   faExclamationCircle,
   faEnvelope,
+  faEnvelopeOpen,
   faPhone,
   faHome,
   faEdit,
@@ -98,7 +99,7 @@ library.add(
   faCar, faTools, faUserCog, faToolbox, faCogs,
   faUser, faDatabase,
   faCog, faMapMarkerAlt, faInfoCircle, faExclamationTriangle, faCheckCircle, faSpinner, faCheck, faRedo, faSave, faExclamationCircle,
-  faEnvelope, faPhone, faHome, faEdit, faPlus, faTimes, faEye, faEyeSlash, faCopy, faPrint, faTrash,
+  faEnvelope, faEnvelopeOpen, faPhone, faHome, faEdit, faPlus, faTimes, faEye, faEyeSlash, faCopy, faPrint, faTrash,
   faSyncAlt, faPause, faPlay,
   faClipboardList,     // Asegúrate de agregar los nuevos íconos aquí
   faArrowRight,        // Asegúrate de agregar los nuevos íconos aquí

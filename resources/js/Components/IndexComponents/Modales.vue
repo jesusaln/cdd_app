@@ -8,6 +8,7 @@
     >
       <div
         :class="{
+          'max-w-sm': mode === 'confirm-email',
           'max-w-md': mode === 'confirm' || mode === 'confirm-duplicate',
           'max-w-4xl': mode === 'details'
         }"
@@ -49,6 +50,46 @@
               class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
             >
               Eliminar
+            </button>
+          </div>
+        </div>
+
+        <!-- Modo: Confirmación de envío de email -->
+        <div v-if="mode === 'confirm-email'" class="text-center">
+          <div class="w-10 h-10 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-3">
+            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <h3 class="text-base font-medium mb-2">
+            {{ selected?.email_enviado ? '¿Reenviar cotización?' : '¿Enviar cotización?' }}
+          </h3>
+          <div v-if="selected?.numero_cotizacion" class="text-gray-600 mb-3">
+            <p class="mb-1 text-sm">
+              Cotización <strong>#{{ selected.numero_cotizacion }}</strong>
+            </p>
+            <p v-if="selected?.email_destino" class="text-xs text-gray-500">
+              📧 {{ selected.email_destino }}
+            </p>
+            <p v-if="selected?.email_enviado" class="text-xs text-blue-600">
+              ✉️ Enviado: {{ selected.email_enviado_fecha || 'N/A' }}
+            </p>
+          </div>
+          <p class="text-gray-500 mb-4 text-xs">
+            El cliente recibirá el PDF por email
+          </p>
+          <div class="flex gap-2">
+            <button
+              @click="onCancel"
+              class="flex-1 px-3 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors text-xs"
+            >
+              Cancelar
+            </button>
+            <button
+              @click="onConfirmEmail"
+              class="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs"
+            >
+              {{ selected?.email_enviado ? 'Reenviar' : 'Enviar' }}
             </button>
           </div>
         </div>
@@ -862,7 +903,7 @@ import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
-  mode: { type: String, default: 'details', validator: (v) => ['confirm','confirm-duplicate','details'].includes(v) },
+  mode: { type: String, default: 'details', validator: (v) => ['confirm','confirm-duplicate','confirm-email','details'].includes(v) },
   selected: { type: Object, default: null },
   tipo: {
     type: String,
@@ -880,6 +921,7 @@ const emit = defineEmits([
   'close',
   'confirm-delete',
   'confirm-duplicate',
+  'confirm-email',
   'marcar-urgente',
   'recibir-compra',
   'imprimir',
@@ -1133,6 +1175,7 @@ const confirmarRecibirCompra = () => { emit('recibir-compra', props.selected) }
 const onCancel  = () => emit('close')
 const onConfirm = () => emit('confirm-delete')
 const onConfirmDuplicate = () => emit('confirm-duplicate')
+const onConfirmEmail = () => emit('confirm-email')
 const onClose   = () => emit('close')
 const onImprimir= () => emit('imprimir', props.selected)
 const onEditar  = () => emit('editar', props.selected?.id)

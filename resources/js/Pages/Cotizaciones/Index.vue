@@ -368,17 +368,22 @@ const confirmarDuplicarCotizacion = async () => {
 
 const imprimirCotizacion = async (cotizacion) => {
   try {
-    const doc = {
-      ...cotizacion,
-      fecha: cotizacion.fecha || cotizacion.created_at || new Date().toISOString()
-    }
-
-    validarCotizacionParaPDF(doc)
+    validarCotizacion(cotizacion)
 
     loading.value = true
     notyf.success('Generando PDF...')
 
-    await generarPDF('Cotización', doc)
+    // Crear enlace temporal para descargar el PDF
+    const link = document.createElement('a')
+    link.href = `/cotizaciones/${cotizacion.id}/pdf`
+    link.download = `cotizacion-${cotizacion.numero_cotizacion || cotizacion.id}.pdf`
+    link.target = '_blank'
+
+    // Simular clic para iniciar descarga
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
     notyf.success('PDF generado correctamente')
 
   } catch (error) {
@@ -512,30 +517,61 @@ const enviarCotizacionPorEmail = async (cotizacion) => {
     console.log('Cotización ID:', cotizacion.id)
     console.log('Cliente email:', cotizacion.cliente.email)
 
-    if (confirm(`¿Enviar cotización #${cotizacion.numero_cotizacion || cotizacion.id} por email a ${cotizacion.cliente.email}?`)) {
-      loading.value = true
-
-      router.post(`/cotizaciones/${cotizacion.id}/enviar-email`, {
-        email_destino: cotizacion.cliente.email,
-      }, {
-        onStart: () => {
-          notyf.success('Enviando cotización por email...')
-        },
-        onSuccess: (response) => {
-          notyf.success('Cotización enviada por email correctamente')
-        },
-        onError: (errors) => {
-          console.error('Error al enviar cotización:', errors)
-          notyf.error('Error al enviar cotización: ' + (errors.error || 'Error desconocido'))
-        },
-        onFinish: () => {
-          loading.value = false
-        }
-      })
+    // Configurar modal de confirmación personalizado
+    fila.value = {
+      ...cotizacion,
+      numero_cotizacion: cotizacion.numero_cotizacion || `C${String(cotizacion.id).padStart(3, '0')}`,
+      email_destino: cotizacion.cliente.email
     }
+    modalMode.value = 'confirm-email'
+    showModal.value = true
+
   } catch (error) {
     console.error('Error en enviarCotizacionPorEmail:', error)
-    notyf.error('Error inesperado al enviar cotización')
+    notyf.error('Error inesperado al preparar envío de cotización')
+  }
+}
+
+// Función para confirmar envío de email
+const confirmarEnvioEmail = async () => {
+  try {
+    const cotizacion = fila.value
+    if (!cotizacion?.email_destino) {
+      notyf.error('Email de destino no válido')
+      return
+    }
+
+    console.log('✅ Usuario confirmó envío de cotización por email');
+    loading.value = true
+    cerrarModal()
+
+    // Usar axios para tener control total sobre la respuesta
+    const { data } = await axios.post(`/cotizaciones/${cotizacion.id}/enviar-email`, {
+      email_destino: cotizacion.email_destino,
+    })
+
+    if (data?.success) {
+      notyf.success(data.message || 'Cotización enviada por email correctamente')
+
+      // Actualizar estado local de la cotización usando los datos del servidor
+      const index = cotizacionesOriginales.value.findIndex(c => c.id === cotizacion.id)
+      if (index !== -1 && data.cotizacion) {
+        cotizacionesOriginales.value[index] = {
+          ...cotizacionesOriginales.value[index],
+          email_enviado: data.cotizacion.email_enviado,
+          email_enviado_fecha: data.cotizacion.email_enviado_fecha,
+          estado: data.cotizacion.estado
+        }
+      }
+    } else {
+      throw new Error(data?.error || 'Error desconocido al enviar email')
+    }
+
+  } catch (error) {
+    console.error('Error al enviar cotización:', error)
+    const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message
+    notyf.error('Error al enviar cotización: ' + errorMessage)
+  } finally {
     loading.value = false
   }
 }
@@ -603,6 +639,7 @@ const crearNuevaCotizacion = () => {
       @close="cerrarModal"
       @confirm-delete="eliminarCotizacion"
       @confirm-duplicate="confirmarDuplicarCotizacion"
+      @confirm-email="confirmarEnvioEmail"
       @imprimir="imprimirFila"
       @editar="editarFila"
       @enviar-pedido="enviarAPedido"
