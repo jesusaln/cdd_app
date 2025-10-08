@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
@@ -18,7 +18,6 @@ use App\Http\Controllers\CuentasPorCobrarController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\CompraController;
 use App\Http\Controllers\ReporteController;
-use App\Http\Controllers\HerramientaController;
 use App\Http\Controllers\TecnicoController;
 use App\Http\Controllers\CarroController;
 use App\Http\Controllers\MantenimientoController;
@@ -39,10 +38,13 @@ use App\Http\Controllers\CfdiController;
 use App\Http\Controllers\ReporteTecnicoController;
 use App\Http\Controllers\ReportesDashboardController;
 use App\Http\Controllers\ReporteMovimientosController;
-use App\Http\Controllers\AsignacionHerramientaController;
-use App\Http\Controllers\EstadoHerramientaController;
-use App\Http\Controllers\AsignacionMasivaController;
-use App\Http\Controllers\TecnicoHerramientasController;
+// Controladores del módulo de herramientas
+use App\Http\Controllers\HerramientaController;
+// use App\Http\Controllers\AsignacionHerramientaController;
+// use App\Http\Controllers\EstadoHerramientaController;
+// use App\Http\Controllers\AsignacionMasivaController;
+// use App\Http\Controllers\TecnicoHerramientasController;
+use App\Http\Controllers\GestionHerramientasController;
 use App\Http\Controllers\MovimientoInventarioController;
 use App\Http\Controllers\TraspasoController;
 use App\Http\Controllers\AjusteInventarioController;
@@ -50,6 +52,9 @@ use App\Http\Controllers\MovimientoManualController;
 use App\Http\Controllers\ReportesInventarioController;
 use App\Http\Controllers\ReportesController;
 use App\Http\Controllers\EmpresaConfiguracionController;
+
+// Forzar patrón numérico para {herramienta} y evitar colisiones con rutas estáticas
+Route::pattern('herramienta', '[0-9]+');
 
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -272,35 +277,29 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::get('/reportes/clientes/export', [ReporteController::class, 'exportarClientes'])->name('reportes.clientes.export');
     Route::get('/reportes/inventario/export', [ReporteController::class, 'exportarInventario'])->name('reportes.inventario.export');
     Route::get('/reportes/productos/export', [ReporteController::class, 'exportarProductos'])->name('reportes.productos.export');
-    Route::resource('herramientas', HerramientaController::class)->names('herramientas');
-    Route::post('herramientas/{herramienta}/asignar', [HerramientaController::class, 'asignar'])->name('herramientas.asignar');
-    Route::post('herramientas/{herramienta}/recibir', [HerramientaController::class, 'recibir'])->name('herramientas.recibir');
     Route::resource('tecnicos', TecnicoController::class)->names('tecnicos');
+    // Catálogo de herramientas (nuevo módulo sencillo)
+    Route::resource('herramientas', HerramientaController::class)->names('herramientas');
+    // Gestión de Herramientas - módulo independiente (index, create, edit)
+    Route::get('herramientas/gestion', [GestionHerramientasController::class, 'index'])->name('herramientas.gestion.index');
+    Route::get('herramientas/gestion/create', [GestionHerramientasController::class, 'create'])->name('herramientas.gestion.create');
+    Route::get('herramientas/gestion/{tecnico}/edit', [GestionHerramientasController::class, 'edit'])->name('herramientas.gestion.edit');
+    Route::post('herramientas/gestion/asignar', [GestionHerramientasController::class, 'asignar'])->name('herramientas.gestion.asignar');
+    Route::put('herramientas/gestion/{tecnico}', [GestionHerramientasController::class, 'update'])->name('herramientas.gestion.update');
 
-    // Rutas para asignaciones de herramientas
-    Route::resource('herramientas/asignaciones', AsignacionHerramientaController::class)->names('herramientas.asignaciones');
-    Route::post('herramientas/asignaciones/{asignacion}/agregar-firma', [AsignacionHerramientaController::class, 'agregarFirma'])->name('herramientas.asignaciones.agregar-firma');
-    Route::get('herramientas/{herramienta}/asignaciones-activas', [AsignacionHerramientaController::class, 'getAsignacionesActivas'])->name('herramientas.asignaciones-activas');
-    Route::get('herramientas/asignaciones-activas', [AsignacionHerramientaController::class, 'index'])->name('herramientas.asignaciones-activas.index');
+    // Alias para enlaces antiguos del sidebar
+    Route::get('herramientas/tecnicos-herramientas', function () {
+        return redirect()->to('/herramientas/gestion');
+    })->name('herramientas.tecnicos-herramientas.index');
+    Route::get('herramientas/tecnicos-herramientas/{tecnico}', function ($tecnico) {
+        return redirect()->to("/herramientas/gestion/{$tecnico}/edit");
+    })->name('herramientas.tecnicos-herramientas.show');
 
-    // Rutas para estados de herramientas
-    Route::resource('herramientas/estados', EstadoHerramientaController::class)->names('herramientas.estados');
-    Route::get('herramientas/{herramienta}/estadisticas-desgaste', [EstadoHerramientaController::class, 'getEstadisticasDesgaste'])->name('herramientas.estadisticas-desgaste');
-    Route::get('herramientas/estados/reporte-atencion', [EstadoHerramientaController::class, 'reporteAtencion'])->name('herramientas.estados.reporte-atencion');
+    // (Eliminado previamente) Ruta obsoleta de reporte de estados de herramientas
 
-    // Rutas para asignaciones masivas de herramientas
-    Route::resource('herramientas/asignaciones-masivas', AsignacionMasivaController::class)->names('herramientas.asignaciones-masivas');
-    Route::post('herramientas/asignaciones-masivas/{asignacionMasiva}/autorizar', [AsignacionMasivaController::class, 'autorizar'])->name('herramientas.asignaciones-masivas.autorizar');
-    Route::post('herramientas/asignaciones-masivas/{asignacionMasiva}/completar', [AsignacionMasivaController::class, 'completar'])->name('herramientas.asignaciones-masivas.completar');
-    Route::post('herramientas/asignaciones-masivas/{asignacionMasiva}/cancelar', [AsignacionMasivaController::class, 'cancelar'])->name('herramientas.asignaciones-masivas.cancelar');
-    Route::post('herramientas/asignaciones-masivas/{asignacionMasiva}/devolver-herramienta/{herramienta}', [AsignacionMasivaController::class, 'devolverHerramienta'])->name('herramientas.asignaciones-masivas.devolver-herramienta');
+    // Eliminado: asignaciones masivas de herramientas
 
     // Rutas para control de herramientas por tÃƒÂ©cnico
-    Route::get('herramientas/tecnicos-herramientas', [TecnicoHerramientasController::class, 'index'])->name('herramientas.tecnicos-herramientas.index');
-    Route::get('herramientas/tecnicos-herramientas/{tecnico}', [TecnicoHerramientasController::class, 'show'])->name('herramientas.tecnicos-herramientas.show');
-    Route::post('herramientas/tecnicos-herramientas/{tecnico}/actualizar-responsabilidad', [TecnicoHerramientasController::class, 'actualizarResponsabilidad'])->name('herramientas.tecnicos-herramientas.actualizar-responsabilidad');
-    Route::get('herramientas/tecnicos-herramientas/{tecnico}/reporte', [TecnicoHerramientasController::class, 'reporte'])->name('herramientas.tecnicos-herramientas.reporte');
-    Route::get('herramientas/tecnicos-herramientas/alertas', [TecnicoHerramientasController::class, 'alertas'])->name('herramientas.tecnicos-herramientas.alertas');
     Route::resource('citas', CitaController::class)->names('citas');
     Route::resource('carros', CarroController::class)->names('carros');
     Route::resource('mantenimientos', MantenimientoController::class)->names('mantenimientos');
@@ -489,3 +488,6 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
         return response()->json(['token' => csrf_token()]);
     })->middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']);
 });
+
+// Alias de rutas antiguas a la nueva gestión de herramientas (evita 404 en vistas existentes)
+// Eliminado: alias antiguos relacionados con gestión de herramientas

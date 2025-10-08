@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <aside
     :class="{
       'w-64': !props.isSidebarCollapsed,
@@ -329,7 +329,7 @@
             <NavLink href="/tecnicos" icon="user-cog" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Catálogo de Técnicos' : null">
               Catálogo de Técnicos
             </NavLink>
-            <NavLink href="/herramientas/tecnicos-herramientas" icon="wrench" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Gestión de Herramientas' : null">
+            <NavLink href="/herramientas/gestion" icon="wrench" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Gestión de Herramientas' : null">
               Gestión de Herramientas
             </NavLink>
           </div>
@@ -501,7 +501,7 @@ const getCurrentSection = () => {
     return 'rentas';
   } else if (path.includes('/carros') || path.includes('/mantenimientos')) {
     return 'taller';
-  } else if (path.includes('/tecnicos') || path.includes('/herramientas') || path.includes('/herramientas/tecnicos-herramientas')) {
+  } else if (path.includes('/tecnicos') || path.includes('/herramientas') || path.includes('/herramientas/gestion')) {
     return 'gestion_herramientas';
   } 
 

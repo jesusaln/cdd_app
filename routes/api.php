@@ -16,7 +16,8 @@ use App\Http\Controllers\Api\VentaController;
 use App\Http\Controllers\Api\CitaController;
 use App\Http\Controllers\Api\TecnicoController;
 use App\Http\Controllers\Api\ServicioController;
-use App\Http\Controllers\Api\HerramientaController;
+// Eliminado: API de herramientas
+// use App\Http\Controllers\Api\HerramientaController;
 
 /*
 |--------------------------------------------------------------------------
@@ -116,27 +117,7 @@ Route::apiResource('citas', CitaController::class)->names('api.citas');
 Route::apiResource('tecnicos', TecnicoController::class)->names('api.tecnicos');
 Route::apiResource('servicios', ServicioController::class)->names('api.servicios');
 
-// Herramientas API
-Route::apiResource('herramientas', HerramientaController::class)->names('api.herramientas');
-
-// API para asignaciones de herramientas
-Route::prefix('herramientas')->name('api.herramientas.')->group(function () {
-    Route::get('{herramienta}/asignaciones', [HerramientaController::class, 'asignaciones'])->name('asignaciones');
-    Route::get('{herramienta}/historial', [HerramientaController::class, 'historial'])->name('historial');
-    Route::get('{herramienta}/estados', [HerramientaController::class, 'estados'])->name('estados');
-    Route::get('{herramienta}/estadisticas', [HerramientaController::class, 'estadisticas'])->name('estadisticas');
-    Route::post('{herramienta}/asignar', [HerramientaController::class, 'asignar'])->name('asignar');
-    Route::post('{herramienta}/recibir', [HerramientaController::class, 'recibir'])->name('recibir');
-    Route::post('{herramienta}/inspeccionar', [HerramientaController::class, 'inspeccionar'])->name('inspeccionar');
-});
-
-// API para alertas de mantenimiento
-Route::prefix('alertas')->name('api.alertas.')->group(function () {
-    Route::get('mantenimiento', [HerramientaController::class, 'alertasMantenimiento'])->name('mantenimiento');
-    Route::get('desgaste', [HerramientaController::class, 'alertasDesgaste'])->name('desgaste');
-    Route::get('vencimiento', [HerramientaController::class, 'alertasVencimiento'])->name('vencimiento');
-    Route::post('marcar-leida/{tipo}/{herramienta}', [HerramientaController::class, 'marcarAlertaLeida'])->name('marcar-leida');
-});
+// Eliminado: rutas API de herramientas, asignaciones y alertas relacionadas
 
 // =====================================================
 // RUTAS PROTEGIDAS (Opcional - descomenta si necesitas autenticación)
