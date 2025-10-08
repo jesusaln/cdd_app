@@ -1,5 +1,5 @@
 <script setup>
-import { Head, Link, useForm } from '@inertiajs/vue3'
+import { Head, Link, useForm, router } from '@inertiajs/vue3'
 import { ref, computed } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
@@ -9,9 +9,14 @@ const props = defineProps({
   tecnico: { type: Object, required: true },
   asignadas: { type: Array, default: () => [] },
   disponibles: { type: Array, default: () => [] },
+  tecnicos: { type: Array, default: () => [] },
 })
 
 const form = useForm({ asignadas: props.asignadas.map(h => h.id) })
+const showReasignarForm = ref(false)
+const herramientaAReasignar = ref(null)
+const nuevoTecnicoId = ref('')
+const observacionesReasignacion = ref('')
 const searchAsignadas = ref('')
 const searchDisponibles = ref('')
 
@@ -51,6 +56,39 @@ const getEstadoColor = (estado) => {
 }
 
 const submit = () => form.put(route('herramientas.gestion.update', props.tecnico.id))
+
+const abrirModalReasignacion = (herramienta) => {
+  herramientaAReasignar.value = herramienta
+  showReasignarForm.value = true
+}
+
+const cerrarModalReasignacion = () => {
+  showReasignarForm.value = false
+  herramientaAReasignar.value = null
+  nuevoTecnicoId.value = ''
+  observacionesReasignacion.value = ''
+}
+
+const reasignarHerramienta = () => {
+  if (!nuevoTecnicoId.value) {
+    alert('Selecciona un técnico')
+    return
+  }
+
+  router.post('/herramientas/reasignar', {
+    herramienta_id: herramientaAReasignar.value.id,
+    tecnico_anterior_id: props.tecnico.id,
+    tecnico_nuevo_id: nuevoTecnicoId.value,
+    observaciones: observacionesReasignacion.value,
+  }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      cerrarModalReasignacion()
+      // Recargar la página para actualizar los datos
+      window.location.reload()
+    }
+  })
+}
 </script>
 
 <template>
@@ -127,6 +165,12 @@ const submit = () => form.put(route('herramientas.gestion.update', props.tecnico
                 {{ herramienta.estado }}
               </span>
             </div>
+            <button
+              @click="abrirModalReasignacion(herramienta)"
+              class="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Reasignar
+            </button>
           </label>
         </div>
       </div>
@@ -199,5 +243,54 @@ const submit = () => form.put(route('herramientas.gestion.update', props.tecnico
       </div>
     </div>
   </form>
+
+  <!-- Modal de Reasignación -->
+  <div v-if="showReasignarForm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <div class="bg-white w-full max-w-md rounded-lg shadow-lg">
+      <div class="flex items-center justify-between px-6 py-4 border-b">
+        <h2 class="text-lg font-semibold">Reasignar Herramienta</h2>
+        <button @click="cerrarModalReasignacion" class="text-gray-500 hover:text-gray-700">✕</button>
+      </div>
+      <div class="p-6">
+        <div v-if="herramientaAReasignar" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Herramienta</label>
+            <p class="text-lg font-medium">{{ herramientaAReasignar.nombre }}</p>
+            <p class="text-sm text-gray-600">Serie: {{ herramientaAReasignar.numero_serie || 'N/A' }}</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Técnico Actual</label>
+            <p class="text-gray-900">{{ props.tecnico.nombre }}</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Nuevo Técnico</label>
+            <select v-model="nuevoTecnicoId" class="w-full border rounded px-3 py-2" required>
+              <option value="">Seleccionar técnico</option>
+              <option v-for="tecnico in props.tecnicos" :key="tecnico.id" :value="tecnico.id">
+                {{ tecnico.nombre }} {{ tecnico.id === props.tecnico.id ? '(Actual)' : '' }}
+              </option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Observaciones</label>
+            <textarea
+              v-model="observacionesReasignacion"
+              rows="3"
+              placeholder="Opcional: agregar observaciones sobre la reasignación..."
+              class="w-full border rounded px-3 py-2"
+            ></textarea>
+          </div>
+          <div class="flex gap-3 pt-4">
+            <button @click="cerrarModalReasignacion" class="flex-1 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700">
+              Cancelar
+            </button>
+            <button @click="reasignarHerramienta" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+              Reasignar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 

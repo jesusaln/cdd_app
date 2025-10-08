@@ -75,8 +75,15 @@ const isActive = computed(() => {
     }
 
     // Para otras rutas, verificar si la URL actual comienza con el href del enlace.
-    // Esto permite que /productos/1 sea activo si href es /productos.
-    return currentUrl.startsWith(props.href);
+    // Pero evitar activar múltiples elementos para rutas similares
+    if (props.href === '/') {
+        return currentUrl === '/';
+    }
+
+    // Verificar coincidencia exacta o que la URL comience con el href seguido de '/' o fin de string
+    return currentUrl === props.href ||
+           currentUrl.startsWith(props.href + '/') ||
+           (currentUrl + '/').startsWith(props.href + '/');
 });
 
 // Manejo inteligente de iconos de FontAwesome

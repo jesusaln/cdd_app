@@ -121,6 +121,7 @@ class GestionHerramientasController extends Controller
             ],
             'asignadas' => $asignadas,
             'disponibles' => $disponibles,
+            'tecnicos' => Tecnico::select('id','nombre','telefono')->orderBy('nombre')->get(),
         ]);
     }
 
@@ -170,6 +171,45 @@ class GestionHerramientasController extends Controller
         }
 
         return redirect()->route('herramientas.gestion.edit', $tecnico->id)->with('success', 'Asignaciones actualizadas');
+    }
+
+    public function reasignar(Request $request)
+    {
+        $data = $request->validate([
+            'herramienta_id' => 'required|exists:herramientas,id',
+            'tecnico_anterior_id' => 'required|exists:tecnicos,id',
+            'tecnico_nuevo_id' => 'required|exists:tecnicos,id',
+            'observaciones' => 'nullable|string',
+        ]);
+
+        $herramienta = Herramienta::findOrFail($data['herramienta_id']);
+
+        // Verificar que la herramienta pertenece al técnico anterior
+        if ($herramienta->tecnico_id !== $data['tecnico_anterior_id']) {
+            return redirect()->back()->with('error', 'La herramienta no pertenece al técnico especificado');
+        }
+
+        // Actualizar la herramienta
+        $herramienta->update([
+            'tecnico_id' => $data['tecnico_nuevo_id'],
+            'estado' => Herramienta::ESTADO_ASIGNADA,
+            'fecha_asignacion' => now(),
+        ]);
+
+        // Crear registro en historial si existe el modelo
+        if (class_exists('\App\Models\HistorialHerramienta')) {
+            \App\Models\HistorialHerramienta::create([
+                'herramienta_id' => $herramienta->id,
+                'tecnico_id' => $data['tecnico_nuevo_id'],
+                'fecha_asignacion' => now(),
+                'asignado_por' => 1, // Usuario por defecto para evitar errores
+                'observaciones_asignacion' => "Reasignación de herramienta de técnico {$data['tecnico_anterior_id']} a técnico {$data['tecnico_nuevo_id']}" .
+                               ($data['observaciones'] ? ": {$data['observaciones']}" : ''),
+                'estado_herramienta_asignacion' => $herramienta->estado,
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Herramienta reasignada correctamente');
     }
 }
 

@@ -501,9 +501,13 @@ const getCurrentSection = () => {
     return 'rentas';
   } else if (path.includes('/carros') || path.includes('/mantenimientos')) {
     return 'taller';
-  } else if (path.includes('/tecnicos') || path.includes('/herramientas') || path.includes('/herramientas/gestion')) {
+  } else if (path.includes('/tecnicos')) {
     return 'gestion_herramientas';
-  } 
+  } else if (path.includes('/herramientas/gestion') || path.includes('/herramientas-dashboard') || path.includes('/herramientas-mantenimiento') || path.includes('/herramientas-alertas') || path.includes('/herramientas-reportes')) {
+    return 'gestion_herramientas';
+  } else if (path === '/herramientas') {
+    return 'gestion_herramientas';
+  }
 
   return null;
 };

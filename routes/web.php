@@ -294,6 +294,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     })->name('herramientas.alertas');
     Route::get('herramientas-mantenimiento', [HerramientaController::class, 'mantenimiento'])->name('herramientas-mantenimiento');
     Route::get('herramientas-reportes', [HerramientaController::class, 'reportes'])->name('herramientas.reportes');
+    Route::post('herramientas/reasignar', [GestionHerramientasController::class, 'reasignar'])->name('herramientas.reasignar');
     // Gestión de Herramientas - módulo independiente (index, create, edit)
     Route::get('herramientas/gestion', [GestionHerramientasController::class, 'index'])->name('herramientas.gestion.index');
     Route::get('herramientas/gestion/create', [GestionHerramientasController::class, 'create'])->name('herramientas.gestion.create');
