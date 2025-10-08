@@ -25,7 +25,7 @@ const openModal = (h) => { selected.value = h; showModal.value = true }
 const closeModal = () => { showModal.value = false; selected.value = null }
 
 const doFilter = () => {
-  router.get(route('herramientas.index'), {
+  router.get('/herramientas', {
     search: search.value,
     estado: estado.value,
     categoria: categoria.value,
@@ -66,10 +66,10 @@ const pageLinks = computed(() => props.herramientas?.links || [])
   <div class="flex items-center justify-between mb-6">
     <h1 class="text-3xl font-bold text-slate-900">Gestión de Herramientas</h1>
     <div class="flex gap-3">
-      <Link class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700" :href="route('herramientas.create')">
+      <Link class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700" href="/herramientas/create">
         Nueva Herramienta
       </Link>
-      <Link class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700" :href="route('herramientas.dashboard')">
+      <Link class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700" href="/herramientas-dashboard">
         Dashboard
       </Link>
     </div>
@@ -196,10 +196,10 @@ const pageLinks = computed(() => props.herramientas?.links || [])
 
       <div class="flex items-center justify-between text-sm">
         <div class="flex gap-2">
-          <button type="button" @click="openModal(h)" class="text-blue-600 hover:underline">Ver</button>
-          <Link :href="route('herramientas.edit', h.id)" class="text-green-600 hover:underline">Editar</Link>
+          <Link :href="`/herramientas/${h.id}`" class="text-blue-600 hover:underline">Ver</Link>
+          <Link :href="`/herramientas/${h.id}/edit`" class="text-green-600 hover:underline">Editar</Link>
         </div>
-        <Link as="button" method="delete" :href="route('herramientas.destroy', h.id)" class="text-red-600 hover:underline" preserve-scroll>
+        <Link as="button" method="delete" :href="`/herramientas/${h.id}`" class="text-red-600 hover:underline" preserve-scroll>
           Eliminar
         </Link>
       </div>

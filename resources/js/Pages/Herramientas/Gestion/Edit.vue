@@ -1,5 +1,6 @@
 <script setup>
 import { Head, Link, useForm } from '@inertiajs/vue3'
+import { ref, computed } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
 defineOptions({ layout: AppLayout })
@@ -11,6 +12,8 @@ const props = defineProps({
 })
 
 const form = useForm({ asignadas: props.asignadas.map(h => h.id) })
+const searchAsignadas = ref('')
+const searchDisponibles = ref('')
 
 const toggle = (id) => {
   const i = form.asignadas.indexOf(id)
@@ -20,40 +23,180 @@ const toggle = (id) => {
 
 const isChecked = (id) => form.asignadas.includes(id)
 
+const herramientasAsignadasFiltradas = computed(() => {
+  if (!searchAsignadas.value) return props.asignadas
+  return props.asignadas.filter(h =>
+    h.nombre.toLowerCase().includes(searchAsignadas.value.toLowerCase()) ||
+    (h.numero_serie && h.numero_serie.toLowerCase().includes(searchAsignadas.value.toLowerCase()))
+  )
+})
+
+const herramientasDisponiblesFiltradas = computed(() => {
+  if (!searchDisponibles.value) return props.disponibles
+  return props.disponibles.filter(h =>
+    h.nombre.toLowerCase().includes(searchDisponibles.value.toLowerCase()) ||
+    (h.numero_serie && h.numero_serie.toLowerCase().includes(searchDisponibles.value.toLowerCase()))
+  )
+})
+
+const getEstadoColor = (estado) => {
+  const colors = {
+    'disponible': 'bg-green-100 text-green-800',
+    'asignada': 'bg-blue-100 text-blue-800',
+    'mantenimiento': 'bg-yellow-100 text-yellow-800',
+    'baja': 'bg-red-100 text-red-800',
+    'perdida': 'bg-red-100 text-red-800',
+  }
+  return colors[estado] || 'bg-gray-100 text-gray-800'
+}
+
 const submit = () => form.put(route('herramientas.gestion.update', props.tecnico.id))
 </script>
 
 <template>
   <Head :title="`Gestión de Herramientas - ${props.tecnico.nombre}`" />
 
-  <div class="flex items-center justify-between mb-4">
-    <h1 class="text-2xl font-semibold text-slate-900">Gestión de Herramientas - {{ props.tecnico.nombre }}</h1>
-    <Link class="text-blue-600 hover:underline" :href="route('herramientas.gestion.index')">Volver</Link>
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-3xl font-bold text-slate-900">Gestión de Herramientas</h1>
+      <p class="text-gray-600 mt-1">Administrar herramientas de {{ props.tecnico.nombre }}</p>
+    </div>
+    <div class="flex gap-3">
+      <Link class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700" :href="route('herramientas.gestion.index')">
+        ← Volver a Gestión
+      </Link>
+      <Link class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700" :href="route('herramientas.dashboard')">
+        Dashboard
+      </Link>
+    </div>
+  </div>
+
+  <!-- Información del técnico -->
+  <div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-xl font-semibold text-gray-900">{{ props.tecnico.nombre }}</h2>
+        <p class="text-gray-600">{{ props.tecnico.telefono || 'Sin teléfono' }}</p>
+      </div>
+      <div class="text-right">
+        <div class="text-sm text-gray-500">Herramientas asignadas</div>
+        <div class="text-3xl font-bold text-blue-600">{{ form.asignadas.length }}</div>
+      </div>
+    </div>
   </div>
 
   <form @submit.prevent="submit" class="grid lg:grid-cols-2 gap-6">
-    <div class="bg-white shadow rounded p-4">
-      <div class="font-medium mb-2">Asignadas</div>
-      <div class="space-y-2 max-h-[28rem] overflow-auto">
-        <label v-for="h in props.asignadas" :key="`a-${h.id}`" class="flex items-center gap-2 border rounded p-2">
-          <input type="checkbox" :value="h.id" :checked="isChecked(h.id)" @change="toggle(h.id)" />
-          <span>{{ h.nombre }} <span class="text-gray-500">(Serie: {{ h.numero_serie || 'N/A' }})</span></span>
-        </label>
+    <!-- Herramientas asignadas -->
+    <div class="bg-white rounded-lg shadow-sm border">
+      <div class="p-6 border-b">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-medium text-gray-700">Herramientas Asignadas</h3>
+          <div class="flex items-center gap-3">
+            <input
+              v-model="searchAsignadas"
+              type="search"
+              placeholder="Buscar..."
+              class="border rounded px-3 py-2 text-sm"
+            />
+            <span class="text-sm text-gray-600">{{ herramientasAsignadasFiltradas.length }} de {{ props.asignadas.length }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="p-6">
+        <div v-if="herramientasAsignadasFiltradas.length === 0" class="text-center py-8 text-gray-500">
+          <p>No hay herramientas asignadas que coincidan con la búsqueda</p>
+        </div>
+        <div class="space-y-3 max-h-96 overflow-y-auto">
+          <label v-for="herramienta in herramientasAsignadasFiltradas" :key="`a-${herramienta.id}`" class="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50">
+            <input
+              type="checkbox"
+              :value="herramienta.id"
+              v-model="form.asignadas"
+              class="w-4 h-4 text-blue-600 rounded"
+            />
+            <img v-if="herramienta.foto" :src="`/storage/${herramienta.foto}`" alt="Foto" class="w-10 h-10 object-cover rounded" />
+            <div v-else class="w-10 h-10 bg-gray-200 rounded flex items-center justify-center">
+              <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+              </svg>
+            </div>
+            <div class="flex-1">
+              <h4 class="font-medium text-gray-900">{{ herramienta.nombre }}</h4>
+              <p class="text-sm text-gray-600">Serie: {{ herramienta.numero_serie || 'N/A' }}</p>
+              <span :class="['text-xs px-2 py-1 rounded-full', getEstadoColor(herramienta.estado)]">
+                {{ herramienta.estado }}
+              </span>
+            </div>
+          </label>
+        </div>
       </div>
     </div>
 
-    <div class="bg-white shadow rounded p-4">
-      <div class="font-medium mb-2">Disponibles</div>
-      <div class="space-y-2 max-h-[28rem] overflow-auto">
-        <label v-for="h in props.disponibles" :key="`d-${h.id}`" class="flex items-center gap-2 border rounded p-2">
-          <input type="checkbox" :value="h.id" :checked="isChecked(h.id)" @change="toggle(h.id)" />
-          <span>{{ h.nombre }} <span class="text-gray-500">(Serie: {{ h.numero_serie || 'N/A' }})</span></span>
-        </label>
+    <!-- Herramientas disponibles -->
+    <div class="bg-white rounded-lg shadow-sm border">
+      <div class="p-6 border-b">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-medium text-gray-700">Herramientas Disponibles</h3>
+          <div class="flex items-center gap-3">
+            <input
+              v-model="searchDisponibles"
+              type="search"
+              placeholder="Buscar..."
+              class="border rounded px-3 py-2 text-sm"
+            />
+            <span class="text-sm text-gray-600">{{ herramientasDisponiblesFiltradas.length }} disponible{{ herramientasDisponiblesFiltradas.length !== 1 ? 's' : '' }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="p-6">
+        <div v-if="herramientasDisponiblesFiltradas.length === 0" class="text-center py-8 text-gray-500">
+          <p>No hay herramientas disponibles que coincidan con la búsqueda</p>
+        </div>
+        <div class="space-y-3 max-h-96 overflow-y-auto">
+          <label v-for="herramienta in herramientasDisponiblesFiltradas" :key="`d-${herramienta.id}`" class="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50">
+            <input
+              type="checkbox"
+              :value="herramienta.id"
+              v-model="form.asignadas"
+              class="w-4 h-4 text-green-600 rounded"
+            />
+            <img v-if="herramienta.foto" :src="`/storage/${herramienta.foto}`" alt="Foto" class="w-10 h-10 object-cover rounded" />
+            <div v-else class="w-10 h-10 bg-gray-200 rounded flex items-center justify-center">
+              <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+              </svg>
+            </div>
+            <div class="flex-1">
+              <h4 class="font-medium text-gray-900">{{ herramienta.nombre }}</h4>
+              <p class="text-sm text-gray-600">Serie: {{ herramienta.numero_serie || 'N/A' }}</p>
+              <span class="text-xs px-2 py-1 rounded-full bg-green-100 text-green-800">
+                Disponible
+              </span>
+            </div>
+          </label>
+        </div>
       </div>
     </div>
 
-    <div class="lg:col-span-2">
-      <button :disabled="form.processing" type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">Guardar cambios</button>
+    <!-- Acciones -->
+    <div class="lg:col-span-2 bg-white rounded-lg shadow-sm border p-6">
+      <div class="flex items-center justify-between">
+        <div class="text-sm text-gray-600">
+          {{ form.asignadas.length }} herramienta{{ form.asignadas.length !== 1 ? 's' : '' }} seleccionada{{ form.asignadas.length !== 1 ? 's' : '' }} para asignar
+        </div>
+        <div class="flex gap-3">
+          <Link :href="route('herramientas.gestion.index')" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">
+            Cancelar
+          </Link>
+          <button
+            :disabled="form.processing"
+            type="submit"
+            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            {{ form.processing ? 'Guardando...' : 'Guardar Cambios' }}
+          </button>
+        </div>
+      </div>
     </div>
   </form>
 </template>

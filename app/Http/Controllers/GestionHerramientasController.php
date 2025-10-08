@@ -11,36 +11,114 @@ class GestionHerramientasController extends Controller
 {
     public function index()
     {
+        $tecnicos = Tecnico::with(['herramientas' => function ($query) {
+            $query->select('id', 'nombre', 'numero_serie', 'estado', 'foto', 'categoria_id', 'tecnico_id', 'fecha_ultimo_mantenimiento', 'requiere_mantenimiento')
+                  ->with('categoriaHerramienta:id,nombre');
+        }])
+        ->select('id', 'nombre', 'telefono', 'email')
+        ->orderBy('nombre')
+        ->get()
+        ->map(function ($tecnico) {
+            return [
+                'id' => $tecnico->id,
+                'nombre' => $tecnico->nombre,
+                'telefono' => $tecnico->telefono,
+                'email' => $tecnico->email,
+                'herramientas' => $tecnico->herramientas->map(function ($herramienta) {
+                    return [
+                        'id' => $herramienta->id,
+                        'nombre' => $herramienta->nombre,
+                        'numero_serie' => $herramienta->numero_serie,
+                        'estado' => $herramienta->estado,
+                        'foto' => $herramienta->foto,
+                        'categoria_herramienta' => $herramienta->categoriaHerramienta,
+                        'fecha_ultimo_mantenimiento' => $herramienta->fecha_ultimo_mantenimiento,
+                        'requiere_mantenimiento' => $herramienta->requiere_mantenimiento,
+                        'necesita_mantenimiento' => $herramienta->necesitaMantenimiento(),
+                    ];
+                }),
+            ];
+        });
+
         return Inertia::render('Herramientas/Gestion/Index', [
-            'tecnicos' => Tecnico::select('id','nombre','telefono')->orderBy('nombre')->get(),
+            'tecnicos' => $tecnicos,
         ]);
     }
 
     public function create()
     {
         return Inertia::render('Herramientas/Gestion/Create', [
-            'tecnicos' => Tecnico::select('id','nombre')->orderBy('nombre')->get(),
-            'herramientas' => Herramienta::select('id','nombre','numero_serie')
-                ->whereNull('tecnico_id')
-                ->orWhere('estado', Herramienta::ESTADO_DISPONIBLE)
-                ->orderBy('nombre')->get(),
+            'tecnicos' => Tecnico::select('id','nombre','telefono')->orderBy('nombre')->get(),
+            'herramientas' => Herramienta::where(function($q) {
+                    $q->whereNull('tecnico_id')
+                      ->orWhere('estado', Herramienta::ESTADO_DISPONIBLE);
+                })
+                ->with(['categoriaHerramienta:id,nombre'])
+                ->select('id', 'nombre', 'numero_serie', 'estado', 'foto', 'categoria_id')
+                ->orderBy('nombre')
+                ->get()
+                ->map(function ($herramienta) {
+                    return [
+                        'id' => $herramienta->id,
+                        'nombre' => $herramienta->nombre,
+                        'numero_serie' => $herramienta->numero_serie,
+                        'estado' => $herramienta->estado,
+                        'foto' => $herramienta->foto,
+                        'categoria_herramienta' => $herramienta->categoriaHerramienta,
+                    ];
+                }),
         ]);
     }
 
     public function edit(Tecnico $tecnico)
     {
-        $asignadas = Herramienta::select('id','nombre','numero_serie')
-            ->where('tecnico_id', $tecnico->id)
-            ->orderBy('nombre')->get();
-        $disponibles = Herramienta::select('id','nombre','numero_serie')
-            ->where(function($q){
-                $q->whereNull('tecnico_id')->orWhere('estado', Herramienta::ESTADO_DISPONIBLE);
+        $asignadas = Herramienta::where('tecnico_id', $tecnico->id)
+            ->with(['categoriaHerramienta:id,nombre'])
+            ->select('id', 'nombre', 'numero_serie', 'estado', 'foto', 'categoria_id', 'fecha_ultimo_mantenimiento', 'requiere_mantenimiento')
+            ->orderBy('nombre')
+            ->get()
+            ->map(function ($herramienta) {
+                return [
+                    'id' => $herramienta->id,
+                    'nombre' => $herramienta->nombre,
+                    'numero_serie' => $herramienta->numero_serie,
+                    'estado' => $herramienta->estado,
+                    'foto' => $herramienta->foto,
+                    'categoria_herramienta' => $herramienta->categoriaHerramienta,
+                    'fecha_ultimo_mantenimiento' => $herramienta->fecha_ultimo_mantenimiento,
+                    'requiere_mantenimiento' => $herramienta->requiere_mantenimiento,
+                    'necesita_mantenimiento' => $herramienta->necesitaMantenimiento(),
+                ];
+            });
+
+        $disponibles = Herramienta::where(function($q) use ($tecnico) {
+                $q->whereNull('tecnico_id')
+                  ->orWhere('estado', Herramienta::ESTADO_DISPONIBLE)
+                  ->orWhere('tecnico_id', $tecnico->id);
             })
             ->whereNotIn('id', $asignadas->pluck('id'))
-            ->orderBy('nombre')->get();
+            ->with(['categoriaHerramienta:id,nombre'])
+            ->select('id', 'nombre', 'numero_serie', 'estado', 'foto', 'categoria_id')
+            ->orderBy('nombre')
+            ->get()
+            ->map(function ($herramienta) {
+                return [
+                    'id' => $herramienta->id,
+                    'nombre' => $herramienta->nombre,
+                    'numero_serie' => $herramienta->numero_serie,
+                    'estado' => $herramienta->estado,
+                    'foto' => $herramienta->foto,
+                    'categoria_herramienta' => $herramienta->categoriaHerramienta,
+                ];
+            });
 
         return Inertia::render('Herramientas/Gestion/Edit', [
-            'tecnico' => $tecnico->only(['id','nombre','telefono']) + ['id' => $tecnico->id],
+            'tecnico' => [
+                'id' => $tecnico->id,
+                'nombre' => $tecnico->nombre,
+                'telefono' => $tecnico->telefono,
+                'email' => $tecnico->email,
+            ],
             'asignadas' => $asignadas,
             'disponibles' => $disponibles,
         ]);

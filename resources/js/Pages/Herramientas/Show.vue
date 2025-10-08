@@ -50,7 +50,7 @@ const getEstadoLabel = (estado) => {
 }
 
 const registrarMantenimiento = () => {
-  router.post(route('herramientas.registrar-mantenimiento', props.herramienta.id), {
+  router.post(`/herramientas/${props.herramienta.id}/mantenimiento`, {
     fecha_mantenimiento: fechaMantenimiento.value,
     costo_mantenimiento: costoMantenimiento.value,
     descripcion_mantenimiento: descripcionMantenimiento.value,
@@ -69,7 +69,7 @@ const registrarMantenimiento = () => {
 
 const cambiarEstado = (nuevoEstado) => {
   if (confirm(`¿Estás seguro de cambiar el estado a "${getEstadoLabel(nuevoEstado)}"?`)) {
-    router.post(route('herramientas.cambiar-estado', props.herramienta.id), {
+    router.post(`/herramientas/${props.herramienta.id}/cambiar-estado`, {
       estado: nuevoEstado,
       observaciones: `Cambio desde vista de detalles`,
     }, {
@@ -93,16 +93,16 @@ const estadisticasItems = computed(() => [
 
   <div class="flex items-center justify-between mb-6">
     <div class="flex items-center gap-4">
-      <Link :href="route('herramientas.index')" class="text-blue-600 hover:underline">
+      <Link href="/herramientas" class="text-blue-600 hover:underline">
         ← Volver al listado
       </Link>
       <h1 class="text-3xl font-bold text-slate-900">{{ props.herramienta.nombre }}</h1>
     </div>
     <div class="flex gap-3">
-      <Link :href="route('herramientas.estadisticas', props.herramienta.id)" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+      <Link :href="`/herramientas/${props.herramienta.id}/estadisticas`" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
         Estadísticas
       </Link>
-      <Link :href="route('herramientas.edit', props.herramienta.id)" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+      <Link :href="`/herramientas/${props.herramienta.id}/edit`" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
         Editar
       </Link>
     </div>
@@ -279,10 +279,10 @@ const estadisticasItems = computed(() => [
           <button @click="showMantenimientoForm = !showMantenimientoForm" class="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
             Registrar Mantenimiento
           </button>
-          <Link :href="route('herramientas-mantenimiento')" class="block w-full px-4 py-2 bg-orange-600 text-white text-center rounded-lg hover:bg-orange-700">
+          <Link href="/herramientas-mantenimiento" class="block w-full px-4 py-2 bg-orange-600 text-white text-center rounded-lg hover:bg-orange-700">
             Ver Mantenimiento
           </Link>
-          <Link :href="route('herramientas-alertas')" class="block w-full px-4 py-2 bg-red-600 text-white text-center rounded-lg hover:bg-red-700">
+          <Link href="/herramientas-alertas" class="block w-full px-4 py-2 bg-red-600 text-white text-center rounded-lg hover:bg-red-700">
             Ver Alertas
           </Link>
         </div>
@@ -360,7 +360,7 @@ const estadisticasItems = computed(() => [
       </div>
     </div>
     <div class="mt-4 text-center">
-      <Link :href="route('herramientas.estadisticas', props.herramienta.id)" class="text-blue-600 hover:underline">
+      <Link :href="`/herramientas/${props.herramienta.id}/estadisticas`" class="text-blue-600 hover:underline">
         Ver historial completo →
       </Link>
     </div>
