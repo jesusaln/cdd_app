@@ -1,4 +1,4 @@
-<!-- /resources/js/Pages/EmpresaConfiguracion/Index.vue -->
+﻿<!-- /resources/js/Pages/EmpresaConfiguracion/Index.vue -->
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { Head, useForm, router } from '@inertiajs/vue3'
@@ -35,11 +35,14 @@ const form = useForm({
   nombre_empresa: props.configuracion.nombre_empresa,
   rfc: props.configuracion.rfc,
   razon_social: props.configuracion.razon_social,
-  direccion: props.configuracion.direccion,
+  calle: props.configuracion.calle,
+  numero_exterior: props.configuracion.numero_exterior,
+  numero_interior: props.configuracion.numero_interior,
   telefono: props.configuracion.telefono,
   email: props.configuracion.email,
   sitio_web: props.configuracion.sitio_web,
   codigo_postal: props.configuracion.codigo_postal,
+  colonia: props.configuracion.colonia,
   ciudad: props.configuracion.ciudad,
   estado: props.configuracion.estado,
   pais: props.configuracion.pais,
@@ -66,6 +69,50 @@ const form = useForm({
   tiempo_bloqueo: props.configuracion.tiempo_bloqueo,
   requerir_2fa: props.configuracion.requerir_2fa,
 })
+
+// SEPOMEX: colonias obtenidas por CP y colonia seleccionada
+const colonias = ref([])
+
+const validarCodigoPostalEmpresa = async () => {
+  try {
+    form.codigo_postal = (form.codigo_postal || '').toString().replace(/\D/g, '')
+    colonias.value = []
+    form.colonia = ''
+
+    if (form.codigo_postal && form.codigo_postal.length === 5) {
+      const resp = await fetch(`/api/cp/${form.codigo_postal}`)
+      if (resp.ok) {
+        const data = await resp.json()
+        // Mapear a campos del formulario
+        if (data.estado) form.estado = data.estado
+        if (data.municipio) form.ciudad = data.municipio
+        if (data.ciudad && !form.ciudad) form.ciudad = data.ciudad
+        if (data.pais) form.pais = data.pais
+        if (Array.isArray(data.colonias)) {
+          colonias.value = data.colonias
+          if (colonias.value.length === 1) form.colonia = colonias.value[0]
+        }
+      } else if (resp.status === 404) {
+        // Código postal no encontrado
+        notyf.error(`El código postal ${form.codigo_postal} no se encuentra en la base de datos. Puedes continuar ingresando los datos manualmente.`)
+        // Limpiar campos que se habrían autocompletado
+        form.estado = ''
+        form.ciudad = ''
+        form.pais = ''
+        form.colonia = ''
+        colonias.value = []
+      } else {
+        // Otro tipo de error
+        const errorData = await resp.json().catch(() => ({}))
+        notyf.error(errorData.error || 'Error al consultar el código postal')
+      }
+    }
+  } catch (e) {
+    // Error de red u otro tipo de error
+    console.warn('Error consultando CP', e)
+    notyf.error('Error de conexión al consultar el código postal. Puedes continuar ingresando los datos manualmente.')
+  }
+}
 
 // Formularios para archivos
 const logoForm = useForm({
@@ -354,21 +401,155 @@ const tabActiva = computed(() => {
                     </p>
                   </div>
 
-                  <!-- Dirección -->
+                  <!-- Dirección organizada -->
                   <div class="md:col-span-2">
-                    <label for="direccion" class="block text-sm font-medium text-gray-700 mb-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-3">
                       Dirección
                     </label>
-                    <textarea
-                      v-model="form.direccion"
-                      id="direccion"
-                      rows="3"
-                      class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical"
-                      placeholder="Dirección completa de la empresa"
-                    ></textarea>
-                    <p v-if="form.errors.direccion" class="mt-1 text-sm text-red-600">
-                      {{ form.errors.direccion }}
-                    </p>
+
+                    <!-- Calle -->
+                    <div class="mb-4">
+                      <label for="calle" class="block text-sm font-medium text-gray-700 mb-2">
+                        Calle *
+                      </label>
+                      <input
+                        v-model="form.calle"
+                        id="calle"
+                        type="text"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Nombre de la calle"
+                      />
+                      <p v-if="form.errors.calle" class="mt-1 text-sm text-red-600">
+                        {{ form.errors.calle }}
+                      </p>
+                    </div>
+
+                    <!-- Números Exterior e Interior -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label for="numero_exterior" class="block text-sm font-medium text-gray-700 mb-2">
+                          Número Exterior *
+                        </label>
+                        <input
+                          v-model="form.numero_exterior"
+                          id="numero_exterior"
+                          type="text"
+                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="123"
+                        />
+                        <p v-if="form.errors.numero_exterior" class="mt-1 text-sm text-red-600">
+                          {{ form.errors.numero_exterior }}
+                        </p>
+                      </div>
+
+                      <div>
+                        <label for="numero_interior" class="block text-sm font-medium text-gray-700 mb-2">
+                          Número Interior
+                        </label>
+                        <input
+                          v-model="form.numero_interior"
+                          id="numero_interior"
+                          type="text"
+                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="A, Depto 1B, etc."
+                        />
+                        <p v-if="form.errors.numero_interior" class="mt-1 text-sm text-red-600">
+                          {{ form.errors.numero_interior }}
+                        </p>
+                      </div>
+                    </div>
+
+                    <!-- Código Postal, Ciudad, Estado, País -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label for="codigo_postal" class="block text-sm font-medium text-gray-700 mb-2">
+                          Código Postal
+                        </label>
+                        <input
+                          v-model="form.codigo_postal"
+                          id="codigo_postal"
+                          type="text"
+                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="00000"
+                          @blur="validarCodigoPostalEmpresa"
+                        />
+                        <p v-if="form.errors.codigo_postal" class="mt-1 text-sm text-red-600">
+                          {{ form.errors.codigo_postal }}
+                        </p>
+
+                        <!-- Colonia: select si hay catálogo, si no input libre -->
+                        <div v-if="colonias.length" class="mt-3">
+                          <label class="block text-sm font-medium text-gray-700 mb-2">Colonia</label>
+                          <select
+                            v-model="form.colonia"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          >
+                            <option value="">Selecciona una colonia</option>
+                            <option v-for="col in colonias" :key="col" :value="col">{{ col }}</option>
+                          </select>
+                          <p v-if="form.errors.colonia" class="mt-1 text-sm text-red-600">{{ form.errors.colonia }}</p>
+                        </div>
+                        <div v-else class="mt-3">
+                          <label for="colonia" class="block text-sm font-medium text-gray-700 mb-2">Colonia</label>
+                          <input
+                            v-model="form.colonia"
+                            id="colonia"
+                            type="text"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Nombre de la colonia"
+                          />
+                          <p v-if="form.errors.colonia" class="mt-1 text-sm text-red-600">{{ form.errors.colonia }}</p>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label for="ciudad" class="block text-sm font-medium text-gray-700 mb-2">
+                          Ciudad
+                        </label>
+                        <input
+                          v-model="form.ciudad"
+                          id="ciudad"
+                          type="text"
+                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="Ciudad de México"
+                        />
+                        <p v-if="form.errors.ciudad" class="mt-1 text-sm text-red-600">
+                          {{ form.errors.ciudad }}
+                        </p>
+                      </div>
+
+                      <div>
+                        <label for="estado" class="block text-sm font-medium text-gray-700 mb-2">
+                          Estado
+                        </label>
+                        <input
+                          v-model="form.estado"
+                          id="estado"
+                          type="text"
+                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="CDMX"
+                        />
+                        <p v-if="form.errors.estado" class="mt-1 text-sm text-red-600">
+                          {{ form.errors.estado }}
+                        </p>
+                      </div>
+
+                      <div>
+                        <label for="pais" class="block text-sm font-medium text-gray-700 mb-2">
+                          País
+                        </label>
+                        <input
+                          v-model="form.pais"
+                          id="pais"
+                          type="text"
+                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="México"
+                        />
+                        <p v-if="form.errors.pais" class="mt-1 text-sm text-red-600">
+                          {{ form.errors.pais }}
+                        </p>
+                      </div>
+                    </div>
                   </div>
 
                   <!-- Teléfono -->
@@ -422,73 +603,6 @@ const tabActiva = computed(() => {
                     </p>
                   </div>
 
-                  <!-- Código Postal -->
-                  <div>
-                    <label for="codigo_postal" class="block text-sm font-medium text-gray-700 mb-2">
-                      Código Postal
-                    </label>
-                    <input
-                      v-model="form.codigo_postal"
-                      id="codigo_postal"
-                      type="text"
-                      class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="00000"
-                    />
-                    <p v-if="form.errors.codigo_postal" class="mt-1 text-sm text-red-600">
-                      {{ form.errors.codigo_postal }}
-                    </p>
-                  </div>
-
-                  <!-- Ciudad -->
-                  <div>
-                    <label for="ciudad" class="block text-sm font-medium text-gray-700 mb-2">
-                      Ciudad
-                    </label>
-                    <input
-                      v-model="form.ciudad"
-                      id="ciudad"
-                      type="text"
-                      class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Ciudad de México"
-                    />
-                    <p v-if="form.errors.ciudad" class="mt-1 text-sm text-red-600">
-                      {{ form.errors.ciudad }}
-                    </p>
-                  </div>
-
-                  <!-- Estado -->
-                  <div>
-                    <label for="estado" class="block text-sm font-medium text-gray-700 mb-2">
-                      Estado
-                    </label>
-                    <input
-                      v-model="form.estado"
-                      id="estado"
-                      type="text"
-                      class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="CDMX"
-                    />
-                    <p v-if="form.errors.estado" class="mt-1 text-sm text-red-600">
-                      {{ form.errors.estado }}
-                    </p>
-                  </div>
-
-                  <!-- País -->
-                  <div>
-                    <label for="pais" class="block text-sm font-medium text-gray-700 mb-2">
-                      País
-                    </label>
-                    <input
-                      v-model="form.pais"
-                      id="pais"
-                      type="text"
-                      class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="México"
-                    />
-                    <p v-if="form.errors.pais" class="mt-1 text-sm text-red-600">
-                      {{ form.errors.pais }}
-                    </p>
-                  </div>
 
                   <!-- Descripción de la empresa -->
                   <div class="md:col-span-2">
@@ -1139,3 +1253,4 @@ const getTabIconPath = (icono) => {
   background-color: #f9fafb;
 }
 </style>
+

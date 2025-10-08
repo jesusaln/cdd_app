@@ -281,6 +281,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::resource('herramientas/asignaciones', AsignacionHerramientaController::class)->names('herramientas.asignaciones');
     Route::post('herramientas/asignaciones/{asignacion}/agregar-firma', [AsignacionHerramientaController::class, 'agregarFirma'])->name('herramientas.asignaciones.agregar-firma');
     Route::get('herramientas/{herramienta}/asignaciones-activas', [AsignacionHerramientaController::class, 'getAsignacionesActivas'])->name('herramientas.asignaciones-activas');
+    Route::get('herramientas/asignaciones-activas', [AsignacionHerramientaController::class, 'index'])->name('herramientas.asignaciones-activas.index');
 
     // Rutas para estados de herramientas
     Route::resource('herramientas/estados', EstadoHerramientaController::class)->names('herramientas.estados');
@@ -344,7 +345,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // =====================================================
     Route::prefix('empresa')->name('empresa-configuracion.')->group(function () {
         Route::get('/configuracion', [EmpresaConfiguracionController::class, 'index'])->name('index');
-        Route::post('/configuracion', [EmpresaConfiguracionController::class, 'update'])->name('update');
+        Route::match(['post', 'put'], '/configuracion', [EmpresaConfiguracionController::class, 'update'])->name('update');
         Route::post('/configuracion/logo', [EmpresaConfiguracionController::class, 'subirLogo'])->name('subir-logo');
         Route::post('/configuracion/favicon', [EmpresaConfiguracionController::class, 'subirFavicon'])->name('subir-favicon');
         Route::post('/configuracion/logo-reportes', [EmpresaConfiguracionController::class, 'subirLogoReportes'])->name('subir-logo-reportes');

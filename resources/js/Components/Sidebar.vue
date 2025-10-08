@@ -51,10 +51,20 @@
         <div class="mb-4">
           <h3
             v-show="!props.isSidebarCollapsed"
-            class="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider"
+            class="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2"
           >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
             Dashboard
           </h3>
+          <div v-show="props.isSidebarCollapsed" class="px-3 mb-2 flex justify-center">
+            <div class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200" title="Dashboard">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+          </div>
           <ul class="space-y-1">
             <NavLink href="/panel" icon="tachometer-alt" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Panel' : null">
               Panel
@@ -62,13 +72,18 @@
           </ul>
         </div>
 
-        <!-- Operación de Venta -->
+        <!-- Ventas -->
         <div class="mb-4">
           <div
             @click="toggleAccordion('ventas')"
             class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
           >
-            <span>Operación de Venta</span>
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>Ventas</span>
+            </div>
             <svg
               :class="accordionStates.ventas ? 'rotate-90' : ''"
               class="w-3 h-3 transition-transform duration-200"
@@ -80,6 +95,12 @@
             </svg>
           </div>
           <div v-show="accordionStates.ventas" class="mt-2 space-y-1">
+            <NavLink href="/clientes" icon="users" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Clientes' : null">
+              Clientes
+            </NavLink>
+            <NavLink href="/citas" icon="calendar-alt" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Citas Agendadas' : null">
+              Citas Agendadas
+            </NavLink>
             <NavLink href="/cotizaciones" icon="file-alt" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Cotizaciones' : null">
               Cotizaciones
             </NavLink>
@@ -98,13 +119,18 @@
           </div>
         </div>
 
-        <!-- Operación de Compra -->
+        <!-- Compras -->
         <div class="mb-4">
           <div
             @click="toggleAccordion('compras')"
             class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
           >
-            <span>Operación de Compra</span>
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
+              <span>Compras</span>
+            </div>
             <svg
               :class="accordionStates.compras ? 'rotate-90' : ''"
               class="w-3 h-3 transition-transform duration-200"
@@ -116,174 +142,33 @@
             </svg>
           </div>
           <div v-show="accordionStates.compras" class="mt-2 space-y-1">
-            <NavLink href="/compras" icon="cart-shopping" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Compras a Proveedores' : null">
-              Compras a Proveedores
-            </NavLink>
-             <NavLink href="/ordenescompra" icon="file-invoice-dollar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Órdenes de Compra' : null">
-              Órdenes de Compra
-             </NavLink>
-            <NavLink href="/cuentas-por-pagar" icon="file-invoice-dollar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Cuentas por Pagar' : null">
-              Cuentas por Pagar
-            </NavLink>
             <NavLink href="/proveedores" icon="truck" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Proveedores' : null">
               Proveedores
             </NavLink>
-          </div>
-        </div>
-
-        <!-- Catálogos -->
-        <div class="mb-4">
-          <div
-            @click="toggleAccordion('catalogos')"
-            class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
-          >
-            <span>Catálogos</span>
-            <svg
-              :class="accordionStates.catalogos ? 'rotate-90' : ''"
-              class="w-3 h-3 transition-transform duration-200"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
-          </div>
-          <div v-show="accordionStates.catalogos" class="mt-2 space-y-1">
-            <NavLink href="/categorias" icon="tags" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Categorías' : null">
-              Categorías
+            <NavLink href="/ordenescompra" icon="file-invoice-dollar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Órdenes de Compra' : null">
+              Órdenes de Compra
             </NavLink>
-            <NavLink href="/marcas" icon="trademark" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Marcas de Productos' : null">
-              Marcas de Productos
+            <NavLink href="/compras" icon="cart-shopping" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Compras a Proveedores' : null">
+              Compras a Proveedores
             </NavLink>
-            <NavLink href="/almacenes" icon="warehouse" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Almacenes' : null">
-              Almacenes
-            </NavLink>
-            <NavLink href="/servicios" icon="wrench" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Servicios' : null">
-              Servicios
-            </NavLink>
-            <NavLink href="/tecnicos" icon="user-cog" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Técnicos' : null">
-              Técnicos
-            </NavLink>
-            <NavLink href="/herramientas" icon="toolbox" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Herramientas' : null">
-              Herramientas
+            <NavLink href="/cuentas-por-pagar" icon="file-invoice-dollar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Cuentas por Pagar' : null">
+              Cuentas por Pagar
             </NavLink>
           </div>
         </div>
 
-
-        <!-- Administración -->
-        <div class="mb-4">
-           <div
-             @click="toggleAccordion('administracion')"
-             class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
-           >
-             <span>Administración</span>
-             <svg
-               :class="accordionStates.administracion ? 'rotate-90' : ''"
-               class="w-3 h-3 transition-transform duration-200"
-               fill="none"
-               stroke="currentColor"
-               viewBox="0 0 24 24"
-             >
-               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-             </svg>
-           </div>
-           <div v-show="accordionStates.administracion" class="mt-2 space-y-1">
-             <NavLink :href="routeOr('/backup')" icon="database" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Copia de Seguridad' : null">
-               Copia de Seguridad
-             </NavLink>
-             <NavLink href="/empresa/configuracion" icon="cog" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Configuración de Empresa' : null">
-               Configuración de Empresa
-             </NavLink>
-           </div>
-         </div>
-
-       <!-- Usuario -->
-       <div class="mb-4">
-         <div
-           @click="toggleAccordion('usuario')"
-           class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
-         >
-           <span>Usuario</span>
-           <svg
-             :class="accordionStates.usuario ? 'rotate-90' : ''"
-             class="w-3 h-3 transition-transform duration-200"
-             fill="none"
-             stroke="currentColor"
-             viewBox="0 0 24 24"
-           >
-             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-           </svg>
-         </div>
-         <div v-show="accordionStates.usuario" class="mt-2 space-y-1">
-           <NavLink href="/usuarios" icon="user" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Usuarios' : null">
-             Usuarios
-           </NavLink>
-          <NavLink href="/bitacora" icon="clipboard-list" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Bitácora' : null">
-             Bitácora
-          </NavLink>
-         </div>
-       </div>
-
-       <!-- Clientes y Citas -->
-       <div class="mb-4">
-         <div
-           @click="toggleAccordion('clientes_citas')"
-           class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
-         >
-           <span>Clientes y Citas</span>
-           <svg
-             :class="accordionStates.clientes_citas ? 'rotate-90' : ''"
-             class="w-3 h-3 transition-transform duration-200"
-             fill="none"
-             stroke="currentColor"
-             viewBox="0 0 24 24"
-           >
-             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-           </svg>
-         </div>
-         <div v-show="accordionStates.clientes_citas" class="mt-2 space-y-1">
-           <NavLink href="/clientes" icon="users" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Clientes' : null">
-             Clientes
-           </NavLink>
-           <NavLink href="/citas" icon="calendar-alt" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Citas Agendadas' : null">
-             Citas Agendadas
-           </NavLink>
-         </div>
-       </div>
-
-       <!-- Reportes -->
-       <div class="mb-4">
-         <div
-           @click="toggleAccordion('reportes')"
-           class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
-         >
-           <span>Reportes</span>
-           <svg
-             :class="accordionStates.reportes ? 'rotate-90' : ''"
-             class="w-3 h-3 transition-transform duration-200"
-             fill="none"
-             stroke="currentColor"
-             viewBox="0 0 24 24"
-           >
-             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-           </svg>
-         </div>
-         <div v-show="accordionStates.reportes" class="mt-2 space-y-1">
-  <!-- Centro de Reportes Único -->
-  <NavLink href="/reportes" icon="chart-bar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Centro de Reportes' : null">
-    Centro de Reportes
-  </NavLink>
-</div>
-       </div>
-
-       <!-- Rentas y Equipos -->
+        <!-- Rentas PDV -->
         <div class="mb-4">
           <div
             @click="toggleAccordion('rentas')"
             class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
           >
-            <span>Rentas PDV</span>
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span>Rentas PDV</span>
+            </div>
             <svg
               :class="accordionStates.rentas ? 'rotate-90' : ''"
               class="w-3 h-3 transition-transform duration-200"
@@ -307,40 +192,18 @@
           </div>
         </div>
 
-        <!-- Taller Mantenimiento y VehÃƒÆ’Ã‚Â­culos -->
-        <div class="mb-4">
-          <div
-            @click="toggleAccordion('taller')"
-            class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
-          >
-            <span>Mantenimiento</span>
-            <svg
-              :class="accordionStates.taller ? 'rotate-90' : ''"
-              class="w-3 h-3 transition-transform duration-200"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
-          </div>
-          <div v-show="accordionStates.taller" class="mt-2 space-y-1">
-            <NavLink href="/carros" icon="car" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Vehículos' : null">
-              Vehículos
-            </NavLink>
-            <NavLink href="/mantenimientos" icon="tools" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Mantenimientos' : null">
-              Mantenimientos
-            </NavLink>
-          </div>
-        </div>
-
         <!-- Inventario -->
         <div class="mb-4">
           <div
             @click="toggleAccordion('inventario')"
             class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
           >
-            <span>Inventario</span>
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              </svg>
+              <span>Inventario</span>
+            </div>
             <svg
               :class="accordionStates.inventario ? 'rotate-90' : ''"
               class="w-3 h-3 transition-transform duration-200"
@@ -366,6 +229,170 @@
             </NavLink>
             <NavLink href="/movimientos-manuales" icon="exchange-alt" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Mov. Manuales' : null">
               Mov. Manuales
+            </NavLink>
+          </div>
+        </div>
+
+        <!-- Catálogos -->
+        <div class="mb-4">
+          <div
+            @click="toggleAccordion('catalogos')"
+            class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
+          >
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              <span>Catálogos</span>
+            </div>
+            <svg
+              :class="accordionStates.catalogos ? 'rotate-90' : ''"
+              class="w-3 h-3 transition-transform duration-200"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+          <div v-show="accordionStates.catalogos" class="mt-2 space-y-1">
+            <NavLink href="/categorias" icon="tags" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Categorías' : null">
+              Categorías
+            </NavLink>
+            <NavLink href="/marcas" icon="trademark" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Marcas de Productos' : null">
+              Marcas de Productos
+            </NavLink>
+            <NavLink href="/almacenes" icon="warehouse" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Almacenes' : null">
+              Almacenes
+            </NavLink>
+            <NavLink href="/servicios" icon="wrench" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Servicios' : null">
+              Servicios
+            </NavLink>
+          </div>
+        </div>
+
+        <!-- Reportes -->
+        <div class="mb-4">
+          <div
+            @click="toggleAccordion('reportes')"
+            class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
+          >
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              <span>Reportes</span>
+            </div>
+            <svg
+              :class="accordionStates.reportes ? 'rotate-90' : ''"
+              class="w-3 h-3 transition-transform duration-200"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+          <div v-show="accordionStates.reportes" class="mt-2 space-y-1">
+            <NavLink href="/reportes" icon="chart-bar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Centro de Reportes' : null">
+              Centro de Reportes
+            </NavLink>
+          </div>
+        </div>
+
+                <!-- Gestión de Herramientas -->
+        <div class="mb-4">
+          <div
+            @click="toggleAccordion('gestion_herramientas')"
+            class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
+          >
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M5 7l2 12h10l2-12M10 11h4m-6 0h.01M10 15h4m-6 0h.01" />
+              </svg>
+              <span>Gestión de Herramientas</span>
+            </div>
+            <svg
+              :class="accordionStates.gestion_herramientas ? 'rotate-90' : ''"
+              class="w-3 h-3 transition-transform duration-200"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+          <div v-show="accordionStates.gestion_herramientas" class="mt-2 space-y-1">
+            <NavLink href="/herramientas" icon="toolbox" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Catálogo de Herramientas' : null">
+              Catálogo de Herramientas
+            </NavLink>
+            <NavLink href="/tecnicos" icon="user-cog" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Catálogo de Técnicos' : null">
+              Catálogo de Técnicos
+            </NavLink>
+            <NavLink href="/herramientas/tecnicos-herramientas" icon="wrench" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Gestión de Herramientas' : null">
+              Gestión de Herramientas
+            </NavLink>
+          </div>
+        </div><!-- Administración -->
+        <div class="mb-4">
+          <div
+            @click="toggleAccordion('administracion')"
+            class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
+          >
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span>Administración</span>
+            </div>
+            <svg
+              :class="accordionStates.administracion ? 'rotate-90' : ''"
+              class="w-3 h-3 transition-transform duration-200"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+          <div v-show="accordionStates.administracion" class="mt-2 space-y-1">
+            <NavLink :href="routeOr('/backup')" icon="database" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Copia de Seguridad' : null">
+              Copia de Seguridad
+            </NavLink>
+            <NavLink href="/empresa/configuracion" icon="cog" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Configuración de Empresa' : null">
+              Configuración de Empresa
+            </NavLink>
+          </div>
+        </div>
+
+        <!-- Usuario -->
+        <div class="mb-4">
+          <div
+            @click="toggleAccordion('usuario')"
+            class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
+          >
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              <span>Usuario</span>
+            </div>
+            <svg
+              :class="accordionStates.usuario ? 'rotate-90' : ''"
+              class="w-3 h-3 transition-transform duration-200"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+          <div v-show="accordionStates.usuario" class="mt-2 space-y-1">
+            <NavLink href="/usuarios" icon="user" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Usuarios' : null">
+              Usuarios
+            </NavLink>
+            <NavLink href="/bitacora" icon="clipboard-list" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Bitácora' : null">
+              Bitácora
             </NavLink>
           </div>
         </div>
@@ -432,7 +459,8 @@ const accordionStates = ref({
   clientes_citas: false,
   reportes: false,
   rentas: false,
-  taller: false
+  taller: false,
+  gestion_herramientas: false
 });
 
 // FunciÃƒÆ’Ã‚Â³n para alternar acordeÃƒÆ’Ã‚Â³n
@@ -455,14 +483,14 @@ const getCurrentSection = () => {
   // Verificar inventario primero (mÃƒÆ’Ã‚Â¡s especÃƒÆ’Ã‚Â­fico)
   if (path.includes('/productos') || path.includes('/traspasos') || path.includes('/movimientos-inventario') || path.includes('/ajustes-inventario') || path.includes('/movimientos-manuales')) {
     return 'inventario';
+  } else if (path.includes('/clientes') || path.includes('/citas')) {
+    return 'ventas'; // Clientes y citas ahora están en Ventas
   } else if (path.includes('/cotizaciones') || path.includes('/pedidos') || path.includes('/ventas') || path.includes('/cuentas-por-cobrar') || path.includes('/entregas-dinero')) {
     return 'ventas';
   } else if (path.includes('/compras') || path.includes('/ordenescompra') || path.includes('/proveedores') || path.includes('/cuentas-por-pagar')) {
     return 'compras';
   } else if (path.includes('/servicios') || path.includes('/categorias') || path.includes('/marcas') || path.includes('/almacenes')) {
     return 'catalogos';
-  } else if (path.includes('/clientes') || path.includes('/citas')) {
-    return 'clientes_citas';
   } else if (path.includes('/backup') || path.includes('/empresa/configuracion')) {
     return 'administracion';
   } else if (path.includes('/usuarios') || path.includes('/bitacora')) {
@@ -471,9 +499,11 @@ const getCurrentSection = () => {
     return 'reportes';
   } else if (path.includes('/rentas') || path.includes('/equipos') || path.includes('/cobranza')) {
     return 'rentas';
-  } else if (path.includes('/carros') || path.includes('/mantenimientos') || path.includes('/tecnicos') || path.includes('/herramientas')) {
+  } else if (path.includes('/carros') || path.includes('/mantenimientos')) {
     return 'taller';
-  }
+  } else if (path.includes('/tecnicos') || path.includes('/herramientas') || path.includes('/herramientas/tecnicos-herramientas')) {
+    return 'gestion_herramientas';
+  } 
 
   return null;
 };
@@ -557,6 +587,8 @@ aside::-webkit-scrollbar-thumb:hover { background: rgba(156, 163, 175, 0.7); }
   }
 }
 </style>
+
+
 
 
 

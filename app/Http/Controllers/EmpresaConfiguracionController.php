@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
+use App\Services\CfdiValidationService;
 
 class EmpresaConfiguracionController extends Controller
 {
@@ -27,15 +28,24 @@ class EmpresaConfiguracionController extends Controller
      */
     public function update(Request $request)
     {
+        // Si es un PUT request desde Inertia, convertir a POST
+        if ($request->isMethod('put')) {
+            $request = Request::createFrom($request);
+            $request->setMethod('POST');
+        }
+
         $validator = Validator::make($request->all(), [
             'nombre_empresa' => 'required|string|max:255',
-            'rfc' => 'nullable|string|size:13',
+            'rfc' => 'nullable|string|min:12|max:13',
             'razon_social' => 'nullable|string|max:255',
-            'direccion' => 'nullable|string|max:500',
+            'calle' => 'nullable|string|max:255',
+            'numero_exterior' => 'nullable|string|max:50',
+            'numero_interior' => 'nullable|string|max:50',
             'telefono' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
             'sitio_web' => 'nullable|url|max:255',
             'codigo_postal' => 'nullable|string|max:10',
+            'colonia' => 'nullable|string|max:255',
             'ciudad' => 'nullable|string|max:255',
             'estado' => 'nullable|string|max:255',
             'pais' => 'nullable|string|max:255',
@@ -67,8 +77,36 @@ class EmpresaConfiguracionController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
+        $data = $validator->validated();
+
+        // Normalizar strings clave
+        $data['nombre_empresa'] = trim($data['nombre_empresa']);
+        if (!empty($data['rfc'])) {
+            $data['rfc'] = strtoupper(trim($data['rfc']));
+            $cfdi = new CfdiValidationService();
+            $erroresRfc = $cfdi->validarRfc($data['rfc']);
+            if (!empty($erroresRfc)) {
+                return redirect()->back()->withErrors(['rfc' => implode('. ', $erroresRfc)])->withInput();
+            }
+        }
+        if (!empty($data['color_principal'])) {
+            $data['color_principal'] = strtoupper($data['color_principal']);
+        }
+        if (!empty($data['color_secundario'])) {
+            $data['color_secundario'] = strtoupper($data['color_secundario']);
+        }
+        if (!empty($data['moneda'])) {
+            $data['moneda'] = strtoupper($data['moneda']);
+        }
+
+        // Forzar actualización de booleanos aunque no vengan en el request (checkbox desmarcado)
+        $booleanos = ['mantenimiento','registro_usuarios','notificaciones_email','backup_automatico','requerir_2fa'];
+        foreach ($booleanos as $b) {
+            $data[$b] = $request->boolean($b);
+        }
+
         $configuracion = EmpresaConfiguracion::getConfig();
-        $configuracion->update($request->only(array_keys($validator->getRules())));
+        $configuracion->update($data);
 
         return redirect()->route('empresa-configuracion.index')->with('success', 'Configuración actualizada correctamente.');
     }

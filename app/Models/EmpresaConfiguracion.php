@@ -14,11 +14,14 @@ class EmpresaConfiguracion extends Model
         'nombre_empresa',
         'rfc',
         'razon_social',
-        'direccion',
+        'calle',
+        'numero_exterior',
+        'numero_interior',
         'telefono',
         'email',
         'sitio_web',
         'codigo_postal',
+        'colonia',
         'ciudad',
         'estado',
         'pais',
@@ -77,7 +80,9 @@ class EmpresaConfiguracion extends Model
                     'nombre_empresa' => 'CDD - Sistema de Gestión',
                     'rfc' => 'XAXX010101000',
                     'razon_social' => 'Empresa de Ejemplo S.A. de C.V.',
-                    'direccion' => 'Dirección de ejemplo',
+                    'calle' => 'Calle de Ejemplo',
+                    'numero_exterior' => '123',
+                    'numero_interior' => 'A',
                     'telefono' => '555-000-0000',
                     'email' => 'contacto@empresa.com',
                     'sitio_web' => 'https://empresa.com',
@@ -150,20 +155,31 @@ class EmpresaConfiguracion extends Model
     }
 
     /**
-     * Obtener dirección completa formateada
-     */
-    public function getDireccionCompletaAttribute()
-    {
-        $partes = array_filter([
-            $this->direccion,
-            $this->codigo_postal ? 'C.P. ' . $this->codigo_postal : null,
-            $this->ciudad,
-            $this->estado,
-            $this->pais,
-        ]);
+      * Obtener dirección completa formateada
+      */
+     public function getDireccionCompletaAttribute()
+     {
+         // Construir dirección con calle y números
+         $direccionPartes = array_filter([
+             $this->calle,
+             $this->numero_exterior ? 'No. ' . $this->numero_exterior : null,
+             $this->numero_interior ? 'Int. ' . $this->numero_interior : null,
+         ]);
 
-        return implode(', ', $partes);
-    }
+         $direccion = implode(' ', $direccionPartes);
+
+         // Agregar resto de información incluyendo colonia
+         $partes = array_filter([
+             $direccion,
+             $this->colonia,
+             $this->codigo_postal ? 'C.P. ' . $this->codigo_postal : null,
+             $this->ciudad,
+             $this->estado,
+             $this->pais,
+         ]);
+
+         return implode(', ', $partes);
+     }
 
     /**
      * Verificar si el sistema está en modo mantenimiento
