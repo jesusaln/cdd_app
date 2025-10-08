@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
+use Carbon\Carbon;
 
 class RentasController extends Controller
 {
@@ -18,7 +19,12 @@ class RentasController extends Controller
      */
     public function index()
     {
-        $query = Renta::with(['cliente:id,nombre_razon_social,email', 'equipos:id,nombre']);
+        $query = Renta::with([
+            'cliente' => function($q) {
+                $q->selectRaw('id, nombre_razon_social, nombre_razon_social as nombre, email');
+            },
+            'equipos:id,nombre'
+        ]);
 
         // Aplicar filtros
         if (request('search')) {
@@ -88,7 +94,7 @@ class RentasController extends Controller
      */
     public function createData()
     {
-        $clientes = Cliente::select('id', 'nombre', 'email')->get();
+        $clientes = Cliente::select('id', 'nombre_razon_social', 'email')->get();
         $equipos = Equipo::where('estado', 'disponible')
             ->select('id', 'codigo', 'nombre', 'marca', 'modelo', 'numero_serie', 'precio_renta_mensual', 'estado', 'descripcion')
             ->get();
@@ -125,7 +131,7 @@ class RentasController extends Controller
         $prorroga = $request->tiene_prorroga ? ($request->meses_prorroga ?? 0) : 0;
         $mesesTotales = $duracion + $prorroga;
 
-        $fechaInicio = now()->parse($request->fecha_inicio);
+        $fechaInicio = Carbon::parse($request->fecha_inicio);
         $fechaFin = $fechaInicio->copy()->addMonths($mesesTotales);
 
         // Generar número de contrato único
@@ -294,7 +300,7 @@ class RentasController extends Controller
         $prorroga = $request->tiene_prorroga ? ($request->meses_prorroga ?? 0) : 0;
         $mesesTotales = $duracion + $prorroga;
 
-        $fechaInicio = now()->parse($request->fecha_inicio);
+        $fechaInicio = Carbon::parse($request->fecha_inicio);
         $fechaFin = $fechaInicio->copy()->addMonths($mesesTotales);
 
         // Actualizar datos básicos de la renta
@@ -426,7 +432,7 @@ class RentasController extends Controller
             return redirect()->back()->with('error', 'No se puede renovar una renta en estado: ' . $renta->estado);
         }
 
-        $nuevaFechaFin = now()->parse($renta->fecha_fin)->addMonths($request->meses_renovacion);
+        $nuevaFechaFin = Carbon::parse($renta->fecha_fin)->addMonths($request->meses_renovacion);
 
         $renta->update([
             'fecha_fin' => $nuevaFechaFin,
@@ -439,15 +445,21 @@ class RentasController extends Controller
             ]
         ]);
 
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'message' => 'Renta renovada exitosamente']);
+        }
         return redirect()->back()->with('success', 'Renta renovada exitosamente');
     }
 
     /**
      * Suspender una renta.
      */
-    public function suspender(Renta $renta)
+    public function suspender(Request $request, Renta $renta)
     {
         if ($renta->estado !== 'activo') {
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'error' => 'Solo se pueden suspender rentas activas'], 422);
+            }
             return redirect()->back()->with('error', 'Solo se pueden suspender rentas activas');
         }
 
@@ -458,15 +470,21 @@ class RentasController extends Controller
 
         $renta->update(['estado' => 'suspendido']);
 
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'message' => 'Renta suspendida correctamente']);
+        }
         return redirect()->back()->with('success', 'Renta suspendida correctamente');
     }
 
     /**
      * Reactivar una renta suspendida.
      */
-    public function reactivar(Renta $renta)
+    public function reactivar(Request $request, Renta $renta)
     {
         if ($renta->estado !== 'suspendido') {
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'error' => 'Solo se pueden reactivar rentas suspendidas'], 422);
+            }
             return redirect()->back()->with('error', 'Solo se pueden reactivar rentas suspendidas');
         }
 
@@ -477,15 +495,21 @@ class RentasController extends Controller
 
         $renta->update(['estado' => 'activo']);
 
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'message' => 'Renta reactivada correctamente']);
+        }
         return redirect()->back()->with('success', 'Renta reactivada correctamente');
     }
 
     /**
      * Finalizar una renta (liberar equipos).
      */
-    public function finalizar(Renta $renta)
+    public function finalizar(Request $request, Renta $renta)
     {
         if (!in_array($renta->estado, ['activo', 'proximo_vencimiento', 'vencido'])) {
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'error' => 'No se puede finalizar una renta en estado: ' . $renta->estado], 422);
+            }
             return redirect()->back()->with('error', 'No se puede finalizar una renta en estado: ' . $renta->estado);
         }
 
@@ -496,6 +520,9 @@ class RentasController extends Controller
 
         $renta->update(['estado' => 'finalizado']);
 
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'message' => 'Renta finalizada correctamente']);
+        }
         return redirect()->back()->with('success', 'Renta finalizada correctamente');
     }
 

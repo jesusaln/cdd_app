@@ -97,19 +97,27 @@ class HerramientaController extends Controller
 
     public function create()
     {
-        return Inertia::render('Herramientas/Create');
+        return Inertia::render('Herramientas/Create', [
+            'categorias' => CategoriaHerramienta::orderBy('nombre')->get(),
+        ]);
     }
 
     public function store(Request $request)
     {
         $data = $request->validate([
             'nombre' => 'required|string|max:255',
-            'numero_serie' => 'nullable|string|max:255',
+            'numero_serie' => 'nullable|string|max:255|unique:herramientas,numero_serie',
             'estado' => 'nullable|string|in:disponible,asignada,mantenimiento,baja,perdida',
-            'descripcion' => 'nullable|string',
-            'foto' => 'nullable|image|max:5120',
+            'descripcion' => 'nullable|string|max:1000',
+            'foto' => 'nullable|image|max:5120|mimes:jpeg,png,jpg,gif,webp',
+            'categoria_id' => 'nullable|exists:categoria_herramientas,id',
+            'vida_util_meses' => 'nullable|integer|min:1|max:120',
+            'costo_reemplazo' => 'nullable|numeric|min:0|max:999999.99',
+            'dias_para_mantenimiento' => 'nullable|integer|min:1|max:365',
+            'requiere_mantenimiento' => 'nullable|boolean',
         ]);
 
+        // Solo procesar la foto si se proporciona
         if ($request->hasFile('foto')) {
             $data['foto'] = $request->file('foto')->store('herramientas', 'public');
         }
@@ -127,7 +135,8 @@ class HerramientaController extends Controller
     public function edit(Herramienta $herramienta)
     {
         return Inertia::render('Herramientas/Edit', [
-            'herramienta' => $herramienta->only(['id','nombre','numero_serie','estado','descripcion','foto'])
+            'herramienta' => $herramienta->only(['id','nombre','numero_serie','estado','descripcion','foto','categoria_id']),
+            'categorias' => CategoriaHerramienta::orderBy('nombre')->get(),
         ]);
     }
 
@@ -170,19 +179,34 @@ class HerramientaController extends Controller
     {
         $data = $request->validate([
             'nombre' => 'required|string|max:255',
-            'numero_serie' => 'nullable|string|max:255',
+            'numero_serie' => 'nullable|string|max:255|unique:herramientas,numero_serie,' . $herramienta->id,
             'estado' => 'nullable|string|in:disponible,asignada,mantenimiento,baja,perdida',
-            'descripcion' => 'nullable|string',
-            'foto' => 'nullable|image|max:5120',
+            'descripcion' => 'nullable|string|max:1000',
+            'foto' => 'nullable|image|max:5120|mimes:jpeg,png,jpg,gif,webp',
+            'categoria_id' => 'nullable|exists:categoria_herramientas,id',
+            'vida_util_meses' => 'nullable|integer|min:1|max:120',
+            'costo_reemplazo' => 'nullable|numeric|min:0|max:999999.99',
+            'dias_para_mantenimiento' => 'nullable|integer|min:1|max:365',
+            'requiere_mantenimiento' => 'nullable|boolean',
         ]);
 
+        // Estado por defecto si no se proporciona
+        if (empty($data['estado'])) {
+            $data['estado'] = $herramienta->estado; // Mantener el estado actual
+        }
+
+        // Solo actualizar la foto si se proporciona una nueva
         if ($request->hasFile('foto')) {
             if ($herramienta->foto) {
                 Storage::disk('public')->delete($herramienta->foto);
             }
             $data['foto'] = $request->file('foto')->store('herramientas', 'public');
+        } else {
+            // Mantener la foto actual si no se proporciona una nueva
+            unset($data['foto']);
         }
 
+        // Actualizar la herramienta
         $herramienta->update($data);
 
         return redirect()->route('herramientas.index')->with('success', 'Herramienta actualizada correctamente');

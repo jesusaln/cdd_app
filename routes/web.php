@@ -52,6 +52,7 @@ use App\Http\Controllers\MovimientoManualController;
 use App\Http\Controllers\ReportesInventarioController;
 use App\Http\Controllers\ReportesController;
 use App\Http\Controllers\EmpresaConfiguracionController;
+use App\Http\Controllers\CategoriaHerramientaController;
 
 // Forzar patrón numérico para {herramienta} y evitar colisiones con rutas estáticas
 Route::pattern('herramienta', '[0-9]+');
@@ -339,6 +340,14 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::post('/rentas/{renta}/reactivar', [RentasController::class, 'reactivar'])->name('rentas.reactivar');
     Route::post('/rentas/{renta}/finalizar', [RentasController::class, 'finalizar'])->name('rentas.finalizar');
     Route::post('/rentas/{renta}/renovar', [RentasController::class, 'renovar'])->name('rentas.renovar');
+
+    // Categorías de herramientas (gestión completa)
+    Route::get('/herramientas/categorias', [CategoriaHerramientaController::class, 'index'])->name('herramientas.categorias.index');
+    Route::post('/herramientas/categorias', [CategoriaHerramientaController::class, 'store'])->name('herramientas.categorias.store');
+    Route::get('/herramientas/categorias/{categoria}', [CategoriaHerramientaController::class, 'show'])->name('herramientas.categorias.show');
+    Route::put('/herramientas/categorias/{categoria}', [CategoriaHerramientaController::class, 'update'])->name('herramientas.categorias.update');
+    Route::delete('/herramientas/categorias/{categoria}', [CategoriaHerramientaController::class, 'destroy'])->name('herramientas.categorias.destroy');
+    Route::patch('/herramientas/categorias/{categoria}/toggle', [CategoriaHerramientaController::class, 'toggle'])->name('herramientas.categorias.toggle');
 
     Route::resource('cobranza', CobranzaController::class);
     Route::post('/cobranza/{id}/marcar-pagada', [CobranzaController::class, 'marcarPagada'])->name('cobranza.marcar-pagada');
