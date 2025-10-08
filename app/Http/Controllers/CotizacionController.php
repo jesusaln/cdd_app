@@ -24,6 +24,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\ValidationException;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class CotizacionController extends Controller
@@ -1068,5 +1071,110 @@ class CotizacionController extends Controller
         $ultimo = Pedido::orderBy('id', 'desc')->first();
         $numero = $ultimo ? $ultimo->id + 1 : 1;
         return 'PED-' . str_pad($numero, 6, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Enviar cotización por email
+     */
+    public function enviarEmail(Request $request, $id)
+    {
+        $data = $request->validate([
+            'email_destino' => ['required','email'],
+        ]);
+
+        try {
+            // Obtener la cotización con todas las relaciones necesarias
+            $cotizacion = Cotizacion::with(['cliente', 'items.cotizable'])->findOrFail($id);
+
+            // Verificar que el cliente tenga email
+            if (!$cotizacion->cliente->email) {
+                throw ValidationException::withMessages([
+                    'email' => 'El cliente no tiene email configurado',
+                ]);
+            }
+
+            // Obtener configuración de empresa para el PDF
+            $configuracion = \App\Models\EmpresaConfiguracion::getConfig();
+
+            // Generar PDF de la cotización
+            $pdf = Pdf::loadView('cotizacion_pdf', [
+                'cotizacion' => $cotizacion,
+                'configuracion' => $configuracion,
+            ]);
+
+            // Configurar opciones del PDF
+            $pdf->setPaper('letter', 'portrait');
+            $pdf->setOptions([
+                'defaultFont' => 'sans-serif',
+                'isHtml5ParserEnabled' => true,
+                'isPhpEnabled' => true,
+            ]);
+
+            // Preparar datos del email
+            $datosEmail = [
+                'cotizacion' => $cotizacion,
+                'cliente' => $cotizacion->cliente,
+                'configuracion' => $configuracion,
+            ];
+
+            // Configurar SMTP con datos de la base de datos
+            config([
+                'mail.mailers.smtp.host' => $configuracion->smtp_host,
+                'mail.mailers.smtp.port' => $configuracion->smtp_port,
+                'mail.mailers.smtp.username' => $configuracion->smtp_username,
+                'mail.mailers.smtp.password' => $configuracion->smtp_password,
+                'mail.mailers.smtp.encryption' => $configuracion->smtp_encryption,
+                'mail.from.address' => $configuracion->email_from_address,
+                'mail.from.name' => $configuracion->email_from_name,
+            ]);
+
+            // Enviar email con PDF adjunto
+            Mail::send('emails.cotizacion', $datosEmail, function ($message) use ($cotizacion, $pdf, $configuracion) {
+                $message->to($cotizacion->cliente->email)
+                        ->subject("Cotización #{$cotizacion->numero_cotizacion} - {$configuracion->nombre_empresa}")
+                        ->attachData($pdf->output(), "cotizacion-{$cotizacion->numero_cotizacion}.pdf", [
+                            'mime' => 'application/pdf',
+                        ]);
+
+                // Agregar reply-to si está configurado
+                if ($configuracion->email_reply_to) {
+                    $message->replyTo($configuracion->email_reply_to);
+                }
+            });
+
+            Log::info("PDF de cotización enviado por email", [
+                'cotizacion_id' => $cotizacion->id,
+                'cliente_email' => $cotizacion->cliente->email,
+                'numero_cotizacion' => $cotizacion->numero_cotizacion,
+                'configuracion_smtp' => [
+                    'host' => $configuracion->smtp_host,
+                    'port' => $configuracion->smtp_port,
+                    'encryption' => $configuracion->smtp_encryption,
+                ]
+            ]);
+
+            return redirect()->back()->with('success', 'Cotización enviada por email correctamente');
+
+        } catch (\Exception $e) {
+            Log::error("Error al enviar PDF de cotización por email", [
+                'cotizacion_id' => $id,
+                'cliente_email' => $cotizacion->cliente->email ?? 'no disponible',
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            // Mensaje legible para el usuario
+            $mensaje = 'Error al enviar cotización por email';
+
+            if (strpos($e->getMessage(), 'authentication failed') !== false) {
+                $mensaje = 'Error de autenticación SMTP. Verifica la configuración de correo.';
+            } elseif (strpos($e->getMessage(), 'Connection refused') !== false) {
+                $mensaje = 'No se pudo conectar al servidor SMTP.';
+            }
+
+            throw ValidationException::withMessages([
+                'email' => $mensaje,
+            ]);
+        }
     }
 }

@@ -24,7 +24,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class VentaController extends Controller
 {
@@ -418,6 +420,23 @@ class VentaController extends Controller
             );
 
             DB::commit();
+
+            // ✅ ENVIAR PDF DE VENTA POR EMAIL AUTOMÁTICAMENTE
+            try {
+                $this->enviarVentaPorEmail($venta);
+                Log::info("PDF de venta enviado por email exitosamente", [
+                    'venta_id' => $venta->id,
+                    'cliente_email' => $venta->cliente->email,
+                    'numero_venta' => $venta->numero_venta
+                ]);
+            } catch (\Exception $e) {
+                Log::warning("Error al enviar PDF de venta por email", [
+                    'venta_id' => $venta->id,
+                    'error' => $e->getMessage()
+                ]);
+                // No fallar la creación de venta si falla el envío de email
+            }
+
             return redirect()->route('ventas.index')->with('success', 'Venta creada con ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â©xito');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -1057,5 +1076,91 @@ class VentaController extends Controller
         $ultima = Venta::orderBy('id', 'desc')->first();
         $numero = $ultima ? $ultima->id + 1 : 1;
         return 'VEN-' . date('Ymd') . '-' . str_pad($numero, 5, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Enviar PDF de venta por email automáticamente
+     */
+    private function enviarVentaPorEmail(Venta $venta)
+    {
+        try {
+            // Verificar que el cliente tenga email
+            if (!$venta->cliente->email) {
+                Log::info("Cliente sin email, omitiendo envío automático", [
+                    'venta_id' => $venta->id,
+                    'cliente_id' => $venta->cliente_id
+                ]);
+                return;
+            }
+
+            // Obtener configuración de empresa para el PDF
+            $configuracion = \App\Models\EmpresaConfiguracion::getConfig();
+
+            // Generar PDF de la venta
+            $pdf = Pdf::loadView('venta_pdf', [
+                'venta' => $venta,
+                'configuracion' => $configuracion,
+            ]);
+
+            // Configurar opciones del PDF
+            $pdf->setPaper('letter', 'portrait');
+            $pdf->setOptions([
+                'defaultFont' => 'sans-serif',
+                'isHtml5ParserEnabled' => true,
+                'isPhpEnabled' => true,
+            ]);
+
+            // Preparar datos del email
+            $datosEmail = [
+                'venta' => $venta,
+                'cliente' => $venta->cliente,
+                'configuracion' => $configuracion,
+            ];
+
+            // Configurar SMTP con datos de la base de datos
+            config([
+                'mail.mailers.smtp.host' => $configuracion->smtp_host,
+                'mail.mailers.smtp.port' => $configuracion->smtp_port,
+                'mail.mailers.smtp.username' => $configuracion->smtp_username,
+                'mail.mailers.smtp.password' => $configuracion->smtp_password,
+                'mail.mailers.smtp.encryption' => $configuracion->smtp_encryption,
+                'mail.from.address' => $configuracion->email_from_address,
+                'mail.from.name' => $configuracion->email_from_name,
+            ]);
+
+            // Enviar email con PDF adjunto
+            Mail::send('emails.venta', $datosEmail, function ($message) use ($venta, $pdf, $configuracion) {
+                $message->to($venta->cliente->email)
+                        ->subject("Venta #{$venta->numero_venta} - {$configuracion->nombre_empresa}")
+                        ->attachData($pdf->output(), "venta-{$venta->numero_venta}.pdf", [
+                            'mime' => 'application/pdf',
+                        ]);
+
+                // Agregar reply-to si está configurado
+                if ($configuracion->email_reply_to) {
+                    $message->replyTo($configuracion->email_reply_to);
+                }
+            });
+
+            Log::info("PDF de venta enviado por email", [
+                'venta_id' => $venta->id,
+                'cliente_email' => $venta->cliente->email,
+                'numero_venta' => $venta->numero_venta,
+                'configuracion_smtp' => [
+                    'host' => $configuracion->smtp_host,
+                    'port' => $configuracion->smtp_port,
+                    'encryption' => $configuracion->smtp_encryption,
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Error al enviar PDF de venta por email", [
+                'venta_id' => $venta->id,
+                'cliente_email' => $venta->cliente->email,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e; // Re-lanzar para que se maneje en el método padre
+        }
     }
 }

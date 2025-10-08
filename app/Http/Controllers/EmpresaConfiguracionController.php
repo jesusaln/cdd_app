@@ -6,6 +6,9 @@ use App\Models\EmpresaConfiguracion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use App\Services\CfdiValidationService;
 
@@ -71,6 +74,30 @@ class EmpresaConfiguracionController extends Controller
             'intentos_login' => 'nullable|integer|min:1|max:20',
             'tiempo_bloqueo' => 'nullable|integer|min:1|max:1440',
             'requerir_2fa' => 'nullable|boolean',
+            // Datos bancarios
+            'banco' => 'nullable|string|max:255',
+            'sucursal' => 'nullable|string|max:50',
+            'cuenta' => 'nullable|string|max:50',
+            'clabe' => 'nullable|string|size:18|regex:/^[0-9]{18}$/',
+            'titular' => 'nullable|string|max:255',
+            'numero_cuenta' => 'nullable|string|max:50',
+            'numero_tarjeta' => 'nullable|string|max:19|regex:/^[0-9\s\-]{13,19}$/',
+            'nombre_titular' => 'nullable|string|max:255',
+            'informacion_adicional_bancaria' => 'nullable|string|max:1000',
+            // Configuración de correo
+            'smtp_host' => 'nullable|string|max:255',
+            'smtp_port' => 'nullable|integer|min:1|max:65535',
+            'smtp_username' => 'nullable|string|max:255',
+            'smtp_password' => 'nullable|string|max:255',
+            'smtp_encryption' => 'nullable|string|in:tls,ssl',
+            'email_from_address' => 'nullable|email|max:255',
+            'email_from_name' => 'nullable|string|max:255',
+            'email_reply_to' => 'nullable|email|max:255',
+            // Configuración DKIM
+            'dkim_selector' => 'nullable|string|max:255',
+            'dkim_domain' => 'nullable|string|max:255',
+            'dkim_public_key' => 'nullable|string|max:2000',
+            'dkim_enabled' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -100,7 +127,7 @@ class EmpresaConfiguracionController extends Controller
         }
 
         // Forzar actualización de booleanos aunque no vengan en el request (checkbox desmarcado)
-        $booleanos = ['mantenimiento','registro_usuarios','notificaciones_email','backup_automatico','requerir_2fa'];
+        $booleanos = ['mantenimiento','registro_usuarios','notificaciones_email','backup_automatico','requerir_2fa','dkim_enabled'];
         foreach ($booleanos as $b) {
             $data[$b] = $request->boolean($b);
         }
@@ -269,5 +296,106 @@ class EmpresaConfiguracionController extends Controller
             'success' => true,
             'colores' => $colores,
         ]);
+    }
+
+    /**
+     * Enviar correo de prueba
+     */
+    public function testEmail(Request $request)
+    {
+        $data = $request->validate([
+            'email_destino' => ['required','email'],
+        ]);
+
+        try {
+            // ✅ OBTENER CONFIGURACIÓN ACTUAL DE LA BASE DE DATOS
+            $configuracion = EmpresaConfiguracion::getConfig();
+
+            Log::info('Configuración obtenida de BD para prueba de correo:', [
+                'smtp_host' => $configuracion->smtp_host,
+                'smtp_port' => $configuracion->smtp_port,
+                'smtp_username' => $configuracion->smtp_username,
+                'smtp_encryption' => $configuracion->smtp_encryption,
+            ]);
+
+            // TIP: valida coherencia puerto/cifrado ANTES de configurar
+            $port = (int) $configuracion->smtp_port;
+            $enc  = strtolower((string) $configuracion->smtp_encryption);
+
+            Log::info("Validando coherencia: puerto={$port}, cifrado={$enc}");
+
+            if (($port === 587 && $enc !== 'tls') || ($port === 465 && $enc !== 'ssl')) {
+                throw new \RuntimeException("Configuración inválida puerto/cifrado: puerto={$port}, enc={$enc}");
+            }
+
+            // ✅ CONFIGURAR MAIL CON DATOS DE BD
+            config([
+                'mail.mailers.smtp.host' => $configuracion->smtp_host,
+                'mail.mailers.smtp.port' => $configuracion->smtp_port,
+                'mail.mailers.smtp.username' => $configuracion->smtp_username,
+                'mail.mailers.smtp.password' => $configuracion->smtp_password,
+                'mail.mailers.smtp.encryption' => $configuracion->smtp_encryption,
+                'mail.from.address' => $configuracion->email_from_address,
+                'mail.from.name' => $configuracion->email_from_name,
+            ]);
+
+            Log::info('Configuración aplicada a Laravel Mail:', [
+                'host' => config('mail.mailers.smtp.host'),
+                'port' => config('mail.mailers.smtp.port'),
+                'username' => config('mail.mailers.smtp.username'),
+                'encryption' => config('mail.mailers.smtp.encryption'),
+                'from_address' => config('mail.from.address'),
+            ]);
+
+            Log::info('Configuración de Laravel Mail aplicada desde BD');
+
+            Mail::raw('Prueba de SMTP OK - ' . now()->format('Y-m-d H:i:s'), function ($m) use ($data) {
+                $m->to($data['email_destino'])->subject('Prueba SMTP - CDD');
+            });
+
+            Log::info('Correo de prueba enviado exitosamente');
+
+            // IMPORTANTE: con Inertia, redirige con flash (no JSON)
+            return back()->with('success', 'Correo de prueba enviado correctamente.');
+        } catch (\Throwable $e) {
+            // Log técnico completo
+            Log::error('Fallo al enviar correo de prueba', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            // Mensaje legible para el usuario (STRING, no array ni objeto)
+            $mensaje = $this->formatearErrorSmtp($e);
+
+            // Opción A: usar ValidationException (se muestra en form.errors.smtp)
+            throw ValidationException::withMessages([
+                'smtp' => $mensaje,  // <= STRING
+            ]);
+
+            // Opción B (alternativa): flash de error y redirect
+            // return back()->with('error', $mensaje);
+        }
+    }
+
+    /**
+     * Extrae un mensaje corto y útil del Throwable (si viene de SMTP/Symfony).
+     */
+    private function formatearErrorSmtp(\Throwable $e): string
+    {
+        $msg = $e->getMessage();
+
+        // Error específico de Hostinger: remitente no autorizado (solo si no tiene DKIM)
+        if (str_contains($msg, '553 5.7.1') && str_contains($msg, 'Sender address rejected')) {
+            return 'Error de Hostinger: Verifica que DKIM/SPF estén configurados correctamente en tu panel de Hostinger.';
+        }
+
+        // Acorta mensajes largos de autenticación (Hostinger suele devolver 535...)
+        if (str_contains($msg, 'Expected response code "235"') || str_contains($msg, '535 5.7.8')) {
+            return 'Autenticación SMTP fallida (535). Revisa usuario/contraseña y el cifrado/puerto.';
+        }
+
+        // Si llega algo tipo array serializado, quédate con la primera línea
+        $line = strtok($msg, "\n");
+        return mb_strimwidth($line ?: 'Error SMTP desconocido.', 0, 300, '…');
     }
 }

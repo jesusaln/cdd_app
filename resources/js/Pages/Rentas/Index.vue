@@ -483,6 +483,18 @@ const obtenerLabelEstado = (estado) => {
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
                     </button>
+                    <a
+                      :href="route('rentas.contrato', renta.id)"
+                      target="_blank"
+                      class="inline-flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white text-xs font-semibold rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                      title="Contrato PDF"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l4-4m-4 4l-4-4m20 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                      </svg>
+                      <span class="hidden sm:inline">Contrato PDF</span>
+                      <span class="sm:hidden">PDF</span>
+</a>
                     <!-- Botones condicionales según estado -->
                     <button
                       v-if="renta.raw.estado === 'activo'"

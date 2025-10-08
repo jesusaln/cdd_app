@@ -30,6 +30,59 @@ const logoPreview = ref(null)
 const faviconPreview = ref(null)
 const logoReportesPreview = ref(null)
 
+// Configuraciones predefinidas de proveedores SMTP
+const proveedoresSMTP = {
+  hostinger: {
+    nombre: 'Hostinger',
+    smtp_host: 'smtp.hostinger.com',
+    smtp_port: 587,
+    smtp_encryption: 'tls',
+    descripcion: 'Servidor SMTP de Hostinger (puerto 587 con TLS)'
+  },
+  gmail: {
+    nombre: 'Gmail',
+    smtp_host: 'smtp.gmail.com',
+    smtp_port: 587,
+    smtp_encryption: 'tls',
+    descripcion: 'Servidor SMTP de Gmail (requiere app password)'
+  },
+  outlook: {
+    nombre: 'Outlook',
+    smtp_host: 'smtp-mail.outlook.com',
+    smtp_port: 587,
+    smtp_encryption: 'tls',
+    descripcion: 'Servidor SMTP de Outlook/Hotmail'
+  },
+  yahoo: {
+    nombre: 'Yahoo',
+    smtp_host: 'smtp.mail.yahoo.com',
+    smtp_port: 587,
+    smtp_encryption: 'tls',
+    descripcion: 'Servidor SMTP de Yahoo Mail'
+  },
+  icloud: {
+    nombre: 'iCloud',
+    smtp_host: 'smtp.mail.me.com',
+    smtp_port: 587,
+    smtp_encryption: 'tls',
+    descripcion: 'Servidor SMTP de iCloud Mail'
+  },
+  zoho: {
+    nombre: 'Zoho Mail',
+    smtp_host: 'smtp.zoho.com',
+    smtp_port: 587,
+    smtp_encryption: 'tls',
+    descripcion: 'Servidor SMTP de Zoho Mail (gratis)'
+  },
+  personalizado: {
+    nombre: 'Personalizado',
+    smtp_host: '',
+    smtp_port: '',
+    smtp_encryption: '',
+    descripcion: 'Configuración manual personalizada'
+  }
+}
+
 // Formulario principal
 const form = useForm({
   nombre_empresa: props.configuracion.nombre_empresa,
@@ -68,6 +121,30 @@ const form = useForm({
   intentos_login: props.configuracion.intentos_login,
   tiempo_bloqueo: props.configuracion.tiempo_bloqueo,
   requerir_2fa: props.configuracion.requerir_2fa,
+  // Datos bancarios
+  banco: props.configuracion.banco,
+  sucursal: props.configuracion.sucursal,
+  cuenta: props.configuracion.cuenta,
+  clabe: props.configuracion.clabe,
+  titular: props.configuracion.titular,
+  numero_cuenta: props.configuracion.numero_cuenta,
+  numero_tarjeta: props.configuracion.numero_tarjeta,
+  nombre_titular: props.configuracion.nombre_titular,
+  informacion_adicional_bancaria: props.configuracion.informacion_adicional_bancaria,
+  // Configuración de correo
+  smtp_host: props.configuracion.smtp_host,
+  smtp_port: props.configuracion.smtp_port,
+  smtp_username: props.configuracion.smtp_username,
+  smtp_password: props.configuracion.smtp_password,
+  smtp_encryption: props.configuracion.smtp_encryption,
+  email_from_address: props.configuracion.email_from_address,
+  email_from_name: props.configuracion.email_from_name,
+  email_reply_to: props.configuracion.email_reply_to,
+  // Configuración DKIM
+  dkim_selector: props.configuracion.dkim_selector || 'hostingermail',
+  dkim_domain: props.configuracion.dkim_domain || 'asistenciavircom.com',
+  dkim_public_key: props.configuracion.dkim_public_key || '',
+  dkim_enabled: props.configuracion.dkim_enabled || false,
 })
 
 // SEPOMEX: colonias obtenidas por CP y colonia seleccionada
@@ -132,6 +209,8 @@ const tabs = [
   { id: 'general', nombre: 'Información General', icono: 'building' },
   { id: 'visual', nombre: 'Apariencia', icono: 'palette' },
   { id: 'documentos', nombre: 'Documentos', icono: 'document-text' },
+  { id: 'bancarios', nombre: 'Datos Bancarios', icono: 'credit-card' },
+  { id: 'correo', nombre: 'Configuración de Correo', icono: 'envelope' },
   { id: 'sistema', nombre: 'Sistema', icono: 'cog' },
   { id: 'seguridad', nombre: 'Seguridad', icono: 'shield-check' },
 ]
@@ -141,6 +220,8 @@ const tabIcons = {
   building: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
   palette: 'M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v12a4 4 0 004 4h4a2 2 0 002-2V5z',
   'document-text': 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+  'credit-card': 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z',
+  envelope: 'M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
   cog: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z',
   'shield-check': 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
 }
@@ -287,6 +368,115 @@ const previewColores = () => {
       notyf.error('Error al aplicar vista previa de colores')
     }
   })
+}
+
+// Método para aplicar configuración predefinida de proveedor
+const aplicarConfiguracionProveedor = (proveedor) => {
+  const config = proveedoresSMTP[proveedor]
+  if (config) {
+    form.smtp_host = config.smtp_host
+    form.smtp_port = config.smtp_port
+    form.smtp_encryption = config.smtp_encryption
+
+    // Si es personalizado, limpiar campos para configuración manual
+    if (proveedor === 'personalizado') {
+      form.smtp_username = ''
+      form.smtp_password = ''
+      form.email_from_address = ''
+      form.email_from_name = ''
+      form.email_reply_to = ''
+    }
+
+    console.log(`✅ Configuración aplicada: ${config.nombre}`)
+    notyf.success(`Configuración de ${config.nombre} aplicada`)
+  }
+}
+
+// Método para verificar configuración antes de enviar
+const verificarConfiguracionCorreo = () => {
+  console.log('=== VERIFICANDO CONFIGURACIÓN DE CORREO ===');
+
+  // Obtener la contraseña real del formulario (no la enmascarada)
+  const passwordField = document.getElementById('smtp_password');
+  const realPassword = passwordField ? passwordField.value : form.smtp_password;
+
+  const config = {
+    smtp_host: form.smtp_host,
+    smtp_port: form.smtp_port,
+    smtp_username: form.smtp_username,
+    smtp_password: realPassword ? '***configurada***' : 'no configurada',
+    smtp_encryption: form.smtp_encryption,
+    email_from_address: form.email_from_address,
+    email_from_name: form.email_from_name,
+    email_reply_to: form.email_reply_to,
+  };
+
+  console.log('Configuración actual:', config);
+
+  // Validaciones básicas
+  const errores = [];
+
+  if (!form.smtp_host) errores.push('Servidor SMTP no configurado');
+  if (!form.smtp_port) errores.push('Puerto SMTP no configurado');
+  if (!form.smtp_username) errores.push('Usuario SMTP no configurado');
+  if (!realPassword) errores.push('Contraseña SMTP no configurada');
+  if (!form.email_from_address) errores.push('Dirección de remitente no configurada');
+  if (!form.email_from_name) errores.push('Nombre del remitente no configurado');
+
+  if (errores.length > 0) {
+    console.error('Errores de configuración encontrados:', errores);
+    notyf.error('Configuración incompleta: ' + errores.join(', '));
+    return false;
+  }
+
+  console.log('✅ Configuración válida');
+  return true;
+}
+
+// Método para probar configuración de correo
+const probarCorreo = () => {
+  console.log('=== INICIANDO PRUEBA DE CORREO ===');
+
+  // Verificar configuración primero
+  if (!verificarConfiguracionCorreo()) {
+    console.log('❌ Prueba cancelada debido a configuración incompleta');
+    return;
+  }
+
+  // Ahora que tienes DKIM configurado, puedes enviar a cualquier dominio
+  const emailDestino = 'jesuslopeznoriega@hotmail.com'; // Tu email personal para pruebas
+  console.log('Email destino:', emailDestino);
+  console.log('Email remitente:', form.email_from_address);
+
+  if (confirm(`✅ DKIM configurado - ¿Enviar prueba desde ${form.email_from_address} a ${emailDestino}?`)) {
+    console.log('✅ Usuario confirmó envío de correo de prueba');
+
+    router.post(route('empresa-configuracion.test-email'), {
+      email_destino: emailDestino,
+    }, {
+      onStart: () => {
+        console.log('🚀 Enviando petición al servidor...');
+      },
+      onSuccess: (response) => {
+        console.log('✅ Respuesta exitosa del servidor:', response);
+        console.log('Mensaje de éxito:', response.props?.success);
+        notyf.success('Correo de prueba enviado correctamente. Revisa tu bandeja de entrada.')
+      },
+      onError: (errors) => {
+        console.error('❌ Error del servidor:', errors);
+        console.error('Errores específicos:', errors.smtp || errors.email_error || errors.error);
+
+        // Manejar errores de ValidationException (form.errors.smtp)
+        const errorMessage = errors.smtp || errors.email_error || errors.error || 'Error desconocido';
+        notyf.error('Error al enviar correo de prueba: ' + errorMessage);
+      },
+      onFinish: () => {
+        console.log('🏁 Petición finalizada');
+      }
+    })
+  } else {
+    console.log('❌ Usuario canceló el envío de correo de prueba');
+  }
 }
 
 // Computed para obtener la pestaña activa
@@ -1214,6 +1404,517 @@ const tabActiva = computed(() => {
               </div>
             </div>
 
+            <!-- Datos Bancarios -->
+            <div v-if="activeTab === 'bancarios'" class="space-y-8">
+              <div>
+                <h2 class="text-xl font-semibold text-gray-900 mb-6">Datos Bancarios</h2>
+                <p class="text-sm text-gray-600 mb-6">Información bancaria de la empresa para pagos y cobros</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <!-- Nombre del banco -->
+                  <div>
+                    <label for="banco" class="block text-sm font-medium text-gray-700 mb-2">
+                      Nombre del Banco *
+                    </label>
+                    <input
+                      v-model="form.banco"
+                      id="banco"
+                      type="text"
+                      class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Ej: Banco Santander, BBVA, Banorte, etc."
+                    />
+                    <p v-if="form.errors.banco" class="mt-1 text-sm text-red-600">
+                      {{ form.errors.banco }}
+                    </p>
+                  </div>
+
+                  <!-- Sucursal -->
+                  <div>
+                    <label for="sucursal" class="block text-sm font-medium text-gray-700 mb-2">
+                      Sucursal
+                    </label>
+                    <input
+                      v-model="form.sucursal"
+                      id="sucursal"
+                      type="text"
+                      class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Número de sucursal"
+                    />
+                    <p v-if="form.errors.sucursal" class="mt-1 text-sm text-red-600">
+                      {{ form.errors.sucursal }}
+                    </p>
+                  </div>
+
+                  <!-- Número de cuenta -->
+                  <div>
+                    <label for="cuenta" class="block text-sm font-medium text-gray-700 mb-2">
+                      Número de Cuenta
+                    </label>
+                    <input
+                      v-model="form.cuenta"
+                      id="cuenta"
+                      type="text"
+                      class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Número de cuenta bancaria"
+                    />
+                    <p v-if="form.errors.cuenta" class="mt-1 text-sm text-red-600">
+                      {{ form.errors.cuenta }}
+                    </p>
+                  </div>
+
+                  <!-- CLABE -->
+                  <div>
+                    <label for="clabe" class="block text-sm font-medium text-gray-700 mb-2">
+                      CLABE
+                    </label>
+                    <input
+                      v-model="form.clabe"
+                      id="clabe"
+                      type="text"
+                      maxlength="18"
+                      class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="18 dígitos de la CLABE"
+                    />
+                    <p v-if="form.errors.clabe" class="mt-1 text-sm text-red-600">
+                      {{ form.errors.clabe }}
+                    </p>
+                  </div>
+
+                  <!-- Nombre del titular -->
+                  <div>
+                    <label for="titular" class="block text-sm font-medium text-gray-700 mb-2">
+                      Nombre del Titular
+                    </label>
+                    <input
+                      v-model="form.titular"
+                      id="titular"
+                      type="text"
+                      class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Nombre completo del titular de la cuenta"
+                    />
+                    <p v-if="form.errors.titular" class="mt-1 text-sm text-red-600">
+                      {{ form.errors.titular }}
+                    </p>
+                  </div>
+
+                  <!-- Número de tarjeta -->
+                  <div>
+                    <label for="numero_tarjeta" class="block text-sm font-medium text-gray-700 mb-2">
+                      Número de Tarjeta (Opcional)
+                    </label>
+                    <input
+                      v-model="form.numero_tarjeta"
+                      id="numero_tarjeta"
+                      type="text"
+                      maxlength="19"
+                      class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Número de tarjeta corporativa"
+                    />
+                    <p v-if="form.errors.numero_tarjeta" class="mt-1 text-sm text-red-600">
+                      {{ form.errors.numero_tarjeta }}
+                    </p>
+                  </div>
+
+                  <!-- Información adicional bancaria -->
+                  <div class="md:col-span-2">
+                    <label for="informacion_adicional_bancaria" class="block text-sm font-medium text-gray-700 mb-2">
+                      Información Adicional Bancaria
+                    </label>
+                    <textarea
+                      v-model="form.informacion_adicional_bancaria"
+                      id="informacion_adicional_bancaria"
+                      rows="4"
+                      class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical"
+                      placeholder="Sucursal, referencias adicionales, instrucciones especiales, etc."
+                    ></textarea>
+                    <p v-if="form.errors.informacion_adicional_bancaria" class="mt-1 text-sm text-red-600">
+                      {{ form.errors.informacion_adicional_bancaria }}
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Advertencia de seguridad -->
+                <div class="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div class="flex">
+                    <div class="flex-shrink-0">
+                      <svg class="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                      </svg>
+                    </div>
+                    <div class="ml-3">
+                      <h3 class="text-sm font-medium text-yellow-800">
+                        Información Sensible
+                      </h3>
+                      <div class="mt-2 text-sm text-yellow-700">
+                        <p>
+                          Los datos bancarios son información sensible. Asegúrese de que solo personal autorizado tenga acceso a esta configuración.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Configuración de Correo -->
+            <div v-if="activeTab === 'correo'" class="space-y-8">
+              <div>
+                <h2 class="text-xl font-semibold text-gray-900 mb-6">Configuración de Correo</h2>
+                <p class="text-sm text-gray-600 mb-6">Configuración para envío de correos desde el sistema</p>
+
+                <!-- Configuración SMTP -->
+                <div class="mb-8">
+                  <h3 class="text-lg font-medium text-gray-900 mb-4">Servidor SMTP</h3>
+
+                  <!-- Selector de proveedor SMTP -->
+                  <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-3">
+                      Proveedor de Correo
+                    </label>
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                      <button
+                        v-for="(config, key) in proveedoresSMTP"
+                        :key="key"
+                        type="button"
+                        @click="aplicarConfiguracionProveedor(key)"
+                        :class="[
+                          'p-3 text-sm border rounded-lg transition-all duration-200 text-center',
+                          'hover:bg-blue-50 hover:border-blue-300',
+                          key === 'hostinger' && form.smtp_host === 'smtp.hostinger.com'
+                            ? 'bg-blue-100 border-blue-500 text-blue-700'
+                            : 'bg-white border-gray-300 text-gray-700'
+                        ]
+                      ">
+                        <div class="font-medium">{{ config.nombre }}</div>
+                        <div class="text-xs text-gray-500 mt-1">{{ config.smtp_port }}</div>
+                      </button>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2">
+                      Selecciona un proveedor para autocompletar la configuración básica
+                    </p>
+                  </div>
+
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- SMTP Host -->
+                    <div>
+                      <label for="smtp_host" class="block text-sm font-medium text-gray-700 mb-2">
+                        Servidor SMTP *
+                      </label>
+                      <input
+                        v-model="form.smtp_host"
+                        id="smtp_host"
+                        type="text"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="smtp.gmail.com"
+                      />
+                      <p v-if="form.errors.smtp_host" class="mt-1 text-sm text-red-600">
+                        {{ form.errors.smtp_host }}
+                      </p>
+                    </div>
+
+                    <!-- SMTP Port -->
+                    <div>
+                      <label for="smtp_port" class="block text-sm font-medium text-gray-700 mb-2">
+                        Puerto SMTP *
+                      </label>
+                      <select
+                        v-model="form.smtp_port"
+                        id="smtp_port"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="">Seleccionar puerto</option>
+                        <option value="587">587 (SMTP TLS - Recomendado para Hostinger)</option>
+                        <option value="465">465 (SMTP SSL)</option>
+                        <option value="25">25 (SMTP estándar)</option>
+                        <option value="2525">2525 (SMTP alternativo)</option>
+                      </select>
+                      <p v-if="form.errors.smtp_port" class="mt-1 text-sm text-red-600">
+                        {{ form.errors.smtp_port }}
+                      </p>
+                    </div>
+
+                    <!-- SMTP Username -->
+                    <div>
+                      <label for="smtp_username" class="block text-sm font-medium text-gray-700 mb-2">
+                        Usuario SMTP *
+                      </label>
+                      <input
+                        v-model="form.smtp_username"
+                        id="smtp_username"
+                        type="text"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="usuario@dominio.com"
+                      />
+                      <p v-if="form.errors.smtp_username" class="mt-1 text-sm text-red-600">
+                        {{ form.errors.smtp_username }}
+                      </p>
+                    </div>
+
+                    <!-- SMTP Password -->
+                    <div>
+                      <label for="smtp_password" class="block text-sm font-medium text-gray-700 mb-2">
+                        Contraseña SMTP *
+                      </label>
+                      <input
+                        v-model="form.smtp_password"
+                        id="smtp_password"
+                        type="password"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Contraseña de la cuenta"
+                      />
+                      <p v-if="form.errors.smtp_password" class="mt-1 text-sm text-red-600">
+                        {{ form.errors.smtp_password }}
+                      </p>
+                    </div>
+
+                    <!-- SMTP Encryption -->
+                    <div>
+                      <label for="smtp_encryption" class="block text-sm font-medium text-gray-700 mb-2">
+                        Encriptación
+                      </label>
+                      <select
+                        v-model="form.smtp_encryption"
+                        id="smtp_encryption"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="">Sin encriptación</option>
+                        <option value="tls">TLS</option>
+                        <option value="ssl">SSL</option>
+                      </select>
+                      <p v-if="form.errors.smtp_encryption" class="mt-1 text-sm text-red-600">
+                        {{ form.errors.smtp_encryption }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Configuración de Email -->
+                <div class="mb-8">
+                  <h3 class="text-lg font-medium text-gray-900 mb-4">Configuración de Email</h3>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Email From Address -->
+                    <div>
+                      <label for="email_from_address" class="block text-sm font-medium text-gray-700 mb-2">
+                        Dirección de Remitente *
+                      </label>
+                      <input
+                        v-model="form.email_from_address"
+                        id="email_from_address"
+                        type="email"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="noreply@empresa.com"
+                      />
+                      <p v-if="form.errors.email_from_address" class="mt-1 text-sm text-red-600">
+                        {{ form.errors.email_from_address }}
+                      </p>
+                    </div>
+
+                    <!-- Email From Name -->
+                    <div>
+                      <label for="email_from_name" class="block text-sm font-medium text-gray-700 mb-2">
+                        Nombre del Remitente *
+                      </label>
+                      <input
+                        v-model="form.email_from_name"
+                        id="email_from_name"
+                        type="text"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Empresa S.A. de C.V."
+                      />
+                      <p v-if="form.errors.email_from_name" class="mt-1 text-sm text-red-600">
+                        {{ form.errors.email_from_name }}
+                      </p>
+                    </div>
+
+                    <!-- Email Reply To -->
+                    <div class="md:col-span-2">
+                      <label for="email_reply_to" class="block text-sm font-medium text-gray-700 mb-2">
+                        Responder A (Reply-To)
+                      </label>
+                      <input
+                        v-model="form.email_reply_to"
+                        id="email_reply_to"
+                        type="email"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="contacto@empresa.com"
+                      />
+                      <p v-if="form.errors.email_reply_to" class="mt-1 text-sm text-red-600">
+                        {{ form.errors.email_reply_to }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Información de debugging (solo visible si hay errores) -->
+                <div v-if="$page.props.errors.smtp || $page.props.errors.email_error" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <h4 class="text-sm font-medium text-red-800">Información de Debugging</h4>
+                  <details class="mt-2">
+                    <summary class="text-sm text-red-700 cursor-pointer">Ver detalles técnicos</summary>
+                    <pre class="mt-2 text-xs text-red-600 bg-red-100 p-2 rounded overflow-auto">{{ JSON.stringify($page.props.errors, null, 2) }}</pre>
+                  </details>
+                </div>
+
+                <!-- Información de debugging exitoso (solo visible si hay éxito) -->
+                <div v-if="$page.props.success && $page.props.debug_info" class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <h4 class="text-sm font-medium text-green-800">Información de Debugging (Éxito)</h4>
+                  <details class="mt-2">
+                    <summary class="text-sm text-green-700 cursor-pointer">Ver detalles del envío</summary>
+                    <pre class="mt-2 text-xs text-green-600 bg-green-100 p-2 rounded overflow-auto">{{ JSON.stringify($page.props.debug_info, null, 2) }}</pre>
+                  </details>
+                </div>
+
+                <!-- Configuración DKIM -->
+                <div class="mb-8">
+                  <h3 class="text-lg font-medium text-gray-900 mb-4">Configuración DKIM</h3>
+                  <p class="text-sm text-gray-600 mb-4">
+                    DKIM ayuda a verificar que tus correos no sean marcados como spam. Configúralo si tienes acceso a los registros DNS de tu dominio.
+                  </p>
+
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- DKIM Habilitado -->
+                    <div class="md:col-span-2">
+                      <div class="flex items-center">
+                        <input
+                          v-model="form.dkim_enabled"
+                          id="dkim_enabled"
+                          type="checkbox"
+                          class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <label for="dkim_enabled" class="ml-2 block text-sm text-gray-900">
+                          Habilitar firma DKIM para mejorar entregabilidad
+                        </label>
+                      </div>
+                      <p class="text-xs text-gray-500 mt-1">
+                        Recomendado para mejorar la reputación del remitente y evitar filtros de spam.
+                      </p>
+                    </div>
+
+                    <!-- Selector DKIM -->
+                    <div>
+                      <label for="dkim_selector" class="block text-sm font-medium text-gray-700 mb-2">
+                        Selector DKIM
+                      </label>
+                      <input
+                        v-model="form.dkim_selector"
+                        id="dkim_selector"
+                        type="text"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="hostingermail"
+                      />
+                      <p class="text-xs text-gray-500 mt-1">
+                        Normalmente es "hostingermail" para Hostinger
+                      </p>
+                    </div>
+
+                    <!-- Dominio DKIM -->
+                    <div>
+                      <label for="dkim_domain" class="block text-sm font-medium text-gray-700 mb-2">
+                        Dominio
+                      </label>
+                      <input
+                        v-model="form.dkim_domain"
+                        id="dkim_domain"
+                        type="text"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="asistenciavircom.com"
+                      />
+                      <p class="text-xs text-gray-500 mt-1">
+                        Tu dominio principal
+                      </p>
+                    </div>
+
+                    <!-- Clave Pública DKIM -->
+                    <div class="md:col-span-2">
+                      <label for="dkim_public_key" class="block text-sm font-medium text-gray-700 mb-2">
+                        Clave Pública DKIM
+                      </label>
+                      <textarea
+                        v-model="form.dkim_public_key"
+                        id="dkim_public_key"
+                        rows="4"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical font-mono text-sm"
+                        placeholder="dkim"
+                      ></textarea>
+                      <p class="text-xs text-gray-500 mt-1">
+                        Copia exactamente la clave pública de tu proveedor de correo
+                      </p>
+                    </div>
+                  </div>
+
+                  <!-- Información de ayuda DKIM -->
+                  <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+                    <h4 class="text-sm font-medium text-gray-900 mb-3">¿Cómo configurar DKIM?</h4>
+                    <div class="space-y-3 text-sm text-gray-700">
+                      <div class="flex items-start gap-3">
+                        <span class="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">1</span>
+                        <div>
+                          <p class="font-medium">Ve al panel de tu proveedor de correo</p>
+                          <p class="text-gray-500">Busca la sección de DNS o DKIM</p>
+                        </div>
+                      </div>
+                      <div class="flex items-start gap-3">
+                        <span class="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">2</span>
+                        <div>
+                          <p class="font-medium">Copia los registros DNS</p>
+                          <p class="text-gray-500">Busca los registros CNAME y TXT de DKIM</p>
+                        </div>
+                      </div>
+                      <div class="flex items-start gap-3">
+                        <span class="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">3</span>
+                        <div>
+                          <p class="font-medium">Pégalos en este formulario</p>
+                          <p class="text-gray-500">Completa los campos con la información de tu proveedor</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Botón de prueba -->
+                <div class="mb-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <h4 class="text-sm font-medium text-blue-800">Probar Configuración</h4>
+                      <p class="text-sm text-blue-700 mt-1">
+                        Envía un correo de prueba para verificar que la configuración funcione correctamente.
+                      </p>
+                      <p class="text-xs text-blue-600 mt-1">
+                        Revisa la consola del navegador (F12) para ver el proceso detallado.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      @click="probarCorreo"
+                      class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Enviar Correo de Prueba
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Advertencia de seguridad -->
+                <div class="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div class="flex">
+                    <div class="flex-shrink-0">
+                      <svg class="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                      </svg>
+                    </div>
+                    <div class="ml-3">
+                      <h3 class="text-sm font-medium text-yellow-800">
+                        Información Sensible
+                      </h3>
+                      <div class="mt-2 text-sm text-yellow-700">
+                        <p>
+                          Las credenciales SMTP son información sensible. Asegúrese de que solo personal autorizado tenga acceso a esta configuración.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Botones de acción -->
             <div class="flex justify-end gap-4 mt-8 pt-6 border-t border-gray-200">
               <button
@@ -1239,6 +1940,7 @@ const getTabIconPath = (icono) => {
     building: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
     palette: 'M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v12a4 4 0 004 4h4a2 2 0 002-2V5z',
     'document-text': 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+    'credit-card': 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z',
     cog: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z',
     'shield-check': 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
   }

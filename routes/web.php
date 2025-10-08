@@ -30,6 +30,7 @@ use App\Http\Controllers\OrdenCompraController;
 use App\Http\Controllers\DatabaseBackupController;
 use App\Http\Controllers\EquipoController;
 use App\Http\Controllers\RentasController;
+use App\Http\Controllers\RentasContratoController;
 use App\Http\Controllers\CobranzaController;
 use App\Http\Controllers\EntregaDineroController;
 use App\Http\Controllers\BitacoraActividadController;
@@ -335,6 +336,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::put('/equipos/{equipo}/toggle', [EquipoController::class, 'toggle'])->name('equipos.toggle');
     Route::get('/equipos/export', [EquipoController::class, 'export'])->name('equipos.export');
     Route::resource('rentas', RentasController::class);
+    // Contrato de Renta (PDF)
+    Route::get('/rentas/{renta}/contrato', [RentasContratoController::class, 'contratoPDF'])->name('rentas.contrato');
     Route::post('/rentas/{renta}/duplicate', [RentasController::class, 'duplicate'])->name('rentas.duplicate');
     Route::post('/rentas/{renta}/suspender', [RentasController::class, 'suspender'])->name('rentas.suspender');
     Route::post('/rentas/{renta}/reactivar', [RentasController::class, 'reactivar'])->name('rentas.reactivar');
@@ -376,6 +379,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
         Route::delete('/configuracion/logo-reportes', [EmpresaConfiguracionController::class, 'eliminarLogoReportes'])->name('eliminar-logo-reportes');
         Route::get('/configuracion/api', [EmpresaConfiguracionController::class, 'getConfig'])->name('api');
         Route::post('/configuracion/preview-colores', [EmpresaConfiguracionController::class, 'previewColores'])->name('preview-colores');
+        Route::post('/configuracion/test-email', [EmpresaConfiguracionController::class, 'testEmail'])->name('test-email');
     });
 
 
@@ -426,6 +430,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::get('/cotizaciones/{id}/confirmar-pedido', [CotizacionController::class, 'mostrarConfirmacionPedido'])->name('cotizaciones.confirmar-pedido');
     Route::get('/cotizaciones/{id}/confirmar-venta', [CotizacionController::class, 'mostrarConfirmacionVenta'])->name('cotizaciones.confirmar-venta');
     Route::post('/cotizaciones/draft', [CotizacionController::class, 'guardarBorrador'])->name('cotizaciones.storeDraft');
+    Route::post('/cotizaciones/{id}/enviar-email', [CotizacionController::class, 'enviarEmail'])->name('cotizaciones.enviar-email');
     Route::post('/cotizaciones/{cotizacion}/duplicate', [CotizacionController::class, 'duplicate'])->name('cotizaciones.duplicate');
     Route::post('/cotizaciones/{id}/enviar-pedido', [CotizacionController::class, 'enviarAPedido'])->name('cotizaciones.enviar-pedido');
     Route::post('/cotizaciones/{id}/cancel', [CotizacionController::class, 'cancel'])->name('cotizaciones.cancel');

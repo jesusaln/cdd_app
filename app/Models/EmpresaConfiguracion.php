@@ -50,6 +50,31 @@ class EmpresaConfiguracion extends Model
         'intentos_login',
         'tiempo_bloqueo',
         'requerir_2fa',
+        // Datos bancarios existentes
+        'banco',
+        'sucursal',
+        'cuenta',
+        'clabe',
+        'titular',
+        // Datos bancarios adicionales
+        'numero_cuenta',
+        'numero_tarjeta',
+        'nombre_titular',
+        'informacion_adicional_bancaria',
+        // Configuración de correo
+        'smtp_host',
+        'smtp_port',
+        'smtp_username',
+        'smtp_password',
+        'smtp_encryption',
+        'email_from_address',
+        'email_from_name',
+        'email_reply_to',
+        // Configuración DKIM
+        'dkim_selector',
+        'dkim_domain',
+        'dkim_public_key',
+        'dkim_enabled',
     ];
 
     protected $casts = [
@@ -104,6 +129,26 @@ class EmpresaConfiguracion extends Model
                     'retencion_backups' => 30,
                     'intentos_login' => 5,
                     'tiempo_bloqueo' => 15,
+                    // Datos bancarios por defecto
+                    'banco' => 'Banamex',
+                    'sucursal' => '7008',
+                    'cuenta' => '5952062',
+                    'clabe' => '002760700859520625',
+                    'titular' => 'Jesús Alberto López Noriega',
+                    // Configuración de correo Hostinger
+                    'smtp_host' => 'smtp.hostinger.com',
+                    'smtp_port' => 587,
+                    'smtp_username' => 'documentos_digitales@asistenciavircom.com',
+                    'smtp_password' => 'Anahid2188',
+                    'smtp_encryption' => 'tls',
+                    'email_from_address' => 'documentos_digitales@asistenciavircom.com',
+                    'email_from_name' => 'CDD - Sistema de Gestión',
+                    'email_reply_to' => 'documentos_digitales@asistenciavircom.com',
+                    // Configuración DKIM por defecto
+                    'dkim_selector' => 'hostingermail',
+                    'dkim_domain' => 'asistenciavircom.com',
+                    'dkim_public_key' => '',
+                    'dkim_enabled' => false,
                 ]);
             }
 
@@ -155,31 +200,31 @@ class EmpresaConfiguracion extends Model
     }
 
     /**
-      * Obtener dirección completa formateada
-      */
-     public function getDireccionCompletaAttribute()
-     {
-         // Construir dirección con calle y números
-         $direccionPartes = array_filter([
-             $this->calle,
-             $this->numero_exterior ? 'No. ' . $this->numero_exterior : null,
-             $this->numero_interior ? 'Int. ' . $this->numero_interior : null,
-         ]);
+     * Obtener dirección completa formateada
+     */
+    public function getDireccionCompletaAttribute()
+    {
+        // Construir dirección con calle y números
+        $direccionPartes = array_filter([
+            $this->calle,
+            $this->numero_exterior ? 'No. ' . $this->numero_exterior : null,
+            $this->numero_interior ? 'Int. ' . $this->numero_interior : null,
+        ]);
 
-         $direccion = implode(' ', $direccionPartes);
+        $direccion = implode(' ', $direccionPartes);
 
-         // Agregar resto de información incluyendo colonia
-         $partes = array_filter([
-             $direccion,
-             $this->colonia,
-             $this->codigo_postal ? 'C.P. ' . $this->codigo_postal : null,
-             $this->ciudad,
-             $this->estado,
-             $this->pais,
-         ]);
+        // Agregar resto de información incluyendo colonia
+        $partes = array_filter([
+            $direccion,
+            $this->colonia,
+            $this->codigo_postal ? 'C.P. ' . $this->codigo_postal : null,
+            $this->ciudad,
+            $this->estado,
+            $this->pais,
+        ]);
 
-         return implode(', ', $partes);
-     }
+        return implode(', ', $partes);
+    }
 
     /**
      * Verificar si el sistema está en modo mantenimiento

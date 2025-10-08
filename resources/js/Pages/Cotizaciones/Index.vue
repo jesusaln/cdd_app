@@ -499,6 +499,47 @@ const enviarAVenta = () => {
   notyf.warning('Esta acción no está disponible desde Cotizaciones.')
 }
 
+// Función para enviar cotización por email
+const enviarCotizacionPorEmail = async (cotizacion) => {
+  try {
+    // Verificar que el cliente tenga email
+    if (!cotizacion.cliente?.email) {
+      notyf.error('El cliente no tiene email configurado')
+      return
+    }
+
+    console.log('=== ENVIANDO COTIZACIÓN POR EMAIL ===')
+    console.log('Cotización ID:', cotizacion.id)
+    console.log('Cliente email:', cotizacion.cliente.email)
+
+    if (confirm(`¿Enviar cotización #${cotizacion.numero_cotizacion || cotizacion.id} por email a ${cotizacion.cliente.email}?`)) {
+      loading.value = true
+
+      router.post(`/cotizaciones/${cotizacion.id}/enviar-email`, {
+        email_destino: cotizacion.cliente.email,
+      }, {
+        onStart: () => {
+          notyf.success('Enviando cotización por email...')
+        },
+        onSuccess: (response) => {
+          notyf.success('Cotización enviada por email correctamente')
+        },
+        onError: (errors) => {
+          console.error('Error al enviar cotización:', errors)
+          notyf.error('Error al enviar cotización: ' + (errors.error || 'Error desconocido'))
+        },
+        onFinish: () => {
+          loading.value = false
+        }
+      })
+    }
+  } catch (error) {
+    console.error('Error en enviarCotizacionPorEmail:', error)
+    notyf.error('Error inesperado al enviar cotización')
+    loading.value = false
+  }
+}
+
 const crearNuevaCotizacion = () => {
   router.visit('/cotizaciones/create')
 }
@@ -538,6 +579,7 @@ const crearNuevaCotizacion = () => {
           @editar="editarCotizacion"
           @eliminar="confirmarEliminacion"
           @enviar-pedido="enviarAPedido"
+          @enviar-email="enviarCotizacionPorEmail"
           @sort="updateSort"
         />
 
