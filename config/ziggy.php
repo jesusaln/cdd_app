@@ -48,5 +48,6 @@ return [
         'mantenimientos*', // Incluir todas las rutas de mantenimientos
         'mantenimientos.completar',
         'mantenimientos.generar-recurrentes',
+        'herramientas*', // Incluir todas las rutas de herramientas
     ],
 ];

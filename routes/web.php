@@ -278,8 +278,22 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::get('/reportes/inventario/export', [ReporteController::class, 'exportarInventario'])->name('reportes.inventario.export');
     Route::get('/reportes/productos/export', [ReporteController::class, 'exportarProductos'])->name('reportes.productos.export');
     Route::resource('tecnicos', TecnicoController::class)->names('tecnicos');
-    // Catálogo de herramientas (nuevo módulo sencillo)
+    // Catálogo de herramientas (módulo mejorado)
     Route::resource('herramientas', HerramientaController::class)->names('herramientas');
+    Route::get('herramientas-dashboard', [HerramientaController::class, 'dashboard'])->name('herramientas.dashboard');
+    Route::get('herramientas-mantenimiento', [HerramientaController::class, 'mantenimiento'])->name('herramientas.mantenimiento');
+    Route::post('herramientas/{herramienta}/mantenimiento', [HerramientaController::class, 'registrarMantenimiento'])->name('herramientas.registrar-mantenimiento');
+    Route::get('herramientas/{herramienta}/estadisticas', [HerramientaController::class, 'estadisticas'])->name('herramientas.estadisticas');
+    Route::post('herramientas/{herramienta}/cambiar-estado', [HerramientaController::class, 'cambiarEstado'])->name('herramientas.cambiar-estado');
+    Route::get('herramientas-alertas', function () {
+        return redirect()->route('herramientas.index');
+    })->name('herramientas-alertas');
+    // Alias con nombre con punto para coincidir con Ziggy 'herramientas*'
+    Route::get('herramientas-alertas', function () {
+        return redirect()->route('herramientas.index');
+    })->name('herramientas.alertas');
+    Route::get('herramientas-mantenimiento', [HerramientaController::class, 'mantenimiento'])->name('herramientas-mantenimiento');
+    Route::get('herramientas-reportes', [HerramientaController::class, 'reportes'])->name('herramientas.reportes');
     // Gestión de Herramientas - módulo independiente (index, create, edit)
     Route::get('herramientas/gestion', [GestionHerramientasController::class, 'index'])->name('herramientas.gestion.index');
     Route::get('herramientas/gestion/create', [GestionHerramientasController::class, 'create'])->name('herramientas.gestion.create');
@@ -303,7 +317,6 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::resource('citas', CitaController::class)->names('citas');
     Route::resource('carros', CarroController::class)->names('carros');
     Route::resource('mantenimientos', MantenimientoController::class)->names('mantenimientos');
-    Route::post('mantenimientos/{mantenimiento}/completar', [MantenimientoController::class, 'completar'])->name('mantenimientos.completar');
     Route::post('mantenimientos/{mantenimiento}/marcar-realizado-hoy', [MantenimientoController::class, 'marcarRealizadoHoy'])->name('mantenimientos.marcar-realizado-hoy');
     Route::post('mantenimientos/generar-recurrentes', [MantenimientoController::class, 'generarRecurrentes'])->name('mantenimientos.generar-recurrentes');
 

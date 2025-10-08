@@ -24,7 +24,10 @@ class Herramienta extends Model
         'requiere_mantenimiento',
         'dias_para_mantenimiento',
         'fecha_asignacion',
-        'fecha_recepcion'
+        'fecha_recepcion',
+        'usuario_entrega_id',
+        'usuario_recepcion_id',
+        'activo'
     ];
 
     protected $casts = [
@@ -191,9 +194,9 @@ class Herramienta extends Model
     {
         return $this->detallesAsignacionesMasivas()
                     ->with('asignacionMasiva')
-                    ->where('estado_individual', DetalleAsignacionMasiva::ESTADO_ASIGNADA)
+                    ->where('estado_individual', 'asignada')
                     ->whereHas('asignacionMasiva', function ($query) {
-                        $query->where('estado', AsignacionMasiva::ESTADO_ACTIVA);
+                        $query->where('estado', 'activa');
                     })
                     ->latest('fecha_asignacion_individual')
                     ->first();
@@ -253,15 +256,15 @@ class Herramienta extends Model
     // Obtener estadísticas de la herramienta
     public function getEstadisticasAttribute()
     {
-        $historial = $this->historial;
+        $historial = $this->historial ?? collect();
 
         return [
             'total_asignaciones' => $historial->count(),
             'asignaciones_activas' => $historial->whereNull('fecha_devolucion')->count(),
-            'promedio_dias_uso' => $historial->whereNotNull('fecha_devolucion')->avg('duracion_dias'),
-            'devoluciones_por_desgaste' => $historial->where('motivo_devolucion', HistorialHerramienta::MOTIVO_DEVOLUCION_DESGASTE)->count(),
-            'devoluciones_por_danio' => $historial->where('motivo_devolucion', HistorialHerramienta::MOTIVO_DEVOLUCION_DANIO)->count(),
-            'devoluciones_por_perdida' => $historial->where('motivo_devolucion', HistorialHerramienta::MOTIVO_DEVOLUCION_PERDIDA)->count(),
+            'promedio_dias_uso' => $historial->whereNotNull('fecha_devolucion')->avg('duracion_dias') ?? 0,
+            'devoluciones_por_desgaste' => $historial->where('motivo_devolucion', 'desgaste')->count(),
+            'devoluciones_por_danio' => $historial->where('motivo_devolucion', 'danio')->count(),
+            'devoluciones_por_perdida' => $historial->where('motivo_devolucion', 'perdida')->count(),
         ];
     }
 
