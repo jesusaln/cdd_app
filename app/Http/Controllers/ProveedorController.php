@@ -12,9 +12,24 @@ use Exception;
 
 class ProveedorController extends Controller
 {
+    private const ITEMS_PER_PAGE = 10;
+    private const CACHE_TTL = 60;
+    private const VALID_SORT_FIELDS = ['nombre_razon_social', 'rfc', 'email', 'created_at', 'activo'];
+    private const VALID_SORT_DIRECTIONS = ['asc', 'desc'];
+    private const DEFAULT_SORT_BY = 'created_at';
+    private const DEFAULT_SORT_DIRECTION = 'desc';
+
     public function index(Request $request)
     {
         try {
+            $perPage = (int) ($request->integer('per_page') ?: self::ITEMS_PER_PAGE);
+
+            // Validar elementos por página
+            $validPerPages = [10, 15, 25, 50, 100];
+            if (!in_array($perPage, $validPerPages)) {
+                $perPage = self::ITEMS_PER_PAGE;
+            }
+
             $query = Proveedor::query();
 
             // Filtros de búsqueda
@@ -38,34 +53,75 @@ class ProveedorController extends Controller
                 }
             }
 
+            // Filtrar por tipo de persona
+            if ($request->filled('tipo_persona')) {
+                $query->where('tipo_persona', $request->tipo_persona);
+            }
+
+            // Filtrar por estado (entidad federativa)
+            if ($request->filled('estado')) {
+                $query->where('estado', $request->estado);
+            }
+
             // Ordenamiento
-            $sortBy = $request->get('sort_by', 'created_at');
-            $sortDirection = $request->get('sort_direction', 'desc');
-            $validSort = ['nombre_razon_social', 'rfc', 'email', 'created_at', 'activo'];
+            $sortBy = $request->get('sort_by', self::DEFAULT_SORT_BY);
+            $sortDirection = $request->get('sort_direction', self::DEFAULT_SORT_DIRECTION);
 
-            if (!in_array($sortBy, $validSort)) $sortBy = 'created_at';
-            if (!in_array($sortDirection, ['asc', 'desc'])) $sortDirection = 'desc';
+            if (!in_array($sortBy, self::VALID_SORT_FIELDS)) $sortBy = self::DEFAULT_SORT_BY;
+            if (!in_array($sortDirection, self::VALID_SORT_DIRECTIONS)) $sortDirection = self::DEFAULT_SORT_DIRECTION;
 
-            $query->orderBy($sortBy, $sortDirection);
+            $query->orderBy($sortBy, $sortDirection)->orderBy('id', 'desc');
 
-            // Paginación
-            $proveedores = $query->paginate(10)->appends($request->query());
+            // Paginación con appends para mantener filtros
+            $proveedores = $query->paginate($perPage)->appends($request->query());
 
             // Estadísticas
-            $proveedoresCount = Proveedor::count();
-            $proveedoresActivos = Proveedor::where(function ($q) {
-                $q->where('activo', true)->orWhereNull('activo');
-            })->count();
+            $stats = [
+                'total' => Proveedor::count(),
+                'activos' => Proveedor::where(function ($q) {
+                    $q->where('activo', true)->orWhereNull('activo');
+                })->count(),
+                'inactivos' => Proveedor::where('activo', false)->count(),
+                'personas_fisicas' => Proveedor::where('tipo_persona', 'fisica')->count(),
+                'personas_morales' => Proveedor::where('tipo_persona', 'moral')->count(),
+                'con_email' => Proveedor::whereNotNull('email')->where('email', '!=', '')->count(),
+                'sin_email' => Proveedor::where(function ($q) {
+                    $q->whereNull('email')->orWhere('email', '');
+                })->count(),
+            ];
+
+            // Opciones para filtros
+            $filterOptions = [
+                'tipos_persona' => [
+                    ['value' => 'fisica', 'label' => 'Persona Física'],
+                    ['value' => 'moral', 'label' => 'Persona Moral'],
+                ],
+                'estados_activo' => [
+                    ['value' => '', 'label' => 'Todos los Estados'],
+                    ['value' => '1', 'label' => 'Activos'],
+                    ['value' => '0', 'label' => 'Inactivos'],
+                ],
+                'per_page_options' => [10, 15, 25, 50, 100],
+            ];
 
             return Inertia::render('Proveedores/Index', [
                 'proveedores' => $proveedores,
-                'stats' => [
-                    'total' => $proveedoresCount,
-                    'activos' => $proveedoresActivos,
-                    'inactivos' => $proveedoresCount - $proveedoresActivos,
+                'stats' => $stats,
+                'filterOptions' => $filterOptions,
+                'filters' => $request->only(['search', 'activo', 'tipo_persona', 'estado']),
+                'sorting' => [
+                    'sort_by' => $sortBy,
+                    'sort_direction' => $sortDirection,
+                    'allowed_sorts' => self::VALID_SORT_FIELDS,
                 ],
-                'filters' => $request->only(['search', 'activo']),
-                'sorting' => ['sort_by' => $sortBy, 'sort_direction' => $sortDirection],
+                'pagination' => [
+                    'current_page' => $proveedores->currentPage(),
+                    'last_page' => $proveedores->lastPage(),
+                    'per_page' => $perPage,
+                    'total' => $proveedores->total(),
+                    'from' => $proveedores->firstItem(),
+                    'to' => $proveedores->lastItem(),
+                ],
             ]);
         } catch (Exception $e) {
             Log::error('Error en ProveedorController@index: ' . $e->getMessage());

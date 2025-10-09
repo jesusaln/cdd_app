@@ -29,6 +29,10 @@ class OrdenCompra extends Model
         'observaciones',
         'estado',
         'fecha_recepcion',
+        // Campos para rastreo de email
+        'email_enviado',
+        'email_enviado_fecha',
+        'email_enviado_por',
     ];
 
     protected $casts = [
@@ -40,6 +44,9 @@ class OrdenCompra extends Model
         'descuento_general' => 'decimal:2',
         'iva' => 'decimal:2',
         'total' => 'decimal:2',
+        // Campos de email
+        'email_enviado'     => 'boolean',
+        'email_enviado_fecha' => 'datetime',
     ];
 
     // Relación con el Proveedor
@@ -52,6 +59,12 @@ class OrdenCompra extends Model
     public function almacen()
     {
         return $this->belongsTo(Almacen::class);
+    }
+
+    // Relación con el usuario que envió el email
+    public function emailEnviadoPor()
+    {
+        return $this->belongsTo(User::class, 'email_enviado_por');
     }
 
     // Relación muchos a muchos con Productos (solo activos)

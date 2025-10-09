@@ -9,6 +9,7 @@ import 'notyf/notyf.min.css'
 import { generarPDF } from '@/Utils/pdfGenerator'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { Link } from '@inertiajs/vue3'
+import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 
 defineOptions({ layout: AppLayout })
 
@@ -538,6 +539,68 @@ const convertirDirecto = async (ordenData) => {
   }
 }
 
+const enviarEmailOrden = async (ordenData) => {
+  try {
+    const doc = ordenData?.id ? ordenData : fila.value
+    validarOrdenBasica(doc)
+
+    console.log('🔍 Debug enviarEmailOrden:', {
+      doc_id: doc.id,
+      proveedor: doc.proveedor,
+      email: doc.proveedor?.email,
+      estado: doc.estado
+    })
+
+    if (!doc.proveedor?.email) {
+      notyf.error('El proveedor no tiene email configurado')
+      return
+    }
+
+    // El envío de email está permitido en cualquier estado
+
+    loading.value = true
+    notyf.success(`Enviando orden #${doc.numero_orden || doc.id} por email...`)
+
+    const { data } = await axios.post(`/ordenescompra/${doc.id}/enviar-email`, {}, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json'
+      }
+    })
+
+    if (!data?.success) throw new Error(data?.error || 'No se pudo enviar el email')
+
+    // Actualiza estado local para mostrar que el email fue enviado
+    const i = ordenesOriginales.value.findIndex(o => o.id === doc.id)
+    if (i !== -1) {
+      ordenesOriginales.value[i] = {
+        ...ordenesOriginales.value[i],
+        email_enviado: true,
+        email_enviado_fecha: new Date().toISOString()
+      }
+    }
+
+    // Si se abrió desde modal, actualizar fila también
+    if (fila.value?.id === doc.id) {
+      fila.value = {
+        ...fila.value,
+        email_enviado: true,
+        email_enviado_fecha: new Date().toISOString()
+      }
+    }
+
+    notyf.success(data.message || 'Orden enviada por email exitosamente')
+
+  } catch (err) {
+    console.error(err)
+    const errorMessage = err.response?.data?.error || err.response?.data?.message || err.message || 'Error al enviar email'
+    notyf.error(errorMessage)
+  } finally {
+    loading.value = false
+  }
+}
+
 const crearNuevaOrden = () => {
   router.visit('/ordenescompra/create')
 }
@@ -956,6 +1019,11 @@ const validarEstado = (estado) => {
 
 <template>
   <Head title="Órdenes de Compra" />
+
+  <!-- FontAwesome Icons -->
+  <component :is="'style'">
+    @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css');
+  </component>
 
   <div class="ordenes-compra-index min-h-screen bg-gray-50">
     <!-- Contenido principal -->
@@ -1445,77 +1513,63 @@ const validarEstado = (estado) => {
 
                     <!-- Acciones -->
                     <td class="px-6 py-4">
-                      <div class="flex items-center justify-end space-x-1">
+                      <div class="flex items-center justify-end space-x-2">
+                        <!-- 1. Ver detalles (siempre visible) -->
                         <button
                           @click="verDetalles(doc)"
-                          class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-1"
+                          class="group/btn relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-1"
                           title="Ver detalles"
                         >
-                          <svg class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
+                          <font-awesome-icon icon="eye" class="w-3.5 h-3.5 transition-transform duration-200 group-hover/btn:scale-110" />
                         </button>
 
+                        <!-- 2. Editar (solo borrador y pendiente) -->
                         <button
                           v-if="doc.estado === 'borrador' || doc.estado === 'pendiente'"
                           @click="editarOrden(doc.id)"
-                          class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 hover:text-amber-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-1"
-                          title="Editar"
+                          class="group/btn relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 hover:text-amber-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-1"
+                          title="Editar orden"
                         >
-                          <svg class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
+                          <font-awesome-icon icon="edit" class="w-3.5 h-3.5 transition-transform duration-200 group-hover/btn:scale-110" />
                         </button>
 
-                        <!-- Enviar a Compra (solo órdenes pendientes) -->
+                        <!-- 3. Enviar por Email (cualquier estado con email) -->
+                        <button
+                          v-if="doc.proveedor && doc.proveedor.email && doc.proveedor.email.trim() !== ''"
+                          @click="enviarEmailOrden(doc)"
+                          class="group/btn relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-1"
+                          :title="doc.email_enviado ? 'Reenviar por Email' : 'Enviar por Email'"
+                        >
+                          <font-awesome-icon
+                            :icon="doc.email_enviado ? 'envelope-open' : 'envelope'"
+                            class="w-3.5 h-3.5 transition-transform duration-200 group-hover/btn:scale-110"
+                          />
+                        </button>
+
+                        <!-- Debug: mostrar condición del botón (remover en producción) -->
+                        <span v-if="false" class="text-xs text-red-500">
+                          Email: {{ doc.proveedor?.email || 'no' }} | Estado: {{ doc.estado }} | Show: {{ !!(doc.proveedor && doc.proveedor.email && doc.proveedor.email.trim() !== '') }}
+                        </span>
+
+                        <!-- 4. Enviar a Compra (solo pendiente) -->
                         <button
                           v-if="doc.estado === 'pendiente'"
                           @click="enviarOrden(doc)"
-                          class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-1"
+                          class="group/btn relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-1"
                           title="Enviar orden al proveedor"
                         >
-                          <svg class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                          </svg>
+                          <font-awesome-icon icon="paper-plane" class="w-3.5 h-3.5 transition-transform duration-200 group-hover/btn:scale-110" />
                         </button>
 
-                        <!-- Convertir Directamente (solo órdenes pendientes) -->
-                        <button
-                          v-if="doc.estado === 'pendiente'"
-                          @click="convertirDirecto(doc)"
-                          class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-1"
-                          title="Convertir directamente a compra (sin envío a proveedor)"
-                        >
-                          <svg class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        </button>
-
-                        <!-- Recibir Mercancía (solo órdenes enviadas a proveedor) -->
-                        <button
-                          v-if="doc.estado === 'enviado_a_proveedor'"
-                          @click="recibirOrden(doc)"
-                          class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-1"
-                          title="Recibir mercancía y crear registro de compra"
-                        >
-                          <svg class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                          </svg>
-                        </button>
-
-                        <!-- Cancelar Orden (solo órdenes de compra no canceladas y no procesadas) -->
+                        <!-- 5. Cancelar (pendiente y enviada a proveedor) -->
                         <button
                           v-if="['pendiente', 'enviado_a_proveedor'].includes(doc.estado)"
                           @click="confirmarEliminacion(doc.id)"
-                          class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-orange-50 text-orange-600 hover:bg-orange-100 hover:text-orange-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:ring-offset-1"
-                          title="Cancelar Orden"
+                          class="group/btn relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:ring-offset-1"
+                          title="Cancelar orden"
                         >
-                          <svg class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                          </svg>
+                          <font-awesome-icon icon="times-circle" class="w-3.5 h-3.5 transition-transform duration-200 group-hover/btn:scale-110" />
                         </button>
-
                       </div>
                     </td>
                   </tr>
@@ -1819,39 +1873,48 @@ const validarEstado = (estado) => {
             </div>
             <div v-else class="text-sm text-gray-600">No hay datos disponibles.</div>
 
-            <!-- Botones de acción -->
+            <!-- Botones de acción simplificados -->
             <div class="flex flex-wrap justify-end gap-2 mt-6">
-              <button
-                v-if="fila?.estado === 'pendiente'"
-                @click="convertirDirecto(fila)"
-                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-              >
-                Convertir a Compra
-              </button>
-              <button
-                v-if="fila?.estado !== 'cancelado'"
-                @click="enviarOrden(fila)"
-                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Enviar a Proveedor
-              </button>
-              <button
-                v-if="fila?.estado !== 'cancelado'"
-                @click="imprimirFila"
-                class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-              >
-                Imprimir
-              </button>
+              <!-- 1. Editar (solo borrador y pendiente) -->
               <button
                 v-if="['borrador', 'pendiente'].includes(fila?.estado)"
                 @click="editarFila"
-                class="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+                class="px-3 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm"
               >
-                Editar
+                ✏️ Editar
               </button>
+
+              <!-- 2. Enviar Email (cualquier estado con email) -->
+              <button
+                v-if="fila?.proveedor && fila?.proveedor.email"
+                @click="enviarEmailOrden(fila)"
+                class="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+              >
+                {{ fila?.email_enviado ? '📨 Reenviar Email' : '📧 Enviar Email' }}
+              </button>
+
+              <!-- 3. Enviar a Proveedor (solo pendiente) -->
+              <button
+                v-if="fila?.estado === 'pendiente'"
+                @click="enviarOrden(fila)"
+                class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+              >
+                🚀 Enviar a Proveedor
+              </button>
+
+              <!-- 4. Cancelar (pendiente y enviada a proveedor) -->
+              <button
+                v-if="['pendiente', 'enviado_a_proveedor'].includes(fila?.estado)"
+                @click="confirmarEliminacion(fila.id)"
+                class="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+              >
+                ❌ Cancelar
+              </button>
+
+              <!-- Cerrar -->
               <button
                 @click="onClose"
-                class="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400 transition-colors"
+                class="px-3 py-2 bg-gray-300 rounded-lg hover:bg-gray-400 transition-colors text-sm"
               >
                 Cerrar
               </button>

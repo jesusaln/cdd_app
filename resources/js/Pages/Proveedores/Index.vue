@@ -30,8 +30,10 @@ onMounted(() => {
 const props = defineProps({
   proveedores: { type: [Object, Array], required: true },
   stats: { type: Object, default: () => ({}) },
+  filterOptions: { type: Object, default: () => ({}) },
   filters: { type: Object, default: () => ({}) },
   sorting: { type: Object, default: () => ({ sort_by: 'created_at', sort_direction: 'desc' }) },
+  pagination: { type: Object, default: () => ({}) },
 })
 
 // Estado UI
@@ -42,8 +44,10 @@ const selectedId = ref(null)
 
 // Filtros
 const searchTerm = ref(props.filters?.search ?? '')
-const sortBy = ref('created_at-desc')
-const filtroEstado = ref('')
+const sortBy = ref(props.sorting?.sort_by ? `${props.sorting.sort_by}-${props.sorting.sort_direction}` : 'created_at-desc')
+const filtroEstado = ref(props.filters?.activo ?? '')
+const filtroTipoPersona = ref(props.filters?.tipo_persona ?? '')
+const filtroEstadoMexico = ref(props.filters?.estado ?? '')
 
 // Paginación
 const perPage = ref(10)
@@ -60,13 +64,23 @@ const proveedoresPaginator = computed(() => props.proveedores)
 const proveedoresData = computed(() => proveedoresPaginator.value?.data || [])
 
 // Estadísticas
-const estadisticas = computed(() => ({
-  total: props.stats?.total ?? 0,
-  activos: props.stats?.activos ?? 0,
-  inactivos: props.stats?.inactivos ?? 0,
-  activosPorcentaje: props.stats?.activos > 0 ? Math.round((props.stats.activos / props.stats.total) * 100) : 0,
-  inactivosPorcentaje: props.stats?.inactivos > 0 ? Math.round((props.stats.inactivos / props.stats.total) * 100) : 0
-}))
+const estadisticas = computed(() => {
+  const stats = props.stats || {}
+  const total = stats.total || 0
+
+  return {
+    total: total,
+    activos: stats.activos || 0,
+    inactivos: stats.inactivos || 0,
+    personas_fisicas: stats.personas_fisicas || 0,
+    personas_morales: stats.personas_morales || 0,
+    con_email: stats.con_email || 0,
+    sin_email: stats.sin_email || 0,
+    activosPorcentaje: total > 0 ? Math.round(((stats.activos || 0) / total) * 100) : 0,
+    inactivosPorcentaje: total > 0 ? Math.round(((stats.inactivos || 0) / total) * 100) : 0,
+    conEmailPorcentaje: total > 0 ? Math.round(((stats.con_email || 0) / total) * 100) : 0,
+  }
+})
 
 // Mapeo de estados SAT
 const estadoMapping = {
@@ -110,6 +124,8 @@ function handleSearchChange(newSearch) {
     sort_by: sortBy.value.split('-')[0],
     sort_direction: sortBy.value.split('-')[1] || 'desc',
     activo: filtroEstado.value,
+    tipo_persona: filtroTipoPersona.value,
+    estado: filtroEstadoMexico.value,
     per_page: perPage.value,
     page: 1
   }, { preserveState: true, preserveScroll: true })
@@ -122,6 +138,36 @@ function handleEstadoChange(newEstado) {
     sort_by: sortBy.value.split('-')[0],
     sort_direction: sortBy.value.split('-')[1] || 'desc',
     activo: newEstado,
+    tipo_persona: filtroTipoPersona.value,
+    estado: filtroEstadoMexico.value,
+    per_page: perPage.value,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+function handleTipoPersonaChange(newTipo) {
+  filtroTipoPersona.value = newTipo
+  router.get(route('proveedores.index'), {
+    search: searchTerm.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc',
+    activo: filtroEstado.value,
+    tipo_persona: newTipo,
+    estado: filtroEstadoMexico.value,
+    per_page: perPage.value,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+function handleEstadoMexicoChange(newEstado) {
+  filtroEstadoMexico.value = newEstado
+  router.get(route('proveedores.index'), {
+    search: searchTerm.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc',
+    activo: filtroEstado.value,
+    tipo_persona: filtroTipoPersona.value,
+    estado: newEstado,
     per_page: perPage.value,
     page: 1
   }, { preserveState: true, preserveScroll: true })
@@ -134,6 +180,8 @@ function handleSortChange(newSort) {
     sort_by: newSort.split('-')[0],
     sort_direction: newSort.split('-')[1] || 'desc',
     activo: filtroEstado.value,
+    tipo_persona: filtroTipoPersona.value,
+    estado: filtroEstadoMexico.value,
     per_page: perPage.value,
     page: 1
   }, { preserveState: true, preserveScroll: true })
@@ -199,15 +247,12 @@ const exportProveedores = () => {
 
 // Paginación
 const paginationData = computed(() => ({
-  current_page: proveedoresPaginator.value?.current_page || 1,
-  last_page: proveedoresPaginator.value?.last_page || 1,
-  per_page: proveedoresPaginator.value?.per_page || 10,
-  from: proveedoresPaginator.value?.from || 0,
-  to: proveedoresPaginator.value?.to || 0,
-  total: proveedoresPaginator.value?.total || 0,
-  prev_page_url: proveedoresPaginator.value?.prev_page_url,
-  next_page_url: proveedoresPaginator.value?.next_page_url,
-  links: proveedoresPaginator.value?.links || []
+  current_page: props.pagination?.current_page || 1,
+  last_page: props.pagination?.last_page || 1,
+  per_page: props.pagination?.per_page || 10,
+  from: props.pagination?.from || 0,
+  to: props.pagination?.to || 0,
+  total: props.pagination?.total || 0,
 }))
 
 const handlePerPageChange = (newPerPage) => {
@@ -225,6 +270,18 @@ const handlePageChange = (newPage) => {
     ...props.sorting,
     page: newPage
   }, { preserveState: true, preserveScroll: true })
+}
+
+const hayFiltrosActivos = computed(() => !!searchTerm.value || !!filtroEstado.value || !!filtroTipoPersona.value || !!filtroEstadoMexico.value)
+
+const limpiarFiltros = () => {
+  searchTerm.value = ''
+  sortBy.value = 'created_at-desc'
+  filtroEstado.value = ''
+  filtroTipoPersona.value = ''
+  filtroEstadoMexico.value = ''
+  router.visit('/proveedores')
+  notyf.success('Filtros limpiados correctamente')
 }
 
 // Helpers
@@ -293,7 +350,8 @@ const obtenerLabelEstado = (estado) => {
 
             <!-- Estadísticas con barras de progreso -->
             <div class="flex flex-wrap items-center gap-4 text-sm">
-              <div class="flex items-center gap-2 px-4 py-3 bg-slate-50 rounded-xl border border-slate-200">
+              <!-- Total -->
+              <div class="group flex items-center gap-2 px-4 py-3 bg-slate-50 rounded-xl border border-slate-200 flex-shrink-0 hover:bg-slate-100 transition-all duration-200 cursor-default" title="Total de proveedores">
                 <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
@@ -301,7 +359,8 @@ const obtenerLabelEstado = (estado) => {
                 <span class="font-bold text-slate-900 text-lg">{{ formatNumber(estadisticas.total) }}</span>
               </div>
 
-              <div class="flex items-center gap-2 px-4 py-3 bg-green-50 rounded-xl border border-green-200">
+              <!-- Activos -->
+              <div class="group flex items-center gap-2 px-4 py-3 bg-green-50 rounded-xl border border-green-200 flex-shrink-0 hover:bg-green-100 transition-all duration-200 cursor-default" title="Proveedores activos">
                 <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -318,7 +377,8 @@ const obtenerLabelEstado = (estado) => {
                 </div>
               </div>
 
-              <div class="flex items-center gap-2 px-4 py-3 bg-red-50 rounded-xl border border-red-200">
+              <!-- Inactivos -->
+              <div class="group flex items-center gap-2 px-4 py-3 bg-red-50 rounded-xl border border-red-200 flex-shrink-0 hover:bg-red-100 transition-all duration-200 cursor-default" title="Proveedores inactivos">
                 <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -332,6 +392,42 @@ const obtenerLabelEstado = (estado) => {
                     ></div>
                   </div>
                   <span class="text-xs text-red-600 font-medium">{{ estadisticas.inactivosPorcentaje }}%</span>
+                </div>
+              </div>
+
+              <!-- Personas Físicas -->
+              <div class="group flex items-center gap-2 px-4 py-3 bg-blue-50 rounded-xl border border-blue-200 flex-shrink-0 hover:bg-blue-100 transition-all duration-200 cursor-default" title="Personas físicas">
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span class="font-medium text-slate-700">Personas Físicas:</span>
+                <span class="font-bold text-blue-700 text-lg">{{ formatNumber(estadisticas.personas_fisicas) }}</span>
+              </div>
+
+              <!-- Personas Morales -->
+              <div class="group flex items-center gap-2 px-4 py-3 bg-purple-50 rounded-xl border border-purple-200 flex-shrink-0 hover:bg-purple-100 transition-all duration-200 cursor-default" title="Personas morales">
+                <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                <span class="font-medium text-slate-700">Personas Morales:</span>
+                <span class="font-bold text-purple-700 text-lg">{{ formatNumber(estadisticas.personas_morales) }}</span>
+              </div>
+
+              <!-- Con Email -->
+              <div class="group flex items-center gap-2 px-4 py-3 bg-indigo-50 rounded-xl border border-indigo-200 flex-shrink-0 hover:bg-indigo-100 transition-all duration-200 cursor-default" title="Proveedores con email">
+                <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                <span class="font-medium text-slate-700">Con Email:</span>
+                <span class="font-bold text-indigo-700 text-lg">{{ formatNumber(estadisticas.con_email) }}</span>
+                <div class="ml-2 flex items-center gap-2">
+                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      class="h-full bg-indigo-500 transition-all duration-300"
+                      :style="{ width: estadisticas.conEmailPorcentaje + '%' }"
+                    ></div>
+                  </div>
+                  <span class="text-xs text-indigo-600 font-medium">{{ estadisticas.conEmailPorcentaje }}%</span>
                 </div>
               </div>
             </div>
@@ -353,7 +449,7 @@ const obtenerLabelEstado = (estado) => {
               </svg>
             </div>
 
-            <!-- Estado -->
+            <!-- Estado Activo/Inactivo -->
             <select
               v-model="filtroEstado"
               @change="handleEstadoChange($event.target.value)"
@@ -362,6 +458,36 @@ const obtenerLabelEstado = (estado) => {
               <option value="">Todos los Estados</option>
               <option value="1">Activos</option>
               <option value="0">Inactivos</option>
+            </select>
+
+            <!-- Tipo de Persona -->
+            <select
+              v-model="filtroTipoPersona"
+              @change="handleTipoPersonaChange($event.target.value)"
+              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+            >
+              <option value="">Todos los Tipos</option>
+              <option value="fisica">Persona Física</option>
+              <option value="moral">Persona Moral</option>
+            </select>
+
+            <!-- Estado de México -->
+            <select
+              v-model="filtroEstadoMexico"
+              @change="handleEstadoMexicoChange($event.target.value)"
+              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+            >
+              <option value="">Todos los Estados</option>
+              <option value="CIUDAD DE MÉXICO">Ciudad de México</option>
+              <option value="JALISCO">Jalisco</option>
+              <option value="NUEVO LEÓN">Nuevo León</option>
+              <option value="ESTADO DE MÉXICO">Estado de México</option>
+              <option value="GUANAJUATO">Guanajuato</option>
+              <option value="PUEBLA">Puebla</option>
+              <option value="SONORA">Sonora</option>
+              <option value="VERACRUZ">Veracruz</option>
+              <option value="QUERÉTARO">Querétaro</option>
+              <option value="CHIHUAHUA">Chihuahua</option>
             </select>
 
             <!-- Orden -->
@@ -374,6 +500,8 @@ const obtenerLabelEstado = (estado) => {
               <option value="created_at-asc">Más Antiguos</option>
               <option value="nombre_razon_social-asc">Nombre A-Z</option>
               <option value="nombre_razon_social-desc">Nombre Z-A</option>
+              <option value="rfc-asc">RFC A-Z</option>
+              <option value="rfc-desc">RFC Z-A</option>
             </select>
           </div>
         </div>
@@ -458,14 +586,14 @@ const obtenerLabelEstado = (estado) => {
         </div>
 
         <!-- Paginación -->
-        <div v-if="paginationData.lastPage > 1" class="bg-white border-t border-gray-200 px-4 py-3 sm:px-6">
+        <div v-if="paginationData.last_page > 1" class="bg-white border-t border-gray-200 px-4 py-3 sm:px-6">
           <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div class="flex items-center gap-4">
               <p class="text-sm text-gray-700">
                 Mostrando {{ paginationData.from }} - {{ paginationData.to }} de {{ paginationData.total }} resultados
               </p>
               <select
-                :value="paginationData.perPage"
+                :value="paginationData.per_page"
                 @change="handlePerPageChange(parseInt($event.target.value))"
                 class="border border-gray-300 rounded-md text-sm py-1 px-2 bg-white"
               >
@@ -473,51 +601,55 @@ const obtenerLabelEstado = (estado) => {
                 <option value="15">15</option>
                 <option value="25">25</option>
                 <option value="50">50</option>
+                <option value="100">100</option>
               </select>
             </div>
 
             <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
               <button
-                v-if="paginationData.prevPageUrl"
-                @click="handlePageChange(paginationData.currentPage - 1)"
-                class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                @click="handlePageChange(paginationData.current_page - 1)"
+                :disabled="paginationData.current_page === 1"
+                class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
                 </svg>
               </button>
 
-              <span v-else class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-gray-100 text-sm font-medium text-gray-400">
-                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
-                </svg>
-              </span>
-
               <button
-                v-for="page in [paginationData.currentPage - 1, paginationData.currentPage, paginationData.currentPage + 1].filter(p => p > 0 && p <= paginationData.lastPage)"
+                v-for="page in [paginationData.current_page - 1, paginationData.current_page, paginationData.current_page + 1].filter(p => p > 0 && p <= paginationData.last_page)"
                 :key="page"
                 @click="handlePageChange(page)"
-                :class="page === paginationData.currentPage ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'"
+                :class="page === paginationData.current_page ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'"
                 class="relative inline-flex items-center px-4 py-2 border text-sm font-medium"
               >
                 {{ page }}
               </button>
 
               <button
-                v-if="paginationData.nextPageUrl"
-                @click="handlePageChange(paginationData.currentPage + 1)"
-                class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                @click="handlePageChange(paginationData.current_page + 1)"
+                :disabled="paginationData.current_page === paginationData.last_page"
+                class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
                 </svg>
               </button>
-
-              <span v-else class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-gray-100 text-sm font-medium text-gray-400">
-                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+            <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+              <button
+                v-if="hayFiltrosActivos"
+                @click="limpiarFiltros"
+                class="group relative inline-flex items-center gap-2 px-4 py-3 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 hover:text-slate-700 focus:outline-none focus:ring-4 focus:ring-slate-500/10 transition-all duration-200 whitespace-nowrap border border-slate-200 flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Limpiar todos los filtros"
+              >
+                <svg class="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
-              </span>
+                <span class="font-medium">Limpiar</span>
+                <div class="absolute -top-1 -right-1 min-w-[1.25rem] h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center px-1">
+                  {{ (searchTerm ? 1 : 0) + (filtroEstado ? 1 : 0) + (filtroTipoPersona ? 1 : 0) + (filtroEstadoMexico ? 1 : 0) }}
+                </div>
+              </button>
             </nav>
           </div>
         </div>

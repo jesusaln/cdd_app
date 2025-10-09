@@ -22,6 +22,7 @@ class ProveedorSeeder extends Seeder
                 'telefono' => '5555555555',
                 'calle' => 'SIN ESPECIFICAR',
                 'numero_exterior' => '0',
+                'numero_interior' => null,
                 'colonia' => 'CENTRO',
                 'codigo_postal' => '00000',
                 'municipio' => 'CIUDAD DE MÉXICO',
@@ -31,99 +32,173 @@ class ProveedorSeeder extends Seeder
             ]
         );
 
-        // 2. Proveedores de prueba (solo en desarrollo)
+        // 2. Proveedores de prueba con emails reales para testing
+        $proveedoresPrueba = [
+            [
+                'rfc' => 'OISP890101HA1',
+                'nombre_razon_social' => 'OFICINA Y SUMINISTROS PROFESIONALES S.A. DE C.V.',
+                'tipo_persona' => 'Moral',
+                'regimen_fiscal' => '601',
+                'uso_cfdi' => 'G03',
+                'email' => 'ventas@oficinaysuministros.com',
+                'telefono' => '5555678901',
+                'calle' => 'AVENIDA INSURGENTES',
+                'numero_exterior' => '1234',
+                'numero_interior' => 'OF 201',
+                'colonia' => 'NAPOLES',
+                'codigo_postal' => '03810',
+                'municipio' => 'BENITO JUÁREZ',
+                'estado' => 'CIUDAD DE MÉXICO',
+                'pais' => 'MÉXICO',
+                'activo' => true
+            ],
+            [
+                'rfc' => 'TECM850101HA2',
+                'nombre_razon_social' => 'TECNOLOGÍA Y COMPUTACIÓN MÉXICO S. DE R.L.',
+                'tipo_persona' => 'Moral',
+                'regimen_fiscal' => '601',
+                'uso_cfdi' => 'G03',
+                'email' => 'contacto@tecnologiacomputacion.com',
+                'telefono' => '5555678902',
+                'calle' => 'CALLE REFORMA',
+                'numero_exterior' => '567',
+                'numero_interior' => 'PISO 8',
+                'colonia' => 'CENTRO',
+                'codigo_postal' => '06000',
+                'municipio' => 'CUAUHTÉMOC',
+                'estado' => 'CIUDAD DE MÉXICO',
+                'pais' => 'MÉXICO',
+                'activo' => true
+            ],
+            [
+                'rfc' => 'MAPR780101HA3',
+                'nombre_razon_social' => 'MATERIALES PARA OFICINA Y PAPELERÍA S.A.',
+                'tipo_persona' => 'Moral',
+                'regimen_fiscal' => '601',
+                'uso_cfdi' => 'G03',
+                'email' => 'pedidos@materialesoficina.com',
+                'telefono' => '5555678903',
+                'calle' => 'BOULEVARD PUERTO AÉREO',
+                'numero_exterior' => '890',
+                'numero_interior' => 'BODEGA 5',
+                'colonia' => 'PEÑÓN DE LOS BAÑOS',
+                'codigo_postal' => '15520',
+                'municipio' => 'VENUSTIANO CARRANZA',
+                'estado' => 'CIUDAD DE MÉXICO',
+                'pais' => 'MÉXICO',
+                'activo' => true
+            ],
+            [
+                'rfc' => 'HEQU900101HA4',
+                'nombre_razon_social' => 'HERRAMIENTAS Y EQUIPOS INDUSTRIALES S. DE R.L.',
+                'tipo_persona' => 'Moral',
+                'regimen_fiscal' => '601',
+                'uso_cfdi' => 'G03',
+                'email' => 'ventas@herramientasequipos.com',
+                'telefono' => '5555678904',
+                'calle' => 'CALLE SUR 123',
+                'numero_exterior' => '456',
+                'numero_interior' => 'NAVE INDUSTRIAL',
+                'colonia' => 'INDUSTRIAL VALLEJO',
+                'codigo_postal' => '02300',
+                'municipio' => 'AZCAPOTZALCO',
+                'estado' => 'CIUDAD DE MÉXICO',
+                'pais' => 'MÉXICO',
+                'activo' => true
+            ],
+            [
+                'rfc' => 'ELCO850101HA5',
+                'nombre_razon_social' => 'ELECTRÓNICA Y COMPUTADORAS DEL CENTRO S.A.',
+                'tipo_persona' => 'Moral',
+                'regimen_fiscal' => '601',
+                'uso_cfdi' => 'G03',
+                'email' => 'contacto@electronicacomputadoras.com',
+                'telefono' => '5555678905',
+                'calle' => 'AVENIDA TLALPAN',
+                'numero_exterior' => '2345',
+                'numero_interior' => 'LOCAL 12',
+                'colonia' => 'CENTRO',
+                'codigo_postal' => '06000',
+                'municipio' => 'CUAUHTÉMOC',
+                'estado' => 'CIUDAD DE MÉXICO',
+                'pais' => 'MÉXICO',
+                'activo' => true
+            ]
+        ];
+
+        foreach ($proveedoresPrueba as $proveedorData) {
+            Proveedor::firstOrCreate(
+                ['rfc' => $proveedorData['rfc']],
+                $proveedorData
+            );
+        }
+
+        // 2. Proveedores adicionales para testing (solo en desarrollo)
         if (app()->environment('local', 'testing')) {
-            $faker = Faker::create('es_MX');
-
-            $regimenesFiscales = [
-                '601' => 'General de Ley Personas Morales',
-                '603' => 'Personas Morales con Fines no Lucrativos',
-                '605' => 'Sueldos y Salarios',
-                '606' => 'Arrendamiento',
-                '608' => 'Demás ingresos',
-                '610' => 'Residentes en el Extranjero sin Establecimiento Permanente en México',
-                '615' => 'Régimen de los ingresos por obtención de premios',
-                '616' => 'Sin obligaciones fiscales',
-                '620' => 'Sociedades Cooperativas de Producción'
-            ];
-
-            $usosCFDI = ['G01', 'G02', 'G03', 'I01', 'I02', 'I03', 'D01', 'D02', 'D03', 'P01'];
-
-            $estadosMexicanos = [
-                'AGUASCALIENTES',
-                'BAJA CALIFORNIA',
-                'BAJA CALIFORNIA SUR',
-                'CAMPECHE',
-                'CHIAPAS',
-                'CHIHUAHUA',
-                'CIUDAD DE MÉXICO',
-                'COAHUILA',
-                'COLIMA',
-                'DURANGO',
-                'ESTADO DE MÉXICO',
-                'GUANAJUATO',
-                'GUERRERO',
-                'HIDALGO',
-                'JALISCO',
-                'MICHOACÁN',
-                'MORELOS',
-                'NAYARIT',
-                'NUEVO LEÓN',
-                'OAXACA',
-                'PUEBLA',
-                'QUERÉTARO',
-                'QUINTANA ROO',
-                'SAN LUIS POTOSÍ',
-                'SINALOA',
-                'SONORA',
-                'TABASCO',
-                'TAMAULIPAS',
-                'TLAXCALA',
-                'VERACRUZ',
-                'YUCATÁN',
-                'ZACATECAS'
-            ];
-
-            for ($i = 0; $i < 10; $i++) {
-                $tipoPersona = $faker->randomElement(['Fisica', 'Moral']);
-                $regimen = $faker->randomElement(array_keys($regimenesFiscales));
-
-                Proveedor::create([
-                    'nombre_razon_social' => $tipoPersona === 'Fisica' ?
-                        $faker->name() :
-                        $faker->company(),
-                    'tipo_persona' => $tipoPersona,
-                    'rfc' => $this->generarRFC($tipoPersona),
-                    'regimen_fiscal' => $regimen,
-                    'uso_cfdi' => $faker->randomElement($usosCFDI),
-                    'email' => $faker->companyEmail(),
-                    'telefono' => $faker->numerify('55########'),
-                    'calle' => $faker->streetName(),
-                    'numero_exterior' => $faker->buildingNumber(),
-                    'numero_interior' => $faker->optional(0.3)->buildingNumber(),
-                    'colonia' => $faker->citySuffix(),
-                    'codigo_postal' => $faker->postcode(),
-                    'municipio' => $faker->city(),
-                    'estado' => $faker->randomElement($estadosMexicanos),
+            $proveedoresAdicionales = [
+                [
+                    'rfc' => 'SUME800101HA6',
+                    'nombre_razon_social' => 'SUMINISTROS ELECTRÓNICOS MÉXICO S.A. DE C.V.',
+                    'tipo_persona' => 'Moral',
+                    'regimen_fiscal' => '601',
+                    'uso_cfdi' => 'G03',
+                    'email' => 'info@suministronicos.com',
+                    'telefono' => '5555678906',
+                    'calle' => 'CALLE MONTEVIDEO',
+                    'numero_exterior' => '789',
+                    'numero_interior' => 'SUITE 300',
+                    'colonia' => 'NAPOLES',
+                    'codigo_postal' => '03810',
+                    'municipio' => 'BENITO JUÁREZ',
+                    'estado' => 'CIUDAD DE MÉXICO',
                     'pais' => 'MÉXICO',
                     'activo' => true
-                ]);
+                ],
+                [
+                    'rfc' => 'LIMC850101HA7',
+                    'nombre_razon_social' => 'LIMPIEZA Y MANTENIMIENTO COMERCIAL S. DE R.L.',
+                    'tipo_persona' => 'Moral',
+                    'regimen_fiscal' => '601',
+                    'uso_cfdi' => 'G03',
+                    'email' => 'contacto@limpiezacomercial.com',
+                    'telefono' => '5555678907',
+                    'calle' => 'AVENIDA CONSTITUYENTES',
+                    'numero_exterior' => '1234',
+                    'numero_interior' => 'BODEGA A',
+                    'colonia' => 'CONSTITUYENTES',
+                    'codigo_postal' => '11830',
+                    'municipio' => 'MIGUEL HIDALGO',
+                    'estado' => 'CIUDAD DE MÉXICO',
+                    'pais' => 'MÉXICO',
+                    'activo' => true
+                ],
+                [
+                    'rfc' => 'PAPR900101HA8',
+                    'nombre_razon_social' => 'PAPELERÍA Y MATERIALES DE OFICINA RÁPIDO S.A.',
+                    'tipo_persona' => 'Moral',
+                    'regimen_fiscal' => '601',
+                    'uso_cfdi' => 'G03',
+                    'email' => 'ventas@papeleriarapido.com',
+                    'telefono' => '5555678908',
+                    'calle' => 'CALLE TLAXCALA',
+                    'numero_exterior' => '567',
+                    'numero_interior' => 'TIENDA 3',
+                    'colonia' => 'CENTRO',
+                    'codigo_postal' => '06000',
+                    'municipio' => 'CUAUHTÉMOC',
+                    'estado' => 'CIUDAD DE MÉXICO',
+                    'pais' => 'MÉXICO',
+                    'activo' => true
+                ]
+            ];
+
+            foreach ($proveedoresAdicionales as $proveedorData) {
+                Proveedor::firstOrCreate(
+                    ['rfc' => $proveedorData['rfc']],
+                    $proveedorData
+                );
             }
         }
     }
 
-    /**
-     * Genera un RFC válido para pruebas
-     */
-    private function generarRFC(string $tipoPersona): string
-    {
-        $faker = \Faker\Factory::create('es_MX');
-
-        if ($tipoPersona === 'Fisica') {
-            return $faker->unique()->regexify('[A-Z]{4}[0-9]{6}[A-Z0-9]{3}');
-        }
-
-        // Para persona moral
-        return $faker->unique()->regexify('[A-Z]{3}[0-9]{6}[A-Z0-9]{3}');
-    }
 }

@@ -12,12 +12,14 @@ use App\Models\Proveedor;
 use App\Services\InventarioService;
 use App\Mail\OrdenCompraEnviada;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB; // Para transacciones de base de datos
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class OrdenCompraController extends Controller
 {
@@ -35,9 +37,14 @@ class OrdenCompraController extends Controller
         $perPage = (int) ($request->integer('per_page') ?: 10);
 
         $baseQuery = OrdenCompra::with([
-            'proveedor',
+            'proveedor' => function ($query) {
+                $query->select('id', 'nombre_razon_social', 'email', 'rfc', 'telefono');
+            },
             'productos',
             'almacen',
+            'emailEnviadoPor' => function ($query) {
+                $query->select('id', 'name');
+            },
         ]);
 
         // Aplicar filtros
@@ -128,6 +135,7 @@ class OrdenCompraController extends Controller
                     'id'                  => $orden->proveedor->id,
                     'nombre_razon_social' => $orden->proveedor->nombre_razon_social,
                     'rfc'                 => $orden->proveedor->rfc ?? null,
+                    'email'               => $orden->proveedor->email ?? null,
                 ] : null,
                 'almacen'            => $orden->almacen ? [
                     'id'   => $orden->almacen->id,
@@ -148,6 +156,10 @@ class OrdenCompraController extends Controller
                 'fecha_entrega_esperada' => $orden->fecha_entrega_esperada?->format('d/m/Y'),
                 'created_at'         => optional($orden->created_at)->format('Y-m-d H:i:s'),
                 'fecha'              => optional($orden->created_at)->format('Y-m-d'),
+                // Información de email
+                'email_enviado'      => (bool) ($orden->email_enviado ?? false),
+                'email_enviado_fecha' => $orden->email_enviado_fecha?->format('d/m/Y H:i'),
+                'email_enviado_por'  => $orden->emailEnviadoPor?->name,
                 // URLs para acciones
                 'urls' => [
                     'show' => route('ordenescompra.show', $orden->id),
@@ -1394,6 +1406,161 @@ class OrdenCompraController extends Controller
             return redirect()->back()->with('error', 'Error al procesar la conversión directa a compra.');
         }
     }
+
+    /**
+     * Enviar orden de compra por email con PDF adjunto
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+   public function enviarEmail(Request $request, $id)
+   {
+       // No necesitamos validar email_destino ya que usamos el del proveedor
+
+       try {
+           // Obtener la orden de compra con todas las relaciones necesarias
+           $ordenCompra = OrdenCompra::with(['proveedor', 'productos'])->findOrFail($id);
+
+           // Verificar que el proveedor tenga email
+           if (!$ordenCompra->proveedor->email) {
+               throw ValidationException::withMessages([
+                   'email' => 'El proveedor no tiene email configurado',
+               ]);
+           }
+
+           // El envío de email está permitido en cualquier estado
+
+           // Obtener configuración de empresa para el PDF
+           $configuracion = \App\Models\EmpresaConfiguracion::getConfig();
+
+           // Verificar que la configuración SMTP esté disponible (usando valores por defecto si es necesario)
+           $smtp_host = $configuracion->smtp_host ?: 'smtp.hostinger.com';
+           $smtp_port = $configuracion->smtp_port ?: 587;
+           $smtp_username = $configuracion->smtp_username ?: 'documentos_digitales@asistenciavircom.com';
+           $smtp_password = $configuracion->smtp_password ?: 'Anahid2188';
+           $smtp_encryption = $configuracion->smtp_encryption ?: 'tls';
+
+           $email_from_address = $configuracion->email_from_address ?: 'documentos_digitales@asistenciavircom.com';
+           $email_from_name = $configuracion->email_from_name ?: 'CDD - Sistema de Gestión';
+
+           Log::info('Configuración SMTP para orden de compra', [
+               'orden_id' => $ordenCompra->id,
+               'smtp_host' => $smtp_host,
+               'smtp_port' => $smtp_port,
+               'smtp_username' => $smtp_username,
+               'has_password' => !empty($smtp_password),
+               'email_from_address' => $email_from_address,
+           ]);
+
+           // Generar PDF de la orden de compra
+           $pdf = Pdf::loadView('orden_compra_pdf', [
+               'ordenCompra' => $ordenCompra,
+               'configuracion' => $configuracion,
+           ]);
+
+           // Configurar opciones del PDF
+           $pdf->setPaper('letter', 'portrait');
+           $pdf->setOptions([
+               'defaultFont' => 'sans-serif',
+               'isHtml5ParserEnabled' => true,
+               'isPhpEnabled' => true,
+           ]);
+
+           // Preparar datos del email
+           $datosEmail = [
+               'ordenCompra' => $ordenCompra,
+               'proveedor' => $ordenCompra->proveedor,
+               'configuracion' => $configuracion,
+           ];
+
+           // Configurar SMTP con datos de la base de datos (usando valores por defecto si es necesario)
+           config([
+               'mail.mailers.smtp.host' => $smtp_host,
+               'mail.mailers.smtp.port' => $smtp_port,
+               'mail.mailers.smtp.username' => $smtp_username,
+               'mail.mailers.smtp.password' => $smtp_password,
+               'mail.mailers.smtp.encryption' => $smtp_encryption,
+               'mail.from.address' => $email_from_address,
+               'mail.from.name' => $email_from_name,
+           ]);
+
+           // Enviar email con PDF adjunto
+           Mail::send('emails.orden_compra', $datosEmail, function ($message) use ($ordenCompra, $pdf, $configuracion) {
+               $message->to($ordenCompra->proveedor->email)
+                   ->subject("Orden de Compra #{$ordenCompra->numero_orden} - {$configuracion->nombre_empresa}")
+                   ->attachData($pdf->output(), "orden-compra-{$ordenCompra->numero_orden}.pdf", [
+                       'mime' => 'application/pdf',
+                   ]);
+
+               // Agregar reply-to si está configurado
+               if ($configuracion->email_reply_to) {
+                   $message->replyTo($configuracion->email_reply_to);
+               }
+           });
+
+           Log::info("PDF de orden de compra enviado por email", [
+               'orden_compra_id' => $ordenCompra->id,
+               'proveedor_email' => $ordenCompra->proveedor->email,
+               'numero_orden' => $ordenCompra->numero_orden,
+               'configuracion_smtp' => [
+                   'host' => $smtp_host,
+                   'port' => $smtp_port,
+                   'encryption' => $smtp_encryption,
+               ]
+           ]);
+
+           // Registrar el envío en la orden de compra para mostrar en el frontend
+           $ordenCompra->update([
+               'email_enviado' => true,
+               'email_enviado_fecha' => now(),
+               'email_enviado_por' => Auth::id(),
+           ]);
+
+           // Si es una petición AJAX, devolver JSON; de lo contrario, redirect
+           if ($request->expectsJson() || $request->is('api/*')) {
+               return response()->json([
+                   'success' => true,
+                   'message' => 'Orden de compra enviada por email correctamente',
+                   'ordenCompra' => [
+                       'id' => $ordenCompra->id,
+                       'email_enviado' => true,
+                       'email_enviado_fecha' => $ordenCompra->email_enviado_fecha?->format('d/m/Y H:i'),
+                       'estado' => $ordenCompra->estado
+                   ]
+               ]);
+           }
+
+           return redirect()->back()->with('success', 'Orden de compra enviada por email correctamente');
+       } catch (\Exception $e) {
+           Log::error("Error al enviar PDF de orden de compra por email", [
+               'orden_compra_id' => $id,
+               'proveedor_email' => $ordenCompra->proveedor->email ?? 'no disponible',
+               'error' => $e->getMessage(),
+               'file' => $e->getFile(),
+               'line' => $e->getLine(),
+               'trace' => $e->getTraceAsString()
+           ]);
+
+           // Mensaje más específico para debugging
+           $errorMessage = $e->getMessage();
+           $mensaje = 'Error al enviar orden de compra por email';
+
+           if (strpos($errorMessage, 'authentication failed') !== false) {
+               $mensaje = 'Error de autenticación SMTP. Verifica usuario/contraseña.';
+           } elseif (strpos($errorMessage, 'Connection refused') !== false) {
+               $mensaje = 'No se pudo conectar al servidor SMTP. Verifica host/puerto.';
+           } elseif (strpos($errorMessage, 'timeout') !== false) {
+               $mensaje = 'Timeout de conexión. Servidor no responde.';
+           } elseif (strpos($errorMessage, 'View') !== false) {
+               $mensaje = 'Error en plantilla de email. Verifica archivos de vistas.';
+           }
+
+           throw ValidationException::withMessages([
+               'email' => $mensaje . ' | Detalle: ' . $errorMessage,
+           ]);
+       }
+   }
 
     /**
      * Calcula los totales basados en los items actuales
