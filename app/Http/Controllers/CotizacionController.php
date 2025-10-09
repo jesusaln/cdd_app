@@ -981,7 +981,7 @@ class CotizacionController extends Controller
                 'descuento_general' => $cotizacion->descuento_general,
                 'iva' => $cotizacion->iva,
                 'total' => $cotizacion->total,
-                'notas' => "Generado desde cotizaciÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³n #{$cotizacion->id}"
+                'notas' => "Generado desde Cotizacion #{$cotizacion->id}"
             ]);
             $pedido->save();
 
@@ -1087,7 +1087,7 @@ class CotizacionController extends Controller
     public function enviarEmail(Request $request, $id)
     {
         $data = $request->validate([
-            'email_destino' => ['required','email'],
+            'email_destino' => ['required', 'email'],
         ]);
 
         try {
@@ -1139,10 +1139,10 @@ class CotizacionController extends Controller
             // Enviar email con PDF adjunto
             Mail::send('emails.cotizacion', $datosEmail, function ($message) use ($cotizacion, $pdf, $configuracion) {
                 $message->to($cotizacion->cliente->email)
-                        ->subject("Cotización #{$cotizacion->numero_cotizacion} - {$configuracion->nombre_empresa}")
-                        ->attachData($pdf->output(), "cotizacion-{$cotizacion->numero_cotizacion}.pdf", [
-                            'mime' => 'application/pdf',
-                        ]);
+                    ->subject("Cotización #{$cotizacion->numero_cotizacion} - {$configuracion->nombre_empresa}")
+                    ->attachData($pdf->output(), "cotizacion-{$cotizacion->numero_cotizacion}.pdf", [
+                        'mime' => 'application/pdf',
+                    ]);
 
                 // Agregar reply-to si está configurado
                 if ($configuracion->email_reply_to) {
@@ -1183,7 +1183,6 @@ class CotizacionController extends Controller
             }
 
             return redirect()->back()->with('success', 'Cotización enviada por email correctamente');
-
         } catch (\Exception $e) {
             Log::error("Error al enviar PDF de cotización por email", [
                 'cotizacion_id' => $id,
@@ -1242,7 +1241,6 @@ class CotizacionController extends Controller
 
             // Retornar PDF para descarga
             return $pdf->download("cotizacion-{$cotizacion->numero_cotizacion}.pdf");
-
         } catch (\Exception $e) {
             Log::error("Error al generar PDF de cotización", [
                 'cotizacion_id' => $id,

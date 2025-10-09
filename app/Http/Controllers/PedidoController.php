@@ -24,6 +24,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\ValidationException;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class PedidoController extends Controller
@@ -1076,5 +1079,180 @@ class PedidoController extends Controller
         $ultimo = Pedido::orderBy('id', 'desc')->first();
         $numero = $ultimo ? $ultimo->id + 1 : 1;
         return 'PED-' . date('Ymd') . '-' . str_pad($numero, 5, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Enviar pedido por email
+     */
+    public function enviarEmail(Request $request, $id)
+    {
+        $data = $request->validate([
+            'email_destino' => ['required','email'],
+        ]);
+
+        try {
+            // Obtener el pedido con todas las relaciones necesarias
+            $pedido = Pedido::with(['cliente', 'items.pedible'])->findOrFail($id);
+
+            // Verificar que el cliente tenga email
+            if (!$pedido->cliente->email) {
+                throw ValidationException::withMessages([
+                    'email' => 'El cliente no tiene email configurado',
+                ]);
+            }
+
+            // Obtener configuración de empresa para el PDF
+            $configuracion = \App\Models\EmpresaConfiguracion::getConfig();
+
+            // Generar PDF del pedido
+            $pdf = Pdf::loadView('pedido_pdf', [
+                'pedido' => $pedido,
+                'configuracion' => $configuracion,
+            ]);
+
+            // Configurar opciones del PDF
+            $pdf->setPaper('letter', 'portrait');
+            $pdf->setOptions([
+                'defaultFont' => 'sans-serif',
+                'isHtml5ParserEnabled' => true,
+                'isPhpEnabled' => true,
+            ]);
+
+            // Preparar datos del email
+            $datosEmail = [
+                'pedido' => $pedido,
+                'cliente' => $pedido->cliente,
+                'configuracion' => $configuracion,
+            ];
+
+            // Configurar SMTP con datos de la base de datos
+            config([
+                'mail.mailers.smtp.host' => $configuracion->smtp_host,
+                'mail.mailers.smtp.port' => $configuracion->smtp_port,
+                'mail.mailers.smtp.username' => $configuracion->smtp_username,
+                'mail.mailers.smtp.password' => $configuracion->smtp_password,
+                'mail.mailers.smtp.encryption' => $configuracion->smtp_encryption,
+                'mail.from.address' => $configuracion->email_from_address,
+                'mail.from.name' => $configuracion->email_from_name,
+            ]);
+
+            // Enviar email con PDF adjunto
+            Mail::send('emails.pedido', $datosEmail, function ($message) use ($pedido, $pdf, $configuracion) {
+                $message->to($pedido->cliente->email)
+                        ->subject("Pedido #{$pedido->numero_pedido} - {$configuracion->nombre_empresa}")
+                        ->attachData($pdf->output(), "pedido-{$pedido->numero_pedido}.pdf", [
+                            'mime' => 'application/pdf',
+                        ]);
+
+                // Agregar reply-to si está configurado
+                if ($configuracion->email_reply_to) {
+                    $message->replyTo($configuracion->email_reply_to);
+                }
+            });
+
+            Log::info("PDF de pedido enviado por email", [
+                'pedido_id' => $pedido->id,
+                'cliente_email' => $pedido->cliente->email,
+                'numero_pedido' => $pedido->numero_pedido,
+                'configuracion_smtp' => [
+                    'host' => $configuracion->smtp_host,
+                    'port' => $configuracion->smtp_port,
+                    'encryption' => $configuracion->smtp_encryption,
+                ]
+            ]);
+
+            // Si es una petición AJAX, devolver JSON; de lo contrario, redirect
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Pedido enviado por email correctamente',
+                    'pedido' => [
+                        'id' => $pedido->id,
+                        'email_enviado' => true,
+                        'email_enviado_fecha' => now()->format('d/m/Y H:i'),
+                        'estado' => $pedido->estado->value
+                    ]
+                ]);
+            }
+
+            return redirect()->back()->with('success', 'Pedido enviado por email correctamente');
+
+        } catch (\Exception $e) {
+            Log::error("Error al enviar PDF de pedido por email", [
+                'pedido_id' => $id,
+                'cliente_email' => $pedido->cliente->email ?? 'no disponible',
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            // Mensaje más específico para debugging
+            $errorMessage = $e->getMessage();
+            $mensaje = 'Error al enviar pedido por email';
+
+            if (strpos($errorMessage, 'authentication failed') !== false) {
+                $mensaje = 'Error de autenticación SMTP. Verifica usuario/contraseña.';
+            } elseif (strpos($errorMessage, 'Connection refused') !== false) {
+                $mensaje = 'No se pudo conectar al servidor SMTP. Verifica host/puerto.';
+            } elseif (strpos($errorMessage, 'timeout') !== false) {
+                $mensaje = 'Timeout de conexión. Servidor no responde.';
+            } elseif (strpos($errorMessage, 'View') !== false) {
+                $mensaje = 'Error en plantilla de email. Verifica archivos de vistas.';
+            }
+
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json([
+                    'success' => false,
+                    'error' => $mensaje,
+                    'details' => app()->environment('local') ? $errorMessage : null
+                ], 500);
+            }
+
+            throw ValidationException::withMessages([
+                'email' => $mensaje . ' | Detalle: ' . $errorMessage,
+            ]);
+        }
+    }
+
+    /**
+     * Generar PDF de pedido usando plantilla Blade
+     */
+    public function generarPDF($id)
+    {
+        try {
+            // Obtener el pedido con todas las relaciones necesarias
+            $pedido = Pedido::with(['cliente', 'items.pedible'])->findOrFail($id);
+
+            // Obtener configuración de empresa
+            $configuracion = \App\Models\EmpresaConfiguracion::getConfig();
+
+            // Generar PDF usando la plantilla Blade
+            $pdf = Pdf::loadView('pedido_pdf', [
+                'pedido' => $pedido,
+                'configuracion' => $configuracion,
+            ]);
+
+            // Configurar opciones del PDF
+            $pdf->setPaper('letter', 'portrait');
+            $pdf->setOptions([
+                'defaultFont' => 'sans-serif',
+                'isHtml5ParserEnabled' => true,
+                'isPhpEnabled' => true,
+            ]);
+
+            // Retornar PDF para descarga
+            return $pdf->download("pedido-{$pedido->numero_pedido}.pdf");
+
+        } catch (\Exception $e) {
+            Log::error("Error al generar PDF de pedido", [
+                'pedido_id' => $id,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return redirect()->back()->with('error', 'Error al generar el PDF del pedido');
+        }
     }
 }

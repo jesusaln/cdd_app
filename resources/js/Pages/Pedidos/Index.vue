@@ -502,6 +502,78 @@ const enviarACotizacion = () => {
   notyf.warning('Esta acción no está disponible desde Pedidos.')
 }
 
+// Función para enviar pedido por email
+const enviarPedidoPorEmail = async (pedido) => {
+  try {
+    // Verificar que el cliente tenga email
+    if (!pedido.cliente?.email) {
+      notyf.error('El cliente no tiene email configurado')
+      return
+    }
+
+    console.log('=== ENVIANDO PEDIDO POR EMAIL ===')
+    console.log('Pedido ID:', pedido.id)
+    console.log('Cliente email:', pedido.cliente.email)
+
+    // Configurar modal de confirmación personalizado
+    fila.value = {
+      ...pedido,
+      numero_pedido: pedido.numero_pedido || `P${String(pedido.id).padStart(3, '0')}`,
+      email_destino: pedido.cliente.email
+    }
+    modalMode.value = 'confirm-email'
+    showModal.value = true
+
+  } catch (error) {
+    console.error('Error en enviarPedidoPorEmail:', error)
+    notyf.error('Error inesperado al preparar envío de pedido')
+  }
+}
+
+// Función para confirmar envío de email
+const confirmarEnvioEmail = async () => {
+  try {
+    const pedido = fila.value
+    if (!pedido?.email_destino) {
+      notyf.error('Email de destino no válido')
+      return
+    }
+
+    console.log('✅ Usuario confirmó envío de pedido por email');
+    loading.value = true
+    cerrarModal()
+
+    // Usar axios para tener control total sobre la respuesta
+    const { data } = await axios.post(`/pedidos/${pedido.id}/enviar-email`, {
+      email_destino: pedido.email_destino,
+    })
+
+    if (data?.success) {
+      notyf.success(data.message || 'Pedido enviado por email correctamente')
+
+      // Actualizar estado local del pedido usando los datos del servidor
+      const index = pedidosOriginales.value.findIndex(p => p.id === pedido.id)
+      if (index !== -1 && data.pedido) {
+        pedidosOriginales.value[index] = {
+          ...pedidosOriginales.value[index],
+          email_enviado: data.pedido.email_enviado,
+          email_enviado_fecha: data.pedido.email_enviado_fecha,
+          estado: data.pedido.estado
+        }
+      }
+    } else {
+      throw new Error(data?.error || 'Error desconocido al enviar email')
+    }
+
+  } catch (error) {
+    console.error('Error al enviar pedido:', error)
+    const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message
+    notyf.error('Error al enviar pedido: ' + errorMessage)
+  } finally {
+    loading.value = false
+  }
+}
+
 const crearNuevoPedido = () => {
   router.visit('/pedidos/create')
 }
@@ -542,6 +614,7 @@ const crearNuevoPedido = () => {
           @editar="editarPedido"
           @eliminar="confirmarEliminacion"
           @enviar-venta="enviarAVenta"
+          @enviar-email="enviarPedidoPorEmail"
           @imprimir="imprimirPedido"
           @sort="updateSort"
         />
@@ -565,6 +638,7 @@ const crearNuevoPedido = () => {
       :auditoria="auditoriaForModal"
       @close="cerrarModal"
       @confirm-delete="eliminarPedido"
+      @confirm-email="confirmarEnvioEmail"
       @editar="editarFila"
       @enviar-venta="enviarAVenta"
       @enviar-cotizacion="enviarACotizacion"

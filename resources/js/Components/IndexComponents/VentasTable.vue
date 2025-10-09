@@ -239,6 +239,18 @@
                   </button>
 
                   <button
+                    v-if="doc.estado !== 'cancelada' && doc.cliente?.email"
+                    @click="onEnviarEmail(doc)"
+                    class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-1"
+                    :title="doc.email_enviado ? 'Reenviar por Email' : 'Enviar por Email'"
+                  >
+                    <font-awesome-icon
+                      :icon="doc.email_enviado ? 'envelope-open' : 'envelope'"
+                      class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110"
+                    />
+                  </button>
+
+                  <button
                     v-if="doc.estado !== 'cancelada'"
                     @click="onImprimir(doc)"
                     class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 hover:text-purple-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:ring-offset-1"
@@ -303,7 +315,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits([
-  'ver-detalles','editar','eliminar','imprimir','sort','marcar-pagado','cancelar'
+  'ver-detalles','editar','eliminar','imprimir','sort','marcar-pagado','cancelar','enviar-email'
 ])
 
 // Estados de ventas - lógica de negocio actualizada
@@ -459,6 +471,7 @@ const onEliminar = (id) => emit('eliminar', id)
 const onImprimir = (doc) => emit('imprimir', doc)
 const onMarcarPagado = (doc) => emit('marcar-pagado', doc)
 const onCancelar = (id) => emit('cancelar', id)
+const onEnviarEmail = (doc) => emit('enviar-email', doc)
 
 const onSort = (field) => {
   const current = props.sortBy.startsWith(field) ? props.sortBy : `${field}-desc`

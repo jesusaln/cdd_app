@@ -578,6 +578,78 @@ const cancelarVenta = async (id) => {
     loading.value = false
   }
 }
+
+// Función para enviar venta por email
+const enviarVentaPorEmail = async (venta) => {
+  try {
+    // Verificar que el cliente tenga email
+    if (!venta.cliente?.email) {
+      notyf.error('El cliente no tiene email configurado')
+      return
+    }
+
+    console.log('=== ENVIANDO VENTA POR EMAIL ===')
+    console.log('Venta ID:', venta.id)
+    console.log('Cliente email:', venta.cliente.email)
+
+    // Configurar modal de confirmación personalizado
+    fila.value = {
+      ...venta,
+      numero_venta: venta.numero_venta || `V${String(venta.id).padStart(3, '0')}`,
+      email_destino: venta.cliente.email
+    }
+    modalMode.value = 'confirm-email'
+    showModal.value = true
+
+  } catch (error) {
+    console.error('Error en enviarVentaPorEmail:', error)
+    notyf.error('Error inesperado al preparar envío de venta')
+  }
+}
+
+// Función para confirmar envío de email
+const confirmarEnvioEmail = async () => {
+  try {
+    const venta = fila.value
+    if (!venta?.email_destino) {
+      notyf.error('Email de destino no válido')
+      return
+    }
+
+    console.log('✅ Usuario confirmó envío de venta por email');
+    loading.value = true
+    cerrarModal()
+
+    // Usar axios para tener control total sobre la respuesta
+    const { data } = await axios.post(`/ventas/${venta.id}/enviar-email`, {
+      email_destino: venta.email_destino,
+    })
+
+    if (data?.success) {
+      notyf.success(data.message || 'Venta enviada por email correctamente')
+
+      // Actualizar estado local de la venta usando los datos del servidor
+      const index = ventasOriginales.value.findIndex(v => v.id === venta.id)
+      if (index !== -1 && data.venta) {
+        ventasOriginales.value[index] = {
+          ...ventasOriginales.value[index],
+          email_enviado: data.venta.email_enviado,
+          email_enviado_fecha: data.venta.email_enviado_fecha,
+          estado: data.venta.estado
+        }
+      }
+    } else {
+      throw new Error(data?.error || 'Error desconocido al enviar email')
+    }
+
+  } catch (error) {
+    console.error('Error al enviar venta:', error)
+    const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message
+    notyf.error('Error al enviar venta: ' + errorMessage)
+  } finally {
+    loading.value = false
+  }
+}
 </script>
 
 <template>
@@ -616,6 +688,7 @@ const cancelarVenta = async (id) => {
           @eliminar="confirmarEliminacion"
           @marcar-pagado="marcarComoPagado"
           @cancelar="cancelarVenta"
+          @enviar-email="enviarVentaPorEmail"
           @imprimir="imprimirVenta"
           @sort="updateSort"
         />
@@ -639,6 +712,7 @@ const cancelarVenta = async (id) => {
       :auditoria="auditoriaForModal"
       @close="cerrarModal"
       @confirm-delete="eliminarVenta"
+      @confirm-email="confirmarEnvioEmail"
       @editar="editarFila"
     />
 

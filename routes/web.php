@@ -442,6 +442,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::post('/pedidos/{id}/confirmar', [PedidoController::class, 'confirmar'])->name('pedidos.confirmar');
     Route::post('/pedidos/{id}/enviar-a-venta', [PedidoController::class, 'enviarAVenta'])
         ->name('pedidos.enviar-a-venta');
+    Route::post('/pedidos/{id}/enviar-email', [PedidoController::class, 'enviarEmail'])->name('pedidos.enviar-email');
+    Route::get('/pedidos/{id}/pdf', [PedidoController::class, 'generarPDF'])->name('pedidos.pdf');
     Route::post('/pedidos/{id}/cancel', [PedidoController::class, 'cancel'])->name('pedidos.cancel');
     Route::post('/pedidos/{pedido}/duplicate', [PedidoController::class, 'duplicate'])->name('pedidos.duplicate');
 
@@ -449,6 +451,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // RUTAS ESPECÃƒÂFICAS DE VENTAS
     // =====================================================
     Route::post('/ventas/{venta}/duplicate', [VentaController::class, 'duplicate'])->name('ventas.duplicate');
+    Route::post('/ventas/{id}/enviar-email', [VentaController::class, 'enviarEmail'])->name('ventas.enviar-email');
+    Route::get('/ventas/{id}/pdf', [VentaController::class, 'generarPDF'])->name('ventas.pdf');
     Route::post('/ventas/{id}/cancel', [VentaController::class, 'cancel'])->name('ventas.cancel');
     Route::post('/ventas/{id}/marcar-pagado', [VentaController::class, 'marcarPagado'])->name('ventas.marcar-pagado');
     // =====================================================
