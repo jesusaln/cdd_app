@@ -579,6 +579,7 @@ const cancelarVenta = async (id) => {
   }
 }
 
+
 // Función para enviar venta por email
 const enviarVentaPorEmail = async (venta) => {
   try {

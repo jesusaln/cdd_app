@@ -87,4 +87,99 @@ class CuentasPorCobrar extends Model
                   ->where('estado', '!=', 'pagado');
             });
     }
+
+    /**
+     * @return HasMany<RecordatorioCobranza, CuentasPorCobrar>
+     */
+    public function recordatorios()
+    {
+        return $this->hasMany(RecordatorioCobranza::class);
+    }
+
+    /**
+     * Verificar si necesita enviar recordatorio
+     */
+    public function necesitaRecordatorio(): bool
+    {
+        if ($this->estado === 'pagado' || !$this->fecha_vencimiento) {
+            return false;
+        }
+
+        $hoy = now();
+        $diasDesdeVencimiento = $hoy->diffInDays($this->fecha_vencimiento, false);
+
+        // Si no está vencida aún, no enviar recordatorio
+        if ($diasDesdeVencimiento < 0) {
+            return false;
+        }
+
+        // Si está vencida hoy (día 0), enviar recordatorio de vencimiento
+        if ($diasDesdeVencimiento == 0) {
+            return !RecordatorioCobranza::where('cuenta_por_cobrar_id', $this->id)
+                ->where('tipo_recordatorio', 'vencimiento')
+                ->whereDate('fecha_envio', $hoy->toDateString())
+                ->exists();
+        }
+
+        // Si pasó 1 día desde el vencimiento, enviar recordatorio del día siguiente
+        if ($diasDesdeVencimiento == 1) {
+            return !RecordatorioCobranza::where('cuenta_por_cobrar_id', $this->id)
+                ->where('tipo_recordatorio', 'dia_siguiente')
+                ->whereDate('fecha_envio', $hoy->toDateString())
+                ->exists();
+        }
+
+        // Si pasaron más días, verificar si necesita recordatorio cada 3 días
+        if ($diasDesdeVencimiento >= 2) {
+            $diasDesdeUltimoRecordatorio = RecordatorioCobranza::where('cuenta_por_cobrar_id', $this->id)
+                ->where('tipo_recordatorio', 'cada_3_dias')
+                ->where('enviado', true)
+                ->latest('fecha_envio')
+                ->first();
+
+            if (!$diasDesdeUltimoRecordatorio) {
+                // Nunca se envió recordatorio cada 3 días, enviar el primero
+                return true;
+            }
+
+            $diasDesdeUltimo = $hoy->diffInDays($diasDesdeUltimoRecordatorio->fecha_envio, false);
+            return $diasDesdeUltimo >= 3;
+        }
+
+        return false;
+    }
+
+    /**
+     * Programar próximo recordatorio
+     */
+    public function programarRecordatorio(): ?RecordatorioCobranza
+    {
+        if (!$this->necesitaRecordatorio()) {
+            return null;
+        }
+
+        $hoy = now();
+        $diasDesdeVencimiento = $hoy->diffInDays($this->fecha_vencimiento, false);
+
+        if ($diasDesdeVencimiento == 0) {
+            $tipo = 'vencimiento';
+            $proximo = $hoy->copy()->addDay(); // Mañana
+        } elseif ($diasDesdeVencimiento == 1) {
+            $tipo = 'dia_siguiente';
+            $proximo = $hoy->copy()->addDays(3); // En 3 días
+        } else {
+            $tipo = 'cada_3_dias';
+            $proximo = $hoy->copy()->addDays(3); // En 3 días
+        }
+
+        $intentosAnteriores = RecordatorioCobranza::where('cuenta_por_cobrar_id', $this->id)->count();
+
+        return $this->recordatorios()->create([
+            'tipo_recordatorio' => $tipo,
+            'fecha_envio' => $hoy,
+            'fecha_proximo_recordatorio' => $proximo,
+            'enviado' => false,
+            'numero_intento' => $intentosAnteriores + 1,
+        ]);
+    }
 }

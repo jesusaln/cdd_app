@@ -62,11 +62,11 @@
             </svg>
           </div>
           <h3 class="text-base font-medium mb-2">
-            {{ selected?.email_enviado ? '¿Reenviar cotización?' : '¿Enviar cotización?' }}
+            {{ selected?.email_enviado ? `¿Reenviar ${config.titulo.toLowerCase()}?` : `¿Enviar ${config.titulo.toLowerCase()}?` }}
           </h3>
-          <div v-if="selected?.numero_cotizacion" class="text-gray-600 mb-3">
+          <div v-if="selected?.numero_cotizacion || selected?.numero_pedido || selected?.numero_venta" class="text-gray-600 mb-3">
             <p class="mb-1 text-sm">
-              Cotización <strong>#{{ selected.numero_cotizacion }}</strong>
+              {{ config.titulo }} <strong>#{{ selected.numero_cotizacion || selected.numero_pedido || selected.numero_venta }}</strong>
             </p>
             <p v-if="selected?.email_destino" class="text-xs text-gray-500">
               📧 {{ selected.email_destino }}
