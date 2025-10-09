@@ -62,7 +62,9 @@
             </svg>
           </div>
           <h3 class="text-base font-medium mb-2">
-            {{ selected?.email_enviado ? `¿Reenviar ${config.titulo.toLowerCase()}?` : `¿Enviar ${config.titulo.toLowerCase()}?` }}
+            {{ selected?.tipo_envio === 'recordatorio_pago'
+               ? (selected?.email_enviado ? '¿Reenviar recordatorio de pago?' : '¿Enviar recordatorio de pago?')
+               : (selected?.email_enviado ? `¿Reenviar ${config.titulo.toLowerCase()}?` : `¿Enviar ${config.titulo.toLowerCase()}?`) }}
           </h3>
           <div v-if="selected?.numero_cotizacion || selected?.numero_pedido || selected?.numero_venta" class="text-gray-600 mb-3">
             <p class="mb-1 text-sm">
@@ -76,7 +78,9 @@
             </p>
           </div>
           <p class="text-gray-500 mb-4 text-xs">
-            El cliente recibirá el PDF por email
+            {{ selected?.tipo_envio === 'recordatorio_pago'
+               ? 'El cliente recibirá el recordatorio de pago con la factura adjunta por email'
+               : 'El cliente recibirá el PDF por email' }}
           </p>
           <div class="flex gap-2">
             <button
@@ -89,7 +93,9 @@
               @click="onConfirmEmail"
               class="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs"
             >
-              {{ selected?.email_enviado ? 'Reenviar' : 'Enviar' }}
+              {{ selected?.tipo_envio === 'recordatorio_pago'
+                 ? (selected?.email_enviado ? 'Reenviar Recordatorio' : 'Enviar Recordatorio')
+                 : (selected?.email_enviado ? 'Reenviar' : 'Enviar') }}
             </button>
           </div>
         </div>

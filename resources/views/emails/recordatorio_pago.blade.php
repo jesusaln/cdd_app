@@ -120,10 +120,11 @@
         </div>
 
         <div class="warning">
-            <h3>⚠️ Cuenta Pendiente de Pago</h3>
-            <p>Estimado cliente, le recordamos que tiene una cuenta pendiente de pago que requiere su atención inmediata.</p>
+            <h3>⚠️ Recordatorio de Pago Pendiente</h3>
+            <p>Estimado cliente, le recordamos amablemente que aún tenemos pendiente de recibir el pago correspondiente a la venta realizada. Le enviamos nuevamente la factura para su referencia y facilitarle el proceso de pago.</p>
         </div>
 
+        @if($cuenta)
         @php
             $diasVencidos = now()->diffInDays($cuenta->fecha_vencimiento, false);
             $tipoRecordatorio = $recordatorio->tipo_recordatorio ?? 'vencimiento';
@@ -136,7 +137,9 @@
             </p>
         </div>
         @endif
+        @endif
 
+        @if($cuenta)
         <div class="info-section">
             <div class="info-block">
                 <h3>Información de la Cuenta</h3>
@@ -175,6 +178,33 @@
             <p style="margin: 0; color: #0ea5e9;">{{ $cuenta->venta->notas }}</p>
         </div>
         @endif
+        @else
+        <div class="info-section">
+            <div class="info-block">
+                <h3>Información de la Venta</h3>
+                <p><strong>Venta:</strong> #{{ $venta->numero_venta }}</p>
+                <p><strong>Fecha de Venta:</strong> {{ $venta->fecha ? $venta->fecha->format('d/m/Y') : $venta->created_at->format('d/m/Y') }}</p>
+                <p><strong>Cliente:</strong> {{ $cliente->nombre_razon_social }}</p>
+                @if($cliente->email)
+                <p><strong>Email:</strong> {{ $cliente->email }}</p>
+                @endif
+                @if($cliente->telefono)
+                <p><strong>Teléfono:</strong> {{ $cliente->telefono }}</p>
+                @endif
+            </div>
+        </div>
+
+        <div class="amount">
+            💰 Total de la Venta: ${{ number_format($venta->total, 2) }}
+        </div>
+
+        @if($venta->notas)
+        <div style="background-color: #e0f2fe; border: 1px solid #0ea5e9; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <h4 style="margin: 0 0 10px 0; color: #0ea5e9;">📝 Notas de la Venta</h4>
+            <p style="margin: 0; color: #0ea5e9;">{{ $venta->notas }}</p>
+        </div>
+        @endif
+        @endif
 
         <div style="text-align: center; margin: 30px 0;">
             <h3>Formas de Pago Aceptadas:</h3>
@@ -201,8 +231,8 @@
         </div>
 
         <div style="text-align: center; margin: 30px 0;">
-            <p class="urgent-text">⏰ Le agradecemos realizar el pago a la brevedad posible para evitar cargos adicionales.</p>
-            <p>Para cualquier duda o aclaración, no dude en contactarnos.</p>
+            <p class="urgent-text">⏰ Le agradecemos realizar el pago a la brevedad posible.</p>
+            <p>Para cualquier duda o aclaración respecto al pago de esta factura, no dude en contactarnos. Estamos a sus órdenes para brindarle el apoyo necesario.</p>
         </div>
 
         <div class="footer">

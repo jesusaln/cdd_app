@@ -189,12 +189,37 @@
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                    <Link :href="route('cuentas-por-cobrar.show', cuenta.id)" class="text-indigo-600 hover:text-indigo-900 mr-3">
-                                        Ver
-                                    </Link>
-                                    <Link :href="route('cuentas-por-cobrar.edit', cuenta.id)" class="text-indigo-600 hover:text-indigo-900">
-                                        Editar
-                                    </Link>
+                                    <div class="flex items-center justify-start space-x-2">
+                                        <!-- Ver detalles -->
+                                        <Link :href="route('cuentas-por-cobrar.show', cuenta.id)"
+                                              class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-1"
+                                              title="Ver detalles">
+                                            <svg class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                            </svg>
+                                        </Link>
+
+                                        <!-- Editar -->
+                                        <Link :href="route('cuentas-por-cobrar.edit', cuenta.id)"
+                                              class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 hover:text-amber-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-1"
+                                              title="Editar">
+                                            <svg class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                            </svg>
+                                        </Link>
+
+                                        <!-- Enviar recordatorio de pago (solo si está pendiente o parcial) -->
+                                        <button v-if="['pendiente', 'parcial'].includes(cuenta.estado) && cuenta.venta?.cliente?.email"
+                                                @click="enviarRecordatorio(cuenta)"
+                                                class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-1"
+                                                title="Enviar Recordatorio de Pago">
+                                            <svg class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 12l-1.5-1.5m0 0L9 12m1.5-1.5V9" />
+                                            </svg>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         </tbody>
@@ -224,13 +249,38 @@
                 </div>
             </div>
         </div>
+
+        <!-- Modal de confirmación de email -->
+        <Modal
+            :show="showModal"
+            :mode="modalMode"
+            tipo="ventas"
+            :selected="fila || {}"
+            @close="cerrarModal"
+            @confirm-email="confirmarEnvioEmail"
+        />
     </AppLayout>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue';
 import { Link } from '@inertiajs/vue3';
+import axios from 'axios';
+import { Notyf } from 'notyf';
+import 'notyf/notyf.min.css';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import Modal from '@/Components/IndexComponents/Modales.vue';
+
+// Configuración de notificaciones
+const notyf = new Notyf({
+    duration: 4000,
+    position: { x: 'right', y: 'top' },
+    types: [
+        { type: 'success', background: '#10b981', icon: false },
+        { type: 'error', background: '#ef4444', icon: false },
+        { type: 'warning', background: '#f59e0b', icon: false }
+    ]
+});
 
 const props = defineProps({
     cuentas: Object,
@@ -239,6 +289,59 @@ const props = defineProps({
 });
 
 const clientes = ref([]);
+
+// Estado del modal
+const showModal = ref(false);
+const fila = ref(null);
+const modalMode = ref('details');
+
+// Función para abrir modal de confirmación de email
+const abrirModalEmail = (cuenta) => {
+    fila.value = {
+        ...cuenta,
+        numero_venta: cuenta.venta?.numero_venta || `V${String(cuenta.venta_id).padStart(3, '0')}`,
+        email_destino: cuenta.venta?.cliente?.email,
+        // Indicar que es un recordatorio de pago
+        tipo_envio: 'recordatorio_pago'
+    };
+    modalMode.value = 'confirm-email';
+    showModal.value = true;
+};
+
+// Función para cerrar modal
+const cerrarModal = () => {
+    showModal.value = false;
+    fila.value = null;
+};
+
+// Función para confirmar envío de email
+const confirmarEnvioEmail = async () => {
+    try {
+        const cuenta = fila.value;
+        if (!cuenta?.email_destino) {
+            notyf.error('Email de destino no válido');
+            return;
+        }
+
+        cerrarModal();
+
+        // Usar axios para tener control total sobre la respuesta
+        const { data } = await axios.post(`/ventas/${cuenta.venta.id}/enviar-email`, {
+            email_destino: cuenta.email_destino,
+        });
+
+        if (data?.success) {
+            notyf.success(data.message || 'Recordatorio de pago enviado correctamente');
+        } else {
+            throw new Error(data?.error || 'Error desconocido al enviar recordatorio');
+        }
+
+    } catch (error) {
+        console.error('Error al enviar recordatorio:', error);
+        const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message;
+        notyf.error('Error al enviar recordatorio: ' + errorMessage);
+    }
+};
 
 const filters = ref({
     estado: props.filters.estado || '',
@@ -261,6 +364,17 @@ const formatCurrency = (value) => currencyFormatter.format(toNumber(value));
 const applyFilters = () => {
     // Implementar filtrado
     window.location.href = route('cuentas-por-cobrar.index', filters.value);
+};
+
+const enviarRecordatorio = (cuenta) => {
+    // Verificar que el cliente tenga email
+    if (!cuenta.venta?.cliente?.email) {
+        notyf.error('El cliente no tiene email configurado');
+        return;
+    }
+
+    // Abrir modal de confirmación
+    abrirModalEmail(cuenta);
 };
 
 // onMounted(() => {

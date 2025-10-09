@@ -1118,9 +1118,11 @@ class VentaController extends Controller
 
             // Preparar datos del email
             $datosEmail = [
+                'cuenta' => $venta->cuentaPorCobrar,
                 'venta' => $venta,
                 'cliente' => $venta->cliente,
                 'configuracion' => $configuracion,
+                'recordatorio' => null, // No hay recordatorio en este contexto
             ];
 
             // Configurar SMTP con datos de la base de datos
@@ -1135,10 +1137,10 @@ class VentaController extends Controller
             ]);
 
             // Enviar email con PDF adjunto
-            Mail::send('emails.venta', $datosEmail, function ($message) use ($venta, $pdf, $configuracion) {
+            Mail::send('emails.recordatorio_pago', $datosEmail, function ($message) use ($venta, $pdf, $configuracion) {
                 $message->to($venta->cliente->email)
-                    ->subject("Venta #{$venta->numero_venta} - {$configuracion->nombre_empresa}")
-                    ->attachData($pdf->output(), "venta-{$venta->numero_venta}.pdf", [
+                    ->subject("💰 Recordatorio de Pago - Factura #{$venta->numero_venta} - {$configuracion->nombre_empresa}")
+                    ->attachData($pdf->output(), "factura-{$venta->numero_venta}.pdf", [
                         'mime' => 'application/pdf',
                     ]);
 
@@ -1148,10 +1150,11 @@ class VentaController extends Controller
                 }
             });
 
-            Log::info("PDF de venta enviado por email", [
+            Log::info("Recordatorio de pago enviado por email", [
                 'venta_id' => $venta->id,
                 'cliente_email' => $venta->cliente->email,
                 'numero_venta' => $venta->numero_venta,
+                'tipo' => 'recordatorio_pago',
                 'configuracion_smtp' => [
                     'host' => $configuracion->smtp_host,
                     'port' => $configuracion->smtp_port,
@@ -1163,7 +1166,7 @@ class VentaController extends Controller
             if ($request->expectsJson() || $request->is('api/*')) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Venta enviada por email correctamente',
+                    'message' => 'Recordatorio de pago enviado correctamente',
                     'venta' => [
                         'id' => $venta->id,
                         'estado' => $venta->estado->value
@@ -1171,9 +1174,9 @@ class VentaController extends Controller
                 ]);
             }
 
-            return redirect()->back()->with('success', 'Venta enviada por email correctamente');
+            return redirect()->back()->with('success', 'Recordatorio de pago enviado correctamente');
         } catch (\Exception $e) {
-            Log::error("Error al enviar PDF de venta por email", [
+            Log::error("Error al enviar recordatorio de pago por email", [
                 'venta_id' => $id,
                 'cliente_email' => $venta->cliente->email ?? 'no disponible',
                 'error' => $e->getMessage(),
@@ -1184,7 +1187,7 @@ class VentaController extends Controller
 
             // Mensaje más específico para debugging
             $errorMessage = $e->getMessage();
-            $mensaje = 'Error al enviar venta por email';
+            $mensaje = 'Error al enviar recordatorio de pago';
 
             if (strpos($errorMessage, 'authentication failed') !== false) {
                 $mensaje = 'Error de autenticación SMTP. Verifica usuario/contraseña.';
