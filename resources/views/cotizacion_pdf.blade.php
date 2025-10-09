@@ -65,41 +65,31 @@
             font-weight: 700;
             color: {{ $HEX }};
             text-align: center;
-            /* Centrado del nombre de la empresa */
         }
 
-        /* Barra de cotización: UNA sola línea
-           Izquierda: Cotización
-           Centro: Fecha (centrado real)
-           Derecha: Validez
-        */
         .cotizacion-bar {
-            margin-top: 1.5mm;
-            padding: 1.8mm 2mm;
-            background: #f5f7fa;
-            border: 1px solid #e6e9ef;
-            border-radius: 4px;
+            display: table;
+            width: 100%;
+            table-layout: fixed;
+            margin: 6px 0 10px;
+            font-size: 11px;
+        }
 
-            display: grid;
-            grid-template-columns: 1fr auto 1fr;
-            align-items: center;
-            column-gap: 8mm;
-
-            font-size: 9.5px;
+        .cotizacion-bar>div {
+            display: table-cell;
+            vertical-align: middle;
             white-space: nowrap;
         }
 
         .cotizacion-left {
-            justify-self: start;
+            text-align: left;
         }
 
         .cotizacion-center {
-            justify-self: center;
             text-align: center;
         }
 
         .cotizacion-right {
-            justify-self: end;
             text-align: right;
         }
 
@@ -197,7 +187,7 @@
             color: #555;
         }
 
-        /* Totales ABAJO */
+        /* Totales */
         .totals {
             margin-top: 4mm;
             display: table;
@@ -252,40 +242,72 @@
             border-radius: 3px;
         }
 
-        .note {
-            margin-top: 3mm;
-            padding: 2mm 2.2mm;
-            background: #fff7e0;
-            border-left: 3px solid #ffc107;
+        /* Footer fijo con notas y datos bancarios */
+        .fixed-footer {
+            position: fixed;
+            bottom: 0;
+            left: 12mm;
+            right: 12mm;
+            background: #fff;
+            border: 1px solid #ddd;
             border-radius: 3px;
-            font-size: 9px;
+            padding: 4mm;
+            font-size: 7px;
+            line-height: 1.2;
+            max-height: 30mm;
+            overflow: hidden;
         }
 
-        /* Firmas al final */
-        .firmas-section {
-            margin-top: 10mm;
+        .footer-grid {
+            display: table;
+            width: 100%;
         }
 
-        .firmas-box {
-            min-height: 22mm;
-            display: flex;
-            gap: 10mm;
-            align-items: flex-end;
-            justify-content: space-between;
+        .footer-col {
+            display: table-cell;
+            vertical-align: top;
+            padding: 0 2mm;
         }
 
-        .firma {
-            width: 48%;
-            border-top: 1px solid #999;
-            padding-top: 1.5mm;
-            text-align: center;
-            font-size: 9px;
+        .footer-col:first-child {
+            width: 40%;
+        }
+
+        .footer-col:nth-child(2) {
+            width: 35%;
+        }
+
+        .footer-col:last-child {
+            width: 25%;
+        }
+
+        .footer-title {
+            font-weight: bold;
+            color: {{ $HEX }};
+            font-size: 7px;
+            margin-bottom: 1mm;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 0.5mm;
+        }
+
+        .footer-text {
+            font-size: 6px;
             color: #555;
+            margin: 0;
+            line-height: 1.1;
         }
 
-        .firma .label {
-            display: block;
-            font-weight: 700;
+        .bank-info {
+            font-family: monospace;
+            font-size: 6px;
+            background: #f8f9fa;
+            padding: 1mm;
+            border-radius: 2px;
+            margin: 0.5mm 0;
+        }
+
+        .bank-label {
+            font-weight: bold;
             color: #333;
         }
 
@@ -316,14 +338,14 @@
         </div>
     </div>
 
-    {{-- BLOQUES INFO (Empresa, Cliente) - SIN FIRMAS ARRIBA --}}
+    {{-- BLOQUES INFO (Empresa, Cliente) --}}
     <div class="info avoid-break">
         <div class="col">
-            <h3>Empresa</h3>
+            <h3>Proveedor</h3>
             <table class="kv">
                 <tr>
-                    <td class="k">Empresa:</td>
-                    <td class="v">{{ $configuracion->nombre_empresa }}</td>
+                    <td class="k">Razón Social:</td>
+                    <td class="v"><strong>{{ $configuracion->nombre_empresa }}</strong></td>
                 </tr>
                 @if ($configuracion->rfc)
                     <tr>
@@ -331,9 +353,22 @@
                         <td class="v">{{ $configuracion->rfc }}</td>
                     </tr>
                 @endif
+                @if ($configuracion->direccion_completa)
+                    <tr>
+                        <td class="k">Dirección:</td>
+                        <td class="v">{{ $configuracion->direccion_completa }}</td>
+                    </tr>
+                @endif
+                @if ($configuracion->municipio && $configuracion->estado && $configuracion->codigo_postal)
+                    <tr>
+                        <td class="k">Municipio:</td>
+                        <td class="v">{{ $configuracion->municipio }}, {{ $configuracion->estado }},
+                            {{ $configuracion->codigo_postal }}</td>
+                    </tr>
+                @endif
                 @if ($configuracion->telefono)
                     <tr>
-                        <td class="k">Tel:</td>
+                        <td class="k">Teléfono:</td>
                         <td class="v">{{ $configuracion->telefono }}</td>
                     </tr>
                 @endif
@@ -350,25 +385,60 @@
             <h3>Cliente</h3>
             <table class="kv">
                 <tr>
-                    <td class="k">Cliente:</td>
+                    <td class="k">Razón Social:</td>
                     <td class="v">{{ $cotizacion->cliente->nombre_razon_social }}</td>
                 </tr>
-                @if ($cotizacion->cliente->email)
-                    <tr>
-                        <td class="k">Email:</td>
-                        <td class="v">{{ $cotizacion->cliente->email }}</td>
-                    </tr>
-                @endif
-                @if ($cotizacion->cliente->telefono)
-                    <tr>
-                        <td class="k">Tel:</td>
-                        <td class="v">{{ $cotizacion->cliente->telefono }}</td>
-                    </tr>
-                @endif
                 @if ($cotizacion->cliente->rfc)
                     <tr>
                         <td class="k">RFC:</td>
                         <td class="v">{{ $cotizacion->cliente->rfc }}</td>
+                    </tr>
+                @endif
+                @if ($cotizacion->cliente->calle || $cotizacion->cliente->numero_exterior || $cotizacion->cliente->colonia)
+                    <tr>
+                        <td class="k">Dirección:</td>
+                        <td class="v">
+                            {{ trim(
+                                implode(
+                                    ' ',
+                                    array_filter([
+                                        $cotizacion->cliente->calle,
+                                        $cotizacion->cliente->numero_exterior,
+                                        $cotizacion->cliente->numero_interior ? 'Int. ' . $cotizacion->cliente->numero_interior : null,
+                                        $cotizacion->cliente->colonia,
+                                    ]),
+                                ),
+                            ) }}
+                        </td>
+                    </tr>
+                @endif
+                @if ($cotizacion->cliente->municipio || $cotizacion->cliente->estado || $cotizacion->cliente->codigo_postal)
+                    <tr>
+                        <td class="k">Municipio:</td>
+                        <td class="v">
+                            {{ trim(
+                                implode(
+                                    ', ',
+                                    array_filter([
+                                        $cotizacion->cliente->municipio,
+                                        $cotizacion->cliente->estado,
+                                        $cotizacion->cliente->codigo_postal,
+                                    ]),
+                                ),
+                            ) }}
+                        </td>
+                    </tr>
+                @endif
+                @if ($cotizacion->cliente->telefono)
+                    <tr>
+                        <td class="k">Teléfono:</td>
+                        <td class="v">{{ $cotizacion->cliente->telefono }}</td>
+                    </tr>
+                @endif
+                @if ($cotizacion->cliente->email)
+                    <tr>
+                        <td class="k">Email:</td>
+                        <td class="v">{{ $cotizacion->cliente->email }}</td>
                     </tr>
                 @endif
             </table>
@@ -414,21 +484,10 @@
         </tbody>
     </table>
 
-    {{-- TOTALES ABAJO + NOTAS --}}
+    {{-- TOTALES --}}
     <div class="totals avoid-break">
         <div class="left">
-            @if ($cotizacion->notas)
-                <div class="note">
-                    <strong>📝 Notas</strong><br>
-                    {{ Str::limit($cotizacion->notas, 450) }}
-                </div>
-            @endif
-
-            @if ($configuracion->pie_pagina_cotizaciones)
-                <div class="note" style="background:#f5f7fa; border-left-color: {{ $HEX }};">
-                    {!! nl2br(e(Str::limit($configuracion->pie_pagina_cotizaciones, 450))) !!}
-                </div>
-            @endif
+            {{-- Notas movidas al footer fijo --}}
         </div>
 
         <div class="right">
@@ -452,16 +511,55 @@
         </div>
     </div>
 
-    {{-- FIRMAS AL FINAL --}}
-    <div class="firmas-section avoid-break">
-        <div class="firmas-box">
-            <div class="firma">
-                <span class="label">Cliente</span>
-                {{ Str::limit($cotizacion->cliente->nombre_razon_social, 40) }}
+    {{-- FOOTER FIJO CON NOTAS, DATOS BANCARIOS Y FIRMA --}}
+    <div class="fixed-footer">
+        <div class="footer-grid">
+            <div class="footer-col">
+                <div class="footer-title">📝 Notas de la Cotización</div>
+                @if ($cotizacion->notas)
+                    <p class="footer-text">{{ Str::limit($cotizacion->notas, 250) }}</p>
+                @else
+                    <p class="footer-text" style="color: #999; font-style: italic;">Sin notas adicionales</p>
+                @endif
             </div>
-            <div class="firma">
-                <span class="label">Proveedor</span>
-                {{ Str::limit($configuracion->nombre_empresa, 40) }}
+            <div class="footer-col">
+                <div class="footer-title">🏦 Información Bancaria</div>
+                @if (
+                    $configuracion->banco ||
+                        $configuracion->sucursal ||
+                        $configuracion->cuenta ||
+                        $configuracion->clabe ||
+                        $configuracion->titular)
+                    <div class="bank-info">
+                        @if ($configuracion->banco)
+                            <div><span class="bank-label">Banco:</span> {{ $configuracion->banco }}</div>
+                        @endif
+                        @if ($configuracion->sucursal)
+                            <div><span class="bank-label">Sucursal:</span> {{ $configuracion->sucursal }}</div>
+                        @endif
+                        @if ($configuracion->cuenta)
+                            <div><span class="bank-label">Cuenta:</span> {{ $configuracion->cuenta }}</div>
+                        @endif
+                        @if ($configuracion->clabe)
+                            <div><span class="bank-label">CLABE:</span> {{ $configuracion->clabe }}</div>
+                        @endif
+                        @if ($configuracion->titular)
+                            <div><span class="bank-label">Titular:</span> {{ $configuracion->titular }}</div>
+                        @endif
+                    </div>
+                @else
+                    <p class="footer-text" style="color: #999; font-style: italic;">Datos bancarios no configurados</p>
+                @endif
+            </div>
+            <div class="footer-col">
+                <div class="footer-title">✍️ Autorización del Cliente</div>
+                <div style="margin-top: 10px;">
+                    <div style="border-top: 2px solid #333; width: 100%; margin-bottom: 4px; padding-top: 8px;"></div>
+                    <p class="footer-text" style="margin: 0; font-weight: bold; font-size: 8px;">JESUS LOPEZ</p>
+                    <p class="footer-text" style="margin: 0; font-size: 6px; color: #666;">Cliente que autoriza</p>
+                    <p class="footer-text" style="margin: 2px 0 0 0; font-size: 6px; color: #666;">
+                        {{ $cotizacion->created_at->format('d/m/Y') }}</p>
+                </div>
             </div>
         </div>
     </div>

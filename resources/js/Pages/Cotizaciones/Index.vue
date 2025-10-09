@@ -368,27 +368,61 @@ const confirmarDuplicarCotizacion = async () => {
 
 const imprimirCotizacion = async (cotizacion) => {
   try {
+    console.log('=== IMPRIMIENDO COTIZACIÓN ===')
+    console.log('Cotización recibida:', cotizacion)
+    console.log('ID:', cotizacion?.id)
+    console.log('Número:', cotizacion?.numero_cotizacion)
+
     validarCotizacion(cotizacion)
+
+    if (!cotizacion?.id) {
+      throw new Error('ID de cotización no válido')
+    }
 
     loading.value = true
     notyf.success('Generando PDF...')
 
-    // Crear enlace temporal para descargar el PDF
-    const link = document.createElement('a')
-    link.href = `/cotizaciones/${cotizacion.id}/pdf`
-    link.download = `cotizacion-${cotizacion.numero_cotizacion || cotizacion.id}.pdf`
-    link.target = '_blank'
+    const url = `/cotizaciones/${cotizacion.id}/pdf`
+    const filename = `cotizacion-${cotizacion.numero_cotizacion || cotizacion.id}.pdf`
 
-    // Simular clic para iniciar descarga
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    console.log('URL del PDF:', url)
+    console.log('Nombre del archivo:', filename)
 
-    notyf.success('PDF generado correctamente')
+    // Método 1: Intentar con window.open (más confiable)
+    try {
+      const newWindow = window.open(url, '_blank')
+      if (!newWindow) {
+        throw new Error('El navegador bloqueó la ventana emergente')
+      }
+      notyf.success('PDF generado correctamente')
+    } catch (windowError) {
+      console.warn('Error con window.open, intentando método alternativo:', windowError)
+
+      // Método 2: Usar enlace programático como fallback
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      link.target = '_blank'
+      link.style.display = 'none'
+
+      document.body.appendChild(link)
+      link.click()
+
+      setTimeout(() => {
+        document.body.removeChild(link)
+        notyf.success('PDF generado correctamente')
+      }, 100)
+    }
 
   } catch (error) {
     console.error('Error al generar PDF:', error)
     notyf.error(`Error al generar el PDF: ${error.message}`)
+
+    // Si hay un error de red, mostrar más detalles
+    if (error.response) {
+      console.error('Error de respuesta:', error.response)
+      notyf.error(`Error del servidor: ${error.response.status} - ${error.response.statusText}`)
+    }
   } finally {
     loading.value = false
   }
