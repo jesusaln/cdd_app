@@ -473,13 +473,15 @@ class ClienteController extends Controller
                 $q->where('activo', true)->orWhereNull('activo');
             })->count();
 
-            return Inertia::render('Clientes/Index', [
-                'titulo'   => 'Clientes',
+            return Inertia::render('Clientes/IndexNew', [
                 'clientes' => $clientes,
                 'stats'    => [
                     'total'     => $clientesCount,
                     'activos'   => $clientesActivos,
                     'inactivos' => $clientesCount - $clientesActivos,
+                    'personas_fisicas' => Cliente::where('tipo_persona', 'fisica')->count(),
+                    'personas_morales' => Cliente::where('tipo_persona', 'moral')->count(),
+                    'nuevos_mes' => Cliente::whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->count(),
                 ],
                 'catalogs' => $this->getCatalogData(),
                 'filters'  => $request->only(['search', 'tipo_persona', 'regimen_fiscal', 'uso_cfdi', 'activo', 'estado']),
