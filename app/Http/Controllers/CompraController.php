@@ -29,9 +29,16 @@ class CompraController extends Controller
         $perPage = (int) ($request->integer('per_page') ?: 10);
         $page    = max(1, (int) $request->get('page', 1));
 
+        // Validar elementos por página
+        $validPerPages = [10, 15, 25, 50, 100];
+        if (!in_array($perPage, $validPerPages)) {
+            $perPage = 10;
+        }
+
         $baseQuery = Compra::with([
             'proveedor',
             'productos',
+            'almacen',
         ]);
 
         // Aplicar filtros
@@ -54,16 +61,33 @@ class CompraController extends Controller
             $baseQuery->where('estado', $request->estado);
         }
 
+        if ($request->filled('proveedor_id')) {
+            $baseQuery->where('proveedor_id', $request->proveedor_id);
+        }
+
+        if ($request->filled('almacen_id')) {
+            $baseQuery->where('almacen_id', $request->almacen_id);
+        }
+
+        if ($request->filled('fecha_desde')) {
+            $baseQuery->whereDate('created_at', '>=', $request->fecha_desde);
+        }
+
+        if ($request->filled('fecha_hasta')) {
+            $baseQuery->whereDate('created_at', '<=', $request->fecha_hasta);
+        }
+
         // Ordenamiento
         $sortBy = $request->get('sort_by', 'created_at');
         $sortDirection = $request->get('sort_direction', 'desc');
 
-        $allowedSorts = ['created_at', 'total', 'estado'];
+        $allowedSorts = ['created_at', 'total', 'estado', 'numero_compra'];
         if (!in_array($sortBy, $allowedSorts)) {
             $sortBy = 'created_at';
         }
 
-        $baseQuery->orderBy($sortBy, $sortDirection === 'asc' ? 'asc' : 'desc');
+        $baseQuery->orderBy($sortBy, $sortDirection === 'asc' ? 'asc' : 'desc')
+                  ->orderBy('id', 'desc');
 
         $paginator = $baseQuery->paginate($perPage, ['*'], 'page', $page);
         $compras = collect($paginator->items());
@@ -142,12 +166,42 @@ class CompraController extends Controller
             'total' => Compra::count(),
             'procesadas' => Compra::where('estado', EstadoCompra::Procesada)->count(),
             'canceladas' => Compra::where('estado', EstadoCompra::Cancelada)->count(),
+            'con_orden_compra' => Compra::whereNotNull('orden_compra_id')->count(),
+            'directas' => Compra::whereNull('orden_compra_id')->count(),
+        ];
+
+        // Opciones para filtros
+        $proveedores = Proveedor::select('id', 'nombre_razon_social', 'rfc')
+            ->orderBy('nombre_razon_social')
+            ->get()
+            ->mapWithKeys(function ($proveedor) {
+                return [$proveedor->id => $proveedor->nombre_razon_social . ' (' . $proveedor->rfc . ')'];
+            });
+
+        $almacenes = Almacen::select('id', 'nombre', 'ubicacion')
+            ->where('estado', 'activo')
+            ->orderBy('nombre')
+            ->get()
+            ->mapWithKeys(function ($almacen) {
+                return [$almacen->id => $almacen->nombre . ($almacen->ubicacion ? ' - ' . $almacen->ubicacion : '')];
+            });
+
+        $filterOptions = [
+            'estados' => [
+                ['value' => '', 'label' => 'Todos los Estados'],
+                ['value' => 'procesada', 'label' => 'Procesadas'],
+                ['value' => 'cancelada', 'label' => 'Canceladas'],
+            ],
+            'proveedores' => $proveedores,
+            'almacenes' => $almacenes,
+            'per_page_options' => [10, 15, 25, 50, 100],
         ];
 
         return Inertia::render('Compras/Index', [
             'compras' => $paginator,
             'stats' => $stats,
-            'filters' => $request->only(['search', 'estado']),
+            'filterOptions' => $filterOptions,
+            'filters' => $request->only(['search', 'estado', 'proveedor_id', 'almacen_id', 'fecha_desde', 'fecha_hasta']),
             'sorting' => [
                 'sort_by' => $sortBy,
                 'sort_direction' => $sortDirection,

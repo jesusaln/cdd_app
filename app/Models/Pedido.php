@@ -23,10 +23,17 @@ class Pedido extends Model
         'total',
         'notas',
         'estado',
+        // Campos para rastreo de email
+        'email_enviado',
+        'email_enviado_fecha',
+        'email_enviado_por',
     ];
 
     protected $casts = [
         'estado' => EstadoPedido::class,
+        // Campos de email
+        'email_enviado'     => 'boolean',
+        'email_enviado_fecha' => 'datetime',
     ];
 
     public function cliente()
@@ -91,5 +98,11 @@ class Pedido extends Model
     public function deletedBy()
     {
         return $this->belongsTo(User::class, 'deleted_by');
+    }
+
+    // Relación con el usuario que envió el email
+    public function emailEnviadoPor()
+    {
+        return $this->belongsTo(User::class, 'email_enviado_por');
     }
 }

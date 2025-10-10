@@ -38,17 +38,71 @@ class PedidoController extends Controller
     }
 
     /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        $pedidos = Pedido::with(['cliente', 'items.pedible', 'createdBy', 'updatedBy', 'deletedBy'])
-            ->get()
-            ->filter(function ($pedido) {
-                // Filtrar pedidos con cliente y al menos un item válido
-                return $pedido->cliente !== null && $pedido->items->isNotEmpty();
-            })
-            ->map(function ($pedido) {
+      * Display a listing of the resource.
+      */
+     public function index(Request $request)
+     {
+         $perPage = (int) ($request->integer('per_page') ?: 10);
+
+         // Validar elementos por página
+         $validPerPages = [10, 15, 25, 50, 100];
+         if (!in_array($perPage, $validPerPages)) {
+             $perPage = 10;
+         }
+
+         $baseQuery = Pedido::with(['cliente', 'items.pedible', 'createdBy', 'updatedBy', 'deletedBy', 'emailEnviadoPor']);
+
+         // Aplicar filtros
+         if ($search = trim($request->get('search', ''))) {
+             $baseQuery->where(function ($query) use ($search) {
+                 $query->where('numero_pedido', 'like', "%{$search}%")
+                       ->orWhere('id', 'like', "%{$search}%")
+                       ->orWhereHas('cliente', function ($q) use ($search) {
+                           $q->where('nombre_razon_social', 'like', "%{$search}%")
+                             ->orWhere('rfc', 'like', "%{$search}%");
+                       })
+                       ->orWhereHas('items.pedible', function ($q) use ($search) {
+                           $q->where('nombre', 'like', "%{$search}%")
+                             ->orWhere('descripcion', 'like', "%{$search}%");
+                       });
+             });
+         }
+
+         if ($request->filled('estado')) {
+             $baseQuery->where('estado', $request->estado);
+         }
+
+         if ($request->filled('cliente_id')) {
+             $baseQuery->where('cliente_id', $request->cliente_id);
+         }
+
+         if ($request->filled('fecha_desde')) {
+             $baseQuery->whereDate('fecha', '>=', $request->fecha_desde);
+         }
+
+         if ($request->filled('fecha_hasta')) {
+             $baseQuery->whereDate('fecha', '<=', $request->fecha_hasta);
+         }
+
+         // Ordenamiento
+         $sortBy = $request->get('sort_by', 'created_at');
+         $sortDirection = $request->get('sort_direction', 'desc');
+
+         $allowedSorts = ['created_at', 'fecha', 'total', 'estado', 'numero_pedido'];
+         if (!in_array($sortBy, $allowedSorts)) {
+             $sortBy = 'created_at';
+         }
+
+         $baseQuery->orderBy($sortBy, $sortDirection === 'asc' ? 'asc' : 'desc')
+                   ->orderBy('id', 'desc');
+
+         $paginator = $baseQuery->paginate($perPage)->appends($request->query());
+         $pedidos = collect($paginator->items());
+
+         $transformed = $pedidos->filter(function ($pedido) {
+             // Filtrar pedidos con cliente y al menos un item válido
+             return $pedido->cliente !== null && $pedido->items->isNotEmpty();
+         })->map(function ($pedido) {
                 $items = $pedido->items->map(function ($item) {
                     $pedible = $item->pedible;
                     return [
@@ -96,6 +150,11 @@ class PedidoController extends Controller
                     'numero_pedido' => $pedido->numero_pedido,
                     'cotizacion_id' => $pedido->cotizacion_id,
 
+                    // Información de email
+                    'email_enviado' => (bool) ($pedido->email_enviado ?? false),
+                    'email_enviado_fecha' => $pedido->email_enviado_fecha?->format('d/m/Y H:i'),
+                    'email_enviado_por' => $pedido->emailEnviadoPor?->name,
+
                     // Auditoría
                     'creado_por_nombre' => $pedido->createdBy?->name,
                     'actualizado_por_nombre' => $pedido->updatedBy?->name,
@@ -113,14 +172,54 @@ class PedidoController extends Controller
                 ];
             });
 
-        return Inertia::render('Pedidos/Index', [
-            'pedidos' => $pedidos->values(),
+        // Estadísticas para el dashboard
+        $stats = [
+            'total' => Pedido::count(),
+            'borradores' => Pedido::where('estado', EstadoPedido::Borrador)->count(),
+            'pendientes' => Pedido::where('estado', EstadoPedido::Pendiente)->count(),
+            'confirmados' => Pedido::where('estado', EstadoPedido::Confirmado)->count(),
+            'enviados_venta' => Pedido::where('estado', EstadoPedido::EnviadoVenta)->count(),
+            'cancelados' => Pedido::where('estado', EstadoPedido::Cancelado)->count(),
+            'con_cotizacion' => Pedido::whereNotNull('cotizacion_id')->count(),
+            'sin_cotizacion' => Pedido::whereNull('cotizacion_id')->count(),
+        ];
+
+        // Opciones para filtros
+        $clientes = Cliente::select('id', 'nombre_razon_social', 'rfc')
+            ->orderBy('nombre_razon_social')
+            ->get()
+            ->mapWithKeys(function ($cliente) {
+                return [$cliente->id => $cliente->nombre_razon_social . ' (' . $cliente->rfc . ')'];
+            });
+
+        $filterOptions = [
             'estados' => collect(EstadoPedido::cases())->map(fn($estado) => [
                 'value' => $estado->value,
                 'label' => $estado->label(),
                 'color' => $estado->color()
-            ]),
-            'filters' => request()->only(['search', 'estado', 'fecha_inicio', 'fecha_fin'])
+            ])->toArray(),
+            'clientes' => $clientes,
+            'per_page_options' => [10, 15, 25, 50, 100],
+        ];
+
+        return Inertia::render('Pedidos/IndexNew', [
+            'pedidos' => $paginator,
+            'stats' => $stats,
+            'filterOptions' => $filterOptions,
+            'filters' => $request->only(['search', 'estado', 'cliente_id', 'fecha_desde', 'fecha_hasta']),
+            'sorting' => [
+                'sort_by' => $sortBy,
+                'sort_direction' => $sortDirection,
+                'allowed_sorts' => $allowedSorts,
+            ],
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $perPage,
+                'total' => $paginator->total(),
+                'from' => $paginator->firstItem(),
+                'to' => $paginator->lastItem(),
+            ],
         ]);
     }
 
@@ -1159,6 +1258,13 @@ class PedidoController extends Controller
                     'port' => $configuracion->smtp_port,
                     'encryption' => $configuracion->smtp_encryption,
                 ]
+            ]);
+
+            // Registrar el envío en el pedido para mostrar en el frontend
+            $pedido->update([
+                'email_enviado' => true,
+                'email_enviado_fecha' => now(),
+                'email_enviado_por' => Auth::id(),
             ]);
 
             // Si es una petición AJAX, devolver JSON; de lo contrario, redirect

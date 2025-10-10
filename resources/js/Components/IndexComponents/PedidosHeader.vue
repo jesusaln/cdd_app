@@ -1,90 +1,104 @@
 <template>
   <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-    <!-- Header principal -->
-    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-5 border-b border-gray-200/60">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center space-x-4">
-          <div class="flex items-center space-x-3">
-            <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center shadow-sm">
-              <svg class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <div>
-              <h1 class="text-xl font-bold text-gray-900 tracking-tight">Pedidos</h1>
-              <p class="text-sm text-gray-600">Gestión de pedidos del sistema</p>
-            </div>
-          </div>
+    <!-- Header con estadísticas -->
+    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-6 border-b border-gray-200/60">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Pedidos</h1>
+          <p class="text-sm text-gray-600 mt-1">Gestiona todos tus pedidos en un solo lugar</p>
         </div>
-
-        <div class="flex items-center space-x-3">
-          <button
-            @click="onCrearNuevo"
-            class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 shadow-sm hover:shadow-md"
-          >
-            <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
-            {{ config.createButtonText || 'Nuevo Pedido' }}
-          </button>
-        </div>
+        <button
+          @click="onCrearNueva"
+          class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200"
+        >
+          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          Nuevo Pedido
+        </button>
       </div>
-    </div>
 
-    <!-- Estadísticas -->
-    <div class="px-6 py-4 bg-gray-50/30 border-b border-gray-200/40">
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div class="bg-white p-4 rounded-lg border border-gray-200/50 shadow-sm">
+      <!-- Estadísticas -->
+      <div class="grid grid-cols-2 md:grid-cols-6 gap-4">
+        <div class="bg-white/70 rounded-lg p-4 border border-gray-200/50">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm font-medium text-gray-600">Total</p>
               <p class="text-2xl font-bold text-gray-900">{{ total }}</p>
             </div>
-            <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <svg class="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+              <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
           </div>
         </div>
 
-        <div class="bg-white p-4 rounded-lg border border-gray-200/50 shadow-sm">
+        <div class="bg-white/70 rounded-lg p-4 border border-gray-200/50">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-gray-600">Borradores</p>
+              <p class="text-2xl font-bold text-gray-600">{{ borradores }}</p>
+            </div>
+            <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+              <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white/70 rounded-lg p-4 border border-gray-200/50">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm font-medium text-gray-600">Pendientes</p>
               <p class="text-2xl font-bold text-yellow-600">{{ pendientes }}</p>
             </div>
-            <div class="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-              <svg class="w-5 h-5 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div class="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+              <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
           </div>
         </div>
 
-        <div class="bg-white p-4 rounded-lg border border-gray-200/50 shadow-sm">
+        <div class="bg-white/70 rounded-lg p-4 border border-gray-200/50">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm font-medium text-gray-600">Borradores</p>
-              <p class="text-2xl font-bold text-gray-600">{{ borrador }}</p>
+              <p class="text-sm font-medium text-gray-600">Confirmados</p>
+              <p class="text-2xl font-bold text-blue-600">{{ confirmados }}</p>
             </div>
-            <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-              <svg class="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+              <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
           </div>
         </div>
 
-        <div class="bg-white p-4 rounded-lg border border-gray-200/50 shadow-sm">
+        <div class="bg-white/70 rounded-lg p-4 border border-gray-200/50">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm font-medium text-gray-600">Enviados a Venta</p>
-              <p class="text-2xl font-bold text-indigo-600">{{ enviado_venta }}</p>
+              <p class="text-sm font-medium text-gray-600">Enviados</p>
+              <p class="text-2xl font-bold text-indigo-600">{{ enviados_venta }}</p>
             </div>
-            <div class="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-              <svg class="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
+              <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white/70 rounded-lg p-4 border border-gray-200/50">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-gray-600">Cancelados</p>
+              <p class="text-2xl font-bold text-red-600">{{ cancelados }}</p>
+            </div>
+            <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+              <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
           </div>
@@ -92,59 +106,77 @@
       </div>
     </div>
 
-    <!-- Filtros -->
-    <div class="px-6 py-4 bg-white border-b border-gray-200/40">
-      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+    <!-- Filtros y búsqueda -->
+    <div class="px-6 py-4 bg-gray-50/50 border-b border-gray-200/60">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
         <!-- Búsqueda -->
         <div class="flex-1 max-w-md">
           <div class="relative">
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
             <input
               v-model="searchTerm"
               type="text"
-              :placeholder="config.searchPlaceholder || 'Buscar pedidos...'"
-              class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+              placeholder="Buscar por cliente, número..."
+              class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
               @input="onSearchChange"
             />
           </div>
         </div>
 
-        <!-- Filtros adicionales -->
+        <!-- Filtros -->
         <div class="flex items-center space-x-3">
-          <!-- Filtro por estado -->
-          <div class="relative">
-            <select
-              v-model="filtroEstado"
-              class="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 rounded-lg transition-colors duration-200 bg-white"
-              @change="onFiltroEstadoChange"
-            >
-              <option value="">Todos los estados</option>
-              <option value="borrador">Borrador</option>
-              <option value="pendiente">Pendiente</option>
-              <option value="confirmado">Confirmado</option>
-              <option value="en_preparacion">En Preparación</option>
-              <option value="listo entrega">Listo para Entrega</option>
-              <option value="entregado">Entregado</option>
-              <option value="enviado_venta">Enviado a Venta</option>
-              <option value="cancelado">Cancelado</option>
-            </select>
-            <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-              <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-          </div>
+          <!-- Filtro de estado -->
+          <select
+            v-model="filtroEstado"
+            @change="onFiltroEstadoChange"
+            class="block w-48 pl-3 pr-10 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white"
+          >
+            <option value="">Todos los estados</option>
+            <option value="borrador">Borrador</option>
+            <option value="pendiente">Pendiente</option>
+            <option value="confirmado">Confirmado</option>
+            <option value="enviado_venta">Enviado a Venta</option>
+            <option value="cancelado">Cancelado</option>
+          </select>
+
+          <!-- Filtro de cliente -->
+          <select
+            v-model="filtroCliente"
+            @change="onFiltroClienteChange"
+            class="block w-48 pl-3 pr-10 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white"
+          >
+            <option value="">Todos los clientes</option>
+            <option v-for="cliente in filterOptions?.clientes || []" :key="cliente.value" :value="cliente.value">
+              {{ cliente.label }}
+            </option>
+          </select>
+
+          <!-- Ordenamiento -->
+          <select
+            v-model="sortBy"
+            @change="onSortChange"
+            class="block w-48 pl-3 pr-10 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white"
+          >
+            <option value="fecha-desc">Fecha (Más reciente)</option>
+            <option value="fecha-asc">Fecha (Más antiguo)</option>
+            <option value="cliente-asc">Cliente (A-Z)</option>
+            <option value="cliente-desc">Cliente (Z-A)</option>
+            <option value="total-desc">Total (Mayor)</option>
+            <option value="total-asc">Total (Menor)</option>
+            <option value="estado-asc">Estado (A-Z)</option>
+            <option value="estado-desc">Estado (Z-A)</option>
+          </select>
 
           <!-- Limpiar filtros -->
           <button
             @click="onLimpiarFiltros"
-            class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+            class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
           >
-            <svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
             Limpiar
@@ -160,74 +192,51 @@ import { computed, watch } from 'vue'
 
 const props = defineProps({
   total: { type: Number, default: 0 },
+  borradores: { type: Number, default: 0 },
   pendientes: { type: Number, default: 0 },
-  borrador: { type: Number, default: 0 },
-  enviado_venta: { type: Number, default: 0 },
-  cancelado: { type: Number, default: 0 },
-  searchTerm: { type: String, default: '' },
-  sortBy: { type: String, default: 'fecha-desc' },
-  filtroEstado: { type: String, default: '' },
-  config: { type: Object, default: () => ({}) }
+  confirmados: { type: Number, default: 0 },
+  enviados_venta: { type: Number, default: 0 },
+  cancelados: { type: Number, default: 0 },
+  filterOptions: { type: Object, default: () => ({}) }
 })
 
 const emit = defineEmits([
-  'update:searchTerm',
-  'update:sortBy',
-  'update:filtroEstado',
-  'limpiar-filtros',
-  'crear-nuevo'
+  'crear-nueva', 'search-change', 'filtro-estado-change', 'filtro-cliente-change', 'sort-change', 'limpiar-filtros'
 ])
 
-// Computed para v-model
-const searchTerm = computed({
-  get: () => props.searchTerm,
-  set: (value) => emit('update:searchTerm', value)
-})
+// Estados locales para filtros
+const searchTerm = defineModel('searchTerm', { type: String, default: '' })
+const sortBy = defineModel('sortBy', { type: String, default: 'fecha-desc' })
+const filtroEstado = defineModel('filtroEstado', { type: String, default: '' })
+const filtroCliente = defineModel('filtroCliente', { type: String, default: '' })
 
-const sortBy = computed({
-  get: () => props.sortBy,
-  set: (value) => emit('update:sortBy', value)
-})
+// Métodos de emisión
+const onCrearNueva = () => emit('crear-nueva')
+const onSearchChange = () => emit('search-change', searchTerm.value)
+const onFiltroEstadoChange = () => emit('filtro-estado-change', filtroEstado.value)
+const onFiltroClienteChange = () => emit('filtro-cliente-change', filtroCliente.value)
+const onSortChange = () => emit('sort-change', sortBy.value)
+const onLimpiarFiltros = () => emit('limpiar-filtros')
 
-const filtroEstado = computed({
-  get: () => props.filtroEstado,
-  set: (value) => emit('update:filtroEstado', value)
-})
-
-// Event handlers
-const onSearchChange = (event) => {
-  emit('update:searchTerm', event.target.value)
-}
-
-const onFiltroEstadoChange = (event) => {
-  emit('update:filtroEstado', event.target.value)
-}
-
-const onLimpiarFiltros = () => {
-  emit('limpiar-filtros')
-}
-
-const onCrearNuevo = () => {
-  emit('crear-nuevo')
-}
+// Watch para limpiar filtros automáticamente
+watch([searchTerm, sortBy, filtroEstado, filtroCliente], () => {
+  // Emitir cambios automáticamente
+}, { immediate: true })
 </script>
 
 <style scoped>
 /* Estilos específicos para el header de pedidos */
-@media (max-width: 640px) {
-  .grid-cols-2.md\\:grid-cols-4 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+.pedidos-header {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+}
+
+@media (max-width: 768px) {
+  .pedidos-header .grid {
+    grid-template-columns: 1fr;
   }
-}
 
-@media (prefers-contrast: high) {
-  .bg-blue-50 { background-color: #eff6ff; }
-  .border-gray-200 { border-color: #d1d5db; }
-}
-
-button:focus-visible { outline: 2px solid; outline-offset: 2px; }
-
-@media (hover: none) {
-  .hover\\:bg-gray-50:hover { background-color: transparent; }
+  .pedidos-header h1 {
+    font-size: 1.5rem;
+  }
 }
 </style>
