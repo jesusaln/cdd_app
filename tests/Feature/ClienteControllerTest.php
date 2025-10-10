@@ -46,9 +46,9 @@ class ClienteControllerTest extends TestCase
             $page->component('Clientes/Index')
                 ->has('clientes.data', 10) // página 1, por defecto 10 por página
                 ->where('clientes.total', 19)
-                ->where('stats.total', 19)
-                ->where('stats.activos', 16)
-                ->where('stats.inactivos', 3)
+                ->where('estadisticas.total', 19)
+                ->where('estadisticas.activos', 16)
+                ->where('estadisticas.inactivos', 3)
         );
     }
 

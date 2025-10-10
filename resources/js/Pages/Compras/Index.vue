@@ -8,7 +8,7 @@ import 'notyf/notyf.min.css'
 
 import { generarPDF } from '@/Utils/pdfGenerator'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import UniversalHeader from '@/Components/IndexComponents/UniversalHeader.vue'
+import ComprasHeader from '@/Components/IndexComponents/ComprasHeader.vue'
 import DocumentosTable from '@/Components/IndexComponents/DocumentosTable.vue'
 import Modal from '@/Components/IndexComponents/Modales.vue'
 
@@ -213,6 +213,16 @@ const estadisticas = computed(() => {
   }
 })
 
+// Estadísticas adicionales para el header moderno
+const montoTotal = computed(() => {
+  return props.stats.monto_total || 0
+})
+
+const promedio = computed(() => {
+  const total = estadisticas.value.total || 1
+  return montoTotal.value / total
+})
+
 const handleLimpiarFiltros = () => {
   searchTerm.value = ''
   sortBy.value = 'created_at-desc'
@@ -395,19 +405,20 @@ const crearNuevaCompra = () => {
   <div class="compras-index min-h-screen bg-gray-50">
     <!-- Contenido principal -->
     <div class="max-w-8xl mx-auto px-6 py-8">
-      <!-- Header de filtros y estadísticas -->
-      <UniversalHeader
+      <!-- Header específico de compras -->
+      <ComprasHeader
         :total="estadisticas.total"
         :procesadas="estadisticas.procesadas"
         :canceladas="estadisticas.canceladas"
+        :monto-total="montoTotal"
+        :promedio="promedio"
         v-model:search-term="searchTerm"
         v-model:sort-by="sortBy"
         v-model:filtro-estado="filtroEstado"
-        :config="{
-          module: 'compras',
-          createButtonText: 'Nueva Compra',
-          searchPlaceholder: 'Buscar por proveedor, número...'
-        }"
+        @crear-nueva="crearNuevaCompra"
+        @search-change="updateFilters"
+        @filtro-estado-change="updateFilters"
+        @sort-change="updateSort"
         @limpiar-filtros="handleLimpiarFiltros"
       />
 

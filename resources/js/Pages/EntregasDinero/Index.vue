@@ -6,6 +6,8 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import { Notyf } from 'notyf'
 import 'notyf/notyf.min.css'
 
+import EntregasDineroHeader from '@/Components/IndexComponents/EntregasDineroHeader.vue'
+
 defineOptions({ layout: AppLayout })
 
 // Notificaciones
@@ -24,7 +26,8 @@ const props = defineProps({
   entregas: { type: Object, default: () => ({}) },
   registrosAutomaticos: { type: Array, default: () => [] },
   stats: { type: Object, default: () => ({}) },
-  filters: { type: Object, default: () => ({}) }
+  filters: { type: Object, default: () => ({}) },
+  usuarios: { type: Array, default: () => [] }
 })
 
 // Estado
@@ -43,6 +46,10 @@ const notasRecibido = ref('')
 // Filtros
 const filtroEstado = ref(props.filters?.estado ?? '')
 const filtroUserId = ref(props.filters?.user_id ?? '')
+
+// Nuevas variables para el header
+const searchTerm = ref('')
+const sortBy = ref('fecha_entrega-desc')
 
 // Helpers
 const formatNumber = (num) => new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num)
@@ -104,8 +111,11 @@ const obtenerEstadoEntrega = (registro) => {
 function handleEstadoChange(newEstado) {
   filtroEstado.value = newEstado
   router.get(route('entregas-dinero.index'), {
+    search: searchTerm.value,
     estado: newEstado,
     user_id: filtroUserId.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc',
     page: 1
   }, { preserveState: true, preserveScroll: true })
 }
@@ -113,8 +123,49 @@ function handleEstadoChange(newEstado) {
 function handleUserChange(newUserId) {
   filtroUserId.value = newUserId
   router.get(route('entregas-dinero.index'), {
+    search: searchTerm.value,
     estado: filtroEstado.value,
     user_id: newUserId,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc',
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+// Nuevas funciones para el header moderno
+const crearNuevaEntrega = () => {
+  router.visit(route('entregas-dinero.create'))
+}
+
+const limpiarFiltros = () => {
+  searchTerm.value = ''
+  sortBy.value = 'fecha_entrega-desc'
+  filtroEstado.value = ''
+  filtroUserId.value = ''
+  router.visit(route('entregas-dinero.index'))
+  notyf.success('Filtros limpiados correctamente')
+}
+
+function handleSearchChange(newSearch) {
+  searchTerm.value = newSearch
+  router.get(route('entregas-dinero.index'), {
+    search: newSearch,
+    estado: filtroEstado.value,
+    user_id: filtroUserId.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc',
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+function handleSortChange(newSort) {
+  sortBy.value = newSort
+  router.get(route('entregas-dinero.index'), {
+    search: searchTerm.value,
+    estado: filtroEstado.value,
+    user_id: filtroUserId.value,
+    sort_by: newSort.split('-')[0],
+    sort_direction: newSort.split('-')[1] || 'desc',
     page: 1
   }, { preserveState: true, preserveScroll: true })
 }
@@ -286,7 +337,11 @@ const paginationData = computed(() => {
 
 const handlePerPageChange = (newPerPage) => {
   router.get(route('entregas-dinero.index'), {
-    ...props.filters,
+    search: searchTerm.value,
+    estado: filtroEstado.value,
+    user_id: filtroUserId.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc',
     per_page: newPerPage,
     page: 1
   }, { preserveState: true, preserveScroll: true })
@@ -294,7 +349,11 @@ const handlePerPageChange = (newPerPage) => {
 
 const handlePageChange = (newPage) => {
   router.get(route('entregas-dinero.index'), {
-    ...props.filters,
+    search: searchTerm.value,
+    estado: filtroEstado.value,
+    user_id: filtroUserId.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc',
     page: newPage
   }, { preserveState: true, preserveScroll: true })
 }
@@ -304,63 +363,25 @@ const handlePageChange = (newPage) => {
   <Head title="Entregas de Dinero" />
   <div class="entregas-dinero-index min-h-screen bg-gray-50">
     <div class="max-w-8xl mx-auto px-6 py-8">
-      <!-- Header -->
-      <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-8 mb-6">
-        <div class="flex flex-col lg:flex-row gap-8 items-start lg:items-center justify-between">
-          <!-- Izquierda -->
-          <div class="flex flex-col gap-6 w-full lg:w-auto">
-            <div class="flex items-center gap-3">
-              <h1 class="text-2xl font-bold text-slate-900">Entregas de Dinero</h1>
-            </div>
-
-            <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-              <Link
-                :href="route('entregas-dinero.create')"
-                class="inline-flex items-center gap-2.5 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg"
-              >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
-                <span>Nueva Entrega</span>
-              </Link>
-            </div>
-
-            <!-- Estadísticas -->
-            <div class="flex flex-wrap items-center gap-4 text-sm">
-              <div class="flex items-center gap-2 px-4 py-3 bg-yellow-50 rounded-xl border border-yellow-200">
-                <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span class="font-medium text-slate-700">Pendientes:</span>
-                <span class="font-bold text-yellow-700 text-lg">${{ formatNumber(stats.total_pendientes) }}</span>
-              </div>
-
-              <div class="flex items-center gap-2 px-4 py-3 bg-green-50 rounded-xl border border-green-200">
-                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span class="font-medium text-slate-700">Recibidas:</span>
-                <span class="font-bold text-green-700 text-lg">${{ formatNumber(stats.total_recibidas) }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Derecha: Filtros -->
-          <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto lg:flex-shrink-0">
-            <!-- Estado -->
-            <select
-              v-model="filtroEstado"
-              @change="handleEstadoChange($event.target.value)"
-              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-            >
-              <option value="">Todos los Estados</option>
-              <option value="pendiente">Pendientes</option>
-              <option value="recibido">Recibidas</option>
-              <option value="cancelado">Canceladas</option>
-            </select>
-          </div>
-        </div>
-      </div>
+      <!-- Header específico de entregas de dinero -->
+      <EntregasDineroHeader
+        :total="stats.total || 0"
+        :total-pendientes="stats.total_pendientes || 0"
+        :total-recibidas="stats.total_recibidas || 0"
+        :total-efectivo="stats.total_efectivo || 0"
+        :total-otros="stats.total_otros || 0"
+        :usuarios="usuarios || []"
+        v-model:search-term="searchTerm"
+        v-model:sort-by="sortBy"
+        v-model:filtro-estado="filtroEstado"
+        v-model:filtro-usuario="filtroUserId"
+        @crear-nueva="crearNuevaEntrega"
+        @search-change="handleSearchChange"
+        @filtro-estado-change="handleEstadoChange"
+        @filtro-usuario-change="handleUserChange"
+        @sort-change="handleSortChange"
+        @limpiar-filtros="limpiarFiltros"
+      />
 
       <!-- Tabla -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">

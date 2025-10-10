@@ -6,6 +6,8 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import { Notyf } from 'notyf'
 import 'notyf/notyf.min.css'
 
+import CitasHeader from '@/Components/IndexComponents/CitasHeader.vue'
+
 defineOptions({ layout: AppLayout })
 
 // Notificaciones
@@ -49,11 +51,18 @@ const filtroEstadoCita = ref('')
 // Paginación
 const perPage = ref(10)
 
-// Header config
-const headerConfig = {
-  module: 'citas',
-  createButtonText: 'Nueva Cita',
-  searchPlaceholder: 'Buscar por cliente, técnico o problema...'
+// Función para crear nueva cita
+const crearNuevaCita = () => {
+  router.visit(route('citas.create'))
+}
+
+// Función para limpiar filtros
+const limpiarFiltros = () => {
+  searchTerm.value = ''
+  sortBy.value = 'created_at-desc'
+  filtroEstadoCita.value = ''
+  router.visit(route('citas.index'))
+  notyf.success('Filtros limpiados correctamente')
 }
 
 // Datos
@@ -133,7 +142,6 @@ function handleEstadoCitaChange(newEstadoCita) {
     page: 1
   }, { preserveState: true, preserveScroll: true })
 }
-
 
 function handleSortChange(newSort) {
   sortBy.value = newSort
@@ -277,125 +285,22 @@ const obtenerEstadoCitaLabel = (estado) => {
   <Head title="Citas" />
   <div class="citas-index min-h-screen bg-gray-50">
     <div class="max-w-8xl mx-auto px-6 py-8">
-      <!-- Header -->
-      <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-8 mb-6">
-        <div class="flex flex-col lg:flex-row gap-8 items-start lg:items-center justify-between">
-          <!-- Izquierda -->
-          <div class="flex flex-col gap-6 w-full lg:w-auto">
-            <div class="flex items-center gap-3">
-              <h1 class="text-2xl font-bold text-slate-900">Citas</h1>
-            </div>
-
-            <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-              <Link
-                :href="route('citas.create')"
-                class="inline-flex items-center gap-2.5 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg"
-              >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
-                <span>{{ headerConfig.createButtonText }}</span>
-              </Link>
-
-              <button
-                @click="exportCitas"
-                class="inline-flex items-center gap-2 px-4 py-3 bg-green-50 text-green-700 rounded-xl hover:bg-green-100 transition-all duration-200 border border-green-200"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                </svg>
-                <span class="text-sm font-medium">Exportar</span>
-              </button>
-            </div>
-
-            <!-- Estadísticas de citas -->
-            <div class="flex flex-wrap items-center gap-4 text-sm">
-              <div class="flex items-center gap-2 px-4 py-3 bg-slate-50 rounded-xl border border-slate-200">
-                <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <span class="font-medium text-slate-700">Total:</span>
-                <span class="font-bold text-slate-900 text-lg">{{ formatNumber(estadisticas.total) }}</span>
-              </div>
-
-              <div class="flex items-center gap-2 px-4 py-3 bg-yellow-50 rounded-xl border border-yellow-200">
-                <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span class="font-medium text-slate-700">Pendientes:</span>
-                <span class="font-bold text-yellow-700 text-lg">{{ formatNumber(estadisticas.pendientes) }}</span>
-              </div>
-
-              <div class="flex items-center gap-2 px-4 py-3 bg-blue-50 rounded-xl border border-blue-200">
-                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                <span class="font-medium text-slate-700">En Proceso:</span>
-                <span class="font-bold text-blue-700 text-lg">{{ formatNumber(estadisticas.enProceso) }}</span>
-              </div>
-
-              <div class="flex items-center gap-2 px-4 py-3 bg-green-50 rounded-xl border border-green-200">
-                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span class="font-medium text-slate-700">Completadas:</span>
-                <span class="font-bold text-green-700 text-lg">{{ formatNumber(estadisticas.completadas) }}</span>
-              </div>
-
-              <div class="flex items-center gap-2 px-4 py-3 bg-red-50 rounded-xl border border-red-200">
-                <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                <span class="font-medium text-slate-700">Canceladas:</span>
-                <span class="font-bold text-red-700 text-lg">{{ formatNumber(estadisticas.canceladas) }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Derecha: Filtros -->
-          <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto lg:flex-shrink-0">
-            <!-- Búsqueda -->
-            <div class="relative">
-              <input
-                v-model="searchTerm"
-                @input="handleSearchChange($event.target.value)"
-                type="text"
-                :placeholder="headerConfig.searchPlaceholder"
-                class="w-full sm:w-64 lg:w-80 pl-4 pr-10 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-              />
-              <svg class="absolute right-3 top-3.5 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-
-
-            <!-- Estado de Cita -->
-            <select
-              v-model="filtroEstadoCita"
-              @change="handleEstadoCitaChange($event.target.value)"
-              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-            >
-              <option value="">Todos los Estados de Cita</option>
-              <option value="pendiente">Pendiente</option>
-              <option value="en_proceso">En Proceso</option>
-              <option value="completado">Completado</option>
-              <option value="cancelado">Cancelado</option>
-            </select>
-
-            <!-- Orden -->
-            <select
-              v-model="sortBy"
-              @change="handleSortChange($event.target.value)"
-              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-            >
-              <option value="created_at-desc">Más Recientes</option>
-              <option value="created_at-asc">Más Antiguos</option>
-              <option value="fecha_hora-asc">Fecha de Cita ↑</option>
-              <option value="fecha_hora-desc">Fecha de Cita ↓</option>
-            </select>
-          </div>
-        </div>
-      </div>
+      <!-- Header específico de citas -->
+      <CitasHeader
+        :total="estadisticas.total"
+        :pendientes="estadisticas.pendientes"
+        :enProceso="estadisticas.enProceso"
+        :completadas="estadisticas.completadas"
+        :canceladas="estadisticas.canceladas"
+        v-model:search-term="searchTerm"
+        v-model:sort-by="sortBy"
+        v-model:filtro-estado-cita="filtroEstadoCita"
+        @crear-nueva="crearNuevaCita"
+        @search-change="handleSearchChange"
+        @filtro-estado-cita-change="handleEstadoCitaChange"
+        @sort-change="handleSortChange"
+        @limpiar-filtros="limpiarFiltros"
+      />
 
       <!-- Tabla -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">

@@ -6,6 +6,8 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import { Notyf } from 'notyf'
 import 'notyf/notyf.min.css'
 
+import CobranzaHeader from '@/Components/IndexComponents/CobranzaHeader.vue'
+
 defineOptions({ layout: AppLayout })
 
 // Notificaciones
@@ -61,11 +63,20 @@ const filtroAnio = ref(new Date().getFullYear().toString())
 // Paginación
 const perPage = ref(10)
 
-// Header config
-const headerConfig = {
-  module: 'cobranza',
-  createButtonText: 'Nueva Cobranza',
-  searchPlaceholder: 'Buscar por cliente, contrato, concepto...'
+// Función para crear nueva cobranza
+const crearNuevaCobranza = () => {
+  router.visit(route('cobranza.create'))
+}
+
+// Función para limpiar filtros
+const limpiarFiltros = () => {
+  searchTerm.value = ''
+  sortBy.value = 'fecha_cobro-desc'
+  filtroEstado.value = ''
+  filtroMes.value = ''
+  filtroAnio.value = new Date().getFullYear().toString()
+  router.visit(route('cobranza.index'))
+  notyf.success('Filtros limpiados correctamente')
 }
 
 // Datos
@@ -352,167 +363,28 @@ const obtenerLabelEstado = (estado) => {
   <Head title="Cobranza" />
   <div class="cobranza-index min-h-screen bg-gray-50">
     <div class="max-w-8xl mx-auto px-6 py-8">
-      <!-- Header -->
-      <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-8 mb-6">
-        <div class="flex flex-col lg:flex-row gap-8 items-start lg:items-center justify-between">
-          <!-- Izquierda -->
-          <div class="flex flex-col gap-6 w-full lg:w-auto">
-            <div class="flex items-center gap-3">
-              <h1 class="text-2xl font-bold text-slate-900">Cobranza</h1>
-            </div>
-
-            <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-              <Link
-                :href="route('cobranza.create')"
-                class="inline-flex items-center gap-2.5 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg"
-              >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
-                <span>{{ headerConfig.createButtonText }}</span>
-              </Link>
-
-              <button
-                @click="generarAutomaticas"
-                class="inline-flex items-center gap-2 px-4 py-3 bg-green-50 text-green-700 rounded-xl hover:bg-green-100 transition-all duration-200 border border-green-200"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                </svg>
-                <span class="text-sm font-medium">Generar Automáticas</span>
-              </button>
-            </div>
-
-            <!-- Estadísticas con barras de progreso -->
-            <div class="flex flex-wrap items-center gap-4 text-sm">
-              <div class="flex items-center gap-2 px-4 py-3 bg-slate-50 rounded-xl border border-slate-200">
-                <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <span class="font-medium text-slate-700">Total:</span>
-                <span class="font-bold text-slate-900 text-lg">{{ formatNumber(estadisticas.total) }}</span>
-              </div>
-
-              <div class="flex items-center gap-2 px-4 py-3 bg-yellow-50 rounded-xl border border-yellow-200">
-                <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span class="font-medium text-slate-700">Pendientes:</span>
-                <span class="font-bold text-yellow-700 text-lg">{{ formatNumber(estadisticas.pendientes) }}</span>
-                <div class="ml-2 flex items-center gap-2">
-                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      class="h-full bg-yellow-500 transition-all duration-300"
-                      :style="{ width: estadisticas.pendientesPorcentaje + '%' }"
-                    ></div>
-                  </div>
-                  <span class="text-xs text-yellow-600 font-medium">{{ estadisticas.pendientesPorcentaje }}%</span>
-                </div>
-              </div>
-
-              <div class="flex items-center gap-2 px-4 py-3 bg-green-50 rounded-xl border border-green-200">
-                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span class="font-medium text-slate-700">Pagadas:</span>
-                <span class="font-bold text-green-700 text-lg">{{ formatNumber(estadisticas.pagadas) }}</span>
-                <div class="ml-2 flex items-center gap-2">
-                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      class="h-full bg-green-500 transition-all duration-300"
-                      :style="{ width: estadisticas.pagadasPorcentaje + '%' }"
-                    ></div>
-                  </div>
-                  <span class="text-xs text-green-600 font-medium">{{ estadisticas.pagadasPorcentaje }}%</span>
-                </div>
-              </div>
-
-              <div class="flex items-center gap-2 px-4 py-3 bg-red-50 rounded-xl border border-red-200">
-                <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span class="font-medium text-slate-700">Vencidas:</span>
-                <span class="font-bold text-red-700 text-lg">{{ formatNumber(estadisticas.vencidas) }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Derecha: Filtros -->
-          <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto lg:flex-shrink-0">
-            <!-- Búsqueda -->
-            <div class="relative">
-              <input
-                v-model="searchTerm"
-                @input="handleSearchChange($event.target.value)"
-                type="text"
-                :placeholder="headerConfig.searchPlaceholder"
-                class="w-full sm:w-64 lg:w-80 pl-4 pr-10 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-              />
-              <svg class="absolute right-3 top-3.5 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-
-            <!-- Mes -->
-            <select
-              v-model="filtroMes"
-              @change="handleMesChange($event.target.value)"
-              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-            >
-              <option value="">Todos los Meses</option>
-              <option value="1">Enero</option>
-              <option value="2">Febrero</option>
-              <option value="3">Marzo</option>
-              <option value="4">Abril</option>
-              <option value="5">Mayo</option>
-              <option value="6">Junio</option>
-              <option value="7">Julio</option>
-              <option value="8">Agosto</option>
-              <option value="9">Septiembre</option>
-              <option value="10">Octubre</option>
-              <option value="11">Noviembre</option>
-              <option value="12">Diciembre</option>
-            </select>
-
-            <!-- Año -->
-            <select
-              v-model="filtroAnio"
-              @change="handleAnioChange($event.target.value)"
-              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-            >
-              <option v-for="anio in 5" :key="anio" :value="(new Date().getFullYear() - 5 + anio)">
-                {{ new Date().getFullYear() - 5 + anio }}
-              </option>
-            </select>
-
-            <!-- Estado -->
-            <select
-              v-model="filtroEstado"
-              @change="handleEstadoChange($event.target.value)"
-              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-            >
-              <option value="">Todos los Estados</option>
-              <option value="pendiente">Pendientes</option>
-              <option value="pagado">Pagadas</option>
-              <option value="parcial">Parciales</option>
-              <option value="vencido">Vencidas</option>
-              <option value="cancelado">Canceladas</option>
-            </select>
-
-            <!-- Orden -->
-            <select
-              v-model="sortBy"
-              @change="handleSortChange($event.target.value)"
-              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-            >
-              <option value="fecha_cobro-desc">Fecha Cobro ↓</option>
-              <option value="fecha_cobro-asc">Fecha Cobro ↑</option>
-              <option value="monto_cobrado-desc">Monto ↓</option>
-              <option value="monto_cobrado-asc">Monto ↑</option>
-            </select>
-          </div>
-        </div>
-      </div>
+      <!-- Header específico de cobranza -->
+      <CobranzaHeader
+        :total="estadisticas.total"
+        :pendientes="estadisticas.pendientes"
+        :pagadas="estadisticas.pagadas"
+        :vencidas="estadisticas.vencidas"
+        :total-pendiente="estadisticas.totalPendiente"
+        :total-pagado="estadisticas.totalPagado"
+        v-model:search-term="searchTerm"
+        v-model:sort-by="sortBy"
+        v-model:filtro-estado="filtroEstado"
+        v-model:filtro-mes="filtroMes"
+        v-model:filtro-anio="filtroAnio"
+        @crear-nueva="crearNuevaCobranza"
+        @generar-automaticas="generarAutomaticas"
+        @search-change="handleSearchChange"
+        @filtro-estado-change="handleEstadoChange"
+        @filtro-mes-change="handleMesChange"
+        @filtro-anio-change="handleAnioChange"
+        @sort-change="handleSortChange"
+        @limpiar-filtros="limpiarFiltros"
+      />
 
       <!-- Tabla -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">

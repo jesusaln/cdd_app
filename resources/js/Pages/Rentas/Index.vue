@@ -8,6 +8,8 @@ import 'notyf/notyf.min.css'
 import { generarPDF } from '@/Utils/pdfGenerator'
 import axios from 'axios'
 
+import RentasHeader from '@/Components/IndexComponents/RentasHeader.vue'
+
 defineOptions({ layout: AppLayout })
 
 // Notificaciones
@@ -50,12 +52,24 @@ const filtroEstado = ref('')
 // Paginación
 const perPage = ref(10)
 
-// Header config
-const headerConfig = {
-  module: 'rentas',
-  createButtonText: 'Nueva Renta',
-  searchPlaceholder: 'Buscar por cliente, equipo, número de contrato...'
+// Función para crear nueva renta
+const crearNuevaRenta = () => {
+  router.visit(route('rentas.create'))
 }
+
+// Función para limpiar filtros
+const limpiarFiltros = () => {
+  searchTerm.value = ''
+  sortBy.value = 'created_at-desc'
+  filtroEstado.value = ''
+  router.visit(route('rentas.index'))
+  notyf.success('Filtros limpiados correctamente')
+}
+
+// Estadísticas adicionales para el header moderno
+const ingresosMensuales = computed(() => {
+  return estadisticas.value.activas * (estadisticas.value.activas > 0 ? 1000 : 0) // Ejemplo: promedio de $1000 por renta activa
+})
 
 // Datos
 const rentasPaginator = computed(() => props.rentas)
@@ -323,119 +337,22 @@ const obtenerLabelEstado = (estado) => {
   <Head title="Rentas" />
   <div class="rentas-index min-h-screen bg-gray-50">
     <div class="max-w-8xl mx-auto px-6 py-8">
-      <!-- Header -->
-      <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-8 mb-6">
-        <div class="flex flex-col lg:flex-row gap-8 items-start lg:items-center justify-between">
-          <!-- Izquierda -->
-          <div class="flex flex-col gap-6 w-full lg:w-auto">
-            <div class="flex items-center gap-3">
-              <h1 class="text-2xl font-bold text-slate-900">Rentas</h1>
-            </div>
-
-            <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-              <Link
-                :href="route('rentas.create')"
-                class="inline-flex items-center gap-2.5 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg"
-              >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
-                <span>{{ headerConfig.createButtonText }}</span>
-              </Link>
-            </div>
-
-            <!-- Estadísticas con barras de progreso -->
-            <div class="flex flex-wrap items-center gap-4 text-sm">
-              <div class="flex items-center gap-2 px-4 py-3 bg-slate-50 rounded-xl border border-slate-200">
-                <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <span class="font-medium text-slate-700">Total:</span>
-                <span class="font-bold text-slate-900 text-lg">{{ formatNumber(estadisticas.total) }}</span>
-              </div>
-
-              <div class="flex items-center gap-2 px-4 py-3 bg-green-50 rounded-xl border border-green-200">
-                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span class="font-medium text-slate-700">Activas:</span>
-                <span class="font-bold text-green-700 text-lg">{{ formatNumber(estadisticas.activas) }}</span>
-                <div class="ml-2 flex items-center gap-2">
-                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      class="h-full bg-green-500 transition-all duration-300"
-                      :style="{ width: estadisticas.activasPorcentaje + '%' }"
-                    ></div>
-                  </div>
-                  <span class="text-xs text-green-600 font-medium">{{ estadisticas.activasPorcentaje }}%</span>
-                </div>
-              </div>
-
-              <div class="flex items-center gap-2 px-4 py-3 bg-red-50 rounded-xl border border-red-200">
-                <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span class="font-medium text-slate-700">Vencidas:</span>
-                <span class="font-bold text-red-700 text-lg">{{ formatNumber(estadisticas.vencidas) }}</span>
-                <div class="ml-2 flex items-center gap-2">
-                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      class="h-full bg-red-500 transition-all duration-300"
-                      :style="{ width: estadisticas.vencidasPorcentaje + '%' }"
-                    ></div>
-                  </div>
-                  <span class="text-xs text-red-600 font-medium">{{ estadisticas.vencidasPorcentaje }}%</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Derecha: Filtros -->
-          <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto lg:flex-shrink-0">
-            <!-- Búsqueda -->
-            <div class="relative">
-              <input
-                v-model="searchTerm"
-                @input="handleSearchChange($event.target.value)"
-                type="text"
-                :placeholder="headerConfig.searchPlaceholder"
-                class="w-full sm:w-64 lg:w-80 pl-4 pr-10 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-              />
-              <svg class="absolute right-3 top-3.5 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-
-            <!-- Estado -->
-            <select
-              v-model="filtroEstado"
-              @change="handleEstadoChange($event.target.value)"
-              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-            >
-              <option value="">Todos los Estados</option>
-              <option value="activo">Activas</option>
-              <option value="proximo_vencimiento">Próximo Vencimiento</option>
-              <option value="vencido">Vencidas</option>
-              <option value="moroso">Morosas</option>
-              <option value="suspendido">Suspendidas</option>
-              <option value="finalizado">Finalizadas</option>
-              <option value="anulado">Anuladas</option>
-            </select>
-
-            <!-- Orden -->
-            <select
-              v-model="sortBy"
-              @change="handleSortChange($event.target.value)"
-              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-            >
-              <option value="created_at-desc">Más Recientes</option>
-              <option value="created_at-asc">Más Antiguos</option>
-              <option value="numero_contrato-asc">Contrato A-Z</option>
-              <option value="numero_contrato-desc">Contrato Z-A</option>
-            </select>
-          </div>
-        </div>
-      </div>
+      <!-- Header específico de rentas -->
+      <RentasHeader
+        :total="estadisticas.total"
+        :activas="estadisticas.activas"
+        :proximo_vencimiento="estadisticas.proximo_vencimiento"
+        :vencidas="estadisticas.vencidas"
+        :ingresos_mensuales="ingresosMensuales"
+        v-model:search-term="searchTerm"
+        v-model:sort-by="sortBy"
+        v-model:filtro-estado="filtroEstado"
+        @crear-nueva="crearNuevaRenta"
+        @search-change="handleSearchChange"
+        @filtro-estado-change="handleEstadoChange"
+        @sort-change="handleSortChange"
+        @limpiar-filtros="limpiarFiltros"
+      />
 
       <!-- Tabla -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">

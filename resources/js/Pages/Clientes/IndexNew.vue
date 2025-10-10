@@ -15,9 +15,16 @@ const props = defineProps({
     type: Object,
     default: () => ({ data: [] })
   },
-  stats: {
+  estadisticas: {
     type: Object,
-    default: () => ({})
+    default: () => ({
+      total: 0,
+      activos: 0,
+      inactivos: 0,
+      personas_fisicas: 0,
+      personas_morales: 0,
+      nuevos_mes: 0
+    })
   },
   filters: {
     type: Object,
@@ -111,14 +118,19 @@ const goToPage = (page) => {
 }
 
 const nextPage = () => {
-  if (props.pagination.current_page < props.pagination.last_page) {
-    goToPage(props.pagination.current_page + 1)
+  const currentPage = props.pagination?.current_page || 1
+  const lastPage = props.pagination?.last_page || 1
+
+  if (currentPage < lastPage) {
+    goToPage(currentPage + 1)
   }
 }
 
 const prevPage = () => {
-  if (props.pagination.current_page > 1) {
-    goToPage(props.pagination.current_page - 1)
+  const currentPage = props.pagination?.current_page || 1
+
+  if (currentPage > 1) {
+    goToPage(currentPage - 1)
   }
 }
 

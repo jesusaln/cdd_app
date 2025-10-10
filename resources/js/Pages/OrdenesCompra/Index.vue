@@ -11,6 +11,8 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import { Link } from '@inertiajs/vue3'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 
+import OrdenesCompraHeader from '@/Components/IndexComponents/OrdenesCompraHeader.vue'
+
 defineOptions({ layout: AppLayout })
 
 const props = defineProps({
@@ -1028,251 +1030,22 @@ const validarEstado = (estado) => {
   <div class="ordenes-compra-index min-h-screen bg-gray-50">
     <!-- Contenido principal -->
     <div class="max-w-8xl mx-auto px-6 py-8">
-      <!-- Header de filtros y estadísticas -->
-      <div
-        class="bg-white border border-slate-200 rounded-xl shadow-sm p-8 mb-6 transition-all duration-300 hover:shadow-lg"
-        @keydown="handleKeydown"
-        tabindex="-1"
-      >
-        <div class="flex flex-col lg:flex-row gap-8 items-start lg:items-center justify-between">
-          <!-- Izquierda: Título, crear y estadísticas -->
-          <div class="flex flex-col gap-6 w-full lg:w-auto">
-            <div class="flex items-center gap-3">
-              <h1 class="text-2xl font-bold text-slate-900">Órdenes de Compra</h1>
-              <div v-if="loading" class="animate-spin w-5 h-5 text-blue-500">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath('loading')" />
-                </svg>
-              </div>
-            </div>
-
-            <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-              <Link
-                :href="'/ordenescompra/create'"
-                :class="{
-                  'opacity-50 cursor-not-allowed pointer-events-none': false,
-                  'hover:from-blue-700 hover:via-blue-700 hover:to-blue-800 hover:scale-[1.02] hover:shadow-xl': true
-                }"
-                class="group inline-flex items-center gap-2.5 px-6 py-3 bg-gradient-to-r from-blue-600 via-blue-600 to-blue-700 text-white font-semibold rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 active:scale-[0.98] transition-all duration-200 shadow-lg flex-shrink-0"
-              >
-                <svg :class="{ 'animate-spin': loading, 'group-hover:rotate-90': !loading && !false }" class="w-5 h-5 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5">
-                  <path :d="loading ? getIconPath('loading') : getIconPath('plus')" />
-                </svg>
-                <span class="tracking-wide">{{ loading ? 'Cargando...' : 'Nueva Orden de Compra' }}</span>
-              </Link>
-            </div>
-
-            <!-- Estadísticas con porcentajes -->
-            <div class="flex flex-wrap items-center gap-4 text-sm">
-              <!-- Total -->
-              <div class="group flex items-center gap-2 px-4 py-3 bg-slate-50 rounded-xl border border-slate-200 flex-shrink-0 hover:bg-slate-100 transition-all duration-200 cursor-default" :title="'Total de órdenes de compra'.description">
-                <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath('Total'.icon)" />
-                </svg>
-                <span class="font-medium text-slate-700">Total:</span>
-                <span class="font-bold text-slate-900 text-lg">{{ formatNumber(estadisticas.total) }}</span>
-                <!-- Botón de debug temporal -->
-                <button v-if="false" @click="testEstadisticas" class="ml-2 px-2 py-1 bg-red-500 text-white text-xs rounded">
-                  Test
-                </button>
-              </div>
-
-              <!-- Pendientes -->
-              <div
-                :class="'bg-yellow-50 border-yellow-200'"
-                class="group flex items-center gap-2 px-4 py-3 rounded-xl border flex-shrink-0 hover:shadow-sm transition-all duration-200 cursor-default"
-                :title="'Órdenes pendientes'.description"
-              >
-                <svg :class="'text-yellow-600'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath('Pendientes'.icon)" />
-                </svg>
-                <span class="font-medium text-slate-700">Pendientes:</span>
-                <span :class="'text-yellow-600'" class="font-bold text-lg">{{ formatNumber(estadisticas.pendientes || 0) }}</span>
-                <span v-if="estadisticas.total > 0" :class="'text-yellow-600'" class="text-xs font-medium opacity-75">
-                  ({{ estadisticasConPorcentaje.pendientes?.porcentaje || 0 }}%)
-                </span>
-              </div>
-
-              <!-- Enviadas a Proveedor (igual que UniversalHeader) -->
-              <div
-                :class="'bg-blue-50 border-blue-200'"
-                class="group flex items-center gap-2 px-4 py-3 rounded-xl border flex-shrink-0 hover:shadow-sm transition-all duration-200 cursor-default"
-                :title="'Órdenes enviadas a proveedor'.description"
-              >
-                <svg :class="'text-blue-600'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath('Enviadas a Proveedor'.icon)" />
-                </svg>
-                <span class="font-medium text-slate-700">Enviadas a Proveedor:</span>
-                <span :class="'text-blue-600'" class="font-bold text-lg">{{ formatNumber(estadisticas.enviadas_a_proveedor || 0) }}</span>
-                <span v-if="estadisticas.total > 0" :class="'text-blue-600'" class="text-xs font-medium opacity-75">
-                  ({{ estadisticasConPorcentaje.enviadas_a_proveedor?.porcentaje || 0 }}%)
-                </span>
-              </div>
-
-              <!-- Procesadas -->
-              <div
-                :class="'bg-green-50 border-green-200'"
-                class="group flex items-center gap-2 px-4 py-3 rounded-xl border flex-shrink-0 hover:shadow-sm transition-all duration-200 cursor-default"
-                :title="'Órdenes procesadas'.description"
-              >
-                <svg :class="'text-green-600'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath('Procesadas'.icon)" />
-                </svg>
-                <span class="font-medium text-slate-700">Procesadas:</span>
-                <span :class="'text-green-600'" class="font-bold text-lg">{{ formatNumber(estadisticas.procesadas || 0) }}</span>
-                <span v-if="estadisticas.total > 0" :class="'text-green-600'" class="text-xs font-medium opacity-75">
-                  ({{ estadisticasConPorcentaje.procesadas?.porcentaje || 0 }}%)
-                </span>
-                <!-- Debug info (remover en producción) -->
-                <span v-if="false" class="text-xs text-red-500 ml-2">
-                  {{ estadisticas.procesadas }}/{{ estadisticas.total }} ({{ estadisticasConPorcentaje.procesadas?.porcentaje }}%)
-                </span>
-              </div>
-
-              <!-- Canceladas -->
-              <div
-                :class="'bg-red-50 border-red-200'"
-                class="group flex items-center gap-2 px-4 py-3 rounded-xl border flex-shrink-0 hover:shadow-sm transition-all duration-200 cursor-default"
-                :title="'Órdenes canceladas'.description"
-              >
-                <svg :class="'text-red-600'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath('Canceladas'.icon)" />
-                </svg>
-                <span class="font-medium text-slate-700">Canceladas:</span>
-                <span :class="'text-red-600'" class="font-bold text-lg">{{ formatNumber(estadisticas.canceladas || 0) }}</span>
-                <span v-if="estadisticas.total > 0" :class="'text-red-600'" class="text-xs font-medium opacity-75">
-                  ({{ estadisticasConPorcentaje.canceladas?.porcentaje || 0 }}%)
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Derecha: Búsqueda y filtros -->
-          <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto lg:flex-shrink-0 lg:min-w-0">
-            <!-- Búsqueda -->
-            <div class="relative group">
-              <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <svg :class="{ 'text-blue-500': isSearchFocused, 'text-slate-400': !isSearchFocused }" class="w-4 h-4 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath('search')" />
-                </svg>
-              </div>
-              <input
-                ref="searchInput"
-                :value="searchTerm"
-                @input="$emit('update:searchTerm', $event.target.value)"
-                @focus="handleSearchFocus"
-                @blur="handleSearchBlur"
-                type="text"
-                :placeholder="'Buscar por proveedor, número...'"
-                :disabled="false"
-                :class="{
-                  'border-blue-500 ring-4 ring-blue-500/10 bg-blue-50/50': isSearchFocused,
-                  'border-slate-300': !isSearchFocused,
-                  'opacity-50 cursor-not-allowed': false
-                }"
-                class="w-full sm:w-64 lg:w-80 pl-11 pr-20 py-3 border rounded-xl bg-white text-slate-900 placeholder-slate-400 focus:outline-none transition-all duration-200"
-              />
-
-              <div v-if="!searchTerm && !isSearchFocused && !false" class="absolute inset-y-0 right-12 flex items-center pointer-events-none">
-                <kbd class="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-xs font-mono text-slate-400 bg-slate-100 rounded border border-slate-200">
-                  <span class="text-xs">⌘</span>K
-                </kbd>
-              </div>
-
-              <Transition enter-active-class="transition-all duration-200" enter-from-class="opacity-0 scale-90" enter-to-class="opacity-100 scale-100" leave-active-class="transition-all duration-150" leave-from-class="opacity-100 scale-100" leave-to-class="opacity-0 scale-90">
-                <button
-                  v-if="searchTerm"
-                  @click="$emit('update:searchTerm', '')"
-                  class="absolute inset-y-0 right-4 flex items-center text-slate-400 hover:text-slate-600 focus:text-blue-500 focus:outline-none transition-colors duration-200 p-1 rounded-md hover:bg-slate-100"
-                  title="Limpiar búsqueda (Esc)"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath('x')" />
-                  </svg>
-                </button>
-              </Transition>
-            </div>
-
-            <!-- Orden -->
-            <div class="relative flex-shrink-0">
-              <select
-                :value="sortBy"
-                @change="$emit('update:sortBy', $event.target.value)"
-                :disabled="false"
-                :class="{ 'opacity-50 cursor-not-allowed': false, 'hover:bg-slate-50 cursor-pointer': true }"
-                class="appearance-none w-full sm:w-auto px-4 py-3 pr-10 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-              >
-                <option v-for="option in [
-                  { value: 'fecha-desc', label: 'Más Recientes', icon: 'arrow-down' },
-                  { value: 'fecha-asc', label: 'Más Antiguos', icon: 'arrow-up' },
-                  { value: 'total-desc', label: 'Mayor Monto', icon: 'currency-dollar' },
-                  { value: 'total-asc', label: 'Menor Monto', icon: 'currency-dollar' },
-                  { value: 'proveedor-asc', label: 'Proveedor A-Z', icon: 'sort-ascending' },
-                  { value: 'proveedor-desc', label: 'Proveedor Z-A', icon: 'sort-descending' }
-                ]" :key="option.value" :value="option.value">
-                  {{ option.label }}
-                </option>
-              </select>
-              <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath('chevron-down')" />
-                </svg>
-              </div>
-            </div>
-
-            <!-- Estado -->
-            <div class="relative flex-shrink-0">
-              <select
-                :value="filtroEstado"
-                @change="$emit('update:filtroEstado', $event.target.value)"
-                :disabled="false"
-                :class="{
-                  'border-blue-500 bg-blue-50/50 text-blue-700': filtroEstado && !false,
-                  'border-slate-300': !filtroEstado || false,
-                  'opacity-50 cursor-not-allowed': false,
-                  'hover:bg-slate-50 cursor-pointer': true
-                }"
-                class="appearance-none w-full sm:w-auto px-4 py-3 pr-10 border rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-              >
-                <option v-for="estado in [
-                  { value: '', label: 'Todos los Estados', color: 'slate' },
-                  { value: 'pendiente', label: 'Pendientes', color: 'yellow' },
-                  { value: 'enviado_a_proveedor', label: 'Enviadas a Proveedor', color: 'blue' },
-                  { value: 'procesada', label: 'Procesadas', color: 'green' },
-                  { value: 'cancelada', label: 'Canceladas', color: 'red' }
-                ]" :key="estado.value" :value="estado.value">
-                  {{ estado.label }}
-                </option>
-              </select>
-              <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath('chevron-down')" />
-                </svg>
-              </div>
-              <div v-if="filtroEstado" class="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-white"></div>
-            </div>
-
-            <!-- Limpiar filtros -->
-            <Transition enter-active-class="transition-all duration-300" enter-from-class="opacity-0 scale-90 translate-x-4" enter-to-class="opacity-100 scale-100 translate-x-0" leave-active-class="transition-all duration-200" leave-from-class="opacity-100 scale-100 translate-x-0" leave-to-class="opacity-0 scale-90 translate-x-4">
-              <button
-                v-if="hayFiltrosActivos"
-                @click="limpiarFiltros"
-                :disabled="false"
-                class="group relative inline-flex items-center gap-2 px-4 py-3 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 hover:text-slate-700 focus:outline-none focus:ring-4 focus:ring-slate-500/10 transition-all duration-200 whitespace-nowrap border border-slate-200 flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Limpiar todos los filtros"
-              >
-                <svg class="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getIconPath('filter-x')" />
-                </svg>
-                <span class="font-medium">Limpiar</span>
-                <div class="absolute -top-1 -right-1 min-w-[1.25rem] h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center px-1">
-                  {{ (searchTerm ? 1 : 0) + (filtroEstado ? 1 : 0) }}
-                </div>
-              </button>
-            </Transition>
-          </div>
-        </div>
-      </div>
+      <!-- Header específico de órdenes de compra -->
+      <OrdenesCompraHeader
+        :total="estadisticas.total"
+        :pendientes="estadisticas.pendientes"
+        :enviadas_a_proveedor="estadisticas.enviadas_a_proveedor"
+        :procesadas="estadisticas.procesadas"
+        :canceladas="estadisticas.canceladas"
+        v-model:search-term="searchTerm"
+        v-model:sort-by="sortBy"
+        v-model:filtro-estado="filtroEstado"
+        @crear-nueva="crearNuevaOrden"
+        @search-change="handleSearch"
+        @filtro-estado-change="handleFilter"
+        @sort-change="updateSort"
+        @limpiar-filtros="limpiarFiltros"
+      />
 
       <!-- Información de paginación -->
       <div class="flex justify-between items-center mb-4 text-sm text-gray-600">
