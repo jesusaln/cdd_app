@@ -1,0 +1,108 @@
+<?php
+
+namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Symfony\Component\HttpFoundation\Response;
+
+class CustomVerifyCsrfToken
+{
+    /**
+     * Handle an incoming request.
+     *
+     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     */
+    public function handle(Request $request, Closure $next): Response
+    {
+        // Excluir rutas específicas de verificación CSRF completamente
+        if ($this->shouldSkipCsrfVerification($request)) {
+            return $next($request);
+        }
+
+        // Para solicitudes AJAX o API, ser más permisivo
+        if ($request->ajax() || $request->wantsJson() || $request->is('sanctum/csrf-cookie')) {
+            return $next($request);
+        }
+
+        // Verificar token CSRF solo para métodos que lo requieren
+        if ($this->requiresCsrfCheck($request)) {
+            try {
+                // Usar la verificación CSRF estándar de Laravel
+                $token = $request->header('X-CSRF-TOKEN') ?? $request->input('_token');
+
+                if (!$token && $request->session()->has('_token')) {
+                    // Si no hay token en la request pero hay sesión, continuar
+                    return $next($request);
+                }
+
+                if ($token && $request->session()->has('_token') && $token !== $request->session()->token()) {
+                    // Token mismatch - redirigir al login
+                    if ($request->expectsJson()) {
+                        return response()->json(['error' => 'CSRF token mismatch'], 419);
+                    } else {
+                        return redirect()->route('login')->with('error', 'Token de seguridad inválido. Por favor inicia sesión nuevamente.');
+                    }
+                }
+            } catch (\Exception $e) {
+                // Si hay algún error con la verificación CSRF, continuar
+                return $next($request);
+            }
+        }
+
+        return $next($request);
+    }
+
+    /**
+     * Determine if CSRF verification should be skipped for this request.
+     */
+    protected function shouldSkipCsrfVerification(Request $request): bool
+    {
+        $path = $request->path();
+
+        // Excluir rutas de autenticación
+        if (str_contains($path, 'login') ||
+            str_contains($path, 'logout') ||
+            str_contains($path, 'register') ||
+            str_contains($path, 'password') ||
+            str_contains($path, 'sanctum/csrf-cookie')) {
+            return true;
+        }
+
+        // Excluir rutas de API
+        if (str_contains($path, 'api/')) {
+            return true;
+        }
+
+        // Excluir rutas específicas que pueden causar problemas
+        $excludedRoutes = [
+            'login',
+            'logout',
+            'register',
+            'password/reset',
+            'password/email',
+            'password/confirm',
+            'sanctum/csrf-cookie'
+        ];
+
+        foreach ($excludedRoutes as $route) {
+            if ($request->is($route)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Determine if this request requires CSRF verification.
+     */
+    protected function requiresCsrfCheck(Request $request): bool
+    {
+        $unsafeMethods = ['POST', 'PUT', 'PATCH', 'DELETE'];
+
+        return in_array($request->method(), $unsafeMethods) &&
+               !$this->shouldSkipCsrfVerification($request);
+    }
+}

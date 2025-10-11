@@ -130,34 +130,6 @@
               <div v-if="form.es_empleado" class="space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div class="form-group">
-                    <label for="apellido_paterno" class="block text-sm font-semibold text-gray-700 mb-2">
-                      Apellido Paterno
-                    </label>
-                    <input
-                      v-model="form.apellido_paterno"
-                      type="text"
-                      id="apellido_paterno"
-                      class="block w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
-                      placeholder="Apellido paterno"
-                    />
-                    <InputError class="mt-2" :message="form.errors.apellido_paterno" />
-                  </div>
- 
-                  <div class="form-group">
-                    <label for="apellido_materno" class="block text-sm font-semibold text-gray-700 mb-2">
-                      Apellido Materno
-                    </label>
-                    <input
-                      v-model="form.apellido_materno"
-                      type="text"
-                      id="apellido_materno"
-                      class="block w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
-                      placeholder="Apellido materno"
-                    />
-                    <InputError class="mt-2" :message="form.errors.apellido_materno" />
-                  </div>
- 
-                  <div class="form-group">
                     <label for="telefono" class="block text-sm font-semibold text-gray-700 mb-2">
                       Teléfono
                     </label>
@@ -705,8 +677,6 @@ const showPasswordConfirmation = ref(false);
 // Form usando Inertia
 const form = useForm({
   name: '',
-  apellido_paterno: '',
-  apellido_materno: '',
   email: '',
   telefono: '',
   fecha_nacimiento: '',
@@ -812,9 +782,8 @@ const formProgress = computed(() => {
 
   // Si es empleado, agregar campos adicionales
   if (form.es_empleado) {
-    totalFields += 8; // Campos adicionales de empleado
+    totalFields += 7; // Campos adicionales de empleado (sin apellidos)
 
-    if (form.apellido_paterno) progress++;
     if (form.telefono) progress++;
     if (form.fecha_nacimiento) progress++;
     if (form.curp) progress++;

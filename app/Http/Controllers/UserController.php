@@ -31,7 +31,14 @@ class UserController extends BaseController
 
     public function index(Request $request)
     {
-        $this->authorize('viewAny', User::class);
+        try {
+            $this->authorize('viewAny', User::class);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            return redirect()->route('panel')->with('error', 'No tienes permisos para ver la lista de usuarios.');
+        } catch (\Exception $e) {
+            Log::error('Error en UserController@index: ' . $e->getMessage());
+            return redirect()->route('panel')->with('error', 'Error al cargar la lista de usuarios.');
+        }
 
         try {
             $query = User::with('roles');
@@ -93,7 +100,14 @@ class UserController extends BaseController
 
     public function create()
     {
-        $this->authorize('create', User::class);
+        try {
+            $this->authorize('create', User::class);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            return redirect()->route('usuarios.index')->with('error', 'No tienes permisos para crear usuarios.');
+        } catch (\Exception $e) {
+            Log::error('Error en UserController@create: ' . $e->getMessage());
+            return redirect()->route('usuarios.index')->with('error', 'Error al procesar la solicitud de crear usuario.');
+        }
 
         $roles = Role::all()->map(function ($role) {
             return [
@@ -110,35 +124,47 @@ class UserController extends BaseController
 
     public function edit($id)
     {
-        $user = User::findOrFail($id);
-        $this->authorize('update', $user);
+        try {
+            $user = User::findOrFail($id);
+            $this->authorize('update', $user);
 
-        $roles = Role::all()->map(function ($role) {
-            return [
-                'id' => $role->id,
-                'name' => $role->name,
-                'label' => ucfirst(str_replace('_', ' ', $role->name)),
-            ];
-        });
+            $roles = Role::all()->map(function ($role) {
+                return [
+                    'id' => $role->id,
+                    'name' => $role->name,
+                    'label' => ucfirst(str_replace('_', ' ', $role->name)),
+                ];
+            });
 
-        // Cargar los roles del usuario autenticado
-        $authUser = User::with('roles')->find(Auth::id());
+            // Cargar los roles del usuario autenticado
+            $authUser = User::with('roles')->find(Auth::id());
 
-        return Inertia::render('Usuarios/Edit', [
-            'usuario' => $user->load('roles'), // Cargar los roles del usuario editado
-            'roles' => $roles,
-            'auth' => ['user' => $authUser], // Pasar el usuario autenticado con roles cargados
-        ]);
+            return Inertia::render('Usuarios/Edit', [
+                'usuario' => $user->load('roles'), // Cargar los roles del usuario editado
+                'roles' => $roles,
+                'auth' => ['user' => $authUser], // Pasar el usuario autenticado con roles cargados
+            ]);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            return redirect()->route('usuarios.index')->with('error', 'No tienes permisos para editar este usuario.');
+        } catch (\Exception $e) {
+            Log::error('Error en UserController@edit: ' . $e->getMessage());
+            return redirect()->route('usuarios.index')->with('error', 'Error al cargar el usuario para editar.');
+        }
     }
 
     public function store(Request $request)
     {
-        $this->authorize('create', User::class);
+        try {
+            $this->authorize('create', User::class);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            return redirect()->route('usuarios.index')->with('error', 'No tienes permisos para crear usuarios.');
+        } catch (\Exception $e) {
+            Log::error('Error en UserController@store: ' . $e->getMessage());
+            return redirect()->route('usuarios.index')->with('error', 'Error al procesar la solicitud de crear usuario.');
+        }
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'apellido_paterno' => 'nullable|string|max:255',
-            'apellido_materno' => 'nullable|string|max:255',
             'email' => 'required|email|max:255|unique:users,email',
             'telefono' => 'nullable|string|max:20',
             'fecha_nacimiento' => 'nullable|date|before:today',
@@ -166,8 +192,6 @@ class UserController extends BaseController
 
         $userData = [
             'name' => $validated['name'],
-            'apellido_paterno' => $validated['apellido_paterno'] ?? null,
-            'apellido_materno' => $validated['apellido_materno'] ?? null,
             'email' => $validated['email'],
             'telefono' => $validated['telefono'] ?? null,
             'fecha_nacimiento' => $validated['fecha_nacimiento'] ?? null,
@@ -201,13 +225,18 @@ class UserController extends BaseController
 
     public function update(Request $request, $id)
     {
-        $user = User::findOrFail($id);
-        $this->authorize('update', $user);
+        try {
+            $user = User::findOrFail($id);
+            $this->authorize('update', $user);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            return redirect()->route('usuarios.index')->with('error', 'No tienes permisos para editar este usuario.');
+        } catch (\Exception $e) {
+            Log::error('Error en UserController@update: ' . $e->getMessage());
+            return redirect()->route('usuarios.index')->with('error', 'Error al cargar el usuario para editar.');
+        }
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'apellido_paterno' => 'nullable|string|max:255',
-            'apellido_materno' => 'nullable|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
             'telefono' => 'nullable|string|max:20',
             'fecha_nacimiento' => 'nullable|date|before:today',
@@ -246,8 +275,6 @@ class UserController extends BaseController
         // Actualizar los datos del usuario
         $user->update([
             'name' => $validated['name'],
-            'apellido_paterno' => $validated['apellido_paterno'] ?? null,
-            'apellido_materno' => $validated['apellido_materno'] ?? null,
             'email' => $validated['email'],
             'telefono' => $validated['telefono'] ?? null,
             'fecha_nacimiento' => $validated['fecha_nacimiento'] ?? null,
@@ -282,15 +309,29 @@ class UserController extends BaseController
 
     public function show($id)
     {
-        $user = User::findOrFail($id);
-        $this->authorize('view', $user);
-        return Inertia::render('Usuarios/Profile', ['usuario' => $user]);
+        try {
+            $user = User::findOrFail($id);
+            $this->authorize('view', $user);
+            return Inertia::render('Usuarios/Profile', ['usuario' => $user]);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            return redirect()->route('usuarios.index')->with('error', 'No tienes permisos para ver este usuario.');
+        } catch (\Exception $e) {
+            Log::error('Error en UserController@show: ' . $e->getMessage());
+            return redirect()->route('usuarios.index')->with('error', 'Error al cargar el usuario.');
+        }
     }
 
     public function destroy($id)
     {
-        $user = User::findOrFail($id);
-        $this->authorize('delete', $user);
+        try {
+            $user = User::findOrFail($id);
+            $this->authorize('delete', $user);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            return redirect()->route('usuarios.index')->with('error', 'No tienes permisos para eliminar este usuario.');
+        } catch (\Exception $e) {
+            Log::error('Error en UserController@destroy: ' . $e->getMessage());
+            return redirect()->route('usuarios.index')->with('error', 'Error al cargar el usuario para eliminar.');
+        }
 
         try {
             $user->delete();
@@ -304,7 +345,14 @@ class UserController extends BaseController
 
     public function toggle(User $user)
     {
-        $this->authorize('update', $user);
+        try {
+            $this->authorize('update', $user);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            return redirect()->back()->with('error', 'No tienes permisos para cambiar el estado de este usuario.');
+        } catch (\Exception $e) {
+            Log::error('Error en UserController@toggle: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al cambiar el estado del usuario.');
+        }
 
         try {
             $user->update(['activo' => !$user->activo]);

@@ -13,8 +13,6 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             // Información personal del empleado
-            $table->string('apellido_paterno')->nullable()->after('name');
-            $table->string('apellido_materno')->nullable()->after('apellido_paterno');
             $table->string('telefono')->nullable()->after('email');
             $table->date('fecha_nacimiento')->nullable()->after('telefono');
             $table->string('curp', 18)->nullable()->after('fecha_nacimiento');
@@ -54,8 +52,6 @@ return new class extends Migration
         Schema::table('users', function (Blueprint $table) {
             // Eliminar campos de empleado
             $table->dropColumn([
-                'apellido_paterno',
-                'apellido_materno',
                 'telefono',
                 'fecha_nacimiento',
                 'curp',

@@ -3,24 +3,35 @@ window.axios = axios;
 
 window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 
-// Configurar token CSRF para solicitudes POST, PUT, DELETE
-let token = document.head.querySelector('meta[name="csrf-token"]');
+// Configurar axios para CSRF (XSRF cookie)
+window.axios.defaults.withCredentials = true;
+window.axios.defaults.xsrfCookieName = 'XSRF-TOKEN';
+window.axios.defaults.xsrfHeaderName = 'X-XSRF-TOKEN';
 
-if (token) {
-    window.axios.defaults.headers.common['X-CSRF-TOKEN'] = token.content;
-} else {
-    console.warn('CSRF token not found in meta tags');
-}
+// Interceptor para manejar errores 419 y recuperación automática
+let isRefreshingCsrf = false;
 
-// Interceptor para manejar errores de respuesta
 window.axios.interceptors.response.use(
     response => response,
-    error => {
-        if (error.response?.status === 419) {
-            console.warn('CSRF token mismatch - reloading page to refresh token...');
-            // Recargar la página para obtener un nuevo token CSRF
-            window.location.reload();
+    async (error) => {
+        const { response, config } = error || {};
+
+        if (response?.status === 419 && !config.__retried) {
+            try {
+                if (!isRefreshingCsrf) {
+                    isRefreshingCsrf = true;
+                    // Para app Inertia "web" normal, basta un ping GET:
+                    await axios.get('/sanctum/csrf-cookie');
+                }
+            } catch (refreshError) {
+                console.warn('Error refreshing CSRF token:', refreshError);
+            } finally {
+                isRefreshingCsrf = false;
+            }
+            config.__retried = true;
+            return axios(config); // reintenta 1 vez
         }
+
         return Promise.reject(error);
     }
 );

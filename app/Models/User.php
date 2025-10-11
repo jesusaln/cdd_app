@@ -25,8 +25,6 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
-        'apellido_paterno',
-        'apellido_materno',
         'email',
         'password',
         'telefono',
@@ -154,14 +152,7 @@ class User extends Authenticatable
     // Métodos para empleados
     public function getNombreCompletoAttribute()
     {
-        $nombre = $this->name;
-        if ($this->apellido_paterno) {
-            $nombre .= ' ' . $this->apellido_paterno;
-        }
-        if ($this->apellido_materno) {
-            $nombre .= ' ' . $this->apellido_materno;
-        }
-        return $nombre;
+        return $this->name;
     }
 
     public function getEdadAttribute()

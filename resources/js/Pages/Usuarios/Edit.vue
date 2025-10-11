@@ -9,8 +9,12 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
           </svg>
         </div>
-        <h1 class="text-3xl font-bold text-gray-900 mb-2">Editar Usuario #{{ props.usuario.id }}</h1>
-        <p class="text-gray-600">Actualiza la información del usuario</p>
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">
+          {{ isAdmin ? `Editar Usuario #${props.usuario.id}` : `Ver Usuario #${props.usuario.id}` }}
+        </h1>
+        <p class="text-gray-600">
+          {{ isAdmin ? 'Actualiza la información del usuario' : 'Información del usuario (solo lectura)' }}
+        </p>
       </div>
 
       <!-- Form Card -->
@@ -49,12 +53,14 @@
                   v-model="form.name"
                   type="text"
                   id="name"
+                  :readonly="!isAdmin"
                   class="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
-                  placeholder="Ingresa el nombre completo"
                   :class="{
                     'border-red-300 bg-red-50 focus:ring-red-500': form.errors.name,
-                    'border-green-300 bg-green-50': form.name && !form.errors.name
+                    'border-green-300 bg-green-50': form.name && !form.errors.name,
+                    'bg-gray-100 cursor-not-allowed': !isAdmin
                   }"
+                  :placeholder="isAdmin ? 'Ingresa el nombre completo' : 'Nombre del usuario'"
                   autocomplete="name"
                 />
                 <div v-if="form.name && !form.errors.name" class="absolute inset-y-0 right-0 pr-3 flex items-center">
@@ -81,12 +87,14 @@
                   v-model="form.email"
                   type="email"
                   id="email"
+                  :readonly="!isAdmin"
                   class="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
-                  placeholder="correo@ejemplo.com"
                   :class="{
                     'border-red-300 bg-red-50 focus:ring-red-500': form.errors.email,
-                    'border-green-300 bg-green-50': form.email && !form.errors.email && isValidEmail
+                    'border-green-300 bg-green-50': form.email && !form.errors.email && isValidEmail,
+                    'bg-gray-100 cursor-not-allowed': !isAdmin
                   }"
+                  :placeholder="isAdmin ? 'correo@ejemplo.com' : 'Email del usuario'"
                   autocomplete="email"
                 />
                 <div v-if="form.email && !form.errors.email && isValidEmail" class="absolute inset-y-0 right-0 pr-3 flex items-center">
@@ -96,10 +104,367 @@
                 </div>
               </div>
               <InputError class="mt-2" :message="form.errors.email" />
+              </div>
             </div>
-          </div>
-
-          <!-- Role Section (Solo para admins) -->
+ 
+            <!-- Employee Information Section -->
+            <div class="space-y-6">
+              <div class="border-b border-gray-200 pb-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h2 class="text-lg font-semibold text-gray-900 flex items-center">
+                      <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2V6"/>
+                      </svg>
+                      Información de Empleado
+                    </h2>
+                    <p class="text-sm text-gray-600 mt-1">Datos adicionales si el usuario es un empleado</p>
+                  </div>
+                  <div class="flex items-center">
+                    <input
+                      v-model="form.es_empleado"
+                      type="checkbox"
+                      id="es_empleado"
+                      :disabled="!isAdmin"
+                      class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      :class="{ 'cursor-not-allowed': !isAdmin }"
+                    />
+                    <label for="es_empleado" class="ml-2 text-sm text-gray-700">
+                      Es empleado
+                    </label>
+                  </div>
+                </div>
+              </div>
+ 
+              <!-- Información Personal del Empleado -->
+              <div v-if="form.es_empleado" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div class="form-group">
+                    <label for="telefono" class="block text-sm font-semibold text-gray-700 mb-2">
+                      Teléfono
+                    </label>
+                    <input
+                      v-model="form.telefono"
+                      type="tel"
+                      id="telefono"
+                      :readonly="!isAdmin"
+                      class="block w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+                      :class="{
+                        'bg-gray-100 cursor-not-allowed': !isAdmin
+                      }"
+                      :placeholder="isAdmin ? 'Número de teléfono' : 'Teléfono del usuario'"
+                    />
+                    <InputError class="mt-2" :message="form.errors.telefono" />
+                  </div>
+ 
+                  <div class="form-group">
+                    <label for="fecha_nacimiento" class="block text-sm font-semibold text-gray-700 mb-2">
+                      Fecha de Nacimiento
+                    </label>
+                    <input
+                      v-model="form.fecha_nacimiento"
+                      type="date"
+                      id="fecha_nacimiento"
+                      class="block w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+                    />
+                    <InputError class="mt-2" :message="form.errors.fecha_nacimiento" />
+                  </div>
+ 
+                  <div class="form-group">
+                    <label for="curp" class="block text-sm font-semibold text-gray-700 mb-2">
+                      CURP
+                    </label>
+                    <input
+                      v-model="form.curp"
+                      type="text"
+                      id="curp"
+                      maxlength="18"
+                      class="block w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+                      placeholder="18 caracteres"
+                    />
+                    <InputError class="mt-2" :message="form.errors.curp" />
+                  </div>
+ 
+                  <div class="form-group">
+                    <label for="rfc" class="block text-sm font-semibold text-gray-700 mb-2">
+                      RFC
+                    </label>
+                    <input
+                      v-model="form.rfc"
+                      type="text"
+                      id="rfc"
+                      maxlength="13"
+                      class="block w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+                      placeholder="13 caracteres"
+                    />
+                    <InputError class="mt-2" :message="form.errors.rfc" />
+                  </div>
+                </div>
+ 
+                <div class="form-group">
+                  <label for="direccion" class="block text-sm font-semibold text-gray-700 mb-2">
+                    Dirección
+                  </label>
+                  <textarea
+                    v-model="form.direccion"
+                    id="direccion"
+                    rows="3"
+                    class="block w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+                    placeholder="Dirección completa"
+                  ></textarea>
+                  <InputError class="mt-2" :message="form.errors.direccion" />
+                </div>
+ 
+                <div class="form-group">
+                  <label for="nss" class="block text-sm font-semibold text-gray-700 mb-2">
+                    Número de Seguro Social (NSS)
+                  </label>
+                  <input
+                    v-model="form.nss"
+                    type="text"
+                    id="nss"
+                    maxlength="11"
+                    class="block w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+                    placeholder="11 dígitos"
+                  />
+                  <InputError class="mt-2" :message="form.errors.nss" />
+                </div>
+              </div>
+ 
+              <!-- Información Laboral -->
+              <div v-if="form.es_empleado" class="space-y-6">
+                <div class="border-b border-gray-200 pb-4">
+                  <h3 class="text-md font-semibold text-gray-900 flex items-center">
+                    <svg class="w-4 h-4 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2V6"/>
+                    </svg>
+                    Información Laboral
+                  </h3>
+                </div>
+ 
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div class="form-group">
+                    <label for="puesto" class="block text-sm font-semibold text-gray-700 mb-2">
+                      Puesto
+                    </label>
+                    <input
+                      v-model="form.puesto"
+                      type="text"
+                      id="puesto"
+                      class="block w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+                      placeholder="Ej: Desarrollador Senior"
+                    />
+                    <InputError class="mt-2" :message="form.errors.puesto" />
+                  </div>
+ 
+                  <div class="form-group">
+                    <label for="departamento" class="block text-sm font-semibold text-gray-700 mb-2">
+                      Departamento
+                    </label>
+                    <input
+                      v-model="form.departamento"
+                      type="text"
+                      id="departamento"
+                      class="block w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+                      placeholder="Ej: Tecnología"
+                    />
+                    <InputError class="mt-2" :message="form.errors.departamento" />
+                  </div>
+ 
+                  <div class="form-group">
+                    <label for="fecha_contratacion" class="block text-sm font-semibold text-gray-700 mb-2">
+                      Fecha de Contratación
+                    </label>
+                    <input
+                      v-model="form.fecha_contratacion"
+                      type="date"
+                      id="fecha_contratacion"
+                      class="block w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+                    />
+                    <InputError class="mt-2" :message="form.errors.fecha_contratacion" />
+                  </div>
+ 
+                  <div class="form-group">
+                    <label for="numero_empleado" class="block text-sm font-semibold text-gray-700 mb-2">
+                      Número de Empleado
+                    </label>
+                    <input
+                      v-model="form.numero_empleado"
+                      type="text"
+                      id="numero_empleado"
+                      class="block w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+                      placeholder="Número único de empleado"
+                    />
+                    <InputError class="mt-2" :message="form.errors.numero_empleado" />
+                  </div>
+ 
+                  <div class="form-group">
+                    <label for="tipo_contrato" class="block text-sm font-semibold text-gray-700 mb-2">
+                      Tipo de Contrato
+                    </label>
+                    <select
+                      v-model="form.tipo_contrato"
+                      id="tipo_contrato"
+                      class="block w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+                    >
+                      <option value="">Seleccionar tipo</option>
+                      <option value="tiempo_completo">Tiempo completo</option>
+                      <option value="medio_tiempo">Medio tiempo</option>
+                      <option value="temporal">Temporal</option>
+                      <option value="por_obra">Por obra</option>
+                    </select>
+                    <InputError class="mt-2" :message="form.errors.tipo_contrato" />
+                  </div>
+ 
+                  <div class="form-group">
+                    <label for="salario" class="block text-sm font-semibold text-gray-700 mb-2">
+                      Salario Mensual
+                    </label>
+                    <input
+                      v-model="form.salario"
+                      type="number"
+                      step="0.01"
+                      id="salario"
+                      class="block w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+                      placeholder="0.00"
+                    />
+                    <InputError class="mt-2" :message="form.errors.salario" />
+                  </div>
+                </div>
+              </div>
+ 
+              <!-- Contacto de Emergencia -->
+              <div v-if="form.es_empleado" class="space-y-6">
+                <div class="border-b border-gray-200 pb-4">
+                  <h3 class="text-md font-semibold text-gray-900 flex items-center">
+                    <svg class="w-4 h-4 mr-2 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                    </svg>
+                    Contacto de Emergencia
+                  </h3>
+                </div>
+ 
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div class="form-group">
+                    <label for="contacto_emergencia_nombre" class="block text-sm font-semibold text-gray-700 mb-2">
+                      Nombre
+                    </label>
+                    <input
+                      v-model="form.contacto_emergencia_nombre"
+                      type="text"
+                      id="contacto_emergencia_nombre"
+                      class="block w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+                      placeholder="Nombre completo"
+                    />
+                    <InputError class="mt-2" :message="form.errors.contacto_emergencia_nombre" />
+                  </div>
+ 
+                  <div class="form-group">
+                    <label for="contacto_emergencia_telefono" class="block text-sm font-semibold text-gray-700 mb-2">
+                      Teléfono
+                    </label>
+                    <input
+                      v-model="form.contacto_emergencia_telefono"
+                      type="tel"
+                      id="contacto_emergencia_telefono"
+                      class="block w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+                      placeholder="Número de teléfono"
+                    />
+                    <InputError class="mt-2" :message="form.errors.contacto_emergencia_telefono" />
+                  </div>
+ 
+                  <div class="form-group">
+                    <label for="contacto_emergencia_parentesco" class="block text-sm font-semibold text-gray-700 mb-2">
+                      Parentesco
+                    </label>
+                    <input
+                      v-model="form.contacto_emergencia_parentesco"
+                      type="text"
+                      id="contacto_emergencia_parentesco"
+                      class="block w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+                      placeholder="Ej: Padre, Madre, Hermano"
+                    />
+                    <InputError class="mt-2" :message="form.errors.contacto_emergencia_parentesco" />
+                  </div>
+                </div>
+              </div>
+ 
+              <!-- Información Bancaria -->
+              <div v-if="form.es_empleado" class="space-y-6">
+                <div class="border-b border-gray-200 pb-4">
+                  <h3 class="text-md font-semibold text-gray-900 flex items-center">
+                    <svg class="w-4 h-4 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+                    </svg>
+                    Información Bancaria
+                  </h3>
+                </div>
+ 
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div class="form-group">
+                    <label for="banco" class="block text-sm font-semibold text-gray-700 mb-2">
+                      Banco
+                    </label>
+                    <input
+                      v-model="form.banco"
+                      type="text"
+                      id="banco"
+                      class="block w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+                      placeholder="Nombre del banco"
+                    />
+                    <InputError class="mt-2" :message="form.errors.banco" />
+                  </div>
+ 
+                  <div class="form-group">
+                    <label for="numero_cuenta" class="block text-sm font-semibold text-gray-700 mb-2">
+                      Número de Cuenta
+                    </label>
+                    <input
+                      v-model="form.numero_cuenta"
+                      type="text"
+                      id="numero_cuenta"
+                      class="block w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+                      placeholder="Número de cuenta"
+                    />
+                    <InputError class="mt-2" :message="form.errors.numero_cuenta" />
+                  </div>
+ 
+                  <div class="form-group">
+                    <label for="clabe_interbancaria" class="block text-sm font-semibold text-gray-700 mb-2">
+                      CLABE Interbancaria
+                    </label>
+                    <input
+                      v-model="form.clabe_interbancaria"
+                      type="text"
+                      id="clabe_interbancaria"
+                      maxlength="18"
+                      class="block w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+                      placeholder="18 dígitos"
+                    />
+                    <InputError class="mt-2" :message="form.errors.clabe_interbancaria" />
+                  </div>
+                </div>
+              </div>
+ 
+              <!-- Observaciones -->
+              <div v-if="form.es_empleado" class="space-y-6">
+                <div class="form-group">
+                  <label for="observaciones" class="block text-sm font-semibold text-gray-700 mb-2">
+                    Observaciones
+                  </label>
+                  <textarea
+                    v-model="form.observaciones"
+                    id="observaciones"
+                    rows="3"
+                    class="block w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+                    placeholder="Observaciones adicionales del empleado"
+                  ></textarea>
+                  <InputError class="mt-2" :message="form.errors.observaciones" />
+                </div>
+              </div>
+            </div>
+ 
+            <!-- Role Section (Solo para admins) -->
           <div v-if="isAdmin" class="space-y-6">
             <div class="border-b border-gray-200 pb-4">
               <h2 class="text-lg font-semibold text-gray-900 flex items-center">
@@ -280,6 +645,7 @@
                 Cancelar
               </Link>
               <button
+                v-if="isAdmin"
                 type="submit"
                 class="w-full sm:w-auto inline-flex justify-center items-center px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-200 hover:shadow-lg transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:hover:shadow-none"
                 :disabled="form.processing || !isFormValid"
@@ -330,6 +696,26 @@ const showPasswordConfirmation = ref(false);
 const form = useForm({
   name: props.usuario.name,
   email: props.usuario.email,
+  telefono: props.usuario.telefono || '',
+  fecha_nacimiento: props.usuario.fecha_nacimiento || '',
+  curp: props.usuario.curp || '',
+  rfc: props.usuario.rfc || '',
+  direccion: props.usuario.direccion || '',
+  nss: props.usuario.nss || '',
+  puesto: props.usuario.puesto || '',
+  departamento: props.usuario.departamento || '',
+  fecha_contratacion: props.usuario.fecha_contratacion || '',
+  salario: props.usuario.salario || '',
+  tipo_contrato: props.usuario.tipo_contrato || '',
+  numero_empleado: props.usuario.numero_empleado || '',
+  contacto_emergencia_nombre: props.usuario.contacto_emergencia_nombre || '',
+  contacto_emergencia_telefono: props.usuario.contacto_emergencia_telefono || '',
+  contacto_emergencia_parentesco: props.usuario.contacto_emergencia_parentesco || '',
+  banco: props.usuario.banco || '',
+  numero_cuenta: props.usuario.numero_cuenta || '',
+  clabe_interbancaria: props.usuario.clabe_interbancaria || '',
+  observaciones: props.usuario.observaciones || '',
+  es_empleado: props.usuario.es_empleado || false,
   role: props.usuario.roles[0]?.name || '',
   password: '',
   password_confirmation: '',
@@ -347,6 +733,25 @@ const notyf = new Notyf({
 const isAdmin = computed(() => {
   return props.auth.user?.roles.some(role => role.name === 'admin');
 });
+
+// Determinar si un campo debe ser de solo lectura
+const isFieldReadonly = (fieldName) => {
+  // Si no es admin, todos los campos son de solo lectura
+  if (!isAdmin.value) {
+    return true;
+  }
+
+  // Si es admin, puede editar todo
+  return false;
+};
+
+// Determinar la clase CSS para campos de solo lectura
+const getFieldClass = (fieldName) => {
+  return {
+    'bg-gray-100 cursor-not-allowed': isFieldReadonly(fieldName),
+    'bg-gray-50 hover:bg-white': !isFieldReadonly(fieldName)
+  };
+};
 
 // Validar email
 const isValidEmail = computed(() => {
@@ -381,6 +786,26 @@ const passwordStrengthText = computed(() => {
 const isFormValid = computed(() => {
   const hasChanges = form.name !== props.usuario.name ||
                      form.email !== props.usuario.email ||
+                     form.telefono !== (props.usuario.telefono || '') ||
+                     form.fecha_nacimiento !== (props.usuario.fecha_nacimiento || '') ||
+                     form.curp !== (props.usuario.curp || '') ||
+                     form.rfc !== (props.usuario.rfc || '') ||
+                     form.direccion !== (props.usuario.direccion || '') ||
+                     form.nss !== (props.usuario.nss || '') ||
+                     form.puesto !== (props.usuario.puesto || '') ||
+                     form.departamento !== (props.usuario.departamento || '') ||
+                     form.fecha_contratacion !== (props.usuario.fecha_contratacion || '') ||
+                     form.salario !== (props.usuario.salario || '') ||
+                     form.tipo_contrato !== (props.usuario.tipo_contrato || '') ||
+                     form.numero_empleado !== (props.usuario.numero_empleado || '') ||
+                     form.contacto_emergencia_nombre !== (props.usuario.contacto_emergencia_nombre || '') ||
+                     form.contacto_emergencia_telefono !== (props.usuario.contacto_emergencia_telefono || '') ||
+                     form.contacto_emergencia_parentesco !== (props.usuario.contacto_emergencia_parentesco || '') ||
+                     form.banco !== (props.usuario.banco || '') ||
+                     form.numero_cuenta !== (props.usuario.numero_cuenta || '') ||
+                     form.clabe_interbancaria !== (props.usuario.clabe_interbancaria || '') ||
+                     form.observaciones !== (props.usuario.observaciones || '') ||
+                     form.es_empleado !== (props.usuario.es_empleado || false) ||
                      (isAdmin.value && form.role !== (props.usuario.roles[0]?.name || '')) ||
                      form.password;
 
@@ -394,21 +819,36 @@ const isFormValid = computed(() => {
 // Progreso visual (similar al create)
 const formProgress = computed(() => {
   let progress = 0;
-  const totalFields = 4; // nombre, email, rol (si admin), contraseña (opcional)
+  let totalFields = 4; // nombre, email, rol (si admin), contraseña (opcional)
 
+  // Campos básicos
   if (form.name) progress++;
   if (form.email && isValidEmail.value) progress++;
   if (isAdmin.value && form.role) progress++;
   if (form.password && form.password.length >= 8) progress++;
 
-  return (progress / totalFields) * 100;
+  // Si es empleado, agregar campos adicionales
+  if (form.es_empleado) {
+    totalFields += 7; // Campos adicionales de empleado (sin apellidos)
+
+    if (form.telefono) progress++;
+    if (form.fecha_nacimiento) progress++;
+    if (form.curp) progress++;
+    if (form.puesto) progress++;
+    if (form.departamento) progress++;
+    if (form.fecha_contratacion) progress++;
+    if (form.numero_empleado) progress++;
+  }
+
+  return totalFields > 0 ? (progress / totalFields) * 100 : 0;
 });
 
 // Enviar formulario
 const submit = () => {
   form.put(route('usuarios.update', props.usuario.id), {
     onSuccess: () => {
-      notyf.success('Usuario actualizado exitosamente.');
+      const tipo = form.es_empleado ? 'empleado' : 'usuario';
+      notyf.success(`${tipo.charAt(0).toUpperCase() + tipo.slice(1)} actualizado exitosamente.`);
       form.reset('password', 'password_confirmation');
     },
     onError: (errors) => {
