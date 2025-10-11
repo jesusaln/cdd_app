@@ -116,29 +116,6 @@ const calcularPagos = async () => {
   calculando.value = true
 
   try {
-    // Obtener token CSRF de múltiples fuentes posibles
-    let csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
-
-    if (!csrfToken) {
-      // Intentar obtener de ventana global si está disponible
-      csrfToken = window.Laravel?.csrfToken || window.csrfToken || ''
-    }
-
-    if (!csrfToken) {
-      console.warn('No se pudo obtener token CSRF, intentando obtener de cookie')
-      // Como último recurso, intentar obtener de cookie
-      const cookies = document.cookie.split(';')
-      for (let cookie of cookies) {
-        const [name, value] = cookie.trim().split('=')
-        if (name === 'XSRF-TOKEN') {
-          csrfToken = decodeURIComponent(value)
-          break
-        }
-      }
-    }
-
-    console.log('CSRF Token obtenido:', csrfToken ? 'Sí' : 'No', 'Longitud:', csrfToken?.length || 0)
-
     const requestData = {
       monto_prestado: parseFloat(form.value.monto_prestado),
       tasa_interes_mensual: parseFloat(form.value.tasa_interes_mensual),
@@ -148,13 +125,16 @@ const calcularPagos = async () => {
 
     console.log('Datos a enviar:', requestData)
 
+    // Usar el método oficial de Inertia.js que maneja automáticamente el token CSRF
     const response = await fetch('/prestamos/calcular-pagos', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRF-TOKEN': csrfToken || '',
-        'Accept': 'application/json'
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
       },
+      credentials: 'same-origin',
       body: JSON.stringify(requestData)
     })
 
@@ -175,7 +155,43 @@ const calcularPagos = async () => {
     } else {
       const errorText = await response.text()
       console.error('Error en respuesta del servidor:', response.status, errorText)
-      notyf.error(`Error del servidor (${response.status}): ${response.statusText}`)
+
+      if (response.status === 419) {
+        console.error('Error CSRF detectado. Intentando obtener token CSRF...')
+
+        // Si recibimos error 419, intentar obtener el token CSRF y reintentar
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+        console.log('Token CSRF obtenido:', csrfToken ? 'Sí' : 'No')
+
+        if (csrfToken) {
+          console.log('Reintentando con token CSRF...')
+          const retryResponse = await fetch('/prestamos/calcular-pagos', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'X-CSRF-TOKEN': csrfToken,
+              'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(requestData)
+          })
+
+          if (retryResponse.ok) {
+            const retryData = await retryResponse.json()
+            if (retryData.success && retryData.calculos) {
+              calculos.value = retryData.calculos
+              console.log('Cálculos actualizados en reintento:', calculos.value)
+              return
+            }
+          }
+        }
+
+        notyf.error('Error de seguridad CSRF. Por favor recarga la página.')
+      } else {
+        notyf.error(`Error del servidor (${response.status}): ${response.statusText}`)
+      }
+
       calculos.value = { pago_periodico: 0, interes_total: 0, total_pagar: 0 }
     }
   } catch (error) {

@@ -1,0 +1,120 @@
+    Route::get('/dashboard', function () {
+        return redirect()->route('panel');
+    })->name('dashboard');
+
+    // =====================================================
+    // RECURSOS PRINCIPALES
+    // =====================================================
+    Route::resource('ordenescompra', OrdenCompraController::class);
+    Route::post('ordenescompra/{id}/enviar-compra', [OrdenCompraController::class, 'enviarACompra'])->name('ordenescompra.enviar-compra');
+    Route::post('ordenescompra/{id}/recibir-mercancia', [OrdenCompraController::class, 'recibirMercancia'])->name('ordenescompra.recibir-mercancia');
+    Route::post('ordenescompra/{id}/convertir-directo', [OrdenCompraController::class, 'convertirDirecto'])->name('ordenescompra.convertir-directo');
+    Route::post('ordenescompra/{id}/duplicate', [OrdenCompraController::class, 'duplicate'])->name('ordenescompra.duplicate');
+    Route::post('ordenescompra/{id}/urgente', [OrdenCompraController::class, 'marcarUrgente'])->name('ordenescompra.urgente');
+    Route::post('ordenescompra/{id}/cancelar', [OrdenCompraController::class, 'cancelar'])->name('ordenescompra.cancelar');
+    Route::post('ordenescompra/{id}/cambiar-estado', [OrdenCompraController::class, 'cambiarEstado'])->name('ordenescompra.cambiar-estado');
+    Route::get('ordenescompra/{id}/estado', [OrdenCompraController::class, 'getEstado'])->name('ordenescompra.get-estado');
+    Route::post('ordenescompra/{id}/enviar-email', [OrdenCompraController::class, 'enviarEmail'])->name('ordenescompra.enviar-email');
+
+    Route::resource('clientes', ClienteController::class)->names('clientes');
+    Route::resource('prestamos', PrestamoController::class)->names('prestamos');
+    Route::post('/prestamos/calcular-pagos', [PrestamoController::class, 'calcularPagos'])->name('prestamos.calcular-pagos');
+    Route::patch('/prestamos/{prestamo}/cambiar-estado', [PrestamoController::class, 'cambiarEstado'])->name('prestamos.cambiar-estado');
+    Route::get('/prestamos/{prestamo}/pagare', [PrestamoController::class, 'generarPagare'])->name('prestamos.pagare');
+    Route::get('/prestamos/{prestamo}/pagos', [PagoPrestamoController::class, 'pagosPorPrestamo'])->name('prestamos.pagos');
+    Route::resource('pagos', PagoPrestamoController::class)->names('pagos');
+    Route::resource('productos', ProductoController::class)->names('productos');
+    Route::get('productos/{id}/stock-detalle', [ProductoController::class, 'getStockDetalle'])->name('productos.stock-detalle');
+    Route::resource('proveedores', ProveedorController::class)->names('proveedores');
+    Route::resource('categorias', CategoriaController::class)->names('categorias');
+    Route::put('/categorias/{categoria}/toggle', [CategoriaController::class, 'toggle'])->name('categorias.toggle');
+    Route::get('/categorias/export', [CategoriaController::class, 'export'])->name('categorias.export');
+    Route::resource('marcas', MarcaController::class)->names('marcas');
+    Route::put('/marcas/{marca}/toggle', [MarcaController::class, 'toggle'])->name('marcas.toggle');
+    Route::get('/marcas/export', [MarcaController::class, 'export'])->name('marcas.export');
+    Route::resource('almacenes', AlmacenController::class)->names('almacenes'); // âœ… DUPLICACIÃ“N ELIMINADA
+    Route::put('/almacenes/{almacen}/toggle', [AlmacenController::class, 'toggle'])->name('almacenes.toggle');
+    Route::get('/almacenes/export', [AlmacenController::class, 'export'])->name('almacenes.export');
+    Route::resource('traspasos', TraspasoController::class)->names('traspasos');
+    Route::resource('movimientos-inventario', MovimientoInventarioController::class)->names('movimientos-inventario');
+    Route::resource('ajustes-inventario', AjusteInventarioController::class)->names('ajustes-inventario');
+    Route::resource('movimientos-manuales', MovimientoManualController::class)->names('movimientos-manuales');
+    Route::resource('cotizaciones', CotizacionController::class)->names('cotizaciones');
+    Route::resource('pedidos', PedidoController::class)->names('pedidos');
+    Route::resource('ventas', VentaController::class)->names('ventas');
+    Route::resource('servicios', ServicioController::class)->names('servicios');
+    Route::put('/servicios/{servicio}/toggle', [ServicioController::class, 'toggle'])->name('servicios.toggle');
+    Route::resource('usuarios', UserController::class)->names('usuarios');
+    Route::resource('compras', CompraController::class)->names('compras');
+    Route::post('/compras/{id}/cancel', [CompraController::class, 'cancel'])->name('compras.cancel');
+    Route::resource('cuentas-por-pagar', \App\Http\Controllers\CuentasPorPagarController::class)->names('cuentas-por-pagar');
+    Route::post('/cuentas-por-pagar/{id}/registrar-pago', [\App\Http\Controllers\CuentasPorPagarController::class, 'registrarPago'])->name('cuentas-por-pagar.registrar-pago');
+    Route::post('/cuentas-por-pagar/{id}/marcar-pagado', [\App\Http\Controllers\CuentasPorPagarController::class, 'marcarPagado'])->name('cuentas-por-pagar.marcar-pagado');
+    Route::resource('cuentas-por-cobrar', CuentasPorCobrarController::class)->names('cuentas-por-cobrar');
+    Route::post('/cuentas-por-cobrar/{id}/registrar-pago', [CuentasPorCobrarController::class, 'registrarPago'])->name('cuentas-por-cobrar.registrar-pago');
+    // =====================================================
+    // RUTAS DE REPORTES ORGANIZADAS
+    // =====================================================
+
+    // Centro de reportes con tabs
+    Route::get('/reportes', [ReportesDashboardController::class, 'indexTabs'])->name('reportes.index');
+
+    // Dashboard de categorÃ­as de reportes
+    Route::get('/reportes/dashboard', [ReportesController::class, 'index'])->name('reportes.dashboard');
+
+    // CRUD de reportes personalizados (debe ir primero para evitar conflictos)
+    Route::resource('reportes', ReporteController::class)->except(['index', 'show']);
+
+    // Reportes especÃ­ficos redirigidos al centro de reportes con tabs
+    Route::get('/reportes/ventas', function () {
+        return redirect('/reportes?tab=ventas');
+    })->name('reportes.ventas');
+    Route::get('/reportes/corte-diario', function () {
+        return redirect('/reportes?tab=corte');
+    })->name('reportes.corte-diario');
+    // Registrar entrega directa desde Corte Diario
+    Route::post('/reportes/corte/entrega', [EntregaDineroController::class, 'storeDesdeCorte'])
+        ->name('reportes.corte.entrega');
+    Route::get('/reportes/export', [ReporteController::class, 'exportarCorteDiario'])->name('reportes.export');
+    Route::get('/reportes/tecnicos', function () {
+        return redirect('/reportes?tab=personal');
+    })->name('reportes.tecnicos.index');
+    Route::get('/reportes/tecnicos/datos', [ReporteTecnicoController::class, 'datos'])->name('reportes.tecnicos.datos');
+
+    // Nuevos reportes redirigidos
+    Route::get('/reportes/ventas-pendientes', function () {
+        return redirect('/reportes?tab=ventas');
+    })->name('reportes.ventas-pendientes');
+    Route::get('/reportes/clientes', function () {
+        return redirect('/reportes?tab=clientes');
+    })->name('reportes.clientes');
+    Route::get('/reportes/inventario', function () {
+        return redirect('/reportes?tab=inventario');
+    })->name('reportes.inventario');
+    Route::get('/reportes/servicios', function () {
+        return redirect('/reportes?tab=servicios');
+    })->name('reportes.servicios');
+    Route::get('/reportes/citas', function () {
+        return redirect('/reportes?tab=citas');
+    })->name('reportes.citas');
+    Route::get('/reportes/mantenimientos', function () {
+        return redirect('/reportes?tab=mantenimientos');
+    })->name('reportes.mantenimientos');
+    Route::get('/reportes/rentas', function () {
+        return redirect('/reportes?tab=rentas');
+    })->name('reportes.rentas');
+    Route::get('/reportes/cobranzas', function () {
+        return redirect('/reportes?tab=cobranzas');
+    })->name('reportes.cobranzas');
+    Route::get('/reportes/ganancias', function () {
+        return redirect('/reportes?tab=ganancias');
+    })->name('reportes.ganancias');
+    Route::get('/reportes/productos', function () {
+        return redirect('/reportes?tab=productos');
+    })->name('reportes.productos');
+    Route::get('/reportes/proveedores', function () {
+        return redirect('/reportes?tab=proveedores');
+    })->name('reportes.proveedores');
+    Route::get('/reportes/empleados', function () {
+        return redirect('/reportes?tab=empleados');
+    })->name('reportes.empleados');

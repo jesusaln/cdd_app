@@ -180,14 +180,45 @@ const getEstadoLabel = (estado) => {
 }
 
 const getEstadoColor = (estado) => {
-  const colors = {
-    'pendiente': 'bg-yellow-100 text-yellow-800',
-    'pagado': 'bg-green-100 text-green-800',
-    'atrasado': 'bg-red-100 text-red-800',
-    'parcial': 'bg-orange-100 text-orange-800'
-  }
-  return colors[estado] || 'bg-gray-100 text-gray-800'
-}
+   const colors = {
+     'pendiente': 'bg-yellow-100 text-yellow-800',
+     'pagado': 'bg-green-100 text-green-800',
+     'atrasado': 'bg-red-100 text-red-800',
+     'parcial': 'bg-orange-100 text-orange-800'
+   }
+   return colors[estado] || 'bg-gray-100 text-gray-800'
+ }
+
+/* =========================
+    Watcher para autocompletar monto
+ ========================= */
+watch(
+  () => form.value.pago_id,
+  (newPagoId, oldPagoId) => {
+    console.log('Cambio en pago_id:', oldPagoId, '->', newPagoId)
+
+    if (newPagoId) {
+      const pagoSeleccionado = props.pagos_pendientes.find(p => p.id == newPagoId)
+      if (pagoSeleccionado) {
+        const montoPendiente = pagoSeleccionado.monto_programado - pagoSeleccionado.monto_pagado
+        form.value.monto_pagado = montoPendiente
+        console.log('Monto autocompletado:', montoPendiente)
+
+        // Mostrar notificación informativa
+        notyf.success(`Monto autocompletado: $${formatearMoneda(montoPendiente)}`)
+      }
+    } else {
+      // Si se deselecciona el pago, limpiar el monto
+      form.value.monto_pagado = 0
+    }
+
+    // Limpiar errores cuando cambia la selección
+    if (errors.value.monto_pagado) {
+      delete errors.value.monto_pagado
+    }
+  },
+  { immediate: false }
+)
 </script>
 
 <template>
@@ -313,6 +344,7 @@ const getEstadoColor = (estado) => {
                 <div>
                   <label for="monto_pagado" class="block text-sm font-medium text-gray-700 mb-2">
                     Monto Pagado *
+                    <span v-if="form.pago_id" class="text-xs text-blue-600 font-normal">(Autocompletado automáticamente)</span>
                   </label>
                   <div class="relative">
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -326,11 +358,20 @@ const getEstadoColor = (estado) => {
                       min="0"
                       :max="montoMaximo"
                       :placeholder="placeholderMonto"
-                      class="block w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      :class="{ 'border-red-300': errors.monto_pagado }"
+                      class="block w-full pl-8 pr-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      :class="[
+                        form.pago_id ? 'border-green-300 bg-green-50' : 'border-gray-300',
+                        errors.monto_pagado && 'border-red-300'
+                      ]"
                     />
+                    <div v-if="form.pago_id" class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      <span class="text-green-600 text-xs">✓</span>
+                    </div>
                   </div>
                   <p v-if="errors.monto_pagado" class="mt-1 text-sm text-red-600">{{ errors.monto_pagado }}</p>
+                  <p v-if="form.pago_id && !errors.monto_pagado" class="mt-1 text-xs text-green-600">
+                    ✓ Monto autocompletado con el pago pendiente
+                  </p>
                 </div>
 
                 <!-- Fecha de pago -->

@@ -586,10 +586,7 @@ const onEditarFila = () => { editarPrestamo(selectedPrestamo.value?.id) }
                           </svg>
                         </button>
 
-                        <!-- Estado (solo visual, sin cambios directos) -->
-                        <div v-if="prestamo.estado === 'activo'" class="text-xs text-green-600 font-medium">
-                          ✓
-                        </div>
+                       
 
                         <!-- Eliminar (solo cancelados) -->
                         <button

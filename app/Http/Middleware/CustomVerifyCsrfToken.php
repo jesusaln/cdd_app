@@ -2,56 +2,59 @@
 
 namespace App\Http\Middleware;
 
+use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken as Middleware;
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Symfony\Component\HttpFoundation\Response;
 
-class CustomVerifyCsrfToken
+class CustomVerifyCsrfToken extends Middleware
 {
+    /**
+     * The URIs that should be excluded from CSRF verification.
+     *
+     * @var array<int, string>
+     */
+    protected $except = [
+        'prestamos/calcular-pagos',
+        'sanctum/csrf-cookie',
+    ];
+
     /**
      * Handle an incoming request.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \Closure  $next
+     * @return mixed
      */
-    public function handle(Request $request, Closure $next): Response
+    public function handle($request, Closure $next)
     {
-        // Excluir rutas específicas de verificación CSRF completamente
-        if ($this->shouldSkipCsrfVerification($request)) {
+        // Para rutas excluidas específicamente, saltar verificación CSRF
+        if ($this->inExceptArray($request)) {
             return $next($request);
         }
 
-        // Para solicitudes AJAX o API, ser más permisivo
-        if ($request->ajax() || $request->wantsJson() || $request->is('sanctum/csrf-cookie')) {
-            return $next($request);
-        }
+        // Para otras rutas, usar la verificación estándar de Laravel
+        return parent::handle($request, $next);
+    }
 
-        // Verificar token CSRF solo para métodos que lo requieren
-        if ($this->requiresCsrfCheck($request)) {
-            try {
-                // Usar la verificación CSRF estándar de Laravel
-                $token = $request->header('X-CSRF-TOKEN') ?? $request->input('_token');
+    /**
+     * Determine if the request has a URI that should pass through CSRF verification.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return bool
+     */
+    protected function inExceptArray($request)
+    {
+        foreach ($this->except as $except) {
+            if ($except !== '/') {
+                $except = trim($except, '/');
+            }
 
-                if (!$token && $request->session()->has('_token')) {
-                    // Si no hay token en la request pero hay sesión, continuar
-                    return $next($request);
-                }
-
-                if ($token && $request->session()->has('_token') && $token !== $request->session()->token()) {
-                    // Token mismatch - redirigir al login
-                    if ($request->expectsJson()) {
-                        return response()->json(['error' => 'CSRF token mismatch'], 419);
-                    } else {
-                        return redirect()->route('login')->with('error', 'Token de seguridad inválido. Por favor inicia sesión nuevamente.');
-                    }
-                }
-            } catch (\Exception $e) {
-                // Si hay algún error con la verificación CSRF, continuar
-                return $next($request);
+            if ($request->fullUrlIs($except) || $request->is($except)) {
+                return true;
             }
         }
 
-        return $next($request);
+        return false;
     }
 
     /**
