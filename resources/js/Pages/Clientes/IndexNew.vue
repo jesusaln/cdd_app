@@ -700,6 +700,17 @@ const isNumber = (n) => Number.isFinite(parseFloat(n))
                           </svg>
                         </button>
 
+                        <!-- Ver préstamos del cliente -->
+                        <Link
+                          :href="`/reportes/prestamos-por-cliente?cliente_id=${cliente.id}`"
+                          class="group/btn relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-1"
+                          title="Ver préstamos del cliente"
+                        >
+                          <svg class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </Link>
+
                         <!-- Editar -->
                         <button
                           @click="editarCliente(cliente.id)"

@@ -270,6 +270,10 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
         return redirect('/reportes?tab=auditoria');
     })->name('reportes.auditoria');
 
+    // Reporte de préstamos por cliente
+    Route::get('/reportes/prestamos-por-cliente', [ReporteController::class, 'prestamosPorCliente'])->name('reportes.prestamos-por-cliente');
+    Route::get('/reportes/prestamos-por-cliente/export', [ReporteController::class, 'exportarPrestamosPorCliente'])->name('reportes.prestamos-por-cliente.export');
+
     // Reporte de movimientos de inventario redirigido
     Route::get('/reportes/movimientos-inventario', function () {
         return redirect('/reportes?tab=movimientos');

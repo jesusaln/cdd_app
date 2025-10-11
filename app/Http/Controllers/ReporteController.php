@@ -19,6 +19,8 @@ use App\Models\Renta;
 use App\Models\Equipo;
 use App\Models\User;
 use App\Models\BitacoraActividad;
+use App\Models\Prestamo;
+use App\Models\PagoPrestamo;
 
 class ReporteController extends Controller
 {
@@ -67,31 +69,37 @@ class ReporteController extends Controller
         $productos = Producto::with(['categoria', 'marca'])->get();
 
         // Estadísticas adicionales
-        $clientes = \App\Models\Cliente::select('id', 'nombre_razon_social')->get();
+         $clientes = \App\Models\Cliente::select('id', 'nombre_razon_social')->get();
 
-        // Obtener datos para el corte diario (ventas y rentas cobradas)
-        $corteDiario = $this->obtenerDatosCorteDiario($fechaInicio, $fechaFin);
+         // Obtener datos para el corte diario (ventas y rentas cobradas)
+         $corteDiario = $this->obtenerDatosCorteDiario($fechaInicio, $fechaFin);
 
-        // Obtener usuarios activos para el filtro de corte
-        $usuarios = \App\Models\User::select('id', 'name')->get();
+         // Obtener usuarios activos para el filtro de corte
+         $usuarios = \App\Models\User::select('id', 'name')->get();
 
-        return Inertia::render('Reportes/Index', [
-            'reportesVentas' => $ventasConCosto,
-            'corteVentas' => $corteVentas,
-            'utilidadVentas' => $utilidadVentas,
-            'reportesCompras' => $compras,
-            'totalCompras' => $totalCompras,
-            'inventario' => $productos,
-            'clientes' => $clientes,
-            'corteDiario' => $corteDiario,
-            'usuarios' => $usuarios,
-            'filtros' => [
-                'fecha_inicio' => $fechaInicio,
-                'fecha_fin' => $fechaFin,
-                'cliente_id' => $clienteId,
-                'pagado' => $pagado,
-            ],
-        ]);
+         // Obtener préstamos para el reporte general
+         $prestamos = Prestamo::with(['cliente'])
+             ->whereBetween('created_at', [$fechaInicio . ' 00:00:00', $fechaFin . ' 23:59:59'])
+             ->get();
+
+         return Inertia::render('Reportes/Index', [
+             'reportesVentas' => $ventasConCosto,
+             'corteVentas' => $corteVentas,
+             'utilidadVentas' => $utilidadVentas,
+             'reportesCompras' => $compras,
+             'totalCompras' => $totalCompras,
+             'inventario' => $productos,
+             'clientes' => $clientes,
+             'corteDiario' => $corteDiario,
+             'usuarios' => $usuarios,
+             'prestamos' => $prestamos,
+             'filtros' => [
+                 'fecha_inicio' => $fechaInicio,
+                 'fecha_fin' => $fechaFin,
+                 'cliente_id' => $clienteId,
+                 'pagado' => $pagado,
+             ],
+         ]);
     }
 
     public function ventas()
@@ -1455,9 +1463,176 @@ class ReporteController extends Controller
             });
 
         // Combinar ventas y cobranzas ordenadas por fecha de pago
-        return collect([...$ventasPagadas, ...$cobranzasPagadas])
-            ->sortByDesc('fecha_pago')
-            ->values()
-            ->toArray();
-    }
-}
+         return collect([...$ventasPagadas, ...$cobranzasPagadas])
+             ->sortByDesc('fecha_pago')
+             ->values()
+             ->toArray();
+     }
+
+     /**
+      * Reporte de préstamos por cliente
+      */
+     public function prestamosPorCliente(Request $request)
+     {
+         $fechaInicio = $request->get('fecha_inicio', now()->startOfMonth()->format('Y-m-d'));
+         $fechaFin = $request->get('fecha_fin', now()->endOfMonth()->format('Y-m-d'));
+         $clienteId = $request->get('cliente_id');
+         $estado = $request->get('estado', 'todos'); // todos, activo, completado, cancelado
+
+         // Obtener préstamos con relaciones necesarias
+         $prestamosQuery = Prestamo::with(['cliente', 'pagos.historialPagos'])
+             ->whereBetween('created_at', [$fechaInicio . ' 00:00:00', $fechaFin . ' 23:59:59']);
+
+         if ($clienteId) {
+             $prestamosQuery->where('cliente_id', $clienteId);
+         }
+
+         if ($estado !== 'todos') {
+             $prestamosQuery->where('estado', $estado);
+         }
+
+         $prestamos = $prestamosQuery->get();
+
+         // Agrupar préstamos por cliente
+         $prestamosPorCliente = $prestamos->groupBy('cliente_id')->map(function ($clientePrestamos, $clienteId) use ($fechaInicio, $fechaFin) {
+             $cliente = $clientePrestamos->first()->cliente;
+
+             $totalPrestado = $clientePrestamos->sum('monto_prestado');
+             $totalPagado = $clientePrestamos->sum('monto_pagado');
+             $totalPendiente = $clientePrestamos->sum('monto_pendiente');
+             $totalInteres = $clientePrestamos->sum('monto_interes_total');
+
+             // Obtener pagos del período para este cliente
+             $pagosEnPeriodo = PagoPrestamo::with(['prestamo', 'historialPagos'])
+                 ->whereIn('prestamo_id', $clientePrestamos->pluck('id'))
+                 ->whereHas('historialPagos', function($q) use ($fechaInicio, $fechaFin) {
+                     $q->whereBetween('fecha_pago', [$fechaInicio, $fechaFin]);
+                 })
+                 ->get();
+
+             $totalPagadoEnPeriodo = $pagosEnPeriodo->sum(function($pago) {
+                 return $pago->historialPagos->sum('monto_pagado');
+             });
+
+             return [
+                 'cliente_id' => $clienteId,
+                 'cliente' => [
+                     'id' => $cliente->id,
+                     'nombre_razon_social' => $cliente->nombre_razon_social,
+                     'rfc' => $cliente->rfc,
+                     'email' => $cliente->email,
+                     'telefono' => $cliente->telefono,
+                 ],
+                 'prestamos' => $clientePrestamos->map(function ($prestamo) {
+                     return [
+                         'id' => $prestamo->id,
+                         'monto_prestado' => $prestamo->monto_prestado,
+                         'monto_pagado' => $prestamo->monto_pagado,
+                         'monto_pendiente' => $prestamo->monto_pendiente,
+                         'pago_periodico' => $prestamo->pago_periodico,
+                         'tasa_interes_mensual' => $prestamo->tasa_interes_mensual,
+                         'numero_pagos' => $prestamo->numero_pagos,
+                         'pagos_realizados' => $prestamo->pagos_realizados,
+                         'pagos_pendientes' => $prestamo->pagos_pendientes,
+                         'estado' => $prestamo->estado,
+                         'fecha_inicio' => $prestamo->fecha_inicio?->format('Y-m-d'),
+                         'fecha_primer_pago' => $prestamo->fecha_primer_pago?->format('Y-m-d'),
+                         'progreso' => $prestamo->progreso,
+                     ];
+                 })->values(),
+                 'resumen_financiero' => [
+                     'total_prestado' => $totalPrestado,
+                     'total_pagado' => $totalPagado,
+                     'total_pendiente' => $totalPendiente,
+                     'total_interes' => $totalInteres,
+                     'total_pagos_periodo' => $totalPagadoEnPeriodo,
+                     'numero_prestamos' => $clientePrestamos->count(),
+                     'prestamos_activos' => $clientePrestamos->where('estado', 'activo')->count(),
+                     'prestamos_completados' => $clientePrestamos->where('estado', 'completado')->count(),
+                     'prestamos_cancelados' => $clientePrestamos->where('estado', 'cancelado')->count(),
+                 ]
+             ];
+         })->values();
+
+         // Estadísticas generales
+         $estadisticas = [
+             'total_clientes' => $prestamosPorCliente->count(),
+             'total_prestamos' => $prestamos->count(),
+             'total_prestado' => $prestamos->sum('monto_prestado'),
+             'total_pagado' => $prestamos->sum('monto_pagado'),
+             'total_pendiente' => $prestamos->sum('monto_pendiente'),
+             'total_interes' => $prestamos->sum('monto_interes_total'),
+             'prestamos_activos' => $prestamos->where('estado', 'activo')->count(),
+             'prestamos_completados' => $prestamos->where('estado', 'completado')->count(),
+             'prestamos_cancelados' => $prestamos->where('estado', 'cancelado')->count(),
+         ];
+
+         // Obtener lista de clientes para filtros
+         $clientes = Cliente::select('id', 'nombre_razon_social', 'rfc')->orderBy('nombre_razon_social')->get();
+
+         return Inertia::render('Reportes/PrestamosPorCliente', [
+             'prestamosPorCliente' => $prestamosPorCliente,
+             'estadisticas' => $estadisticas,
+             'clientes' => $clientes,
+             'filtros' => [
+                 'fecha_inicio' => $fechaInicio,
+                 'fecha_fin' => $fechaFin,
+                 'cliente_id' => $clienteId,
+                 'estado' => $estado,
+             ],
+         ]);
+     }
+
+     /**
+      * Exportar reporte de préstamos por cliente a JSON para Excel
+      */
+     public function exportarPrestamosPorCliente(Request $request)
+     {
+         $fechaInicio = $request->get('fecha_inicio', now()->startOfMonth()->format('Y-m-d'));
+         $fechaFin = $request->get('fecha_fin', now()->endOfMonth()->format('Y-m-d'));
+         $clienteId = $request->get('cliente_id');
+         $estado = $request->get('estado', 'todos');
+
+         // Obtener préstamos con relaciones necesarias
+         $prestamosQuery = Prestamo::with(['cliente', 'pagos.historialPagos'])
+             ->whereBetween('created_at', [$fechaInicio . ' 00:00:00', $fechaFin . ' 23:59:59']);
+
+         if ($clienteId) {
+             $prestamosQuery->where('cliente_id', $clienteId);
+         }
+
+         if ($estado !== 'todos') {
+             $prestamosQuery->where('estado', $estado);
+         }
+
+         $prestamos = $prestamosQuery->get();
+
+         // Formatear datos para exportación
+         $datosExportacion = $prestamos->map(function ($prestamo) {
+             return [
+                 'Cliente' => $prestamo->cliente->nombre_razon_social,
+                 'RFC Cliente' => $prestamo->cliente->rfc,
+                 'ID Préstamo' => $prestamo->id,
+                 'Monto Prestado' => $prestamo->monto_prestado,
+                 'Monto Pagado' => $prestamo->monto_pagado,
+                 'Monto Pendiente' => $prestamo->monto_pendiente,
+                 'Interés Total' => $prestamo->monto_interes_total,
+                 'Pago Periódico' => $prestamo->pago_periodico,
+                 'Tasa Interés Mensual' => $prestamo->tasa_interes_mensual . '%',
+                 'Número Pagos' => $prestamo->numero_pagos,
+                 'Pagos Realizados' => $prestamo->pagos_realizados,
+                 'Pagos Pendientes' => $prestamo->pagos_pendientes,
+                 'Estado' => ucfirst($prestamo->estado),
+                 'Fecha Inicio' => $prestamo->fecha_inicio?->format('Y-m-d'),
+                 'Fecha Primer Pago' => $prestamo->fecha_primer_pago?->format('Y-m-d'),
+                 'Progreso' => round($prestamo->progreso, 2) . '%',
+                 'Fecha Creación' => $prestamo->created_at->format('Y-m-d H:i:s'),
+             ];
+         });
+
+         return response()->json([
+             'data' => $datosExportacion->toArray(),
+             'filename' => 'reporte_prestamos_por_cliente_' . now()->format('Y-m-d_H-i-s') . '.json'
+         ]);
+     }
+ }
