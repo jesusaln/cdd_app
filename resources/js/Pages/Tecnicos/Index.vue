@@ -6,6 +6,8 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import { Notyf } from 'notyf'
 import 'notyf/notyf.min.css'
 
+import TecnicosHeader from '@/Components/IndexComponents/TecnicosHeader.vue'
+
 defineOptions({ layout: AppLayout })
 
 // Notificaciones
@@ -44,15 +46,75 @@ const selectedId = ref(null)
 const searchTerm = ref(props.filters?.search ?? '')
 const sortBy = ref('created_at-desc')
 const filtroEstado = ref('')
+const filtroEspecialidad = ref('')
 
 // Paginación
 const perPage = ref(10)
 
-// Header config
-const headerConfig = {
-  module: 'tecnicos',
-  createButtonText: 'Nuevo Técnico',
-  searchPlaceholder: 'Buscar por nombre, apellido, email o teléfono...'
+// Función para crear nuevo técnico
+const crearNuevoTecnico = () => {
+  router.visit(route('tecnicos.create'))
+}
+
+// Función para limpiar filtros
+const limpiarFiltros = () => {
+  searchTerm.value = ''
+  sortBy.value = 'created_at-desc'
+  filtroEstado.value = ''
+  filtroEspecialidad.value = ''
+  router.visit(route('tecnicos.index'))
+  notyf.success('Filtros limpiados correctamente')
+}
+
+// Estadísticas adicionales para el header moderno
+const conEspecialidad = computed(() => {
+  // Contar técnicos que tienen especialidad asignada
+  if (tecnicosData.value && tecnicosData.value.length > 0) {
+    return tecnicosData.value.filter(tecnico =>
+      tecnico.especialidad_id || tecnico.especialidad
+    ).length
+  }
+  return 0
+})
+
+const conCertificacion = computed(() => {
+  // Contar técnicos que tienen certificación
+  if (tecnicosData.value && tecnicosData.value.length > 0) {
+    return tecnicosData.value.filter(tecnico =>
+      tecnico.certificacion || tecnico.certificaciones
+    ).length
+  }
+  return 0
+})
+
+const especialidades = computed(() => {
+  // Obtener lista única de especialidades de los técnicos
+  if (tecnicosData.value && tecnicosData.value.length > 0) {
+    const especialidadesMap = new Map()
+
+    tecnicosData.value.forEach(tecnico => {
+      if (tecnico.especialidad) {
+        especialidadesMap.set(tecnico.especialidad.id, tecnico.especialidad)
+      }
+    })
+
+    return Array.from(especialidadesMap.values())
+  }
+  return []
+})
+
+// Función para manejar filtro de especialidad
+const handleEspecialidadChange = (especialidadId) => {
+  filtroEspecialidad.value = especialidadId
+  router.get(route('tecnicos.index'), {
+    search: searchTerm.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc',
+    activo: filtroEstado.value,
+    especialidad_id: especialidadId,
+    per_page: perPage.value,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
 }
 
 // Datos
@@ -241,124 +303,25 @@ const obtenerLabelEstado = (estado) => {
   <Head title="Técnicos" />
   <div class="tecnicos-index min-h-screen bg-gray-50">
     <div class="max-w-8xl mx-auto px-6 py-8">
-      <!-- Header -->
-      <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-8 mb-6">
-        <div class="flex flex-col lg:flex-row gap-8 items-start lg:items-center justify-between">
-          <!-- Izquierda -->
-          <div class="flex flex-col gap-6 w-full lg:w-auto">
-            <div class="flex items-center gap-3">
-              <h1 class="text-2xl font-bold text-slate-900">Técnicos</h1>
-            </div>
-
-            <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-              <Link
-                :href="route('tecnicos.create')"
-                class="inline-flex items-center gap-2.5 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg"
-              >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
-                <span>{{ headerConfig.createButtonText }}</span>
-              </Link>
-
-              <button
-                @click="exportTecnicos"
-                class="inline-flex items-center gap-2 px-4 py-3 bg-green-50 text-green-700 rounded-xl hover:bg-green-100 transition-all duration-200 border border-green-200"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                </svg>
-                <span class="text-sm font-medium">Exportar</span>
-              </button>
-            </div>
-
-            <!-- Estadísticas con barras de progreso -->
-            <div class="flex flex-wrap items-center gap-4 text-sm">
-              <div class="flex items-center gap-2 px-4 py-3 bg-slate-50 rounded-xl border border-slate-200">
-                <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <span class="font-medium text-slate-700">Total:</span>
-                <span class="font-bold text-slate-900 text-lg">{{ formatNumber(estadisticas.total) }}</span>
-              </div>
-
-              <div class="flex items-center gap-2 px-4 py-3 bg-green-50 rounded-xl border border-green-200">
-                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span class="font-medium text-slate-700">Activos:</span>
-                <span class="font-bold text-green-700 text-lg">{{ formatNumber(estadisticas.activos) }}</span>
-                <div class="ml-2 flex items-center gap-2">
-                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      class="h-full bg-green-500 transition-all duration-300"
-                      :style="{ width: estadisticas.activosPorcentaje + '%' }"
-                    ></div>
-                  </div>
-                  <span class="text-xs text-green-600 font-medium">{{ estadisticas.activosPorcentaje }}%</span>
-                </div>
-              </div>
-
-              <div class="flex items-center gap-2 px-4 py-3 bg-red-50 rounded-xl border border-red-200">
-                <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span class="font-medium text-slate-700">Inactivos:</span>
-                <span class="font-bold text-red-700 text-lg">{{ formatNumber(estadisticas.inactivos) }}</span>
-                <div class="ml-2 flex items-center gap-2">
-                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      class="h-full bg-red-500 transition-all duration-300"
-                      :style="{ width: estadisticas.inactivosPorcentaje + '%' }"
-                    ></div>
-                  </div>
-                  <span class="text-xs text-red-600 font-medium">{{ estadisticas.inactivosPorcentaje }}%</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Derecha: Filtros -->
-          <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto lg:flex-shrink-0">
-            <!-- Búsqueda -->
-            <div class="relative">
-              <input
-                v-model="searchTerm"
-                @input="handleSearchChange($event.target.value)"
-                type="text"
-                :placeholder="headerConfig.searchPlaceholder"
-                class="w-full sm:w-64 lg:w-80 pl-4 pr-10 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-              />
-              <svg class="absolute right-3 top-3.5 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-
-            <!-- Estado -->
-            <select
-              v-model="filtroEstado"
-              @change="handleEstadoChange($event.target.value)"
-              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-            >
-              <option value="">Todos los Estados</option>
-              <option value="1">Activos</option>
-              <option value="0">Inactivos</option>
-            </select>
-
-            <!-- Orden -->
-            <select
-              v-model="sortBy"
-              @change="handleSortChange($event.target.value)"
-              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-            >
-              <option value="created_at-desc">Más Recientes</option>
-              <option value="created_at-asc">Más Antiguos</option>
-              <option value="nombre-asc">Nombre A-Z</option>
-              <option value="nombre-desc">Nombre Z-A</option>
-            </select>
-          </div>
-        </div>
-      </div>
+      <!-- Header específico de técnicos -->
+      <TecnicosHeader
+        :total="estadisticas.total"
+        :activos="estadisticas.activos"
+        :inactivos="estadisticas.inactivos"
+        :con-especialidad="conEspecialidad"
+        :con-certificacion="conCertificacion"
+        :especialidades="especialidades"
+        v-model:search-term="searchTerm"
+        v-model:sort-by="sortBy"
+        v-model:filtro-estado="filtroEstado"
+        v-model:filtro-especialidad="filtroEspecialidad"
+        @crear-nueva="crearNuevoTecnico"
+        @search-change="handleSearchChange"
+        @filtro-estado-change="handleEstadoChange"
+        @filtro-especialidad-change="handleEspecialidadChange"
+        @sort-change="handleSortChange"
+        @limpiar-filtros="limpiarFiltros"
+      />
 
       <!-- Tabla -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">

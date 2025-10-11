@@ -119,6 +119,38 @@
           </div>
         </div>
 
+        <!-- Préstamos -->
+        <div class="mb-4">
+          <div
+            @click="toggleAccordion('prestamos')"
+            class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
+          >
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>Préstamos</span>
+            </div>
+            <svg
+              :class="accordionStates.prestamos ? 'rotate-90' : ''"
+              class="w-3 h-3 transition-transform duration-200"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+          <div v-show="accordionStates.prestamos" class="mt-2 space-y-1">
+            <NavLink href="/prestamos" icon="money-bill-wave" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Lista de Préstamos' : null">
+              Lista de Préstamos
+            </NavLink>
+            <NavLink href="/prestamos/create" icon="plus" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Crear Préstamo' : null">
+              Crear Préstamo
+            </NavLink>
+          </div>
+        </div>
+
         <!-- Compras -->
         <div class="mb-4">
           <div
@@ -451,6 +483,7 @@ const emit = defineEmits(['toggleSidebar']);
 // Estado del acordeÃƒÆ’Ã‚Â³n
 const accordionStates = ref({
   ventas: false,
+  prestamos: false,
   compras: false,
   catalogos: false,
   inventario: false,
@@ -483,6 +516,8 @@ const getCurrentSection = () => {
   // Verificar inventario primero (mÃƒÆ’Ã‚Â¡s especÃƒÆ’Ã‚Â­fico)
   if (path.includes('/productos') || path.includes('/traspasos') || path.includes('/movimientos-inventario') || path.includes('/ajustes-inventario') || path.includes('/movimientos-manuales')) {
     return 'inventario';
+  } else if (path.includes('/prestamos')) {
+    return 'prestamos';
   } else if (path.includes('/clientes') || path.includes('/citas')) {
     return 'ventas'; // Clientes y citas ahora están en Ventas
   } else if (path.includes('/cotizaciones') || path.includes('/pedidos') || path.includes('/ventas') || path.includes('/cuentas-por-cobrar') || path.includes('/entregas-dinero')) {

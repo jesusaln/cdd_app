@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Illuminate\Foundation\Application;
 use App\Http\Controllers\ClienteController;
+use App\Http\Controllers\PrestamoController;
 use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\MarcaController;
@@ -163,6 +164,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::post('ordenescompra/{id}/enviar-email', [OrdenCompraController::class, 'enviarEmail'])->name('ordenescompra.enviar-email');
 
     Route::resource('clientes', ClienteController::class)->names('clientes');
+    Route::resource('prestamos', PrestamoController::class)->names('prestamos');
+    Route::post('/prestamos/calcular-pagos', [PrestamoController::class, 'calcularPagos'])->name('prestamos.calcular-pagos');
+    Route::patch('/prestamos/{prestamo}/cambiar-estado', [PrestamoController::class, 'cambiarEstado'])->name('prestamos.cambiar-estado');
     Route::resource('productos', ProductoController::class)->names('productos');
     Route::get('productos/{id}/stock-detalle', [ProductoController::class, 'getStockDetalle'])->name('productos.stock-detalle');
     Route::resource('proveedores', ProveedorController::class)->names('proveedores');

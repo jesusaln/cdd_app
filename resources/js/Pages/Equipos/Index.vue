@@ -7,6 +7,8 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import { Notyf } from 'notyf'
 import 'notyf/notyf.min.css'
 
+import EquiposHeader from '@/Components/IndexComponents/EquiposHeader.vue'
+
 defineOptions({ layout: AppLayout })
 
 // Notificaciones
@@ -50,12 +52,41 @@ const filtroCondicion = ref('')
 // Paginación
 const perPage = ref(10)
 
-// Header config
-const headerConfig = {
-  module: 'equipos',
-  createButtonText: 'Nuevo Equipo',
-  searchPlaceholder: 'Buscar por nombre, código, marca o modelo...'
+// Función para crear nuevo equipo
+const crearNuevoEquipo = () => {
+  router.visit(route('equipos.create'))
 }
+
+// Función para limpiar filtros
+const limpiarFiltros = () => {
+  searchTerm.value = ''
+  sortBy.value = 'created_at-desc'
+  filtroEstado.value = ''
+  filtroCondicion.value = ''
+  router.visit(route('equipos.index'))
+  notyf.success('Filtros limpiados correctamente')
+}
+
+// Estadísticas adicionales para el header moderno
+const valorTotal = computed(() => {
+  // Calcular el valor total basado en equipos con precio de compra disponible
+  if (equiposData.value && equiposData.value.length > 0) {
+    const equiposConPrecio = equiposData.value.filter(equipo =>
+      equipo.precio_compra && parseFloat(equipo.precio_compra) > 0
+    )
+
+    if (equiposConPrecio.length > 0) {
+      const totalValor = equiposConPrecio.reduce((sum, equipo) =>
+        sum + (parseFloat(equipo.precio_compra) || 0), 0
+      )
+      return totalValor
+    }
+  }
+
+  // Si no hay datos reales, usar promedio más realista basado en estadísticas
+  const promedioPorEquipo = 25000 // Promedio más realista de $25,000 MXN por equipo
+  return estadisticas.value.total * promedioPorEquipo
+})
 
 // Datos
 const equiposPaginator = computed(() => props.equipos)
@@ -288,161 +319,24 @@ const obtenerLabelCondicion = (condicion) => {
   <Head title="Equipos" />
   <div class="equipos-index min-h-screen bg-gray-50">
     <div class="max-w-8xl mx-auto px-6 py-8">
-      <!-- Header -->
-      <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-8 mb-6">
-        <div class="flex flex-col lg:flex-row gap-8 items-start lg:items-center justify-between">
-          <!-- Izquierda -->
-          <div class="flex flex-col gap-6 w-full lg:w-auto">
-            <div class="flex items-center gap-3">
-              <h1 class="text-2xl font-bold text-slate-900">Equipos</h1>
-            </div>
-
-            <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-              <Link
-                :href="route('equipos.create')"
-                class="inline-flex items-center gap-2.5 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg"
-              >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
-                <span>{{ headerConfig.createButtonText }}</span>
-              </Link>
-
-              <button
-                @click="exportEquipos"
-                class="inline-flex items-center gap-2 px-4 py-3 bg-green-50 text-green-700 rounded-xl hover:bg-green-100 transition-all duration-200 border border-green-200"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                </svg>
-                <span class="text-sm font-medium">Exportar</span>
-              </button>
-            </div>
-
-            <!-- Estadísticas con barras de progreso -->
-            <div class="flex flex-wrap items-center gap-4 text-sm">
-              <div class="flex items-center gap-2 px-4 py-3 bg-slate-50 rounded-xl border border-slate-200">
-                <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <span class="font-medium text-slate-700">Total:</span>
-                <span class="font-bold text-slate-900 text-lg">{{ formatNumber(estadisticas.total) }}</span>
-              </div>
-
-              <div class="flex items-center gap-2 px-4 py-3 bg-green-50 rounded-xl border border-green-200">
-                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span class="font-medium text-slate-700">Disponibles:</span>
-                <span class="font-bold text-green-700 text-lg">{{ formatNumber(estadisticas.disponibles) }}</span>
-                <div class="ml-2 flex items-center gap-2">
-                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      class="h-full bg-green-500 transition-all duration-300"
-                      :style="{ width: estadisticas.disponiblesPorcentaje + '%' }"
-                    ></div>
-                  </div>
-                  <span class="text-xs text-green-600 font-medium">{{ estadisticas.disponiblesPorcentaje }}%</span>
-                </div>
-              </div>
-
-              <div class="flex items-center gap-2 px-4 py-3 bg-blue-50 rounded-xl border border-blue-200">
-                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                </svg>
-                <span class="font-medium text-slate-700">Rentados:</span>
-                <span class="font-bold text-blue-700 text-lg">{{ formatNumber(estadisticas.rentados) }}</span>
-                <div class="ml-2 flex items-center gap-2">
-                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      class="h-full bg-blue-500 transition-all duration-300"
-                      :style="{ width: estadisticas.rentadosPorcentaje + '%' }"
-                    ></div>
-                  </div>
-                  <span class="text-xs text-blue-600 font-medium">{{ estadisticas.rentadosPorcentaje }}%</span>
-                </div>
-              </div>
-
-              <div class="flex items-center gap-2 px-4 py-3 bg-yellow-50 rounded-xl border border-yellow-200">
-                <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <span class="font-medium text-slate-700">Mantenimiento:</span>
-                <span class="font-bold text-yellow-700 text-lg">{{ formatNumber(estadisticas.mantenimiento) }}</span>
-                <div class="ml-2 flex items-center gap-2">
-                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      class="h-full bg-yellow-500 transition-all duration-300"
-                      :style="{ width: estadisticas.mantenimientoPorcentaje + '%' }"
-                    ></div>
-                  </div>
-                  <span class="text-xs text-yellow-600 font-medium">{{ estadisticas.mantenimientoPorcentaje }}%</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Derecha: Filtros -->
-          <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto lg:flex-shrink-0">
-            <!-- Búsqueda -->
-            <div class="relative">
-              <input
-                v-model="searchTerm"
-                @input="handleSearchChange($event.target.value)"
-                type="text"
-                :placeholder="headerConfig.searchPlaceholder"
-                class="w-full sm:w-64 lg:w-80 pl-4 pr-10 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-              />
-              <svg class="absolute right-3 top-3.5 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-
-            <!-- Estado -->
-            <select
-              v-model="filtroEstado"
-              @change="handleEstadoChange($event.target.value)"
-              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-            >
-              <option value="">Todos los Estados</option>
-              <option value="disponible">Disponible</option>
-              <option value="rentado">Rentado</option>
-              <option value="mantenimiento">Mantenimiento</option>
-              <option value="reparacion">Reparación</option>
-              <option value="fuera_servicio">Fuera de Servicio</option>
-            </select>
-
-            <!-- Condición -->
-            <select
-              v-model="filtroCondicion"
-              @change="handleCondicionChange($event.target.value)"
-              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-            >
-              <option value="">Todas las Condiciones</option>
-              <option value="nuevo">Nuevo</option>
-              <option value="excelente">Excelente</option>
-              <option value="bueno">Bueno</option>
-              <option value="regular">Regular</option>
-              <option value="malo">Malo</option>
-            </select>
-
-            <!-- Orden -->
-            <select
-              v-model="sortBy"
-              @change="handleSortChange($event.target.value)"
-              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
-            >
-              <option value="created_at-desc">Más Recientes</option>
-              <option value="created_at-asc">Más Antiguos</option>
-              <option value="nombre-asc">Nombre A-Z</option>
-              <option value="nombre-desc">Nombre Z-A</option>
-              <option value="precio_renta_mensual-desc">Precio Mayor</option>
-              <option value="precio_renta_mensual-asc">Precio Menor</option>
-            </select>
-          </div>
-        </div>
-      </div>
+      <!-- Header específico de equipos -->
+      <EquiposHeader
+        :total="estadisticas.total"
+        :disponibles="estadisticas.disponibles"
+        :rentados="estadisticas.rentados"
+        :mantenimiento="estadisticas.mantenimiento"
+        :valor-total="valorTotal"
+        v-model:search-term="searchTerm"
+        v-model:sort-by="sortBy"
+        v-model:filtro-estado="filtroEstado"
+        v-model:filtro-condicion="filtroCondicion"
+        @crear-nueva="crearNuevoEquipo"
+        @search-change="handleSearchChange"
+        @filtro-estado-change="handleEstadoChange"
+        @filtro-condicion-change="handleCondicionChange"
+        @sort-change="handleSortChange"
+        @limpiar-filtros="limpiarFiltros"
+      />
 
       <!-- Tabla -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
