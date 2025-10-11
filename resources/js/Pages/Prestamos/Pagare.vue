@@ -171,12 +171,12 @@ const validarDatos = () => {
 }
 
 /* =========================
-   Opciones de tamaño de papel
+  Opciones de tamaño de papel
 ========================= */
 const tamanosPapel = {
-  carta: { nombre: 'Carta', dimensiones: '216mm 279mm', margin: '15mm 18mm 15mm 18mm' },
-  oficio: { nombre: 'Oficio', dimensiones: '216mm 330mm', margin: '15mm 18mm 15mm 18mm' },
-  a4: { nombre: 'A4', dimensiones: '210mm 297mm', margin: '15mm 18mm 15mm 18mm' }
+ carta: { nombre: 'Carta', dimensiones: '216mm 279mm', margin: '4mm 6mm 4mm 6mm' },
+ oficio: { nombre: 'Oficio', dimensiones: '216mm 330mm', margin: '4mm 6mm 4mm 6mm' },
+ a4: { nombre: 'A4', dimensiones: '210mm 297mm', margin: '4mm 6mm 4mm 6mm' }
 }
 
 const tamanoSeleccionado = ref('carta')
@@ -189,14 +189,47 @@ const generarPDF = (tamano = 'carta') => {
     validarDatos()
 
     const contenidoPDF = generarContenidoPagare(tamano)
-    const win = window.open('', '_blank', 'width=900,height=1100')
+    const win = window.open('', '_blank', 'width=900,height=1100,scrollbars=yes,resizable=yes')
     if (!win) {
       notyf.error('Habilita las ventanas emergentes para generar el PDF.')
       return
     }
+
+    // Crear el documento HTML completo
+    win.document.open()
     win.document.write(contenidoPDF)
     win.document.close()
-    setTimeout(() => { win.print() }, 600)
+
+    // Agregar estilos adicionales para impresión
+    win.document.head.insertAdjacentHTML('beforeend', `
+      <style>
+        /* Ocultar elementos del navegador */
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+        /* Asegurar que el contenido se vea correctamente */
+        body { margin: 0; padding: 0; }
+
+        /* Evitar problemas de about:blank */
+        html { background: white !important; }
+      </style>
+    `)
+
+    // Esperar a que el contenido cargue completamente
+    win.onload = function() {
+      setTimeout(() => {
+        win.focus()
+        win.print()
+      }, 300)
+    }
+
+    // Fallback por si no carga el evento onload
+    setTimeout(() => {
+      if (!win.closed) {
+        win.focus()
+        win.print()
+      }
+    }, 1000)
+
   } catch (error) {
     console.error('Error generando PDF:', error)
     notyf.error('Error al generar el pagaré PDF')
@@ -204,335 +237,380 @@ const generarPDF = (tamano = 'carta') => {
 }
 
 const generarContenidoPagare = (tamano = 'carta') => {
-  // Datos seguros y formateados
+  // ========= Datos seguros =========
   const folio = `PAG-${String(props.prestamo?.id ?? '').padStart(6, '0')}`
+  const fechaHoy = formatearFecha(props.fecha_actual)
+  const empresaNombre = props.empresa?.nombre || 'ACREEDOR NO ESPECIFICADO'
+  const empresaComercial = props.empresa?.nombre_comercial ? ` • ${props.empresa?.nombre_comercial}` : ''
+  const empresaDomicilio = props.empresa?.direccion || 'Domicilio del acreedor no especificado'
+  const empresaRFC = props.empresa?.rfc || 'RFC no especificado'
   const clienteNombre = props.cliente?.nombre_razon_social || 'DEUDOR NO ESPECIFICADO'
-  const clienteDomicilio = props.cliente?.direccion_completa || 'Domicilio del deudor no especificado'
-  const clienteRfc = props.cliente?.rfc || 'RFC no especificado'
+  const clienteDom = props.cliente?.direccion_completa || 'Domicilio del deudor no especificado'
+  const clienteRFC = props.cliente?.rfc || 'RFC no especificado'
   const monto = formatearMoneda(props.prestamo?.monto_prestado)
   const pagoMensual = formatearMoneda(props.prestamo?.pago_periodico)
-  const fechaActual = formatearFecha(props.fecha_actual)
-  const primerPago = fechaPrimerPago.value
-  const vencimiento = fechaVencimiento.value
   const numeroPagos = props.prestamo?.numero_pagos ?? 'N/D'
   const tasa = (props.tasa_mensual ?? 0).toFixed(2)
+  const primerPago = fechaPrimerPago.value
+  const vencimiento = fechaVencimiento.value
+  const refContrato = `Contrato de Préstamo No. ${props.prestamo?.id ?? 'N/A'}`
+  const notas = (props.prestamo?.notas || props.prestamo?.observaciones || '').toString().trim()
+  const notasHtml = notas ? `<div class="notas-title">Notas</div><div class="notas-text">${notas.replace(/\n/g, '<br>')}</div>` : ''
 
-  // Información empresarial real
-  const empresaNombre = props.empresa?.nombre || 'ACREEDOR NO ESPECIFICADO'
-  const empresaDomicilio = props.empresa?.direccion || 'Domicilio del acreedor no especificado'
-  const empresaRfc = props.empresa?.rfc || 'RFC no especificado'
+  // ========= Colores / tamaño =========
+  const size = tamanosPapel[tamano]?.dimensiones || '216mm 279mm'
+  const margin = tamanosPapel[tamano]?.margin || '2mm 3mm 2mm 3mm'
+  const ACCENT = '#0B3D2E'   // verde oscuro ejecutivo
+  const BORDER = '#0F172A'   // gris azulado profundo
+  const MUTED = '#334155'    // texto secundario
 
-  // Información adicional para el documento
-  const fechaLimite = new Date()
-  fechaLimite.setDate(fechaLimite.getDate() + 30) // 30 días para presentación
-  const referenciaContrato = `Contrato de Préstamo No. ${props.prestamo?.id ?? 'N/A'}`
-
+  // ========= HTML/CSS =========
   return `
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <title>${folio} - PAGARÉ</title>
+  <meta charset="utf-8" />
+  <title>${folio} • Pagaré</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    @page { size: ${tamanosPapel[tamano]?.dimensiones || '216mm 279mm'}; margin: ${tamanosPapel[tamano]?.margin || '20mm 15mm 20mm 15mm'}; }
+    /* ======== PÁGINA ======== */
+    @page { size: ${size}; margin: ${margin}; }
     :root {
-      --color-primary: #000000;
-      --color-secondary: #333333;
-      --color-border: #000000;
-      --font-primary: 'Times New Roman', Times, serif;
+      --accent: ${ACCENT};
+      --border: ${BORDER};
+      --muted: ${MUTED};
+      --ink: #111827;
+      --bg-soft: #F8FAFC;
     }
     * { box-sizing: border-box; }
     html, body {
-      font-family: var(--font-primary);
-      color: var(--color-primary);
-      line-height: 1.4;
-      font-size: 12px;
-      margin: 0;
-      padding: 0;
       background: #fff;
+      color: var(--ink);
+      font-family: "Times New Roman", Times, serif;
+      font-size: 10px;
+      line-height: 1.3;
     }
+    body { margin: 0; }
 
-    /* Encabezado fijo */
-    header {
-      position: fixed;
-      top: 0;
-      left: 0; right: 0;
-      height: 50px;
-      border-bottom: 1px solid var(--color-border);
-      display: flex;
+    /* ======== HEADER / FOOTER FIJOS ======== */
+     header {
+       position: fixed;
+       top: 0; left: 0; right: 0;
+       height: 3mm;
+       padding-top: 0.2mm;
+       /* border-bottom: 1px solid var(--border); */
+     }
+    .h-inner {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8mm;
       align-items: center;
-      justify-content: space-between;
-      padding: 0 5mm;
     }
-    header .brand {
-      font-weight: bold;
-      font-size: 14px;
-      color: var(--color-primary);
+    .brand {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: .3px;
+      color: var(--accent);
+      text-transform: uppercase;
     }
-    header .folio {
-      font-size: 12px;
-      color: var(--color-secondary);
-      font-weight: bold;
+    .folio {
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-weight: 700;
+    }
+    .h-meta {
+      margin-top: 0.2mm;
+      color: var(--muted);
+      font-size: 8px;
     }
 
-    /* Pie fijo */
     footer {
       position: fixed;
-      bottom: 0;
-      left: 0; right: 0;
-      height: 40px;
-      border-top: 1px solid var(--color-border);
+      bottom: 0; left: 0; right: 0;
+      height: 5mm;
+      border-top: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 5mm;
-      color: var(--color-secondary);
-      font-size: 9px;
+      padding: 0 1mm;
+      color: var(--muted);
+      font-size: 4px;
     }
+    .foot-left { max-width: 70%; }
+    .foot-right { text-align: right; }
 
-    main { padding: 60px 0 50px; }
+    /* Empuje del contenido para no solaparse con header/footer */
+     .page-wrap { padding: 5mm 0 4mm; }
 
-    /* Título principal */
-    .titulo {
-      text-align: center;
-      margin: 10mm 0 5mm;
-      font-weight: bold;
-      font-size: 18px;
-      color: var(--color-primary);
+    /* ======== TÍTULO Y LUGAR/FECHA ======== */
+     .title {
+       text-align: center;
+       margin: 2mm 0 1mm;
+       font-weight: 800;
+       font-size: 17px;
+       letter-spacing: .7px;
+     }
+     .subtitle {
+       text-align: center;
+       color: var(--muted);
+       margin-bottom: 0.5mm;
+       font-size: 10.5px;
+     }
+     .place-date {
+       text-align: center;
+       color: var(--muted);
+       margin-bottom: 4mm;
+       font-size: 8.5px;
+     }
+
+    /* ======== BLOQUES ======== */
+     .block {
+       border: 1px solid var(--border);
+       border-radius: 5px;
+       padding: 5mm;
+       margin-bottom: 5mm;
+       background: #fff;
+     }
+    .block.soft {
+      background: var(--bg-soft);
+      border-color: #CBD5E1;
+    }
+    .block-title {
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 2px;
-    }
-    .subtitulo {
-      text-align: center;
-      color: var(--color-secondary);
-      margin-bottom: 8mm;
+      letter-spacing: .4px;
+      color: var(--accent);
+      margin-bottom: 2mm;
       font-size: 11px;
     }
 
-    /* Información del pagaré */
-    .pagare-info {
-      margin-bottom: 12mm;
-      line-height: 1.6;
-    }
-    .pagare-info p {
-      margin: 0 0 6px;
-      text-align: justify;
-    }
+    /* ======== GRID 2 COLS ======== */
+     .grid-2 {
+       display: grid;
+       grid-template-columns: 1fr 1fr;
+       gap: 5mm;
+     }
 
-    /* Datos importantes */
-    .datos-importantes {
+    /* ======== TABLE RESUMEN ======== */
+     table {
+       width: 100%;
+       border-collapse: collapse;
+       font-size: 9.5px;
+     }
+     th, td {
+       padding: 5px 7px;
+       border: 1px solid #CBD5E1;
+       vertical-align: top;
+     }
+    th {
+      background: #EFF6FF;
+      text-align: left;
+      font-weight: 700;
+      color: #0F172A;
+    }
+    td.label {
+      width: 35%;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .kpi {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 10mm;
-      margin: 12mm 0;
+      gap: 3mm;
+      margin-top: 1mm;
     }
-    .datos-columna {
-      line-height: 1.5;
-    }
-    .datos-label {
-      font-size: 10px;
-      color: var(--color-secondary);
-      margin-bottom: 2px;
-    }
-    .datos-value {
-      font-size: 12px;
-      font-weight: bold;
-      color: var(--color-primary);
-    }
-
-    /* Cláusulas */
-    .clausulas {
-      margin: 12mm 0;
-      line-height: 1.5;
-    }
-    .clausulas ol {
-      margin: 0;
-      padding-left: 16px;
-    }
-    .clausulas li {
-      margin: 6px 0;
-      font-size: 11px;
-    }
-
-    /* Firmas */
-    .firmas {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20mm;
-      margin-top: 20mm;
-    }
-    .firma {
-      text-align: center;
-    }
-    .firma-linea {
-      border-bottom: 1px solid var(--color-border);
-      width: 70%;
-      margin: 20px auto 6px;
-      height: 30px;
-    }
-    .firma-nombre {
-      font-size: 11px;
-      font-weight: bold;
-      color: var(--color-primary);
-      margin-bottom: 2px;
-    }
-    .firma-rol {
-      font-size: 9px;
-      color: var(--color-secondary);
-    }
-    .firma-datos {
-      font-size: 8px;
-      color: var(--color-secondary);
-      margin-top: 2px;
-    }
-
-    /* Información adicional */
-    .info-adicional {
-      margin-top: 15mm;
-      padding: 8px;
-      background: #f5f5f5;
+    .pill {
+      border: 1px solid var(--border);
       border-radius: 4px;
-      font-size: 9px;
-      line-height: 1.4;
+      padding: 3mm;
+      background: #fff;
       text-align: center;
     }
+    .pill .small { color: var(--muted); font-size: 8px; }
+    .pill .big { font-size: 12px; font-weight: 800; margin-top: 0.5mm; }
 
+    /* ======== CLÁUSULAS ======== */
+    .clauses ol { margin: 0; padding-left: 4mm; }
+    .clauses li { margin: 2mm 0; text-align: justify; }
+
+    /* ======== FIRMAS ======== */
+     .signs {
+       display: grid;
+       grid-template-columns: 1fr 1fr;
+       gap: 10mm;
+       margin-top: 6mm;
+       page-break-inside: avoid;
+     }
+     .sign {
+       text-align: center;
+       padding: 8mm 5mm 5mm;
+       border: 1px dashed #94A3B8;
+       border-radius: 5px;
+       background: #FFFFFF;
+     }
+    .line {
+      height: 20px;
+      border-bottom: 1px solid var(--border);
+      margin: 0 auto 2mm;
+      width: 75%;
+    }
+    .sign .name { font-weight: 700; }
+    .sign .role { color: var(--muted); font-size: 9px; }
+
+    /* ======== NOTAS (en footer) ======== */
+    .notas-title {
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      margin-bottom: 2mm;
+      color: var(--accent);
+    }
+    .notas-text {
+      font-size: 9.5px;
+      color: var(--ink);
+      line-height: 1.35;
+    }
+
+    /* ======== MEDIA PRINT ======== */
     @media print {
-      .no-print { display: none !important; }
       a { color: inherit; text-decoration: none; }
+      .no-print { display: none !important; }
+      html, body {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
     }
   </style>
 </head>
 <body>
+  <!-- HEADER -->
   <header>
-    <div class="brand">${empresaNombre}</div>
-    <div class="folio">${folio}</div>
+    <div class="h-inner" style="padding:0 2mm;">
+      <div>
+        <div class="brand">${empresaNombre}${empresaComercial}</div>
+        <div class="h-meta">${empresaDomicilio}</div>
+      </div>
+      <div class="folio">${folio}</div>
+    </div>
   </header>
 
+  <!-- FOOTER -->
   <footer>
-    <div>${empresaDomicilio}</div>
-    <div>Generado: ${formatearFechaCompleta(new Date())} | Ref: ${referenciaContrato}</div>
+    <div class="foot-left">
+      ${notasHtml}
+    </div>
+    <div class="foot-right">
+      <div>Generado: ${formatearFechaCompleta(new Date())}</div>
+      <div>${refContrato}</div>
+    </div>
   </footer>
 
-  <main>
-    <!-- Título principal -->
-    <div class="titulo">PAGARÉ</div>
-    <div class="subtitulo">Hermosillo, Sonora, México, ${fechaActual}</div>
+  <!-- CONTENIDO -->
+  <div class="page-wrap">
+    <div class="title">PAGARÉ</div>
+    <div class="subtitle">Título Ejecutivo de Crédito</div>
+    <div class="place-date">Hermosillo, Sonora, México • ${fechaHoy}</div>
 
-    <!-- Promesa de pago principal -->
-    <div class="pagare-info">
-      <p>
-        Por el presente PAGARÉ, yo <strong>${clienteNombre}</strong>, con domicilio en <strong>${clienteDomicilio}</strong>,
-        me obligo incondicionalmente a pagar a la orden de <strong>${empresaNombre}</strong>, en <strong>${empresaDomicilio}</strong>,
-        la cantidad de <strong>${monto}</strong> (${props.monto_letras}), más intereses ordinarios a razón de <strong>${tasa}% mensual</strong>,
-        pagaderos mensualmente junto con cada exhibición de capital.
+    <!-- PROMESA DE PAGO -->
+    <div class="block">
+      <div class="block-title">Promesa de pago</div>
+      <p style="text-align:justify;">
+        Por este medio, yo <strong>${clienteNombre}</strong>, con domicilio en <strong>${clienteDom}</strong> (RFC: <strong>${clienteRFC}</strong>),
+        me obligo incondicionalmente a pagar a la orden de <strong>${empresaNombre}</strong> (RFC: <strong>${empresaRFC}</strong>),
+        en <strong>${empresaDomicilio}</strong>, la cantidad de <strong>${monto}</strong> (${props.monto_letras}),
+        más intereses ordinarios a razón de <strong>${tasa}% mensual</strong>, pagaderos mensualmente junto con cada exhibición de capital.
       </p>
     </div>
 
-    <!-- Datos importantes -->
-    <div class="datos-importantes">
-      <div class="datos-columna">
-        <div class="datos-item">
-          <div class="datos-label">DEUDOR:</div>
-          <div class="datos-value">${clienteNombre}</div>
-          <div class="datos-label">Domicilio:</div>
-          <div class="datos-value">${clienteDomicilio}</div>
-          <div class="datos-label">RFC:</div>
-          <div class="datos-value">${clienteRfc}</div>
-        </div>
+    <!-- PARTES -->
+    <div class="grid-2">
+      <div class="block soft">
+        <div class="block-title">Deudor</div>
+        <table>
+          <tr><td class="label">Nombre</td><td>${clienteNombre}</td></tr>
+          <tr><td class="label">Domicilio</td><td>${clienteDom}</td></tr>
+          <tr><td class="label">RFC</td><td>${clienteRFC}</td></tr>
+        </table>
       </div>
-      <div class="datos-columna">
-        <div class="datos-item">
-          <div class="datos-label">BENEFICIARIO:</div>
-          <div class="datos-value">${empresaNombre}</div>
-          <div class="datos-label">Domicilio:</div>
-          <div class="datos-value">${empresaDomicilio}</div>
-          <div class="datos-label">RFC:</div>
-          <div class="datos-value">${empresaRfc}</div>
+      <div class="block soft">
+        <div class="block-title">Acreedor</div>
+        <table>
+          <tr><td class="label">Beneficiario</td><td>${empresaNombre}${empresaComercial ? ` (${props.empresa?.nombre_comercial})` : ''}</td></tr>
+          <tr><td class="label">Lugar de pago</td><td>${empresaDomicilio}</td></tr>
+          <tr><td class="label">RFC</td><td>${empresaRFC}</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- RESUMEN FINANCIERO -->
+    <div class="block">
+      <div class="block-title">Resumen financiero</div>
+      <table>
+        <tr>
+          <th>Monto del préstamo</th>
+          <th>Pago mensual</th>
+          <th>Tasa mensual</th>
+          <th>Número de pagos</th>
+          <th>Primer pago</th>
+          <th>Vencimiento</th>
+        </tr>
+        <tr>
+          <td>${monto} <br><span style="color:var(--muted);">${props.monto_letras}</span></td>
+          <td>${pagoMensual} <br><span style="color:var(--muted);">${props.pago_mensual_letras}</span></td>
+          <td>${tasa}%</td>
+          <td>${numeroPagos}</td>
+          <td>${primerPago}</td>
+          <td>${vencimiento}</td>
+        </tr>
+      </table>
+
+      <div class="kpi">
+        <div class="pill">
+          <div class="small">Referencia</div>
+          <div class="big">${folio}</div>
+        </div>
+        <div class="pill">
+          <div class="small">Contrato</div>
+          <div class="big">${refContrato}</div>
         </div>
       </div>
     </div>
 
-    <!-- Información de pagos -->
-    <div class="datos-importantes">
-      <div class="datos-columna">
-        <div class="datos-item">
-          <div class="datos-label">MONTO DEL PRÉSTAMO:</div>
-          <div class="datos-value">${monto}</div>
-          <div class="datos-label">(${props.monto_letras})</div>
-        </div>
-        <div class="datos-item">
-          <div class="datos-label">TASA DE INTERÉS:</div>
-          <div class="datos-value">${tasa}% mensual</div>
-        </div>
-      </div>
-      <div class="datos-columna">
-        <div class="datos-item">
-          <div class="datos-label">PAGO MENSUAL:</div>
-          <div class="datos-value">${pagoMensual}</div>
-          <div class="datos-label">(${props.pago_mensual_letras})</div>
-        </div>
-        <div class="datos-item">
-          <div class="datos-label">NÚMERO DE PAGOS:</div>
-          <div class="datos-value">${numeroPagos} pagos mensuales</div>
-        </div>
+    <!-- CLÁUSULAS -->
+    <div class="block">
+      <div class="block-title">Cláusulas</div>
+      <div class="clauses">
+        <ol>
+          <li><strong>Intereses moratorios.</strong> En caso de incumplimiento, se causarán intereses moratorios al doble de la tasa ordinaria sobre saldos vencidos hasta su total liquidación.</li>
+          <li><strong>Vencimiento anticipado.</strong> La falta de dos pagos consecutivos o tres no consecutivos facultará al acreedor a dar por vencidas todas las obligaciones pendientes.</li>
+          <li><strong>Gastos y costas.</strong> Todos los gastos de cobranza, honorarios y costas judiciales o extrajudiciales correrán a cargo del deudor.</li>
+          <li><strong>Jurisdicción.</strong> Para la interpretación y cumplimiento del presente pagaré, las partes se someten a los tribunales competentes de Hermosillo, Sonora, renunciando al fuero que por razón de su domicilio presente o futuro pudiera corresponderles.</li>
+          <li><strong>Cesión.</strong> Este título es negociable mediante endoso sin necesidad de notificar al deudor.</li>
+          <li><strong>Naturaleza del título.</strong> El presente documento constituye título ejecutivo de conformidad con la Ley General de Títulos y Operaciones de Crédito. Requiere firma autógrafa del deudor.</li>
+        </ol>
       </div>
     </div>
 
-    <!-- Fechas de pago -->
-    <div class="datos-importantes">
-      <div class="datos-columna">
-        <div class="datos-item">
-          <div class="datos-label">PRIMER PAGO:</div>
-          <div class="datos-value">${primerPago}</div>
-        </div>
+    <!-- FIRMAS -->
+    <div class="signs">
+      <div class="sign">
+        <div class="line"></div>
+        <div class="name">${clienteNombre}</div>
+        <div class="role">Deudor • Firma autógrafa</div>
       </div>
-      <div class="datos-columna">
-        <div class="datos-item">
-          <div class="datos-label">VENCIMIENTO FINAL:</div>
-          <div class="datos-value">${vencimiento}</div>
-        </div>
+      <div class="sign">
+        <div class="line"></div>
+        <div class="name">${empresaNombre}</div>
+        <div class="role">Beneficiario (Acreedor) • Representante legal</div>
       </div>
     </div>
-
-    <!-- Cláusulas -->
-    <div class="clausulas">
-      <ol>
-        <li><strong>Intereses moratorios:</strong> En caso de incumplimiento en el pago de cualquier mensualidad, se causarán intereses moratorios al doble de la tasa ordinaria pactada, sobre los saldos vencidos y no pagados, hasta su total liquidación.</li>
-        <li><strong>Vencimiento anticipado:</strong> El incumplimiento de dos (2) pagos mensuales consecutivos o tres (3) pagos no consecutivos faculta al acreedor para dar por vencido anticipadamente el saldo total adeudado, exigiendo el pago inmediato del mismo.</li>
-        <li><strong>Gastos y costas:</strong> Todos los gastos, costas, honorarios y demás accesorios que se originen por el incumplimiento de las obligaciones aquí contraídas, incluyendo gastos de cobranza judicial y extrajudicial, correrán a cargo exclusivo del deudor.</li>
-        <li><strong>Jurisdicción:</strong> Para la interpretación, ejecución y cumplimiento del presente título, las partes se someten expresamente a la jurisdicción de los tribunales competentes de Hermosillo, Sonora, renunciando al fuero que por razón de su domicilio presente o futuro pudiera corresponderles.</li>
-        <li><strong>Cesión:</strong> El presente pagaré es negociable y transmisible por endoso, confiriendo al tenedor legítimo todos los derechos aquí establecidos sin necesidad de notificación al deudor.</li>
-      </ol>
-    </div>
-
-    <!-- Información adicional -->
-    <div class="info-adicional">
-      Este documento constituye un título ejecutivo conforme al artículo 170 de la Ley General de Títulos y Operaciones de Crédito.
-      Requiere firma autógrafa del deudor para su validez legal.
-    </div>
-
-    <!-- Firmas -->
-    <div class="firmas">
-      <div class="firma">
-        <div class="firma-linea"></div>
-        <div class="firma-nombre">${clienteNombre}</div>
-        <div class="firma-rol">SUSCRIPTOR (DEUDOR)</div>
-        <div class="firma-datos">Firma autógrafa</div>
-      </div>
-      <div class="firma">
-        <div class="firma-linea"></div>
-        <div class="firma-nombre">${empresaNombre}</div>
-        <div class="firma-rol">BENEFICIARIO (ACREEDOR)</div>
-        <div class="firma-datos">Representante legal</div>
-      </div>
-    </div>
-  </main>
+  </div>
 </body>
 </html>
 `
 }
+
 </script>
 
 <template>
