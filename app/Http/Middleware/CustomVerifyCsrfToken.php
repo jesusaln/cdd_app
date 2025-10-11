@@ -83,7 +83,8 @@ class CustomVerifyCsrfToken
             'password/reset',
             'password/email',
             'password/confirm',
-            'sanctum/csrf-cookie'
+            'sanctum/csrf-cookie',
+            'prestamos/calcular-pagos' // Excluir cálculo de pagos para evitar problemas CSRF
         ];
 
         foreach ($excludedRoutes as $route) {

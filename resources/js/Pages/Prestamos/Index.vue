@@ -74,7 +74,7 @@ const loading = ref(false)
    Filtros, orden y datos
 ========================= */
 const searchTerm = ref('')
-const sortBy = ref('fecha-desc')
+const sortBy = ref('created_at-desc')
 const filtroEstado = ref('')
 const filtroCliente = ref('')
 
@@ -504,7 +504,7 @@ const onEditarFila = () => { editarPrestamo(selectedPrestamo.value?.id) }
                           {{ prestamo.pagos_realizados || 0 }} / {{ prestamo.numero_pagos }}
                         </div>
                         <div class="text-xs text-gray-500">
-                          {{ Math.round(((prestamo.pagos_realizados || 0) / prestamo.numero_pagos) * 100) }}% completado
+                          {{ prestamo.numero_pagos > 0 ? Math.round(((prestamo.pagos_realizados || 0) / prestamo.numero_pagos) * 100) : 0 }}% completado
                         </div>
                         <div v-if="prestamo.tiene_pagos_atrasados" class="text-xs text-red-600 font-medium">
                           ¡Pagos atrasados!
@@ -733,7 +733,7 @@ const onEditarFila = () => { editarPrestamo(selectedPrestamo.value?.id) }
                     <strong>Monto Prestado:</strong> ${{ formatearMoneda(selectedPrestamo.monto_prestado) }}
                   </p>
                   <p class="text-sm text-gray-600">
-                    <strong>Tasa de Interés:</strong> {{ selectedPrestamo.tasa_interes }}%
+                    <strong>Tasa de Interés:</strong> {{ selectedPrestamo.tasa_interes_mensual }}%
                   </p>
                   <p class="text-sm text-gray-600">
                     <strong>Pago Periódico:</strong> ${{ formatearMoneda(selectedPrestamo.pago_periodico) }}
@@ -786,7 +786,7 @@ const onEditarFila = () => { editarPrestamo(selectedPrestamo.value?.id) }
             <!-- Botones de acción -->
             <div class="flex flex-wrap justify-end gap-2 mt-6">
               <button
-                @click="editarFila"
+                @click="onEditarFila"
                 class="px-3 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm"
               >
                 ✏️ Editar

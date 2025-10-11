@@ -88,7 +88,27 @@ const calculos = ref({
 })
 
 const calcularPagos = async () => {
-  if (!form.value.monto_prestado || !form.value.numero_pagos || form.value.tasa_interes_mensual === undefined) {
+  console.log('Iniciando cálculo de pagos con datos:', {
+    monto_prestado: form.value.monto_prestado,
+    tasa_interes_mensual: form.value.tasa_interes_mensual,
+    numero_pagos: form.value.numero_pagos,
+    frecuencia_pago: form.value.frecuencia_pago
+  })
+
+  if (!form.value.monto_prestado || form.value.monto_prestado <= 0) {
+    console.log('Monto prestado inválido:', form.value.monto_prestado)
+    calculos.value = { pago_periodico: 0, interes_total: 0, total_pagar: 0 }
+    return
+  }
+
+  if (!form.value.numero_pagos || form.value.numero_pagos < 1) {
+    console.log('Número de pagos inválido:', form.value.numero_pagos)
+    calculos.value = { pago_periodico: 0, interes_total: 0, total_pagar: 0 }
+    return
+  }
+
+  if (form.value.tasa_interes_mensual === undefined || form.value.tasa_interes_mensual < 0) {
+    console.log('Tasa de interés inválida:', form.value.tasa_interes_mensual)
     calculos.value = { pago_periodico: 0, interes_total: 0, total_pagar: 0 }
     return
   }
@@ -96,39 +116,103 @@ const calcularPagos = async () => {
   calculando.value = true
 
   try {
+    // Obtener token CSRF de múltiples fuentes posibles
+    let csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+
+    if (!csrfToken) {
+      // Intentar obtener de ventana global si está disponible
+      csrfToken = window.Laravel?.csrfToken || window.csrfToken || ''
+    }
+
+    if (!csrfToken) {
+      console.warn('No se pudo obtener token CSRF, intentando obtener de cookie')
+      // Como último recurso, intentar obtener de cookie
+      const cookies = document.cookie.split(';')
+      for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=')
+        if (name === 'XSRF-TOKEN') {
+          csrfToken = decodeURIComponent(value)
+          break
+        }
+      }
+    }
+
+    console.log('CSRF Token obtenido:', csrfToken ? 'Sí' : 'No', 'Longitud:', csrfToken?.length || 0)
+
+    const requestData = {
+      monto_prestado: parseFloat(form.value.monto_prestado),
+      tasa_interes_mensual: parseFloat(form.value.tasa_interes_mensual),
+      numero_pagos: parseInt(form.value.numero_pagos),
+      frecuencia_pago: form.value.frecuencia_pago,
+    }
+
+    console.log('Datos a enviar:', requestData)
+
     const response = await fetch('/prestamos/calcular-pagos', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+        'X-CSRF-TOKEN': csrfToken || '',
+        'Accept': 'application/json'
       },
-      body: JSON.stringify({
-        monto_prestado: form.value.monto_prestado,
-        tasa_interes_mensual: form.value.tasa_interes_mensual,
-        numero_pagos: form.value.numero_pagos,
-        frecuencia_pago: form.value.frecuencia_pago,
-      })
+      body: JSON.stringify(requestData)
     })
+
+    console.log('Respuesta del servidor:', response.status, response.statusText)
 
     if (response.ok) {
       const data = await response.json()
-      if (data.success) {
+      console.log('Datos recibidos:', data)
+
+      if (data.success && data.calculos) {
         calculos.value = data.calculos
+        console.log('Cálculos actualizados:', calculos.value)
+      } else {
+        console.error('Respuesta del servidor sin éxito:', data)
+        notyf.error('Error en el cálculo: ' + (data.message || 'Respuesta inválida del servidor'))
+        calculos.value = { pago_periodico: 0, interes_total: 0, total_pagar: 0 }
       }
+    } else {
+      const errorText = await response.text()
+      console.error('Error en respuesta del servidor:', response.status, errorText)
+      notyf.error(`Error del servidor (${response.status}): ${response.statusText}`)
+      calculos.value = { pago_periodico: 0, interes_total: 0, total_pagar: 0 }
     }
   } catch (error) {
-    console.error('Error calculando pagos:', error)
+    console.error('Error en petición fetch:', error)
+    notyf.error('Error de conexión: ' + error.message)
+    calculos.value = { pago_periodico: 0, interes_total: 0, total_pagar: 0 }
   } finally {
     calculando.value = false
   }
 }
 
 /* =========================
-   Watchers para recálculo automático
-========================= */
-watch([() => form.value.monto_prestado, () => form.value.tasa_interes_mensual, () => form.value.numero_pagos], () => {
-  calcularPagos()
-})
+    Watchers para recálculo automático
+ ========================= */
+watch(
+  () => form.value.monto_prestado,
+  (newValue, oldValue) => {
+    console.log('Cambio en monto_prestado:', oldValue, '->', newValue)
+    calcularPagos()
+  }
+)
+
+watch(
+  () => form.value.tasa_interes_mensual,
+  (newValue, oldValue) => {
+    console.log('Cambio en tasa_interes_mensual:', oldValue, '->', newValue)
+    calcularPagos()
+  }
+)
+
+watch(
+  () => form.value.numero_pagos,
+  (newValue, oldValue) => {
+    console.log('Cambio en numero_pagos:', oldValue, '->', newValue)
+    calcularPagos()
+  }
+)
 
 /* =========================
    Validación del formulario
@@ -262,7 +346,7 @@ const opcionesNumeroPagos = Array.from({ length: 60 }, (_, i) => ({
   <Head title="Crear Préstamo" />
 
   <div class="prestamos-create min-h-screen bg-gray-50">
-    <div class="max-w-4xl mx-auto px-6 py-8">
+    <div class="max-w-7xl mx-auto px-6 py-8">
       <!-- Header -->
       <div class="mb-8">
         <div class="flex items-center justify-between">
@@ -279,9 +363,9 @@ const opcionesNumeroPagos = Array.from({ length: 60 }, (_, i) => ({
         </div>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div class="grid grid-cols-1 xl:grid-cols-4 gap-8">
         <!-- Formulario principal -->
-        <div class="lg:col-span-2">
+        <div class="xl:col-span-3">
           <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-200">
               <h2 class="text-lg font-semibold text-gray-900">Información del Préstamo</h2>
@@ -300,6 +384,7 @@ const opcionesNumeroPagos = Array.from({ length: 60 }, (_, i) => ({
                   :mostrar-opcion-nuevo-cliente="true"
                   :mostrar-estado-cliente="true"
                   :mostrar-info-comercial="true"
+                  :size="'large'"
                   titulo-cliente-seleccionado="Cliente Seleccionado para Préstamo"
                   mensaje-vacio="Selecciona un cliente para el préstamo"
                   submensaje-vacio="Busca y selecciona un cliente existente o crea uno nuevo"
@@ -310,7 +395,7 @@ const opcionesNumeroPagos = Array.from({ length: 60 }, (_, i) => ({
               </div>
 
               <!-- Grid de información financiera -->
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 <!-- Monto prestado -->
                 <div>
                   <label for="monto_prestado" class="block text-sm font-medium text-gray-700 mb-2">
@@ -465,17 +550,30 @@ const opcionesNumeroPagos = Array.from({ length: 60 }, (_, i) => ({
         </div>
 
         <!-- Panel de cálculos -->
-        <div class="lg:col-span-1">
+        <div class="xl:col-span-1">
           <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden sticky top-8">
             <div class="px-6 py-4 border-b border-gray-200">
-              <h3 class="text-lg font-semibold text-gray-900">Cálculo de Pagos</h3>
-              <p class="text-sm text-gray-600 mt-1">Se actualiza automáticamente</p>
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="text-lg font-semibold text-gray-900">Cálculo de Pagos</h3>
+                  <p class="text-sm text-gray-600 mt-1">Se actualiza automáticamente</p>
+                </div>
+                <button
+                  @click="calcularPagos"
+                  :disabled="calculando"
+                  class="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-md hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span v-if="calculando">Calculando...</span>
+                  <span v-else>🔄 Recalcular</span>
+                </button>
+              </div>
             </div>
 
             <div class="p-6">
               <div v-if="calculando" class="text-center py-8">
                 <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500 mx-auto"></div>
-                <p class="text-sm text-gray-600 mt-2">Calculando...</p>
+                <p class="text-sm text-gray-600 mt-2">Calculando pagos...</p>
+                <p class="text-xs text-gray-500 mt-1">Procesando fórmula de amortización</p>
               </div>
 
               <div v-else-if="form.monto_prestado > 0 && form.numero_pagos > 0">

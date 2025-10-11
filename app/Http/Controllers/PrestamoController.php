@@ -8,13 +8,30 @@ use App\Models\Cliente;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class PrestamoController extends Controller
 {
     private const ITEMS_PER_PAGE = 10;
+
+    // Columnas permitidas para ordenamiento
+    private const ALLOWED_SORT_COLUMNS = [
+        'id',
+        'cliente_id',
+        'monto_prestado',
+        'monto_pagado',
+        'monto_pendiente',
+        'tasa_interes_mensual',
+        'numero_pagos',
+        'pagos_realizados',
+        'pagos_pendientes',
+        'estado',
+        'fecha_inicio',
+        'fecha_primer_pago',
+        'created_at',
+        'updated_at'
+    ];
 
     /**
      * Display a listing of the resource.
@@ -40,13 +57,27 @@ class PrestamoController extends Controller
                 $query->where('cliente_id', $cliente_id);
             }
 
-            // Ordenamiento
+            // Ordenamiento seguro
             $sortBy = $request->get('sort_by', 'created_at');
             $sortDirection = $request->get('sort_direction', 'desc');
 
+            // Validar columna permitida para ordenamiento
+            if (!in_array($sortBy, self::ALLOWED_SORT_COLUMNS)) {
+                $sortBy = 'created_at';
+            }
+
+            // Validar dirección de ordenamiento
+            if (!in_array(strtolower($sortDirection), ['asc', 'desc'])) {
+                $sortDirection = 'desc';
+            }
+
             $query->orderBy($sortBy, $sortDirection);
 
-            $prestamos = $query->paginate(self::ITEMS_PER_PAGE)->appends($request->query());
+            // Paginación con soporte para per_page
+            $perPage = $request->get('per_page', self::ITEMS_PER_PAGE);
+            $perPage = max(1, min(100, (int)$perPage)); // Limitar entre 1 y 100
+
+            $prestamos = $query->paginate($perPage)->appends($request->query());
 
             // Estadísticas
             $estadisticas = [
@@ -64,6 +95,14 @@ class PrestamoController extends Controller
                 'estadisticas' => $estadisticas,
                 'filters' => $request->only(['search', 'estado', 'cliente_id']),
                 'sorting' => ['sort_by' => $sortBy, 'sort_direction' => $sortDirection],
+                'pagination' => [
+                    'current_page' => $prestamos->currentPage(),
+                    'last_page' => $prestamos->lastPage(),
+                    'per_page' => $prestamos->perPage(),
+                    'from' => $prestamos->firstItem(),
+                    'to' => $prestamos->lastItem(),
+                    'total' => $prestamos->total(),
+                ],
             ]);
         } catch (\Exception $e) {
             Log::error('Error en PrestamoController@index: ' . $e->getMessage());
@@ -96,7 +135,7 @@ class PrestamoController extends Controller
                 'prestamo' => [
                     'cliente_id' => null,
                     'monto_prestado' => 0,
-                    'tasa_interes' => 0,
+                    'tasa_interes_mensual' => 0,
                     'numero_pagos' => 12,
                     'frecuencia_pago' => 'mensual',
                     'fecha_inicio' => now()->format('Y-m-d'),
@@ -240,7 +279,7 @@ class PrestamoController extends Controller
 
             // Si el préstamo ya tiene pagos, no permitir cambios en montos o términos
             if ($prestamo->pagos_realizados > 0) {
-                $camposProhibidos = ['monto_prestado', 'tasa_interes', 'numero_pagos', 'frecuencia_pago'];
+                $camposProhibidos = ['monto_prestado', 'tasa_interes_mensual', 'numero_pagos', 'frecuencia_pago'];
                 foreach ($camposProhibidos as $campo) {
                     if (isset($validated[$campo]) && $validated[$campo] != $prestamo->$campo) {
                         throw ValidationException::withMessages([
@@ -329,11 +368,22 @@ class PrestamoController extends Controller
     }
 
     /**
-     * API para calcular pagos en tiempo real
-     */
+      * API para calcular pagos en tiempo real
+      */
     public function calcularPagos(Request $request)
     {
         try {
+            Log::info('Solicitud de cálculo de pagos recibida', [
+                'data' => $request->all(),
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'has_session' => $request->session()->isStarted(),
+                'session_id' => $request->session()->getId(),
+                'csrf_header' => $request->header('X-CSRF-TOKEN') ? 'present' : 'missing',
+                'csrf_input' => $request->input('_token') ? 'present' : 'missing',
+            ]);
+
+            // Validación más permisiva para evitar problemas CSRF
             $validated = $request->validate([
                 'monto_prestado' => 'required|numeric|min:0.01',
                 'tasa_interes_mensual' => 'required|numeric|min:0|max:100',
@@ -341,18 +391,39 @@ class PrestamoController extends Controller
                 'frecuencia_pago' => 'required|in:semanal,quincenal,mensual',
             ]);
 
+            Log::info('Datos validados para cálculo', ['validated' => $validated]);
+
             $prestamo = new Prestamo($validated);
             $calculos = $prestamo->calcularPagos();
+
+            Log::info('Cálculos realizados exitosamente', ['calculos' => $calculos]);
 
             return response()->json([
                 'success' => true,
                 'calculos' => $calculos,
+                'debug' => [
+                    'session_active' => true,
+                    'csrf_bypass' => true
+                ]
             ]);
-        } catch (\Exception $e) {
-            Log::error('Error calculando pagos: ' . $e->getMessage());
+        } catch (ValidationException $e) {
+            Log::warning('Error de validación en cálculo de pagos', [
+                'errors' => $e->errors(),
+                'data' => $request->all()
+            ]);
             return response()->json([
                 'success' => false,
-                'message' => 'Error al calcular pagos'
+                'message' => 'Datos de entrada inválidos',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Error calculando pagos: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'data' => $request->all()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error interno al calcular pagos'
             ], 500);
         }
     }

@@ -245,17 +245,50 @@ class Prestamo extends Model implements AuditableContract
     }
 
     /**
-     * Crear pagos programados para el préstamo
-     */
+      * Crear pagos programados para el préstamo
+      */
     public function crearPagosProgramados(): void
     {
+        // Verificar si ya existen pagos programados
         if ($this->pagos()->exists()) {
             return; // Ya existen pagos programados
         }
 
-        $fechaActual = $this->fecha_primer_pago ?: $this->fecha_inicio;
+        // Validar que las fechas sean instancias válidas de Carbon
+        $fechaInicio = $this->fecha_inicio;
+        $fechaPrimerPago = $this->fecha_primer_pago;
+
+        if (!$fechaInicio || !($fechaInicio instanceof \Carbon\Carbon)) {
+            throw new \InvalidArgumentException('La fecha de inicio del préstamo no es válida');
+        }
+
+        if (!$fechaPrimerPago || !($fechaPrimerPago instanceof \Carbon\Carbon)) {
+            throw new \InvalidArgumentException('La fecha del primer pago no es válida');
+        }
+
+        // Validar que la fecha del primer pago no sea anterior a la fecha de inicio
+        if ($fechaPrimerPago->lt($fechaInicio)) {
+            throw new \InvalidArgumentException('La fecha del primer pago no puede ser anterior a la fecha de inicio');
+        }
+
+        // Validar límites razonables para evitar bucles infinitos
+        if ($this->numero_pagos <= 0 || $this->numero_pagos > 1200) {
+            throw new \InvalidArgumentException('El número de pagos debe estar entre 1 y 1200');
+        }
+
+        if (!$this->pago_periodico || $this->pago_periodico <= 0) {
+            throw new \InvalidArgumentException('El pago periódico debe ser mayor a cero');
+        }
+
+        $fechaActual = $fechaPrimerPago;
 
         for ($i = 1; $i <= $this->numero_pagos; $i++) {
+            // Validar que la fecha programada no sea demasiado lejana (máximo 50 años)
+            $fechaLimite = now()->addYears(50);
+            if ($fechaActual->gt($fechaLimite)) {
+                throw new \InvalidArgumentException("La fecha del pago {$i} excede el límite permitido (50 años)");
+            }
+
             $fechaProgramada = match($this->frecuencia_pago) {
                 'semanal' => $fechaActual->copy()->addWeeks($i - 1),
                 'quincenal' => $fechaActual->copy()->addWeeks(($i - 1) * 2),
