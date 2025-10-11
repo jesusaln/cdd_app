@@ -429,6 +429,15 @@
             <NavLink href="/bitacora" icon="clipboard-list" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Bitácora' : null">
               Bitácora
             </NavLink>
+            <NavLink href="/mis-vacaciones" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Mis Vacaciones' : null">
+              Mis Vacaciones
+            </NavLink>
+            <NavLink href="/vacaciones" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Gestión de Vacaciones' : null">
+              Gestión de Vacaciones
+            </NavLink>
+            <NavLink href="/vacaciones/create" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Nueva Solicitud' : null">
+              Nueva Solicitud
+            </NavLink>
           </div>
         </div>
 
@@ -531,7 +540,7 @@ const getCurrentSection = () => {
     return 'catalogos';
   } else if (path.includes('/backup') || path.includes('/empresa/configuracion')) {
     return 'administracion';
-  } else if (path.includes('/usuarios') || path.includes('/bitacora')) {
+  } else if (path.includes('/usuarios') || path.includes('/bitacora') || path.includes('/vacaciones') || path.includes('/mis-vacaciones')) {
     return 'usuario';
   } else if (path.includes('/reportes')) {
     return 'reportes';

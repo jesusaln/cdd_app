@@ -122,7 +122,7 @@ class UserController extends BaseController
         });
 
         // Cargar los roles del usuario autenticado
-        $authUser = Auth::user()->load('roles');
+        $authUser = User::with('roles')->find(Auth::id());
 
         return Inertia::render('Usuarios/Edit', [
             'usuario' => $user->load('roles'), // Cargar los roles del usuario editado
@@ -137,20 +137,66 @@ class UserController extends BaseController
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'apellido_paterno' => 'nullable|string|max:255',
+            'apellido_materno' => 'nullable|string|max:255',
             'email' => 'required|email|max:255|unique:users,email',
+            'telefono' => 'nullable|string|max:20',
+            'fecha_nacimiento' => 'nullable|date|before:today',
+            'curp' => 'nullable|string|size:18|unique:users,curp',
+            'rfc' => 'nullable|string|size:13|unique:users,rfc',
+            'direccion' => 'nullable|string|max:500',
+            'nss' => 'nullable|string|size:11|unique:users,nss',
+            'puesto' => 'nullable|string|max:255',
+            'departamento' => 'nullable|string|max:255',
+            'fecha_contratacion' => 'nullable|date',
+            'salario' => 'nullable|numeric|min:0',
+            'tipo_contrato' => 'nullable|in:tiempo_completo,medio_tiempo,temporal,por_obra',
+            'numero_empleado' => 'nullable|string|unique:users,numero_empleado',
+            'contacto_emergencia_nombre' => 'nullable|string|max:255',
+            'contacto_emergencia_telefono' => 'nullable|string|max:20',
+            'contacto_emergencia_parentesco' => 'nullable|string|max:100',
+            'banco' => 'nullable|string|max:255',
+            'numero_cuenta' => 'nullable|string|max:20',
+            'clabe_interbancaria' => 'nullable|string|size:18|unique:users,clabe_interbancaria',
+            'observaciones' => 'nullable|string|max:1000',
+            'es_empleado' => 'boolean',
             'password' => 'required|string|min:8|confirmed',
             'role' => 'required|string|exists:roles,name',
         ]);
 
-        $user = User::create([
+        $userData = [
             'name' => $validated['name'],
+            'apellido_paterno' => $validated['apellido_paterno'] ?? null,
+            'apellido_materno' => $validated['apellido_materno'] ?? null,
             'email' => $validated['email'],
+            'telefono' => $validated['telefono'] ?? null,
+            'fecha_nacimiento' => $validated['fecha_nacimiento'] ?? null,
+            'curp' => $validated['curp'] ?? null,
+            'rfc' => $validated['rfc'] ?? null,
+            'direccion' => $validated['direccion'] ?? null,
+            'nss' => $validated['nss'] ?? null,
+            'puesto' => $validated['puesto'] ?? null,
+            'departamento' => $validated['departamento'] ?? null,
+            'fecha_contratacion' => $validated['fecha_contratacion'] ?? null,
+            'salario' => $validated['salario'] ?? null,
+            'tipo_contrato' => $validated['tipo_contrato'] ?? null,
+            'numero_empleado' => $validated['numero_empleado'] ?? null,
+            'contacto_emergencia_nombre' => $validated['contacto_emergencia_nombre'] ?? null,
+            'contacto_emergencia_telefono' => $validated['contacto_emergencia_telefono'] ?? null,
+            'contacto_emergencia_parentesco' => $validated['contacto_emergencia_parentesco'] ?? null,
+            'banco' => $validated['banco'] ?? null,
+            'numero_cuenta' => $validated['numero_cuenta'] ?? null,
+            'clabe_interbancaria' => $validated['clabe_interbancaria'] ?? null,
+            'observaciones' => $validated['observaciones'] ?? null,
+            'es_empleado' => $validated['es_empleado'] ?? false,
             'password' => Hash::make($validated['password']),
-        ]);
+        ];
 
+        $user = User::create($userData);
         $user->assignRole($validated['role']);
 
-        return redirect()->route('usuarios.index')->with('success', 'Usuario creado exitosamente.');
+        $tipo = $user->es_empleado ? 'empleado' : 'usuario';
+        return redirect()->route('usuarios.index')->with('success', ucfirst($tipo) . ' creado exitosamente.');
     }
 
     public function update(Request $request, $id)
@@ -160,13 +206,35 @@ class UserController extends BaseController
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'apellido_paterno' => 'nullable|string|max:255',
+            'apellido_materno' => 'nullable|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
+            'telefono' => 'nullable|string|max:20',
+            'fecha_nacimiento' => 'nullable|date|before:today',
+            'curp' => 'nullable|string|size:18|unique:users,curp,' . $user->id,
+            'rfc' => 'nullable|string|size:13|unique:users,rfc,' . $user->id,
+            'direccion' => 'nullable|string|max:500',
+            'nss' => 'nullable|string|size:11|unique:users,nss,' . $user->id,
+            'puesto' => 'nullable|string|max:255',
+            'departamento' => 'nullable|string|max:255',
+            'fecha_contratacion' => 'nullable|date',
+            'salario' => 'nullable|numeric|min:0',
+            'tipo_contrato' => 'nullable|in:tiempo_completo,medio_tiempo,temporal,por_obra',
+            'numero_empleado' => 'nullable|string|unique:users,numero_empleado,' . $user->id,
+            'contacto_emergencia_nombre' => 'nullable|string|max:255',
+            'contacto_emergencia_telefono' => 'nullable|string|max:20',
+            'contacto_emergencia_parentesco' => 'nullable|string|max:100',
+            'banco' => 'nullable|string|max:255',
+            'numero_cuenta' => 'nullable|string|max:20',
+            'clabe_interbancaria' => 'nullable|string|size:18|unique:users,clabe_interbancaria,' . $user->id,
+            'observaciones' => 'nullable|string|max:1000',
+            'es_empleado' => 'boolean',
             'password' => 'nullable|string|min:8|confirmed',
             'role' => 'nullable|string|exists:roles,name',
         ]);
 
         // Cargar los roles del usuario autenticado
-        $authUser = Auth::user()->load('roles');
+        $authUser = User::with('roles')->find(Auth::id());
 
         // Verificar si el usuario intenta cambiar el rol
         if (isset($validated['role']) && $validated['role'] !== $user->getRoleNames()->first()) {
@@ -178,7 +246,29 @@ class UserController extends BaseController
         // Actualizar los datos del usuario
         $user->update([
             'name' => $validated['name'],
+            'apellido_paterno' => $validated['apellido_paterno'] ?? null,
+            'apellido_materno' => $validated['apellido_materno'] ?? null,
             'email' => $validated['email'],
+            'telefono' => $validated['telefono'] ?? null,
+            'fecha_nacimiento' => $validated['fecha_nacimiento'] ?? null,
+            'curp' => $validated['curp'] ?? null,
+            'rfc' => $validated['rfc'] ?? null,
+            'direccion' => $validated['direccion'] ?? null,
+            'nss' => $validated['nss'] ?? null,
+            'puesto' => $validated['puesto'] ?? null,
+            'departamento' => $validated['departamento'] ?? null,
+            'fecha_contratacion' => $validated['fecha_contratacion'] ?? null,
+            'salario' => $validated['salario'] ?? null,
+            'tipo_contrato' => $validated['tipo_contrato'] ?? null,
+            'numero_empleado' => $validated['numero_empleado'] ?? null,
+            'contacto_emergencia_nombre' => $validated['contacto_emergencia_nombre'] ?? null,
+            'contacto_emergencia_telefono' => $validated['contacto_emergencia_telefono'] ?? null,
+            'contacto_emergencia_parentesco' => $validated['contacto_emergencia_parentesco'] ?? null,
+            'banco' => $validated['banco'] ?? null,
+            'numero_cuenta' => $validated['numero_cuenta'] ?? null,
+            'clabe_interbancaria' => $validated['clabe_interbancaria'] ?? null,
+            'observaciones' => $validated['observaciones'] ?? null,
+            'es_empleado' => $validated['es_empleado'] ?? false,
             'password' => $validated['password'] ? Hash::make($validated['password']) : $user->password,
         ]);
 
@@ -186,7 +276,8 @@ class UserController extends BaseController
             $user->syncRoles([$validated['role']]);
         }
 
-        return redirect()->route('usuarios.index')->with('success', 'Usuario actualizado exitosamente.');
+        $tipo = $user->es_empleado ? 'empleado' : 'usuario';
+        return redirect()->route('usuarios.index')->with('success', ucfirst($tipo) . ' actualizado exitosamente.');
     }
 
     public function show($id)

@@ -56,6 +56,8 @@ use App\Http\Controllers\ReportesInventarioController;
 use App\Http\Controllers\ReportesController;
 use App\Http\Controllers\EmpresaConfiguracionController;
 use App\Http\Controllers\CategoriaHerramientaController;
+use App\Http\Controllers\VacacionController;
+use App\Http\Controllers\RegistroVacacionesController;
 
 // Forzar patrón numérico para {herramienta} y evitar colisiones con rutas estáticas
 Route::pattern('herramienta', '[0-9]+');
@@ -424,6 +426,22 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // =====================================================
     Route::get('/usuarios/export', [UserController::class, 'export'])->name('usuarios.export');
     Route::put('/usuarios/{user}/toggle', [UserController::class, 'toggle'])->name('usuarios.toggle');
+
+    // =====================================================
+    // RUTAS DE VACACIONES
+    // =====================================================
+    Route::resource('vacaciones', VacacionController::class)->names('vacaciones');
+    Route::post('/vacaciones/{vacacion}/aprobar', [VacacionController::class, 'aprobar'])->name('vacaciones.aprobar');
+    Route::post('/vacaciones/{vacacion}/rechazar', [VacacionController::class, 'rechazar'])->name('vacaciones.rechazar');
+    Route::get('/mis-vacaciones', [VacacionController::class, 'misVacaciones'])->name('vacaciones.mis-vacaciones');
+    Route::get('/vacaciones/create-para-empleado/{empleado}', [VacacionController::class, 'create'])->name('vacaciones.create-para-empleado');
+
+    // =====================================================
+    // RUTAS DE REGISTRO DE VACACIONES
+    // =====================================================
+    Route::resource('registro-vacaciones', RegistroVacacionesController::class)->names('registro-vacaciones');
+    Route::post('/registro-vacaciones/actualizar/{empleado}', [RegistroVacacionesController::class, 'actualizar'])->name('registro-vacaciones.actualizar');
+    Route::get('/registro-vacaciones/empleado/{empleado}', [RegistroVacacionesController::class, 'porEmpleado'])->name('registro-vacaciones.por-empleado');
 
     // =====================================================
     // RUTAS ESPECÃƒÂFICAS DE CITAS

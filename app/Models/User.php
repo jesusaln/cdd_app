@@ -25,9 +25,30 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'apellido_paterno',
+        'apellido_materno',
         'email',
         'password',
-        'role',
+        'telefono',
+        'fecha_nacimiento',
+        'curp',
+        'rfc',
+        'direccion',
+        'nss',
+        'puesto',
+        'departamento',
+        'fecha_contratacion',
+        'salario',
+        'tipo_contrato',
+        'numero_empleado',
+        'contacto_emergencia_nombre',
+        'contacto_emergencia_telefono',
+        'contacto_emergencia_parentesco',
+        'banco',
+        'numero_cuenta',
+        'clabe_interbancaria',
+        'observaciones',
+        'es_empleado',
         'activo',
     ];
 
@@ -62,6 +83,11 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'fecha_nacimiento' => 'date',
+            'fecha_contratacion' => 'date',
+            'salario' => 'decimal:2',
+            'es_empleado' => 'boolean',
+            'activo' => 'boolean',
         ];
     }
 
@@ -95,10 +121,75 @@ class User extends Authenticatable
         return $this->morphMany(Venta::class, 'vendedor');
     }
 
+    // Vacaciones del empleado
+    public function vacaciones()
+    {
+        return $this->hasMany(Vacacion::class);
+    }
+
+    // Vacaciones aprobadas del empleado
+    public function vacacionesAprobadas()
+    {
+        return $this->hasMany(Vacacion::class)->where('estado', 'aprobada');
+    }
+
+    // Registro anual de vacaciones
+    public function registroVacaciones()
+    {
+        return $this->hasMany(RegistroVacaciones::class);
+    }
+
+    // Registro de vacaciones del año actual
+    public function registroVacacionesActual()
+    {
+        return $this->hasOne(RegistroVacaciones::class)->where('anio', now()->year);
+    }
+
     // Ganancia total de todas las ventas realizadas por este usuario
     public function getGananciaTotalAttribute()
     {
         return $this->ventas->sum('ganancia_total');
+    }
+
+    // Métodos para empleados
+    public function getNombreCompletoAttribute()
+    {
+        $nombre = $this->name;
+        if ($this->apellido_paterno) {
+            $nombre .= ' ' . $this->apellido_paterno;
+        }
+        if ($this->apellido_materno) {
+            $nombre .= ' ' . $this->apellido_materno;
+        }
+        return $nombre;
+    }
+
+    public function getEdadAttribute()
+    {
+        if (!$this->fecha_nacimiento) {
+            return null;
+        }
+        return now()->diffInYears($this->fecha_nacimiento);
+    }
+
+    public function getAntiguedadAttribute()
+    {
+        if (!$this->fecha_contratacion) {
+            return null;
+        }
+        return now()->diffInYears($this->fecha_contratacion);
+    }
+
+    // Scope para empleados activos
+    public function scopeEmpleados($query)
+    {
+        return $query->where('es_empleado', true);
+    }
+
+    // Scope para empleados activos
+    public function scopeEmpleadosActivos($query)
+    {
+        return $query->where('es_empleado', true)->where('activo', true);
     }
 
 }
