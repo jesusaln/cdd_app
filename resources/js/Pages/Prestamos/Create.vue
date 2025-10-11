@@ -173,7 +173,20 @@ const submitForm = () => {
 
   loading.value = true
 
-  router.post('/prestamos', form.value, {
+  // Crear objeto solo con los campos necesarios
+  const datosPrestamo = {
+    cliente_id: form.value.cliente_id,
+    monto_prestado: form.value.monto_prestado,
+    tasa_interes_mensual: form.value.tasa_interes_mensual,
+    numero_pagos: form.value.numero_pagos,
+    frecuencia_pago: form.value.frecuencia_pago,
+    fecha_inicio: form.value.fecha_inicio,
+    fecha_primer_pago: form.value.fecha_primer_pago,
+    descripcion: form.value.descripcion,
+    notas: form.value.notas,
+  }
+
+  router.post('/prestamos', datosPrestamo, {
     onStart: () => {
       notyf.success('Creando préstamo...')
     },

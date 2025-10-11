@@ -1,4 +1,4 @@
-<!-- /resources/js/Pages/Prestamos/Index.vue -->
+<!-- /resources/js/Pages/Pagos/Index.vue -->
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { Head, router, usePage, Link } from '@inertiajs/vue3'
@@ -6,26 +6,27 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import { Notyf } from 'notyf'
 import 'notyf/notyf.min.css'
 
-import PrestamosHeader from '@/Components/IndexComponents/PrestamosHeader.vue'
-
 defineOptions({ layout: AppLayout })
 
 const props = defineProps({
-  prestamos: {
+  pagos: {
     type: Object,
     default: () => ({ data: [] })
   },
   estadisticas: {
     type: Object,
     default: () => ({
-      total: 0,
-      activos: 0,
-      completados: 0,
-      cancelados: 0,
-      monto_total_prestado: 0,
-      monto_total_pagado: 0,
-      monto_total_pendiente: 0,
+      total_pagos: 0,
+      pagos_pendientes: 0,
+      pagos_pagados: 0,
+      pagos_atrasados: 0,
+      monto_pendiente: 0,
+      monto_pagado_hoy: 0,
     })
+  },
+  prestamos: {
+    type: Array,
+    default: () => []
   },
   filters: {
     type: Object,
@@ -33,7 +34,7 @@ const props = defineProps({
   },
   sorting: {
     type: Object,
-    default: () => ({ sort_by: 'created_at', sort_direction: 'desc' })
+    default: () => ({ sort_by: 'fecha_programada', sort_direction: 'asc' })
   },
   pagination: {
     type: Object,
@@ -66,7 +67,7 @@ onMounted(() => {
 ========================= */
 const showModal = ref(false)
 const modalMode = ref('details')
-const selectedPrestamo = ref(null)
+const selectedPago = ref(null)
 const selectedId = ref(null)
 const loading = ref(false)
 
@@ -74,9 +75,9 @@ const loading = ref(false)
    Filtros, orden y datos
 ========================= */
 const searchTerm = ref('')
-const sortBy = ref('fecha-desc')
+const sortBy = ref('fecha_programada-asc')
 const filtroEstado = ref('')
-const filtroCliente = ref('')
+const filtroPrestamo = ref('')
 
 /* =========================
    Paginación del servidor
@@ -84,7 +85,7 @@ const filtroCliente = ref('')
 const paginationData = computed(() => ({
   current_page: props.pagination?.current_page || 1,
   last_page: props.pagination?.last_page || 1,
-  per_page: props.pagination?.per_page || 10,
+  per_page: props.pagination?.per_page || 15,
   from: props.pagination?.from || 0,
   to: props.pagination?.to || 0,
   total: props.pagination?.total || 0,
@@ -95,11 +96,11 @@ const goToPage = (page) => {
     page,
     search: searchTerm.value,
     estado: filtroEstado.value,
-    cliente_id: filtroCliente.value,
+    prestamo_id: filtroPrestamo.value,
     sort_by: sortBy.value.split('-')[0],
-    sort_direction: sortBy.value.split('-')[1] || 'desc'
+    sort_direction: sortBy.value.split('-')[1] || 'asc'
   }
-  router.visit('/prestamos', { data: query })
+  router.visit('/pagos', { data: query })
 }
 
 const nextPage = () => {
@@ -121,10 +122,10 @@ const prevPage = () => {
 
 const handleLimpiarFiltros = () => {
   searchTerm.value = ''
-  sortBy.value = 'fecha-desc'
+  sortBy.value = 'fecha_programada-asc'
   filtroEstado.value = ''
-  filtroCliente.value = ''
-  router.visit('/prestamos')
+  filtroPrestamo.value = ''
+  router.visit('/pagos')
   notyf.success('Filtros limpiados correctamente')
 }
 
@@ -133,12 +134,12 @@ const updateSort = (newSort) => {
     sortBy.value = newSort
     const query = {
       sort_by: newSort.split('-')[0],
-      sort_direction: newSort.split('-')[1] || 'desc',
+      sort_direction: newSort.split('-')[1] || 'asc',
       search: searchTerm.value,
       estado: filtroEstado.value,
-      cliente_id: filtroCliente.value
+      prestamo_id: filtroPrestamo.value
     }
-    router.visit('/prestamos', { data: query })
+    router.visit('/pagos', { data: query })
   }
 }
 
@@ -148,41 +149,41 @@ const changePerPage = (event) => {
     per_page: perPage,
     search: searchTerm.value,
     estado: filtroEstado.value,
-    cliente_id: filtroCliente.value,
+    prestamo_id: filtroPrestamo.value,
     sort_by: sortBy.value.split('-')[0],
-    sort_direction: sortBy.value.split('-')[1] || 'desc'
+    sort_direction: sortBy.value.split('-')[1] || 'asc'
   }
-  router.visit('/prestamos', { data: query })
+  router.visit('/pagos', { data: query })
 }
 
 const handleSearch = () => {
   const query = {
     search: searchTerm.value,
     estado: filtroEstado.value,
-    cliente_id: filtroCliente.value,
+    prestamo_id: filtroPrestamo.value,
     sort_by: sortBy.value.split('-')[0],
-    sort_direction: sortBy.value.split('-')[1] || 'desc'
+    sort_direction: sortBy.value.split('-')[1] || 'asc'
   }
-  router.visit('/prestamos', { data: query })
+  router.visit('/pagos', { data: query })
 }
 
 const handleFilter = () => {
   const query = {
     search: searchTerm.value,
     estado: filtroEstado.value,
-    cliente_id: filtroCliente.value,
+    prestamo_id: filtroPrestamo.value,
     sort_by: sortBy.value.split('-')[0],
-    sort_direction: sortBy.value.split('-')[1] || 'desc'
+    sort_direction: sortBy.value.split('-')[1] || 'asc'
   }
-  router.visit('/prestamos', { data: query })
+  router.visit('/pagos', { data: query })
 }
 
 /* =========================
    Validaciones y utilidades
 ========================= */
-function validarPrestamo(prestamo) {
-  if (!prestamo?.id) {
-    throw new Error('ID de préstamo no válido')
+function validarPago(pago) {
+  if (!pago?.id) {
+    throw new Error('ID de pago no válido')
   }
   return true
 }
@@ -190,10 +191,10 @@ function validarPrestamo(prestamo) {
 /* =========================
    Acciones CRUD
 ========================= */
-const verDetalles = (prestamo) => {
+const verDetalles = (pago) => {
   try {
-    validarPrestamo(prestamo)
-    selectedPrestamo.value = prestamo
+    validarPago(pago)
+    selectedPago.value = pago
     modalMode.value = 'details'
     showModal.value = true
   } catch (error) {
@@ -201,12 +202,12 @@ const verDetalles = (prestamo) => {
   }
 }
 
-const editarPrestamo = (id) => {
+const registrarPago = (pago) => {
   try {
-    const prestamoId = id || selectedPrestamo.value?.id
-    if (!prestamoId) throw new Error('ID de préstamo no válido')
+    const pagoId = pago?.id
+    if (!pagoId) throw new Error('ID de pago no válido')
 
-    router.visit(`/prestamos/${prestamoId}/edit`)
+    router.visit(`/pagos/create?prestamo_id=${pago.prestamo_id}&pago_id=${pagoId}`)
   } catch (error) {
     notyf.error(error.message)
   }
@@ -214,7 +215,7 @@ const editarPrestamo = (id) => {
 
 const confirmarEliminacion = (id) => {
   try {
-    if (!id) throw new Error('ID de préstamo no válido')
+    if (!id) throw new Error('ID de pago no válido')
 
     selectedId.value = id
     modalMode.value = 'confirm'
@@ -224,24 +225,24 @@ const confirmarEliminacion = (id) => {
   }
 }
 
-const eliminarPrestamo = async () => {
+const eliminarPago = async () => {
   try {
-    if (!selectedId.value) throw new Error('No se seleccionó ningún préstamo')
+    if (!selectedId.value) throw new Error('No se seleccionó ningún pago')
 
     loading.value = true
 
-    router.delete(`/prestamos/${selectedId.value}`, {
+    router.delete(`/pagos/${selectedId.value}`, {
       onStart: () => {
-        notyf.success('Eliminando préstamo...')
+        notyf.success('Eliminando pago...')
       },
       onSuccess: (response) => {
-        notyf.success('Préstamo eliminado exitosamente')
+        notyf.success('Pago eliminado exitosamente')
         showModal.value = false
         selectedId.value = null
       },
       onError: (errors) => {
         console.error('Error al eliminar:', errors)
-        notyf.error('Error al eliminar el préstamo')
+        notyf.error('Error al eliminar el pago')
       },
       onFinish: () => {
         loading.value = false
@@ -253,70 +254,27 @@ const eliminarPrestamo = async () => {
   }
 }
 
-const crearNuevoPrestamo = () => {
-  router.visit('/prestamos/create')
-}
-
-const verPagos = (prestamoId) => {
-  router.visit(`/pagos?prestamo_id=${prestamoId}`)
-}
-
-const cambiarEstado = async (prestamo, nuevoEstado) => {
-  try {
-    loading.value = true
-
-    router.patch(`/prestamos/${prestamo.id}/cambiar-estado`, {
-      estado: nuevoEstado
-    }, {
-      onSuccess: (response) => {
-        notyf.success('Estado actualizado correctamente')
-      },
-      onError: (errors) => {
-        console.error('Error al cambiar estado:', errors)
-        notyf.error('Error al cambiar el estado del préstamo')
-      },
-      onFinish: () => {
-        loading.value = false
-      }
-    })
-  } catch (error) {
-    notyf.error(error.message)
-    loading.value = false
-  }
-}
-
-const registrarPago = (prestamoId) => {
-  try {
-    router.visit(`/pagos/create?prestamo_id=${prestamoId}`)
-  } catch (error) {
-    notyf.error(error.message)
-  }
-}
-
-const generarPagare = (prestamoId) => {
-  try {
-    router.visit(`/prestamos/${prestamoId}/pagare`)
-  } catch (error) {
-    notyf.error(error.message)
-  }
-}
-
-// Configuración de estados para préstamos
+// Configuración de estados para pagos
 const configEstados = {
-  'activo': {
-    label: 'Activo',
+  'pendiente': {
+    label: 'Pendiente',
+    classes: 'bg-yellow-100 text-yellow-700',
+    color: 'bg-yellow-400'
+  },
+  'pagado': {
+    label: 'Pagado',
     classes: 'bg-green-100 text-green-700',
     color: 'bg-green-400'
   },
-  'completado': {
-    label: 'Completado',
-    classes: 'bg-blue-100 text-blue-700',
-    color: 'bg-blue-400'
-  },
-  'cancelado': {
-    label: 'Cancelado',
+  'atrasado': {
+    label: 'Atrasado',
     classes: 'bg-red-100 text-red-700',
     color: 'bg-red-400'
+  },
+  'parcial': {
+    label: 'Pago Parcial',
+    classes: 'bg-orange-100 text-orange-700',
+    color: 'bg-orange-400'
   }
 };
 
@@ -357,6 +315,23 @@ const formatearFecha = (date) => {
   }
 }
 
+const formatearFechaCompleta = (date) => {
+  if (!date) return 'Fecha no disponible';
+  try {
+    const time = new Date(date).getTime();
+    if (Number.isNaN(time)) return 'Fecha inválida';
+    return new Date(time).toLocaleDateString('es-MX', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch {
+    return 'Fecha inválida';
+  }
+}
+
 // Funciones para Modal
 const modalRef = ref(null)
 
@@ -367,44 +342,167 @@ const onKey = (e) => { if (e.key === 'Escape' && showModal.value) onClose() }
 onMounted(() => window.addEventListener('keydown', onKey))
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 
-const onCancel = () => { showModal.value = false; selectedPrestamo.value = null; selectedId.value = null; }
-const onConfirm = () => { eliminarPrestamo() }
-const onClose = () => { showModal.value = false; selectedPrestamo.value = null; selectedId.value = null; }
-const onEditarFila = () => { editarPrestamo(selectedPrestamo.value?.id) }
+const onCancel = () => { showModal.value = false; selectedPago.value = null; selectedId.value = null; }
+const onConfirm = () => { eliminarPago() }
+const onClose = () => { showModal.value = false; selectedPago.value = null; selectedId.value = null; }
 </script>
 
 <template>
-  <Head title="Préstamos" />
+  <Head title="Pagos de Préstamos" />
 
-  <div class="prestamos-index min-h-screen bg-gray-50">
+  <div class="pagos-index min-h-screen bg-gray-50">
     <!-- Contenido principal -->
     <div class="max-w-8xl mx-auto px-6 py-8">
-      <!-- Header específico de préstamos -->
-      <PrestamosHeader
-        :total="estadisticas.total"
-        :activos="estadisticas.activos"
-        :completados="estadisticas.completados"
-        :cancelados="estadisticas.cancelados"
-        :monto_total_prestado="estadisticas.monto_total_prestado"
-        :monto_total_pagado="estadisticas.monto_total_pagado"
-        :monto_total_pendiente="estadisticas.monto_total_pendiente"
-        :clientes="[]"
-        v-model:search-term="searchTerm"
-        v-model:sort-by="sortBy"
-        v-model:filtro-estado="filtroEstado"
-        v-model:filtro-cliente="filtroCliente"
-        @crear-nueva="crearNuevoPrestamo"
-        @search-change="handleSearch"
-        @filtro-estado-change="handleFilter"
-        @filtro-cliente-change="handleFilter"
-        @sort-change="updateSort"
-        @limpiar-filtros="handleLimpiarFiltros"
-      />
+      <!-- Header -->
+      <div class="mb-8">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-3xl font-bold text-gray-900 tracking-tight">Pagos de Préstamos</h1>
+            <p class="text-gray-600 mt-2">Gestiona y registra los pagos de préstamos de tus clientes</p>
+          </div>
+          <Link
+            href="/prestamos"
+            class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+          >
+            ← Volver a Préstamos
+          </Link>
+        </div>
+      </div>
+
+      <!-- Estadísticas -->
+      <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
+        <div class="bg-white rounded-lg p-4 border border-gray-200">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-gray-600">Total Pagos</p>
+              <p class="text-2xl font-bold text-gray-900">{{ estadisticas.total_pagos }}</p>
+            </div>
+            <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+              <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-lg p-4 border border-gray-200">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-gray-600">Pendientes</p>
+              <p class="text-2xl font-bold text-yellow-600">{{ estadisticas.pagos_pendientes }}</p>
+            </div>
+            <div class="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+              <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-lg p-4 border border-gray-200">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-gray-600">Pagados</p>
+              <p class="text-2xl font-bold text-green-600">{{ estadisticas.pagos_pagados }}</p>
+            </div>
+            <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+              <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-lg p-4 border border-gray-200">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-gray-600">Atrasados</p>
+              <p class="text-2xl font-bold text-red-600">{{ estadisticas.pagos_atrasados }}</p>
+            </div>
+            <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+              <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-lg p-4 border border-gray-200">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-gray-600">Monto Pendiente</p>
+              <p class="text-lg font-bold text-orange-600">${{ formatearMoneda(estadisticas.monto_pendiente) }}</p>
+            </div>
+            <div class="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+              <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-lg p-4 border border-gray-200">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-gray-600">Pagado Hoy</p>
+              <p class="text-lg font-bold text-green-600">${{ formatearMoneda(estadisticas.monto_pagado_hoy) }}</p>
+            </div>
+            <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+              <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filtros -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+        <div class="px-6 py-4 bg-gray-50/50 border-b border-gray-200/60">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+            <!-- Filtros -->
+            <div class="flex items-center space-x-3">
+              <!-- Filtro de préstamo -->
+              <select
+                v-model="filtroPrestamo"
+                @change="handleFilter"
+                class="block w-64 pl-3 pr-10 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              >
+                <option value="">Todos los préstamos</option>
+                <option v-for="prestamo in prestamos" :key="prestamo.id" :value="prestamo.id">
+                  {{ prestamo.cliente_nombre }} - ${{ formatearMoneda(prestamo.monto_prestado) }}
+                </option>
+              </select>
+
+              <!-- Filtro de estado -->
+              <select
+                v-model="filtroEstado"
+                @change="handleFilter"
+                class="block w-48 pl-3 pr-10 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              >
+                <option value="">Todos los estados</option>
+                <option value="pendiente">Pendientes</option>
+                <option value="pagado">Pagados</option>
+                <option value="atrasado">Atrasados</option>
+                <option value="parcial">Parciales</option>
+              </select>
+
+              <!-- Limpiar filtros -->
+              <button
+                @click="handleLimpiarFiltros"
+                class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+              >
+                ❌ Limpiar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <!-- Información de paginación -->
       <div class="flex justify-between items-center mb-4 text-sm text-gray-600">
         <div>
-          Mostrando {{ paginationData.from }} - {{ paginationData.to }} de {{ paginationData.total }} préstamos
+          Mostrando {{ paginationData.from }} - {{ paginationData.to }} de {{ paginationData.total }} pagos
         </div>
         <div class="flex items-center space-x-2">
           <span>Elementos por página:</span>
@@ -422,15 +520,15 @@ const onEditarFila = () => { editarPrestamo(selectedPrestamo.value?.id) }
         </div>
       </div>
 
-      <!-- Tabla de préstamos -->
+      <!-- Tabla de pagos -->
       <div class="mt-6">
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <!-- Header -->
           <div class="bg-gradient-to-r from-gray-50 to-gray-100/50 px-6 py-4 border-b border-gray-200/60">
             <div class="flex items-center justify-between">
-              <h2 class="text-lg font-semibold text-gray-900 tracking-tight">Préstamos</h2>
+              <h2 class="text-lg font-semibold text-gray-900 tracking-tight">Pagos de Préstamos</h2>
               <div class="text-sm text-gray-600 bg-white/70 px-3 py-1 rounded-full border border-gray-200/50">
-                {{ props.prestamos.data?.length || 0 }} de {{ paginationData.total }} préstamos
+                {{ props.pagos.data?.length || 0 }} de {{ paginationData.total }} pagos
               </div>
             </div>
           </div>
@@ -440,28 +538,31 @@ const onEditarFila = () => { editarPrestamo(selectedPrestamo.value?.id) }
             <table class="min-w-full divide-y divide-gray-200/60">
               <thead class="bg-gray-50/60">
                 <tr>
-                  <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Fecha</th>
+                  <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Fecha Programada</th>
                   <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Cliente</th>
-                  <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Monto</th>
-                  <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Tasa Mensual</th>
-                  <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Pagos</th>
+                  <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Monto Programado</th>
+                  <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Monto Pagado</th>
                   <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Estado</th>
+                  <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Días Atraso</th>
                   <th class="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Acciones</th>
                 </tr>
               </thead>
 
               <tbody class="bg-white divide-y divide-gray-200/40">
-                <template v-if="props.prestamos.data && props.prestamos.data.length > 0">
+                <template v-if="props.pagos.data && props.pagos.data.length > 0">
                   <tr
-                    v-for="prestamo in props.prestamos.data"
-                    :key="prestamo.id"
+                    v-for="pago in props.pagos.data"
+                    :key="pago.id"
                     class="group hover:bg-gray-50/60 transition-all duration-150 hover:shadow-sm"
                   >
-                    <!-- Fecha -->
+                    <!-- Fecha Programada -->
                     <td class="px-6 py-4">
                       <div class="flex flex-col space-y-0.5">
                         <div class="text-sm font-medium text-gray-900">
-                          {{ formatearFecha(prestamo.created_at || prestamo.fecha) }}
+                          {{ formatearFecha(pago.fecha_programada) }}
+                        </div>
+                        <div class="text-xs text-gray-500">
+                          Pago #{{ pago.numero_pago }}
                         </div>
                       </div>
                     </td>
@@ -470,60 +571,53 @@ const onEditarFila = () => { editarPrestamo(selectedPrestamo.value?.id) }
                     <td class="px-6 py-4">
                       <div class="flex flex-col space-y-0.5">
                         <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800">
-                          {{ prestamo.cliente?.nombre_razon_social || 'Sin cliente' }}
+                          {{ pago.prestamo?.cliente?.nombre_razon_social || 'Sin cliente' }}
                         </div>
                         <div class="text-xs text-gray-500">
-                          {{ prestamo.cliente?.rfc || '' }}
+                          {{ pago.prestamo?.cliente?.rfc || '' }}
                         </div>
                       </div>
                     </td>
 
-                    <!-- Monto -->
+                    <!-- Monto Programado -->
                     <td class="px-6 py-4">
-                      <div class="flex flex-col space-y-0.5">
-                        <div class="text-sm font-medium text-gray-900">
-                          ${{ formatearMoneda(prestamo.monto_prestado) }}
-                        </div>
-                        <div class="text-xs text-green-600">
-                          Pago: ${{ formatearMoneda(prestamo.pago_periodico) }}
-                        </div>
+                      <div class="text-sm font-medium text-gray-900">
+                        ${{ formatearMoneda(pago.monto_programado) }}
                       </div>
                     </td>
 
-                    <!-- Tasa Mensual -->
+                    <!-- Monto Pagado -->
                     <td class="px-6 py-4">
-                      <div class="text-sm text-gray-700">
-                        {{ prestamo.tasa_interes_mensual }}%
+                      <div v-if="pago.monto_pagado > 0" class="text-sm font-medium text-green-600">
+                        ${{ formatearMoneda(pago.monto_pagado) }}
                       </div>
-                    </td>
-
-                    <!-- Pagos -->
-                    <td class="px-6 py-4">
-                      <div class="flex flex-col space-y-0.5">
-                        <div class="text-sm text-gray-900">
-                          {{ prestamo.pagos_realizados || 0 }} / {{ prestamo.numero_pagos }}
-                        </div>
-                        <div class="text-xs text-gray-500">
-                          {{ Math.round(((prestamo.pagos_realizados || 0) / prestamo.numero_pagos) * 100) }}% completado
-                        </div>
-                        <div v-if="prestamo.tiene_pagos_atrasados" class="text-xs text-red-600 font-medium">
-                          ¡Pagos atrasados!
-                        </div>
+                      <div v-else class="text-sm text-gray-500">
+                        No pagado
                       </div>
                     </td>
 
                     <!-- Estado -->
                     <td class="px-6 py-4">
                       <span
-                        :class="obtenerClasesEstado(prestamo.estado)"
+                        :class="obtenerClasesEstado(pago.estado)"
                         class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150 hover:shadow-sm"
                       >
                         <span
                           class="w-2 h-2 rounded-full mr-2 transition-all duration-150"
-                          :class="obtenerColorPuntoEstado(prestamo.estado)"
+                          :class="obtenerColorPuntoEstado(pago.estado)"
                         ></span>
-                        {{ obtenerLabelEstado(prestamo.estado) }}
+                        {{ obtenerLabelEstado(pago.estado) }}
                       </span>
+                    </td>
+
+                    <!-- Días Atraso -->
+                    <td class="px-6 py-4">
+                      <div v-if="pago.dias_atraso > 0" class="text-sm text-red-600 font-medium">
+                        {{ pago.dias_atraso }} días
+                      </div>
+                      <div v-else class="text-sm text-gray-500">
+                        A tiempo
+                      </div>
                     </td>
 
                     <!-- Acciones -->
@@ -531,7 +625,7 @@ const onEditarFila = () => { editarPrestamo(selectedPrestamo.value?.id) }
                       <div class="flex items-center justify-end space-x-2">
                         <!-- Ver detalles -->
                         <button
-                          @click="verDetalles(prestamo)"
+                          @click="verDetalles(pago)"
                           class="group/btn relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-1"
                           title="Ver detalles"
                         >
@@ -541,65 +635,27 @@ const onEditarFila = () => { editarPrestamo(selectedPrestamo.value?.id) }
                           </svg>
                         </button>
 
-                        <!-- Ver pagos -->
+                        <!-- Registrar pago (solo pendientes) -->
                         <button
-                          @click="verPagos(prestamo.id)"
-                          class="group/btn relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 hover:text-purple-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:ring-offset-1"
-                          title="Ver pagos del préstamo"
-                        >
-                          <svg class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                          </svg>
-                        </button>
-
-                        <!-- Generar pagaré -->
-                        <button
-                          @click="generarPagare(prestamo.id)"
-                          class="group/btn relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:ring-offset-1"
-                          title="Generar pagaré PDF"
-                        >
-                          <svg class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                          </svg>
-                        </button>
-
-                        <!-- Editar -->
-                        <button
-                          @click="editarPrestamo(prestamo.id)"
-                          class="group/btn relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 hover:text-amber-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-1"
-                          title="Editar préstamo"
-                        >
-                          <svg class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        </button>
-
-                        <!-- Registrar pago (solo activos) -->
-                        <button
-                          v-if="prestamo.estado === 'activo'"
-                          @click="registrarPago(prestamo.id)"
+                          v-if="pago.estado === 'pendiente' || pago.estado === 'parcial'"
+                          @click="registrarPago(pago)"
                           class="group/btn relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-1"
                           title="Registrar pago"
                         >
                           <svg class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                         </button>
 
-                        <!-- Estado (solo visual, sin cambios directos) -->
-                        <div v-if="prestamo.estado === 'activo'" class="text-xs text-green-600 font-medium">
-                          ✓
-                        </div>
-
-                        <!-- Eliminar (solo cancelados) -->
+                        <!-- Editar pago (solo pagados) -->
                         <button
-                          v-if="prestamo.estado === 'cancelado'"
-                          @click="confirmarEliminacion(prestamo.id)"
-                          class="group/btn relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:ring-offset-1"
-                          title="Eliminar préstamo"
+                          v-if="pago.estado === 'pagado'"
+                          @click="editarPago(pago.id)"
+                          class="group/btn relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 hover:text-amber-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-1"
+                          title="Editar pago"
                         >
                           <svg class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
                         </button>
                       </div>
@@ -613,12 +669,12 @@ const onEditarFila = () => { editarPrestamo(selectedPrestamo.value?.id) }
                     <div class="flex flex-col items-center space-y-4">
                       <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                         <svg class="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                         </svg>
                       </div>
                       <div class="space-y-1">
-                        <p class="text-gray-700 font-medium">No hay préstamos</p>
-                        <p class="text-sm text-gray-500">Los préstamos aparecerán aquí cuando se creen</p>
+                        <p class="text-gray-700 font-medium">No hay pagos</p>
+                        <p class="text-sm text-gray-500">Los pagos de préstamos aparecerán aquí cuando se creen</p>
                       </div>
                     </div>
                   </td>
@@ -647,7 +703,7 @@ const onEditarFila = () => { editarPrestamo(selectedPrestamo.value?.id) }
             :class="[
               'px-3 py-2 text-sm font-medium border border-gray-300 rounded-md',
               page === paginationData.current_page
-                ? 'bg-green-500 text-white border-green-500'
+                ? 'bg-blue-500 text-white border-blue-500'
                 : 'text-gray-700 bg-white hover:bg-gray-50'
             ]"
           >
@@ -676,7 +732,7 @@ const onEditarFila = () => { editarPrestamo(selectedPrestamo.value?.id) }
           class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 outline-none"
           role="dialog"
           aria-modal="true"
-          :aria-label="`Modal de Préstamo`"
+          :aria-label="`Modal de Pago`"
           tabindex="-1"
           ref="modalRef"
           @keydown.esc.prevent="onClose"
@@ -694,7 +750,7 @@ const onEditarFila = () => { editarPrestamo(selectedPrestamo.value?.id) }
               </svg>
             </div>
             <h3 class="text-lg font-medium mb-2">
-              ¿Eliminar préstamo?
+              ¿Eliminar pago?
             </h3>
             <p class="text-gray-600 mb-6">
               Esta acción no se puede deshacer.
@@ -718,66 +774,62 @@ const onEditarFila = () => { editarPrestamo(selectedPrestamo.value?.id) }
           <!-- Modo: Detalles -->
           <div v-else-if="modalMode === 'details'" class="space-y-4">
             <h3 class="text-lg font-medium mb-1 flex items-center gap-2">
-              Detalles de Préstamo
-              <span v-if="selectedPrestamo?.id" class="text-sm text-gray-500">#{{ selectedPrestamo.id }}</span>
+              Detalles de Pago
+              <span v-if="selectedPago?.id" class="text-sm text-gray-500">#{{ selectedPago.numero_pago }}</span>
             </h3>
 
-            <div v-if="selectedPrestamo" class="space-y-4">
+            <div v-if="selectedPago" class="space-y-4">
               <!-- Información general -->
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p class="text-sm text-gray-600">
-                    <strong>Cliente:</strong> {{ selectedPrestamo.cliente?.nombre_razon_social || 'Sin cliente' }}
+                    <strong>Cliente:</strong> {{ selectedPago.prestamo?.cliente?.nombre_razon_social || 'Sin cliente' }}
                   </p>
                   <p class="text-sm text-gray-600">
-                    <strong>Monto Prestado:</strong> ${{ formatearMoneda(selectedPrestamo.monto_prestado) }}
+                    <strong>Préstamo ID:</strong> #{{ selectedPago.prestamo_id }}
                   </p>
                   <p class="text-sm text-gray-600">
-                    <strong>Tasa de Interés:</strong> {{ selectedPrestamo.tasa_interes }}%
+                    <strong>Número de Pago:</strong> #{{ selectedPago.numero_pago }}
                   </p>
                   <p class="text-sm text-gray-600">
-                    <strong>Pago Periódico:</strong> ${{ formatearMoneda(selectedPrestamo.pago_periodico) }}
+                    <strong>Estado:</strong>
+                    <span
+                      :class="obtenerClasesEstado(selectedPago.estado)"
+                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ml-2"
+                    >
+                      {{ obtenerLabelEstado(selectedPago.estado) }}
+                    </span>
                   </p>
                 </div>
 
                 <div>
                   <p class="text-sm text-gray-600">
-                    <strong>Estado:</strong>
-                    <span
-                      :class="obtenerClasesEstado(selectedPrestamo.estado)"
-                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ml-2"
-                    >
-                      {{ obtenerLabelEstado(selectedPrestamo.estado) }}
-                    </span>
+                    <strong>Fecha Programada:</strong> {{ formatearFecha(selectedPago.fecha_programada) }}
+                  </p>
+                  <p v-if="selectedPago.fecha_pago" class="text-sm text-gray-600">
+                    <strong>Fecha de Pago:</strong> {{ formatearFecha(selectedPago.fecha_pago) }}
                   </p>
                   <p class="text-sm text-gray-600">
-                    <strong>Pagos Realizados:</strong> {{ selectedPrestamo.pagos_realizados }} / {{ selectedPrestamo.numero_pagos }}
-                  </p>
-                  <p class="text-sm text-gray-600">
-                    <strong>Fecha de Inicio:</strong> {{ formatearFecha(selectedPrestamo.fecha_inicio) }}
+                    <strong>Fecha Registro:</strong> {{ formatearFecha(selectedPago.fecha_registro) }}
                   </p>
                 </div>
               </div>
 
               <!-- Información financiera -->
               <div class="bg-gray-50 rounded-lg p-4">
-                <h4 class="text-sm font-medium text-gray-900 mb-3">Resumen Financiero</h4>
+                <h4 class="text-sm font-medium text-gray-900 mb-3">Información Financiera</h4>
                 <div class="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <p class="text-gray-600">Total a Pagar:</p>
-                    <p class="text-lg font-semibold text-gray-900">${{ formatearMoneda(selectedPrestamo.monto_total_pagar) }}</p>
+                    <p class="text-gray-600">Monto Programado:</p>
+                    <p class="text-lg font-semibold text-gray-900">${{ formatearMoneda(selectedPago.monto_programado) }}</p>
                   </div>
                   <div>
-                    <p class="text-gray-600">Total Pagado:</p>
-                    <p class="text-lg font-semibold text-green-600">${{ formatearMoneda(selectedPrestamo.monto_pagado) }}</p>
+                    <p class="text-gray-600">Monto Pagado:</p>
+                    <p class="text-lg font-semibold text-green-600">${{ formatearMoneda(selectedPago.monto_pagado) }}</p>
                   </div>
-                  <div>
-                    <p class="text-gray-600">Monto Pendiente:</p>
-                    <p class="text-lg font-semibold text-orange-600">${{ formatearMoneda(selectedPrestamo.monto_pendiente) }}</p>
-                  </div>
-                  <div>
-                    <p class="text-gray-600">Interés Total:</p>
-                    <p class="text-lg font-semibold text-blue-600">${{ formatearMoneda(selectedPrestamo.monto_interes_total) }}</p>
+                  <div v-if="selectedPago.dias_atraso > 0">
+                    <p class="text-gray-600">Días de Atraso:</p>
+                    <p class="text-lg font-semibold text-red-600">{{ selectedPago.dias_atraso }} días</p>
                   </div>
                 </div>
               </div>
@@ -786,10 +838,10 @@ const onEditarFila = () => { editarPrestamo(selectedPrestamo.value?.id) }
             <!-- Botones de acción -->
             <div class="flex flex-wrap justify-end gap-2 mt-6">
               <button
-                @click="editarFila"
-                class="px-3 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm"
+                @click="registrarPago(selectedPago)"
+                class="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
               >
-                ✏️ Editar
+                💳 Registrar Pago
               </button>
 
               <button
@@ -808,7 +860,7 @@ const onEditarFila = () => { editarPrestamo(selectedPrestamo.value?.id) }
     <div v-if="loading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div class="bg-white p-6 rounded-lg shadow-lg">
         <div class="flex items-center space-x-3">
-          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
           <span class="text-gray-700">Procesando...</span>
         </div>
       </div>
@@ -817,7 +869,7 @@ const onEditarFila = () => { editarPrestamo(selectedPrestamo.value?.id) }
 </template>
 
 <style scoped>
-.prestamos-index {
+.pagos-index {
   min-height: 100vh;
   background-color: #f9fafb;
 }

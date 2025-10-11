@@ -146,6 +146,9 @@ class PrestamoController extends Controller
 
             $prestamo->save();
 
+            // Crear pagos programados automáticamente
+            $prestamo->crearPagosProgramados();
+
             DB::commit();
 
             Log::info('Préstamo creado', ['id' => $prestamo->id, 'cliente_id' => $prestamo->cliente_id]);
@@ -205,6 +208,7 @@ class PrestamoController extends Controller
             return Inertia::render('Prestamos/Edit', [
                 'prestamo' => $prestamo,
                 'clientes' => $clientes,
+                'puede_editar' => $prestamo->puedeSerEditado(),
             ]);
         } catch (ModelNotFoundException $e) {
             return redirect()->route('prestamos.index')->with('error', 'Préstamo no encontrado.');
@@ -363,6 +367,21 @@ class PrestamoController extends Controller
                 'estado' => 'required|in:activo,completado,cancelado',
             ]);
 
+            // Validaciones de seguridad
+            if ($validated['estado'] === 'cancelado' && !$prestamo->puedeSerCancelado()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se puede cancelar un préstamo que ya tiene pagos registrados.'
+                ], 422);
+            }
+
+            if ($validated['estado'] === 'completado' && $prestamo->monto_pendiente > 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se puede completar un préstamo con pagos pendientes.'
+                ], 422);
+            }
+
             $prestamo->estado = $validated['estado'];
             $prestamo->save();
 
@@ -383,5 +402,114 @@ class PrestamoController extends Controller
                 'message' => 'Error al cambiar estado'
             ], 500);
         }
+    }
+
+    /**
+     * Generar pagaré en PDF
+     */
+    public function generarPagare(Prestamo $prestamo)
+    {
+        try {
+            $prestamo->load(['cliente']);
+
+            // Obtener datos de la empresa
+            $empresa = \App\Models\EmpresaConfiguracion::first();
+            $empresaNombre = $empresa ? $empresa->razon_social : 'CLIMAS DEL DESIERTO';
+            $empresaRfc = $empresa ? $empresa->rfc : 'XAXX010101000';
+            $empresaDireccion = $empresa ? $empresa->direccion_completa : 'Hermosillo, Sonora, México';
+
+            // Datos para el pagaré
+            $datosPagare = [
+                'prestamo' => $prestamo,
+                'cliente' => $prestamo->cliente,
+                'empresa' => [
+                    'nombre' => $empresaNombre,
+                    'rfc' => $empresaRfc,
+                    'direccion' => $empresaDireccion,
+                ],
+                'fecha_actual' => now()->format('d/m/Y'),
+                'monto_letras' => $this->numeroALetras($prestamo->monto_prestado),
+                'tasa_mensual' => floatval($prestamo->tasa_interes_mensual),
+                'pago_mensual_letras' => $this->numeroALetras($prestamo->pago_periodico),
+            ];
+
+            return Inertia::render('Prestamos/Pagare', $datosPagare);
+        } catch (\Exception $e) {
+            Log::error('Error generando pagaré: ' . $e->getMessage());
+            return redirect()->route('prestamos.index')->with('error', 'Error al generar el pagaré.');
+        }
+    }
+
+    /**
+     * Convertir número a letras (función mejorada)
+     */
+    private function numeroALetras($numero)
+    {
+        $unidades = ['', 'un', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve'];
+        $decenas = ['', 'diez', 'veinte', 'treinta', 'cuarenta', 'cincuenta', 'sesenta', 'setenta', 'ochenta', 'noventa'];
+        $centenas = ['', 'ciento', 'doscientos', 'trescientos', 'cuatrocientos', 'quinientos', 'seiscientos', 'setecientos', 'ochocientos', 'novecientos'];
+        $especiales = [
+            11 => 'once', 12 => 'doce', 13 => 'trece', 14 => 'catorce', 15 => 'quince',
+            16 => 'dieciséis', 17 => 'diecisiete', 18 => 'dieciocho', 19 => 'diecinueve',
+            21 => 'veintiuno', 22 => 'veintidós', 23 => 'veintitrés', 24 => 'veinticuatro', 25 => 'veinticinco',
+            26 => 'veintiséis', 27 => 'veintisiete', 28 => 'veintiocho', 29 => 'veintinueve'
+        ];
+
+        $entero = intval($numero);
+        $decimales = intval(round(($numero - $entero) * 100));
+
+        if ($entero == 0) return 'cero';
+
+        $letras = '';
+
+        // Miles (si es necesario)
+        if ($entero >= 1000) {
+            $miles = intval($entero / 1000);
+            if ($miles == 1) {
+                $letras = 'mil';
+            } else {
+                $letras = $this->numeroALetras($miles) . ' mil';
+            }
+            $entero %= 1000;
+        }
+
+        // Centenas
+        if ($entero >= 100) {
+            if ($entero == 100) {
+                $letras .= ' cien';
+            } else {
+                $letras .= ' ' . $centenas[intval($entero / 100)];
+            }
+            $entero %= 100;
+        }
+
+        // Decenas y unidades
+        if ($entero > 0) {
+            if ($letras != '') $letras .= ' ';
+
+            if (isset($especiales[$entero])) {
+                $letras .= $especiales[$entero];
+            } elseif ($entero >= 10) {
+                if ($entero < 30) {
+                    $letras .= $decenas[$entero - 10];
+                } else {
+                    $letras .= $decenas[intval($entero / 10)];
+                    if ($entero % 10 > 0) {
+                        $letras .= ' y ' . $unidades[$entero % 10];
+                    }
+                }
+            } else {
+                $letras .= $unidades[$entero];
+            }
+        }
+
+        $resultado = trim($letras) . ' pesos';
+
+        // Agregar centavos si los hay
+        if ($decimales > 0) {
+            $resultado .= ' con ' . $decimales . '/100';
+        }
+
+        return $resultado;
     }
 }

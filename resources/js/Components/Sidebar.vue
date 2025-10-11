@@ -148,6 +148,9 @@
             <NavLink href="/prestamos/create" icon="plus" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Crear Préstamo' : null">
               Crear Préstamo
             </NavLink>
+            <NavLink href="/pagos" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Pagos de Préstamos' : null">
+              💳 Pagos de Préstamos
+            </NavLink>
           </div>
         </div>
 

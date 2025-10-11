@@ -6,6 +6,7 @@ use Inertia\Inertia;
 use Illuminate\Foundation\Application;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\PrestamoController;
+use App\Http\Controllers\PagoPrestamoController;
 use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\MarcaController;
@@ -167,6 +168,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::resource('prestamos', PrestamoController::class)->names('prestamos');
     Route::post('/prestamos/calcular-pagos', [PrestamoController::class, 'calcularPagos'])->name('prestamos.calcular-pagos');
     Route::patch('/prestamos/{prestamo}/cambiar-estado', [PrestamoController::class, 'cambiarEstado'])->name('prestamos.cambiar-estado');
+    Route::get('/prestamos/{prestamo}/pagare', [PrestamoController::class, 'generarPagare'])->name('prestamos.pagare');
+    Route::get('/prestamos/{prestamo}/pagos', [PagoPrestamoController::class, 'pagosPorPrestamo'])->name('prestamos.pagos');
+    Route::resource('pagos', PagoPrestamoController::class)->names('pagos');
     Route::resource('productos', ProductoController::class)->names('productos');
     Route::get('productos/{id}/stock-detalle', [ProductoController::class, 'getStockDetalle'])->name('productos.stock-detalle');
     Route::resource('proveedores', ProveedorController::class)->names('proveedores');

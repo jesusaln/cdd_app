@@ -39,6 +39,11 @@ onMounted(() => {
   if (flash?.success) notyf.success(flash.success)
   if (flash?.error) notyf.error(flash.error)
 
+  // Verificar si el préstamo puede ser editado
+  if (!props.prestamo.puede_ser_editado) {
+    notyf.error('Este préstamo no puede ser editado porque ya tiene pagos registrados')
+  }
+
   // Inicializar clienteSeleccionado con el cliente actual del préstamo
   if (props.prestamo.cliente_id) {
     const clienteActual = props.clientes.find(c => c.id === props.prestamo.cliente_id)
@@ -52,7 +57,7 @@ onMounted(() => {
 const form = ref({ ...props.prestamo })
 const loading = ref(false)
 const calculando = ref(false)
-const puedeEditarTerminos = ref(props.prestamo.pagos_realizados === 0)
+const puedeEditarTerminos = ref(props.puede_editar)
 const clienteSeleccionado = ref(null)
 
 /* =========================
@@ -174,7 +179,20 @@ const submitForm = () => {
 
   loading.value = true
 
-  router.put(`/prestamos/${props.prestamo.id}`, form.value, {
+  // Crear objeto solo con los campos necesarios
+  const datosPrestamo = {
+    cliente_id: form.value.cliente_id,
+    monto_prestado: form.value.monto_prestado,
+    tasa_interes_mensual: form.value.tasa_interes_mensual,
+    numero_pagos: form.value.numero_pagos,
+    frecuencia_pago: form.value.frecuencia_pago,
+    fecha_inicio: form.value.fecha_inicio,
+    fecha_primer_pago: form.value.fecha_primer_pago,
+    descripcion: form.value.descripcion,
+    notas: form.value.notas,
+  }
+
+  router.put(`/prestamos/${props.prestamo.id}`, datosPrestamo, {
     onStart: () => {
       notyf.success('Actualizando préstamo...')
     },

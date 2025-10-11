@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use OwenIt\Auditing\Auditable as AuditableTrait;
 use OwenIt\Auditing\Contracts\Auditable as AuditableContract;
@@ -68,6 +69,11 @@ class Prestamo extends Model implements AuditableContract
     public function cliente(): BelongsTo
     {
         return $this->belongsTo(Cliente::class);
+    }
+
+    public function pagos(): HasMany
+    {
+        return $this->hasMany(PagoPrestamo::class)->orderBy('numero_pago');
     }
 
     /**
@@ -218,6 +224,14 @@ class Prestamo extends Model implements AuditableContract
 
     public function actualizarEstado(): void
     {
+        // Recalcular pagos realizados y montos desde la tabla de pagos
+        $this->pagos_realizados = $this->pagos()->where('estado', 'pagado')->count();
+        $this->monto_pagado = $this->pagos()->where('estado', 'pagado')->sum('monto_pagado');
+
+        // Calcular pagos parciales
+        $pagosParciales = $this->pagos()->where('estado', 'parcial')->sum('monto_pagado');
+        $this->monto_pagado += $pagosParciales;
+
         if ($this->pagos_realizados >= $this->numero_pagos && $this->monto_pagado >= $this->monto_total_pagar) {
             $this->estado = 'completado';
         } elseif ($this->monto_pendiente <= 0) {
@@ -230,8 +244,81 @@ class Prestamo extends Model implements AuditableContract
         $this->save();
     }
 
+    /**
+     * Crear pagos programados para el préstamo
+     */
+    public function crearPagosProgramados(): void
+    {
+        if ($this->pagos()->exists()) {
+            return; // Ya existen pagos programados
+        }
+
+        $fechaActual = $this->fecha_primer_pago ?: $this->fecha_inicio;
+
+        for ($i = 1; $i <= $this->numero_pagos; $i++) {
+            $fechaProgramada = match($this->frecuencia_pago) {
+                'semanal' => $fechaActual->copy()->addWeeks($i - 1),
+                'quincenal' => $fechaActual->copy()->addWeeks(($i - 1) * 2),
+                'mensual' => $fechaActual->copy()->addMonths($i - 1),
+                default => $fechaActual->copy()->addMonths($i - 1),
+            };
+
+            PagoPrestamo::create([
+                'prestamo_id' => $this->id,
+                'numero_pago' => $i,
+                'monto_programado' => $this->pago_periodico,
+                'monto_pagado' => 0,
+                'fecha_programada' => $fechaProgramada,
+                'fecha_registro' => now()->toDateString(),
+                'estado' => 'pendiente',
+            ]);
+        }
+    }
+
+    /**
+     * Obtener próximo pago pendiente
+     */
+    public function getProximoPagoAttribute(): ?PagoPrestamo
+    {
+        return $this->pagos()
+            ->with('historialPagos')
+            ->whereIn('estado', ['pendiente', 'parcial'])
+            ->orderBy('fecha_programada')
+            ->first();
+    }
+
+    /**
+     * Obtener pagos atrasados
+     */
+    public function pagosAtrasados()
+    {
+        return $this->pagos()
+            ->vencidos()
+            ->orderBy('fecha_programada');
+    }
+
+    /**
+     * Verificar si tiene pagos atrasados
+     */
+    public function tienePagosAtrasados(): bool
+    {
+        return $this->pagosAtrasados()->exists();
+    }
+
     public function puedeSerEliminado(): bool
     {
         return $this->estado === 'cancelado' || ($this->pagos_realizados === 0 && $this->monto_pagado === 0);
+    }
+
+    public function puedeSerCancelado(): bool
+    {
+        // No se puede cancelar si ya tiene pagos registrados
+        return $this->pagos_realizados === 0 && $this->monto_pagado === 0;
+    }
+
+    public function puedeSerEditado(): bool
+    {
+        // No se puede editar si ya tiene pagos registrados
+        return $this->pagos_realizados === 0;
     }
 }
