@@ -16,7 +16,7 @@ return new class extends Migration
         // Solo para productos que no tienen registro en inventarios para su almacen_id
         DB::statement('
             INSERT INTO inventarios (producto_id, almacen_id, cantidad, stock_minimo, created_at, updated_at)
-            SELECT p.id, p.almacen_id, p.stock, 10, datetime(\'now\'), datetime(\'now\')
+            SELECT p.id, p.almacen_id, p.stock, 10, NOW(), NOW()
             FROM productos p
             WHERE p.almacen_id IS NOT NULL
             AND NOT EXISTS (
