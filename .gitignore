@@ -54,3 +54,55 @@ yarn-error.log
 # Mac OS
 # -----------------------------
 .DS_Store
+
+# =====================================================
+# SEGURIDAD ADICIONAL - WHATSAPP Y OTROS SERVICIOS
+# =====================================================
+
+# Archivos de configuración de desarrollo con información sensible
+whatsapp.dev.json
+*.dev.json
+config/development.php
+config/local.php
+
+# Tokens y claves de API (patrones adicionales)
+*token*
+*api_key*
+*secret*
+*password*
+*credential*
+
+# Backups de configuración sensible
+*.env.backup
+*.json.backup
+backup_*.json
+
+# Archivos temporales que pueden contener datos sensibles
+temp_*
+tmp_*
+*temp*
+
+# Configuración específica de servicios externos
+config/whatsapp.php
+config/facebook.php
+config/google.php
+
+# Logs adicionales que pueden contener información sensible
+storage/debugbar/*
+storage/clockwork/*
+*.log
+
+# =====================================================
+# PREVENCIÓN DE COMPROMISO DE INFORMACIÓN SENSIBLE
+# =====================================================
+
+# Archivos que NUNCA deben subirse a repositorios
+/SECRETS.txt
+/TOKENS.txt
+/CREDENTIALS.txt
+/PRIVATE_KEYS.txt
+
+# Configuración específica por ambiente
+.env.local
+.env.development
+.env.testing
