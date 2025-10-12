@@ -28,5 +28,21 @@ class Empresa extends Model
         'municipio',
         'estado',
         'pais',
+        // WhatsApp fields
+        'whatsapp_enabled',
+        'whatsapp_business_account_id',
+        'whatsapp_phone_number_id',
+        'whatsapp_sender_phone',
+        'whatsapp_access_token',
+        'whatsapp_app_secret',
+        'whatsapp_webhook_verify_token',
+        'whatsapp_default_language',
+        'whatsapp_template_payment_reminder',
+    ];
+
+    protected $casts = [
+        'whatsapp_access_token' => 'encrypted',
+        'whatsapp_app_secret' => 'encrypted',
+        'whatsapp_enabled' => 'boolean',
     ];
 }

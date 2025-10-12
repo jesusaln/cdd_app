@@ -16,6 +16,8 @@ use App\Http\Controllers\Api\VentaController;
 use App\Http\Controllers\Api\CitaController;
 use App\Http\Controllers\Api\TecnicoController;
 use App\Http\Controllers\Api\ServicioController;
+use App\Http\Controllers\WhatsAppWebhookController;
+use App\Http\Controllers\EmpresaWhatsAppController;
 // Eliminado: API de herramientas
 // use App\Http\Controllers\Api\HerramientaController;
 
@@ -118,6 +120,19 @@ Route::apiResource('tecnicos', TecnicoController::class)->names('api.tecnicos');
 Route::apiResource('servicios', ServicioController::class)->names('api.servicios');
 
 // Eliminado: rutas API de herramientas, asignaciones y alertas relacionadas
+
+// =====================================================
+// RUTAS DE WEBHOOKS WHATSAPP
+// =====================================================
+Route::prefix('webhooks')->name('api.webhooks.')->group(function () {
+    Route::get('/whatsapp', [WhatsAppWebhookController::class, 'verify'])->name('whatsapp.verify');
+    Route::post('/whatsapp', [WhatsAppWebhookController::class, 'receive'])->name('whatsapp.receive');
+});
+
+// =====================================================
+// RUTAS DE PRUEBA WHATSAPP
+// =====================================================
+Route::post('/whatsapp/test', [EmpresaWhatsAppController::class, 'test'])->name('whatsapp.test');
 
 // =====================================================
 // RUTAS PROTEGIDAS (Opcional - descomenta si necesitas autenticación)

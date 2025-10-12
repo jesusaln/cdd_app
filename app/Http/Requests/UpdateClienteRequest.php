@@ -80,7 +80,7 @@ class UpdateClienteRequest extends FormRequest
 
             'email' => [
                 'required',
-                'email:rfc,dns',
+                'email',
                 'max:255',
                 Rule::unique('clientes', 'email')->ignore($clienteId),
             ],

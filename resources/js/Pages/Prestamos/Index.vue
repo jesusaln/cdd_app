@@ -294,11 +294,71 @@ const registrarPago = (prestamoId) => {
 }
 
 const generarPagare = (prestamoId) => {
-  try {
-    router.visit(`/prestamos/${prestamoId}/pagare`)
-  } catch (error) {
-    notyf.error(error.message)
-  }
+   try {
+     router.visit(`/prestamos/${prestamoId}/pagare`)
+   } catch (error) {
+     notyf.error(error.message)
+   }
+}
+
+const enviarRecordatorioWhatsApp = async (prestamo) => {
+   try {
+     if (!prestamo.cliente?.telefono) {
+       notyf.error('El cliente no tiene número de teléfono registrado')
+       return
+     }
+
+     // Verificar que WhatsApp esté configurado
+     try {
+       const configResponse = await fetch('/api/whatsapp/test', {
+         method: 'POST',
+         headers: {
+           'Content-Type': 'application/json',
+           'Accept': 'application/json',
+         },
+         body: JSON.stringify({
+           telefono: prestamo.cliente.telefono,
+           mensaje: 'Verificación de configuración WhatsApp'
+         })
+       })
+
+       if (!configResponse.ok) {
+         const errorData = await configResponse.json()
+         notyf.error('WhatsApp no está configurado: ' + (errorData.message || 'Error de configuración'))
+         return
+       }
+     } catch (error) {
+       notyf.error('Error verificando configuración de WhatsApp')
+       return
+     }
+
+     // Confirmar envío
+     if (confirm(`¿Enviar recordatorio de pago por WhatsApp a ${prestamo.cliente.nombre_razon_social}?`)) {
+       try {
+         const response = await fetch(`/prestamos/${prestamo.id}/enviar-recordatorio-whatsapp`, {
+           method: 'POST',
+           headers: {
+             'Content-Type': 'application/json',
+             'Accept': 'application/json',
+             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+           }
+         })
+
+         const data = await response.json()
+
+         if (response.ok && data.success) {
+           notyf.success(data.message)
+         } else {
+           notyf.error('Error: ' + (data.message || 'Error desconocido'))
+         }
+       } catch (error) {
+         console.error('Error enviando recordatorio:', error)
+         notyf.error('Error de conexión: ' + error.message)
+       }
+     }
+   } catch (error) {
+     notyf.error(error.message)
+   }
 }
 
 // Configuración de estados para préstamos
@@ -573,18 +633,30 @@ const onEditarFila = () => { editarPrestamo(selectedPrestamo.value?.id) }
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
                         </button>
+<!-- Registrar pago (solo activos) -->
+ <button
+   v-if="prestamo.estado === 'activo'"
+   @click="registrarPago(prestamo.id)"
+   class="group/btn relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-1"
+   title="Registrar pago"
+ >
+   <svg class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+   </svg>
+ </button>
 
-                        <!-- Registrar pago (solo activos) -->
-                        <button
-                          v-if="prestamo.estado === 'activo'"
-                          @click="registrarPago(prestamo.id)"
-                          class="group/btn relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-1"
-                          title="Registrar pago"
-                        >
-                          <svg class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        </button>
+ <!-- Enviar recordatorio WhatsApp (solo activos con cliente) -->
+ <button
+   v-if="prestamo.estado === 'activo' && prestamo.cliente?.telefono"
+   @click="enviarRecordatorioWhatsApp(prestamo)"
+   class="group/btn relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:ring-offset-1"
+   title="Enviar recordatorio por WhatsApp"
+ >
+   <svg class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+   </svg>
+ </button>
+
 
                        
 

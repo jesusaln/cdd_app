@@ -22,6 +22,7 @@ const notyf = new Notyf({
 // Props
 const props = defineProps({
   configuracion: { type: Object, required: true },
+  empresa: { type: Object, default: null },
 })
 
 // Estado de la interfaz
@@ -145,6 +146,16 @@ const form = useForm({
   dkim_domain: props.configuracion.dkim_domain || 'asistenciavircom.com',
   dkim_public_key: props.configuracion.dkim_public_key || '',
   dkim_enabled: props.configuracion.dkim_enabled || false,
+  // Configuración WhatsApp
+  whatsapp_enabled: props.empresa?.whatsapp_enabled || false,
+  whatsapp_business_account_id: props.empresa?.whatsapp_business_account_id || '',
+  whatsapp_phone_number_id: props.empresa?.whatsapp_phone_number_id || '',
+  whatsapp_sender_phone: props.empresa?.whatsapp_sender_phone || '',
+  whatsapp_access_token: props.empresa?.whatsapp_access_token || '',
+  whatsapp_app_secret: props.empresa?.whatsapp_app_secret || '',
+  whatsapp_webhook_verify_token: props.empresa?.whatsapp_webhook_verify_token || '',
+  whatsapp_default_language: props.empresa?.whatsapp_default_language || 'es_MX',
+  whatsapp_template_payment_reminder: props.empresa?.whatsapp_template_payment_reminder || '',
 })
 
 // SEPOMEX: colonias obtenidas por CP y colonia seleccionada
@@ -211,6 +222,7 @@ const tabs = [
   { id: 'documentos', nombre: 'Documentos', icono: 'document-text' },
   { id: 'bancarios', nombre: 'Datos Bancarios', icono: 'credit-card' },
   { id: 'correo', nombre: 'Configuración de Correo', icono: 'envelope' },
+  { id: 'whatsapp', nombre: 'Configuración de WhatsApp', icono: 'chat' },
   { id: 'sistema', nombre: 'Sistema', icono: 'cog' },
   { id: 'seguridad', nombre: 'Seguridad', icono: 'shield-check' },
 ]
@@ -222,6 +234,7 @@ const tabIcons = {
   'document-text': 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
   'credit-card': 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z',
   envelope: 'M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
+  chat: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z',
   cog: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z',
   'shield-check': 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
 }
@@ -345,7 +358,82 @@ const eliminarLogoReportes = () => {
 
 // Método para guardar configuración
 const guardarConfiguracion = () => {
-  form.put(route('empresa-configuracion.update'), {
+  // Crear objeto con todos los datos incluyendo WhatsApp
+  const datosCompletos = {
+    // Datos de configuración de empresa
+    nombre_empresa: form.nombre_empresa,
+    rfc: form.rfc,
+    razon_social: form.razon_social,
+    calle: form.calle,
+    numero_exterior: form.numero_exterior,
+    numero_interior: form.numero_interior,
+    telefono: form.telefono,
+    email: form.email,
+    sitio_web: form.sitio_web,
+    codigo_postal: form.codigo_postal,
+    colonia: form.colonia,
+    ciudad: form.ciudad,
+    estado: form.estado,
+    pais: form.pais,
+    descripcion_empresa: form.descripcion_empresa,
+    color_principal: form.color_principal,
+    color_secundario: form.color_secundario,
+    pie_pagina_facturas: form.pie_pagina_facturas,
+    pie_pagina_cotizaciones: form.pie_pagina_cotizaciones,
+    terminos_condiciones: form.terminos_condiciones,
+    politica_privacidad: form.politica_privacidad,
+    iva_porcentaje: form.iva_porcentaje,
+    moneda: form.moneda,
+    formato_numeros: form.formato_numeros,
+    mantenimiento: form.mantenimiento,
+    mensaje_mantenimiento: form.mensaje_mantenimiento,
+    registro_usuarios: form.registro_usuarios,
+    notificaciones_email: form.notificaciones_email,
+    formato_fecha: form.formato_fecha,
+    formato_hora: form.formato_hora,
+    backup_automatico: form.backup_automatico,
+    frecuencia_backup: form.frecuencia_backup,
+    retencion_backups: form.retencion_backups,
+    intentos_login: form.intentos_login,
+    tiempo_bloqueo: form.tiempo_bloqueo,
+    requerir_2fa: form.requerir_2fa,
+    // Datos bancarios
+    banco: form.banco,
+    sucursal: form.sucursal,
+    cuenta: form.cuenta,
+    clabe: form.clabe,
+    titular: form.titular,
+    numero_cuenta: form.numero_cuenta,
+    numero_tarjeta: form.numero_tarjeta,
+    nombre_titular: form.nombre_titular,
+    informacion_adicional_bancaria: form.informacion_adicional_bancaria,
+    // Configuración de correo
+    smtp_host: form.smtp_host,
+    smtp_port: form.smtp_port,
+    smtp_username: form.smtp_username,
+    smtp_password: form.smtp_password,
+    smtp_encryption: form.smtp_encryption,
+    email_from_address: form.email_from_address,
+    email_from_name: form.email_from_name,
+    email_reply_to: form.email_reply_to,
+    // Configuración DKIM
+    dkim_selector: form.dkim_selector,
+    dkim_domain: form.dkim_domain,
+    dkim_public_key: form.dkim_public_key,
+    dkim_enabled: form.dkim_enabled,
+    // Configuración WhatsApp
+    whatsapp_enabled: form.whatsapp_enabled,
+    whatsapp_business_account_id: form.whatsapp_business_account_id,
+    whatsapp_phone_number_id: form.whatsapp_phone_number_id,
+    whatsapp_sender_phone: form.whatsapp_sender_phone,
+    whatsapp_access_token: form.whatsapp_access_token,
+    whatsapp_app_secret: form.whatsapp_app_secret,
+    whatsapp_webhook_verify_token: form.whatsapp_webhook_verify_token,
+    whatsapp_default_language: form.whatsapp_default_language,
+    whatsapp_template_payment_reminder: form.whatsapp_template_payment_reminder,
+  }
+
+  form.put(route('empresa-configuracion.update'), datosCompletos, {
     onSuccess: () => {
       notyf.success('Configuración guardada correctamente')
     },
@@ -431,6 +519,53 @@ const verificarConfiguracionCorreo = () => {
 
   console.log('✅ Configuración válida');
   return true;
+}
+
+// Método para probar configuración de WhatsApp
+const probarWhatsApp = async () => {
+  if (!form.whatsapp_enabled) {
+    notyf.error('Debe habilitar WhatsApp primero')
+    return
+  }
+
+  // Validar campos requeridos
+  const errores = []
+  if (!form.whatsapp_business_account_id) errores.push('Business Account ID')
+  if (!form.whatsapp_phone_number_id) errores.push('Phone Number ID')
+  if (!form.whatsapp_sender_phone) errores.push('Número de teléfono')
+  if (!form.whatsapp_access_token) errores.push('Access Token')
+  if (!form.whatsapp_app_secret) errores.push('App Secret')
+
+  if (errores.length > 0) {
+    notyf.error('Complete los siguientes campos: ' + errores.join(', '))
+    return
+  }
+
+  try {
+    const response = await fetch('/api/whatsapp/test', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+      },
+      body: JSON.stringify({
+        telefono: form.whatsapp_sender_phone,
+        mensaje: 'Mensaje de prueba - Configuración de WhatsApp funcionando correctamente'
+      })
+    })
+
+    const data = await response.json()
+
+    if (response.ok && data.success) {
+      notyf.success('Configuración válida: ' + data.message)
+    } else {
+      notyf.error('Error en configuración: ' + (data.message || 'Error desconocido'))
+    }
+  } catch (error) {
+    console.error('Error en prueba de WhatsApp:', error)
+    notyf.error('Error de conexión: ' + error.message)
+  }
 }
 
 // Método para probar configuración de correo
@@ -1909,6 +2044,244 @@ const tabActiva = computed(() => {
                           Las credenciales SMTP son información sensible. Asegúrese de que solo personal autorizado tenga acceso a esta configuración.
                         </p>
                       </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Configuración de WhatsApp -->
+            <div v-if="activeTab === 'whatsapp'" class="space-y-8">
+              <div>
+                <h2 class="text-xl font-semibold text-gray-900 mb-6">Configuración de WhatsApp Business</h2>
+                <p class="text-sm text-gray-600 mb-6">Configure la integración con WhatsApp Business API para envío automático de recordatorios</p>
+
+                <!-- Habilitar WhatsApp -->
+                <div class="mb-8">
+                  <div class="flex items-center">
+                    <input
+                      v-model="form.whatsapp_enabled"
+                      id="whatsapp_enabled"
+                      type="checkbox"
+                      class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                    />
+                    <label for="whatsapp_enabled" class="ml-2 block text-sm font-medium text-gray-700">
+                      Habilitar WhatsApp Business
+                    </label>
+                  </div>
+                  <p class="mt-1 text-sm text-gray-500">
+                    Active esta opción para habilitar el envío automático de recordatorios por WhatsApp
+                  </p>
+                </div>
+
+                <!-- Configuración de WhatsApp (solo visible si está habilitado) -->
+                <div v-if="form.whatsapp_enabled" class="space-y-6">
+                  <div class="border-t border-gray-200 pt-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Configuración de la API</h3>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <!-- Business Account ID -->
+                      <div>
+                        <label for="whatsapp_business_account_id" class="block text-sm font-medium text-gray-700 mb-2">
+                          Business Account ID *
+                        </label>
+                        <input
+                          v-model="form.whatsapp_business_account_id"
+                          id="whatsapp_business_account_id"
+                          type="text"
+                          placeholder="1234567890123456"
+                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        />
+                        <p class="mt-1 text-xs text-gray-500">Obtenible en Facebook Business Manager</p>
+                      </div>
+
+                      <!-- Phone Number ID -->
+                      <div>
+                        <label for="whatsapp_phone_number_id" class="block text-sm font-medium text-gray-700 mb-2">
+                          Phone Number ID *
+                        </label>
+                        <input
+                          v-model="form.whatsapp_phone_number_id"
+                          id="whatsapp_phone_number_id"
+                          type="text"
+                          placeholder="123456789012345"
+                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        />
+                        <p class="mt-1 text-xs text-gray-500">ID del número de WhatsApp Business</p>
+                      </div>
+
+                      <!-- Número de teléfono -->
+                      <div>
+                        <label for="whatsapp_sender_phone" class="block text-sm font-medium text-gray-700 mb-2">
+                          Número de Teléfono *
+                        </label>
+                        <input
+                          v-model="form.whatsapp_sender_phone"
+                          id="whatsapp_sender_phone"
+                          type="text"
+                          placeholder="+52551234567"
+                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        />
+                        <p class="mt-1 text-xs text-gray-500">Formato E.164 con código de país</p>
+                      </div>
+
+                      <!-- Idioma por defecto -->
+                      <div>
+                        <label for="whatsapp_default_language" class="block text-sm font-medium text-gray-700 mb-2">
+                          Idioma por Defecto
+                        </label>
+                        <select
+                          v-model="form.whatsapp_default_language"
+                          id="whatsapp_default_language"
+                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        >
+                          <option value="es_MX">Español (México)</option>
+                          <option value="en_US">English (US)</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Credenciales de seguridad -->
+                  <div class="border-t border-gray-200 pt-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Credenciales de Seguridad</h3>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <!-- Access Token -->
+                      <div class="md:col-span-2">
+                        <label for="whatsapp_access_token" class="block text-sm font-medium text-gray-700 mb-2">
+                          Access Token *
+                        </label>
+                        <textarea
+                          v-model="form.whatsapp_access_token"
+                          id="whatsapp_access_token"
+                          rows="3"
+                          placeholder="EAAG..."
+                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent font-mono text-sm"
+                        ></textarea>
+                        <p class="mt-1 text-xs text-gray-500">Token de acceso permanente de Facebook</p>
+                      </div>
+
+                      <!-- App Secret -->
+                      <div class="md:col-span-2">
+                        <label for="whatsapp_app_secret" class="block text-sm font-medium text-gray-700 mb-2">
+                          App Secret *
+                        </label>
+                        <textarea
+                          v-model="form.whatsapp_app_secret"
+                          id="whatsapp_app_secret"
+                          rows="3"
+                          placeholder="abcd1234..."
+                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent font-mono text-sm"
+                        ></textarea>
+                        <p class="mt-1 text-xs text-gray-500">Secreto de la aplicación de Facebook</p>
+                      </div>
+
+                      <!-- Webhook Verify Token -->
+                      <div>
+                        <label for="whatsapp_webhook_verify_token" class="block text-sm font-medium text-gray-700 mb-2">
+                          Token de Verificación Webhook *
+                        </label>
+                        <div class="flex space-x-2">
+                          <input
+                            v-model="form.whatsapp_webhook_verify_token"
+                            id="whatsapp_webhook_verify_token"
+                            type="text"
+                            placeholder="token123456"
+                            class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                          />
+                          <button
+                            type="button"
+                            @click="form.whatsapp_webhook_verify_token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)"
+                            class="px-3 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500"
+                          >
+                            Generar
+                          </button>
+                        </div>
+                        <p class="mt-1 text-xs text-gray-500">Token personalizado para verificar webhooks</p>
+                      </div>
+
+                      <!-- Plantilla de recordatorio -->
+                      <div>
+                        <label for="whatsapp_template_payment_reminder" class="block text-sm font-medium text-gray-700 mb-2">
+                          Plantilla de Recordatorio *
+                        </label>
+                        <select
+                          v-model="form.whatsapp_template_payment_reminder"
+                          id="whatsapp_template_payment_reminder"
+                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        >
+                          <option value="">Seleccionar plantilla...</option>
+                          <option value="payment_reminder">Recordatorio de Pago</option>
+                          <option value="welcome_message">Mensaje de Bienvenida</option>
+                          <option value="order_confirmation">Confirmación de Pedido</option>
+                        </select>
+                        <p class="mt-1 text-xs text-gray-500">Plantilla aprobada por Meta para recordatorios</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Información de ayuda -->
+                  <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h4 class="text-sm font-medium text-blue-900 mb-2">📋 Configuración Completa</h4>
+                    <div class="text-sm text-blue-800 space-y-2">
+                      <div class="flex items-start gap-2">
+                        <span class="text-green-600 mt-0.5">✅</span>
+                        <div>
+                          <p class="font-medium">1. Credenciales Configuradas</p>
+                          <p class="text-xs">Phone Number ID, Business Account ID y Access Token configurados</p>
+                        </div>
+                      </div>
+                      <div class="flex items-start gap-2">
+                        <span class="text-green-600 mt-0.5">✅</span>
+                        <div>
+                          <p class="font-medium">2. Webhook Listo</p>
+                          <p class="text-xs">Token de verificación generado y rutas API configuradas</p>
+                        </div>
+                      </div>
+                      <div class="flex items-start gap-2">
+                        <span class="text-green-600 mt-0.5">✅</span>
+                        <div>
+                          <p class="font-medium">3. Plantilla Configurada</p>
+                          <p class="text-xs">Plantilla "recordarorio_de_instalacion" configurada y aprobada</p>
+                        </div>
+                      </div>
+                      <div class="flex items-start gap-2">
+                        <span class="text-yellow-600 mt-0.5">⏳</span>
+                        <div>
+                          <p class="font-medium">4. Webhook en Meta</p>
+                          <p class="text-xs">Configura el webhook en Facebook Business Manager</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Botón de prueba -->
+                  <div class="p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <h4 class="text-sm font-medium text-green-800">Probar Configuración</h4>
+                        <p class="text-sm text-green-700 mt-1">
+                          Valida que todas las credenciales estén configuradas correctamente
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        @click="probarWhatsApp"
+                        class="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
+                      >
+                        🧪 Probar Configuración
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Información del webhook configurado -->
+                  <div v-if="empresa?.whatsapp_webhook_verify_token" class="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                    <h4 class="text-sm font-medium text-purple-900 mb-2">🔗 Webhook Configurado</h4>
+                    <div class="text-sm text-purple-800 space-y-1">
+                      <p><strong>URL del webhook:</strong> <code class="bg-purple-100 px-1 rounded">https://sudominio.com/api/webhooks/whatsapp</code></p>
+                      <p><strong>Token de verificación:</strong> <code class="bg-purple-100 px-1 rounded">{{ empresa.whatsapp_webhook_verify_token }}</code></p>
+                      <p><strong>Estado:</strong> <span class="text-green-600 font-medium">✅ Configurado en Meta Business</span></p>
                     </div>
                   </div>
                 </div>

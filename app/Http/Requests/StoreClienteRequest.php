@@ -75,7 +75,7 @@ class StoreClienteRequest extends FormRequest
 
             'email' => [
                 'required',
-                'email:rfc,dns',
+                'email',
                 'max:255',
                 'unique:clientes,email',
             ],

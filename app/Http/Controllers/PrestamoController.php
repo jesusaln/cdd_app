@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Inertia\Inertia;
 use App\Models\Prestamo;
 use App\Models\Cliente;
+use App\Models\Empresa;
+use App\Jobs\SendWhatsAppTemplate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -582,5 +584,86 @@ class PrestamoController extends Controller
         }
 
         return $resultado;
+    }
+
+    /**
+     * Enviar recordatorio por WhatsApp
+     */
+    public function enviarRecordatorioWhatsApp(Request $request, Prestamo $prestamo)
+    {
+        try {
+            // Verificar que el préstamo esté activo
+            if ($prestamo->estado !== 'activo') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Solo se pueden enviar recordatorios para préstamos activos'
+                ], 400);
+            }
+
+            // Verificar que el cliente tenga teléfono
+            if (!$prestamo->cliente->telefono) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El cliente no tiene número de teléfono registrado'
+                ], 400);
+            }
+
+            // Obtener empresa para configuración de WhatsApp
+            $empresa = Empresa::first();
+
+            if (!$empresa || !$empresa->whatsapp_enabled) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'WhatsApp no está configurado para esta empresa'
+                ], 400);
+            }
+
+            // Preparar parámetros para la plantilla
+            // Nota: Ajustar según los parámetros que acepte la plantilla
+            // Para plantilla "saludo", usar solo el nombre del cliente
+            $templateParams = [
+                $prestamo->cliente->nombre_razon_social,
+            ];
+
+            // Formatear número de teléfono para WhatsApp
+            $telefonoOriginal = $prestamo->cliente->telefono;
+            $telefonoFormateado = \App\Services\WhatsAppService::formatPhoneToE164($telefonoOriginal);
+
+            // Despachar job para envío
+            SendWhatsAppTemplate::dispatch(
+                $empresa->id,
+                $telefonoOriginal, // El servicio formateará automáticamente
+                $empresa->whatsapp_template_payment_reminder,
+                $empresa->whatsapp_default_language,
+                $templateParams,
+                [
+                    'tipo' => 'recordatorio_prestamo',
+                    'prestamo_id' => $prestamo->id,
+                ]
+            );
+
+            Log::info('Recordatorio WhatsApp programado', [
+                'prestamo_id' => $prestamo->id,
+                'cliente_id' => $prestamo->cliente_id,
+                'cliente_telefono' => $telefonoOriginal,
+                'telefono_formateado' => $telefonoFormateado,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Recordatorio enviado por WhatsApp a ' . $prestamo->cliente->nombre_razon_social
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error al enviar recordatorio WhatsApp', [
+                'prestamo_id' => $prestamo->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al enviar recordatorio: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

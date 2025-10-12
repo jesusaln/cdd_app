@@ -1010,7 +1010,8 @@ const submit = () => {
     return
   }
 
-  // Normalizar datos para el backend
+  // Normalizar email y datos para el backend
+  normalizeEmail()
   const dataToSend = normalizeForBackend(form.data())
 
   // Usar PUT/PATCH para actualización

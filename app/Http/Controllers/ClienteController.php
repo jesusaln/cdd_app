@@ -116,7 +116,9 @@ class ClienteController extends Controller
 
     private function estadosSatCsv(): string
     {
-        return implode(',', array_keys($this->getEstadosMexico())); // "AGU,BCN,..."
+        return implode(',', array_map(function($estado) {
+            return '"' . $estado . '"';
+        }, array_keys($this->getEstadosMexico()))); // "AGU,BCN,..."
     }
 
     private function formatForVueSelect(array $options, bool $includeEmpty = false, bool $showCode = false): array
@@ -161,8 +163,15 @@ class ClienteController extends Controller
     private function getEstadoNombre(?string $clave): ?string
     {
         if (!$clave) return null;
-        $est = $this->getEstadosMexico();
-        return $est[$clave] ?? $clave;
+
+        // Si la clave tiene 3 caracteres, buscar en la tabla SAT
+        if (strlen($clave) === 3) {
+            $est = $this->getEstadosMexico();
+            return $est[$clave] ?? $clave;
+        }
+
+        // Si es texto más largo, devolver tal cual (nuevo formato)
+        return $clave;
     }
 
     private function getCatalogData(): array
@@ -316,11 +325,12 @@ class ClienteController extends Controller
                 $tipo = request()->input('tipo_persona');
                 $rf = SatRegimenFiscal::find($value);
                 if (!$rf) return; // exists ya fallará
+
                 if ($tipo === 'fisica' && !$rf->persona_fisica) {
-                    $fail('El régimen fiscal no es válido para Persona Física.');
+                    $fail("El régimen fiscal '{$rf->clave} - {$rf->descripcion}' no es válido para Persona Física. Selecciona un régimen fiscal para personas físicas.");
                 }
                 if ($tipo === 'moral' && !$rf->persona_moral) {
-                    $fail('El régimen fiscal no es válido para Persona Moral.');
+                    $fail("El régimen fiscal '{$rf->clave} - {$rf->descripcion}' no es válido para Persona Moral. Selecciona un régimen fiscal para personas morales.");
                 }
             },
         ];
@@ -336,7 +346,7 @@ class ClienteController extends Controller
             'rfc'                 => $this->getRfcValidationRules($clienteId),
             'regimen_fiscal'      => $this->getRegimenFiscalValidationRules(),
             'uso_cfdi'            => 'required|string|exists:sat_usos_cfdi,clave',
-            'email'               => ['required', 'email:rfc,dns', 'max:255'],
+            'email'               => ['required', 'email', 'max:255'],
             'telefono'            => 'nullable|string|size:10|regex:/^[0-9]{10}$/',
             'calle'               => 'required|string|max:255',
             'numero_exterior'     => 'required|string|max:20',
@@ -344,7 +354,7 @@ class ClienteController extends Controller
             'colonia'             => 'required|string|max:255',
             'codigo_postal'       => 'required|string|size:5|regex:/^[0-9]{5}$/',
             'municipio'           => 'required|string|max:255',
-            'estado'              => "required|string|size:3|in:$estadosCsv", // clave SAT (3 letras)
+            'estado'              => "required|string|min:2|max:255", // nombre completo del estado (sin validaciones estrictas)
             'pais'                => 'required|string|in:' . self::DEFAULT_COUNTRY,
             'notas'               => 'nullable|string|max:1000',
             'activo'              => 'boolean',
@@ -376,7 +386,7 @@ class ClienteController extends Controller
             'codigo_postal.regex'          => 'El código postal debe contener solo números.',
             'municipio.required'           => 'El municipio es obligatorio.',
             'estado.required'              => 'El estado es obligatorio.',
-            'estado.in'                    => 'El estado seleccionado no es válido.',
+            'estado.min'                   => 'El estado es obligatorio y debe tener al menos 2 caracteres.',
             'pais.required'                => 'El país es obligatorio.',
             'pais.in'                      => 'El país debe ser ' . self::DEFAULT_COUNTRY . '.',
             'notas.max'                    => 'Las notas no pueden exceder 1000 caracteres.',
@@ -388,8 +398,12 @@ class ClienteController extends Controller
         $c->tipo_persona_nombre   = $this->getTipoPersonaNombre($c->tipo_persona);
         $c->regimen_fiscal_nombre = $c->regimen?->descripcion ?? $this->getRegimenFiscalNombre($c->regimen_fiscal);
         $c->uso_cfdi_nombre       = $c->uso?->descripcion ?? $this->getUsoCFDINombre($c->uso_cfdi);
-        $c->estado_nombre         = $c->estadoSat?->nombre ?? $this->getEstadoNombre($c->estado);
-        $c->estado_texto          = $c->activo ? 'Activo' : 'Inactivo';
+
+        // Para el estado, usar el valor tal cual si no se encuentra en la tabla SAT
+        // Esto permite que funcione tanto con códigos como con nombres completos
+        $c->estado_nombre = $c->estadoSat?->nombre ?? $c->estado;
+        $c->estado_texto  = $c->activo ? 'Activo' : 'Inactivo';
+
         return $c;
     }
 
@@ -662,12 +676,14 @@ class ClienteController extends Controller
             $cliente->update($data);
 
             // Validar que el cliente actualizado tenga datos completos para CFDI
+            // Pero NO bloquear la actualización si hay errores de CFDI
             $erroresCfdi = $cliente->fresh()->validarParaCfdi();
             if (!empty($erroresCfdi)) {
-                DB::rollBack();
-                throw ValidationException::withMessages([
-                    'cfdi' => 'El cliente no cumple con los requisitos para facturación CFDI: ' . implode(', ', $erroresCfdi)
+                Log::warning('Cliente actualizado pero no cumple requisitos CFDI', [
+                    'cliente_id' => $cliente->id,
+                    'errores_cfdi' => $erroresCfdi,
                 ]);
+                // No lanzar excepción, solo loguear advertencia
             }
 
             // Integrar o actualizar en Facturapi si es necesario
@@ -888,10 +904,19 @@ class ClienteController extends Controller
 
             $opciones = [['value' => '', 'label' => 'Selecciona una opción']];
             foreach ($validos as $r) {
-                $opciones[] = ['value' => $r->clave, 'label' => "{$r->clave} - {$r->descripcion}"];
+                $opciones[] = [
+                    'value' => $r->clave,
+                    'label' => "{$r->clave} - {$r->descripcion}",
+                    'tipo_persona' => $tipoPersona
+                ];
             }
 
-            return response()->json(['success' => true, 'regimenes' => $opciones]);
+            return response()->json([
+                'success' => true,
+                'regimenes' => $opciones,
+                'tipo_persona' => $tipoPersona,
+                'total' => $validos->count()
+            ]);
         } catch (Exception $e) {
             Log::error('Error obteniendo regímenes fiscales: ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => 'Error interno del servidor'], 500);

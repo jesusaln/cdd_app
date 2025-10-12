@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\EmpresaConfiguracion;
+use App\Models\Empresa;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -20,9 +21,21 @@ class EmpresaConfiguracionController extends Controller
     public function index()
     {
         $configuracion = EmpresaConfiguracion::getConfig();
+        $empresa = Empresa::first();
 
         return Inertia::render('EmpresaConfiguracion/Index', [
             'configuracion' => $configuracion,
+            'empresa' => $empresa ? $empresa->only([
+                'whatsapp_enabled',
+                'whatsapp_business_account_id',
+                'whatsapp_phone_number_id',
+                'whatsapp_sender_phone',
+                'whatsapp_access_token',
+                'whatsapp_app_secret',
+                'whatsapp_webhook_verify_token',
+                'whatsapp_default_language',
+                'whatsapp_template_payment_reminder',
+            ]) : null,
         ]);
     }
 
@@ -98,6 +111,16 @@ class EmpresaConfiguracionController extends Controller
             'dkim_domain' => 'nullable|string|max:255',
             'dkim_public_key' => 'nullable|string|max:2000',
             'dkim_enabled' => 'nullable|boolean',
+            // Configuración WhatsApp
+            'whatsapp_enabled' => 'nullable|boolean',
+            'whatsapp_business_account_id' => 'nullable|string|max:255',
+            'whatsapp_phone_number_id' => 'nullable|string|max:255',
+            'whatsapp_sender_phone' => 'nullable|string|max:20|regex:/^\+[1-9]\d{1,14}$/',
+            'whatsapp_access_token' => 'nullable|string',
+            'whatsapp_app_secret' => 'nullable|string|max:255',
+            'whatsapp_webhook_verify_token' => 'nullable|string|max:255',
+            'whatsapp_default_language' => 'nullable|string|in:es_MX,en_US',
+            'whatsapp_template_payment_reminder' => 'nullable|string|max:255',
         ]);
 
         if ($validator->fails()) {
@@ -132,8 +155,40 @@ class EmpresaConfiguracionController extends Controller
             $data[$b] = $request->boolean($b);
         }
 
+        // Separar datos de configuración de empresa y WhatsApp
+        $configData = collect($data)->except([
+            'whatsapp_enabled',
+            'whatsapp_business_account_id',
+            'whatsapp_phone_number_id',
+            'whatsapp_sender_phone',
+            'whatsapp_access_token',
+            'whatsapp_app_secret',
+            'whatsapp_webhook_verify_token',
+            'whatsapp_default_language',
+            'whatsapp_template_payment_reminder',
+        ])->toArray();
+
+        $whatsappData = collect($data)->only([
+            'whatsapp_enabled',
+            'whatsapp_business_account_id',
+            'whatsapp_phone_number_id',
+            'whatsapp_sender_phone',
+            'whatsapp_access_token',
+            'whatsapp_app_secret',
+            'whatsapp_webhook_verify_token',
+            'whatsapp_default_language',
+            'whatsapp_template_payment_reminder',
+        ])->filter()->toArray(); // Remover valores nulos
+
+        // Actualizar configuración de empresa
         $configuracion = EmpresaConfiguracion::getConfig();
-        $configuracion->update($data);
+        $configuracion->update($configData);
+
+        // Actualizar configuración de WhatsApp en empresa
+        $empresa = Empresa::first();
+        if ($empresa) {
+            $empresa->update($whatsappData);
+        }
 
         return redirect()->route('empresa-configuracion.index')->with('success', 'Configuración actualizada correctamente.');
     }

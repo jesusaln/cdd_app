@@ -1,0 +1,50 @@
+{
+  "_comment": "Archivo de configuración de desarrollo para WhatsApp",
+  "_warning": "NUNCA comprometas este archivo en producción. Usa variables de entorno.",
+  "_instructions": "Copia este archivo y renómbralo según config/whatsapp.php",
+
+  "empresa_1": {
+    "_comment": "Configuración para la primera empresa (Climas del Desierto)",
+    "business_account_id": "122996247574932",
+    "phone_number_id": "181046901751521",
+    "access_token": "EAAtsyGzO6SkBPoXDZCmAeFeE5mQasMSm1ENZC4d92YWlKZCHosDCiZCB18z1ajmfLgdaNmA23ZAJfUWk8QX8AzxeSdzJjbkFqvv0fXlIgdSF2brM5pRp9ssZB595GO2VuxlHZAHM4FDi9yTp0TlA7UPHe8JgWZAZBol6IoyZAOzu5YTn4e3LtQHxvduJoCOCi11gZDZD",
+    "phone_number": "+15551005496",
+    "default_template": "saludo",
+    "notes": "Token válido hasta nueva expiración"
+  },
+
+  "development_notes": {
+    "last_updated": "2025-10-11",
+    "token_source": "System User creado en Meta Business",
+    "permissions": [
+      "whatsapp_business_messaging",
+      "business_management"
+    ],
+    "expires": "No expira (System User)",
+    "phone_numbers_tested": [
+      "+526622036840",
+      "+52551234567"
+    ]
+  },
+
+  "templates_available": [
+    {
+      "name": "saludo",
+      "status": "APPROVED",
+      "parameters": 1,
+      "description": "Mensaje de saludo básico"
+    },
+    {
+      "name": "mensaje_de_bienvenida_climas_del_desierto",
+      "status": "APPROVED",
+      "parameters": 0,
+      "description": "Mensaje de bienvenida para clientes"
+    },
+    {
+      "name": "hello_world",
+      "status": "APPROVED",
+      "parameters": 0,
+      "description": "Plantilla básica de prueba"
+    }
+  ]
+}

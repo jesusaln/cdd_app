@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Foundation\Application;
 use App\Http\Controllers\ClienteController;
@@ -58,6 +59,8 @@ use App\Http\Controllers\EmpresaConfiguracionController;
 use App\Http\Controllers\CategoriaHerramientaController;
 use App\Http\Controllers\VacacionController;
 use App\Http\Controllers\RegistroVacacionesController;
+use App\Http\Controllers\EmpresaWhatsAppController;
+use App\Models\Empresa;
 
 // Forzar patrón numérico para {herramienta} y evitar colisiones con rutas estáticas
 Route::pattern('herramienta', '[0-9]+');
@@ -171,6 +174,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::post('/prestamos/calcular-pagos', [PrestamoController::class, 'calcularPagos'])->name('prestamos.calcular-pagos');
     Route::patch('/prestamos/{prestamo}/cambiar-estado', [PrestamoController::class, 'cambiarEstado'])->name('prestamos.cambiar-estado');
     Route::get('/prestamos/{prestamo}/pagare', [PrestamoController::class, 'generarPagare'])->name('prestamos.pagare');
+    Route::post('/prestamos/{prestamo}/enviar-recordatorio-whatsapp', [PrestamoController::class, 'enviarRecordatorioWhatsApp'])
+        ->withoutMiddleware([\App\Http\Middleware\CustomVerifyCsrfToken::class, \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class, 'auth:sanctum', config('jetstream.auth_session'), 'verified'])
+        ->name('prestamos.enviar-recordatorio-whatsapp');
     Route::get('/prestamos/{prestamo}/pagos', [PagoPrestamoController::class, 'pagosPorPrestamo'])->name('prestamos.pagos');
     Route::resource('pagos', PagoPrestamoController::class)->names('pagos');
     Route::resource('productos', ProductoController::class)->names('productos');
@@ -514,8 +520,6 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // =====================================================
     // RUTAS BACKUP
     // =====================================================
-
-
     Route::middleware(['auth', 'can:manage-backups'])
         ->prefix('admin/backup')
         ->name('backup.')
@@ -527,6 +531,19 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
             Route::post('/restore/{filename}', [DatabaseBackupController::class, 'restore'])->name('restore');
             Route::post('/clean', [DatabaseBackupController::class, 'clean'])->name('clean');
             Route::get('/monitoring', [DatabaseBackupController::class, 'monitoring'])->name('monitoring');
+        });
+
+    // =====================================================
+    // RUTAS DE CONFIGURACIÓN WHATSAPP
+    // =====================================================
+    Route::middleware(['auth'])
+        ->prefix('admin/whatsapp')
+        ->name('admin.whatsapp.')
+        ->group(function () {
+            Route::get('/configuracion', [EmpresaWhatsAppController::class, 'index'])->name('configuracion');
+            Route::post('/test', [EmpresaWhatsAppController::class, 'test'])
+                ->withoutMiddleware([\App\Http\Middleware\CustomVerifyCsrfToken::class])
+                ->name('test');
         });
 
 
