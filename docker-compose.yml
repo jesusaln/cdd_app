@@ -1,51 +1,97 @@
+# ===========================
+# 🧱 CDD App - Producción
+# Laravel + PostgreSQL + Redis + Queue
+# ===========================
+
 services:
   app:
     build:
       context: .
       dockerfile: Dockerfile
-      args: [ APP_ENV=production, BUILD_ASSETS=false ]
-    env_file: [ .env ]
+      args:
+        APP_ENV: production
+        BUILD_ASSETS: false
+    env_file:
+      - .env
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_started
-    ports: [ "8080:80" ]
-    restart: unless-stopped
+    ports:
+      - "8080:80"
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - cdd_network
+    volumes:
+      # opcional si usas storage persistente local
+      # - ./storage:/var/www/html/storage
+      # - ./public:/var/www/html/public
+      # o solo para logs persistentes
+      # - ./storage/logs:/var/www/html/storage/logs
 
   queue:
     build:
       context: .
       dockerfile: Dockerfile
-      args: [ APP_ENV=production, BUILD_ASSETS=false ]
+      args:
+        APP_ENV: production
+        BUILD_ASSETS: false
     command: php artisan queue:work --sleep=1 --tries=3
-    env_file: [ .env ]
+    env_file:
+      - .env
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_started
-    restart: unless-stopped
+    restart: always
+    networks:
+      - cdd_network
 
   db:
     image: postgres:16
-    env_file: [ .env ]
+    env_file:
+      - .env
     volumes:
       - db_data:/var/lib/postgresql/data
-    ports: [ "5433:5432" ]
+    ports:
+      - "5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB -h 127.0.0.1"]
-      interval: 5s
-      timeout: 3s
+      interval: 10s
+      timeout: 5s
       retries: 10
-    restart: unless-stopped
+    restart: always
+    networks:
+      - cdd_network
 
   redis:
     image: redis:7
     command: ["redis-server", "--appendonly", "yes"]
-    volumes: [ "redis_data:/data" ]
-    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    restart: always
+    networks:
+      - cdd_network
+
+# ===========================
+# 🧩 Volúmenes persistentes
+# ===========================
 
 volumes:
   db_data:
   redis_data:
+
+# ===========================
+# 🌐 Red interna del stack
+# ===========================
+
+networks:
+  cdd_network:
+    driver: bridge
