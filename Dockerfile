@@ -1,57 +1,75 @@
-# Usar imagen oficial de PHP 8.2 con FPM
-FROM php:8.2-fpm
+# ===== Stage 0: variables y hints =====
+# Habilita BuildKit: DOCKER_BUILDKIT=1 docker build ...
+# Usa --build-arg APP_ENV=production para cachear mejor
+ARG APP_ENV=production
 
-# Instalar dependencias del sistema
-RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    libpng-dev \
-    libonig-dev \
-    libxml2-dev \
-    libzip-dev \
-    zip \
-    unzip \
-    nodejs \
-    npm \
-    sqlite3 \
-    libsqlite3-dev \
-    postgresql-client \
-    && docker-php-ext-install pdo_mysql pdo_sqlite pdo_pgsql mbstring exif pcntl bcmath gd zip
+# ===== Stage 1: Composer (con cache) =====
+FROM composer:2 AS vendor
+WORKDIR /app
+ENV COMPOSER_ALLOW_SUPERUSER=1 \
+    COMPOSER_NO_INTERACTION=1 \
+    COMPOSER_CACHE_DIR=/tmp/composer-cache
 
-# Instalar Composer
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+# solo estos archivos invalidan la capa de vendor
+COPY composer.json composer.lock ./
 
-# Crear usuario no-root para seguridad
-RUN groupadd -g 1000 appuser && useradd -r -u 1000 -g appuser appuser
+# cache mount acelera composer install
+RUN --mount=type=cache,target=/tmp/composer-cache \
+    composer install --no-dev --prefer-dist --no-progress --no-scripts
 
-# Establecer directorio de trabajo
-WORKDIR /var/www
+# ahora sí copia el resto
+COPY . .
 
-# Copiar archivos de configuración de PHP
-COPY docker/php.ini /usr/local/etc/php/conf.d/app.ini
+# vuelve a instalar por si apareció algún paquete extra (suele ser no-op)
+RUN --mount=type=cache,target=/tmp/composer-cache \
+    composer install --no-dev --prefer-dist --no-progress --optimize-autoloader
 
-# Copiar archivos del proyecto
-COPY --chown=appuser:appuser . .
+# ===== Stage 2: Node para assets (opcional si usas Vite/Laravel Mix) =====
+FROM node:20-slim AS assets
+WORKDIR /app
+COPY package.json package-lock.json* pnpm-lock.yaml* yarn.lock* .npmrc* ./
+RUN --mount=type=cache,target=/root/.npm \
+    if [ -f package-lock.json ]; then npm ci; \
+    elif [ -f pnpm-lock.yaml ]; then npm i -g pnpm && pnpm i --frozen-lockfile; \
+    elif [ -f yarn.lock ]; then npm i -g yarn && yarn install --frozen-lockfile; \
+    else echo "No lockfile. Skipping."; fi
+COPY . .
+# Ajusta al comando real de tu proyecto (vite build / mix / etc.)
+RUN if [ -f package.json ]; then npm run build || true; fi
 
-# Instalar dependencias de PHP
-RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
+# ===== Stage 3: Runtime PHP 8.3 + Apache =====
+FROM php:8.3-apache
 
-# Instalar dependencias de Node.js y construir assets
-RUN npm ci && npm run build
+# Extensiones necesarias para Laravel + Excel
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      libpq-dev libzip-dev unzip git \
+      libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
+  && docker-php-ext-install pdo pdo_pgsql zip \
+  && docker-php-ext-configure gd --with-freetype --with-jpeg \
+  && docker-php-ext-install gd \
+  && pecl install redis \
+  && docker-php-ext-enable redis \
+  && a2enmod rewrite \
+  && rm -rf /var/lib/apt/lists/*
 
-# Crear directorio de storage y asignar permisos
-RUN mkdir -p storage/app storage/framework/cache storage/framework/sessions storage/framework/views storage/logs \
-    && chown -R appuser:appuser storage bootstrap/cache \
-    && chmod -R 775 storage bootstrap/cache
+# Sirve /public
+RUN sed -i 's#/var/www/html#/var/www/html/public#' /etc/apache2/sites-available/000-default.conf
+WORKDIR /var/www/html
 
-# Crear enlace simbólico para storage
-RUN php artisan storage:link || true
+# Copia app + vendor desde Stage 1
+COPY --from=vendor /app /var/www/html
 
-# Cambiar al usuario no-root
-USER appuser
+# Copia assets construidos (si existen)
+COPY --from=assets /app/public/build /var/www/html/public/build
 
-# Exponer puerto
-EXPOSE 8000
+# Permisos mínimos
+RUN chown -R www-data:www-data storage bootstrap/cache
 
-# Comando por defecto
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+# (Opcional) Precalentar cachés de Laravel en build usando .env de ejemplo
+# Evita tiempos extra en primer arranque (ajusta si no quieres esto en build)
+ARG APP_ENV
+ENV APP_ENV=${APP_ENV}
+RUN php -v && php -m \
+ && rm -f .env || true
+
+EXPOSE 80
