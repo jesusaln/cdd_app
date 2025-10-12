@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args: [ APP_ENV=production ]
+      args: [ APP_ENV=production, BUILD_ASSETS=false ]
     env_file: [ .env ]
     depends_on:
       db:
@@ -17,9 +17,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args: [ APP_ENV=production ]
+      args: [ APP_ENV=production, BUILD_ASSETS=false ]
     command: php artisan queue:work --sleep=1 --tries=3
-    env_file: [ .env ]
+    env_file: [ stack.env ]
     depends_on:
       db:
         condition: service_healthy
@@ -29,7 +29,7 @@ services:
 
   db:
     image: postgres:16
-    env_file: [ .env ]
+    env_file: [ stack.env ]
     volumes:
       - db_data:/var/lib/postgresql/data
     ports: [ "5433:5432" ]

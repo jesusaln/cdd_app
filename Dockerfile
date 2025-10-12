@@ -33,16 +33,17 @@ WORKDIR /app
 # Copiamos TODO primero (evita fallos si no existe package.json)
 COPY . .
 
-# Solo si se pidió construir assets y existe package.json
-RUN if [ "$BUILD_ASSETS" = "true" ] && [ -f package.json ]; then \
-    if [ -f package-lock.json ]; then \
-    --mount=type=cache,target=/root/.npm npm ci; \
+# Siempre asegura el directorio para que el COPY no falle
+RUN mkdir -p public/build && \
+    if [ "$BUILD_ASSETS" = "true" ] && [ -f package.json ]; then \
+      if [ -f package-lock.json ]; then \
+        --mount=type=cache,target=/root/.npm npm ci; \
+      else \
+        --mount=type=cache,target=/root/.npm npm install --no-audit --no-fund; \
+      fi && \
+      npm run build || true; \
     else \
-    --mount=type=cache,target=/root/.npm npm install --no-audit --no-fund; \
-    fi && \
-    npm run build || true; \
-    else \
-    echo "Omitiendo build de assets"; \
+      echo "Omitiendo build de assets"; \
     fi
 
 # ===== Stage 3: Runtime PHP 8.3 + Apache =====
