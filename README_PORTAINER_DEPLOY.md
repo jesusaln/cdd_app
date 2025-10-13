@@ -47,6 +47,8 @@ Este script eliminará:
 
 ### Paso 2: Configuración del Stack
 
+**⚠️ IMPORTANTE**: El archivo `docker-compose.yml` ha sido actualizado para usar variables de entorno directamente en lugar de archivos `.env`. Esto evita problemas comunes de despliegue.
+
 **Copia el siguiente contenido en el editor web de Portainer**:
 
 ```yaml
@@ -162,10 +164,14 @@ networks:
 
 ### Paso 3: Variables de Entorno en Portainer
 
-**Ve a la pestaña "Environment variables" y agrega**:
+**IMPORTANTE**: Ahora las variables se configuran directamente en el formulario de Portainer, no mediante archivos `.env`.
+
+**Ve a la pestaña "Environment variables" y agrega todas las siguientes variables**:
 
 ```bash
-# Aplicación
+# ======================================================
+# 📱 Información de la Aplicación
+# ======================================================
 APP_NAME=Climas del Desierto
 APP_ENV=production
 APP_KEY=base64:CDD_20241012_abcdef1234567890
@@ -173,35 +179,74 @@ APP_DEBUG=false
 APP_TIMEZONE=America/Hermosillo
 APP_URL=https://portainer.asistenciavircom.com
 
-# Base de Datos
+# ======================================================
+# 🗄️ Base de Datos PostgreSQL
+# ======================================================
 DB_CONNECTION=pgsql
 DB_HOST=db
 DB_PORT=5432
 DB_DATABASE=cdd_production
 DB_USERNAME=cdd_user
-DB_PASSWORD=tu_password_seguro_aqui
+DB_PASSWORD=CAMBIA_ESTE_PASSWORD_SEGURO_2024!
 
 POSTGRES_DB=cdd_production
 POSTGRES_USER=cdd_user
-POSTGRES_PASSWORD=tu_password_seguro_aqui
+POSTGRES_PASSWORD=CAMBIA_ESTE_PASSWORD_SEGURO_2024!
 
-# Redis
+# ======================================================
+# ⚡ Redis (Cache y Sesiones)
+# ======================================================
 REDIS_CLIENT=phpredis
 REDIS_HOST=redis
 REDIS_PORT=6379
-REDIS_PASSWORD=tu_password_redis_seguro
+REDIS_PASSWORD=CAMBIA_ESTE_PASSWORD_REDIS_SEGURO_2024!
 
-# Seguridad
+CACHE_DRIVER=redis
+QUEUE_CONNECTION=redis
+SESSION_DRIVER=redis
+SESSION_LIFETIME=120
+
+# ======================================================
+# 🔒 Seguridad de Cookies
+# ======================================================
 APP_CSRF_COOKIE_SECURE=true
 APP_SESSION_COOKIE_SECURE=true
 SESSION_SECURE_COOKIE=true
 SESSION_SAME_SITE=strict
 SESSION_DOMAIN=portainer.asistenciavircom.com
 
-# pgAdmin (opcional)
-PGADMIN_EMAIL=admin@asistenciavircom.com
-PGADMIN_PASSWORD=tu_password_pgadmin_seguro
+# ======================================================
+# 📧 Configuración de Correo
+# ======================================================
+MAIL_MAILER=smtp
+MAIL_HOST=mail.asistenciavircom.com
+MAIL_PORT=587
+MAIL_USERNAME=tu_correo@asistenciavircom.com
+MAIL_PASSWORD=CAMBIA_ESTE_PASSWORD_EMAIL_2024!
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS=tu_correo@asistenciavircom.com
+MAIL_FROM_NAME=Climas del Desierto
+
+# ======================================================
+# 🔧 Configuración Adicional
+# ======================================================
+LOG_CHANNEL=stack
+LOG_DEPRECATIONS_CHANNEL=null
+LOG_LEVEL=error
+FILESYSTEM_DISK=local
+BROADCAST_DRIVER=log
+
+# ======================================================
+# 📊 Configuración de Servicios Externos
+# ======================================================
+WHATSAPP_TOKEN=tu_token_whatsapp_aqui
+WHATSAPP_VERIFY_TOKEN=tu_verify_token_aqui
 ```
+
+**⚠️ IMPORTANTE**: Cambia TODOS los passwords antes del despliegue:
+- `DB_PASSWORD` y `POSTGRES_PASSWORD`
+- `REDIS_PASSWORD`
+- `MAIL_PASSWORD`
 
 ### Paso 4: Desplegar el Stack
 
@@ -262,7 +307,7 @@ php artisan config:clear
 3. Verificar configuración de Nginx
 
 ### Problema: Error de conexión a base de datos
-1. Verificar variables `DB_*` en el stack
+1. Verificar variables `DB_*` en las variables de entorno del stack
 2. Revisar logs del servicio `db`
 3. Verificar que PostgreSQL esté healthy
 
@@ -270,6 +315,16 @@ php artisan config:clear
 1. Ejecutar `npm run build` en el contenedor `app`
 2. Verificar permisos de storage
 3. Limpiar cache: `php artisan view:clear`
+
+### Problema: Variables de entorno no se cargan
+1. Verificar que todas las variables estén en "Environment variables" en Portainer
+2. Usar el formato correcto: `NOMBRE_VARIABLE=valor`
+3. Reiniciar el stack después de cambiar variables
+
+### Problema: Redis connection refused
+1. Verificar que `REDIS_PASSWORD` esté configurado correctamente
+2. Revisar logs del servicio `redis`
+3. Verificar que el servicio `redis` esté corriendo
 
 ## 📞 SOPORTE
 

@@ -10,8 +10,50 @@ services:
       args:
         APP_ENV: production
         BUILD_ASSETS: false
-    env_file:
-      - .env
+    environment:
+      APP_NAME: ${APP_NAME}
+      APP_ENV: ${APP_ENV}
+      APP_KEY: ${APP_KEY}
+      APP_DEBUG: ${APP_DEBUG}
+      APP_TIMEZONE: ${APP_TIMEZONE}
+      APP_URL: ${APP_URL}
+      DB_CONNECTION: ${DB_CONNECTION}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      REDIS_CLIENT: ${REDIS_CLIENT}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      CACHE_DRIVER: ${CACHE_DRIVER}
+      QUEUE_CONNECTION: ${QUEUE_CONNECTION}
+      SESSION_DRIVER: ${SESSION_DRIVER}
+      SESSION_LIFETIME: ${SESSION_LIFETIME}
+      APP_CSRF_COOKIE_SECURE: ${APP_CSRF_COOKIE_SECURE}
+      APP_SESSION_COOKIE_SECURE: ${APP_SESSION_COOKIE_SECURE}
+      SESSION_SECURE_COOKIE: ${SESSION_SECURE_COOKIE}
+      SESSION_SAME_SITE: ${SESSION_SAME_SITE}
+      SESSION_DOMAIN: ${SESSION_DOMAIN}
+      MAIL_MAILER: ${MAIL_MAILER}
+      MAIL_HOST: ${MAIL_HOST}
+      MAIL_PORT: ${MAIL_PORT}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      MAIL_ENCRYPTION: ${MAIL_ENCRYPTION}
+      MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME}
+      LOG_CHANNEL: ${LOG_CHANNEL}
+      LOG_DEPRECATIONS_CHANNEL: ${LOG_DEPRECATIONS_CHANNEL}
+      LOG_LEVEL: ${LOG_LEVEL}
+      FILESYSTEM_DISK: ${FILESYSTEM_DISK}
+      BROADCAST_DRIVER: ${BROADCAST_DRIVER}
+      WHATSAPP_TOKEN: ${WHATSAPP_TOKEN}
+      WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN}
     depends_on:
       db:
         condition: service_healthy
@@ -42,21 +84,45 @@ services:
         APP_ENV: production
         BUILD_ASSETS: false
     command: php artisan queue:work --sleep=1 --tries=3
-    env_file:
-      - .env
+    environment:
+      APP_NAME: ${APP_NAME}
+      APP_ENV: ${APP_ENV}
+      APP_KEY: ${APP_KEY}
+      APP_DEBUG: ${APP_DEBUG}
+      APP_TIMEZONE: ${APP_TIMEZONE}
+      APP_URL: ${APP_URL}
+      DB_CONNECTION: ${DB_CONNECTION}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      REDIS_CLIENT: ${REDIS_CLIENT}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      CACHE_DRIVER: ${CACHE_DRIVER}
+      QUEUE_CONNECTION: ${QUEUE_CONNECTION}
+      SESSION_DRIVER: ${SESSION_DRIVER}
+      SESSION_LIFETIME: ${SESSION_LIFETIME}
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_started
-    restart: always
+    restart: unless-stopped
     networks:
       - cdd_network
 
   db:
     image: postgres:16
-    env_file:
-      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - cdd_db_data:/var/lib/postgresql/data
     healthcheck:
@@ -73,9 +139,9 @@ services:
 
   redis:
     image: redis:7
-    command: ["redis-server", "--appendonly", "yes", "--requirepass", "$$REDIS_PASSWORD"]
-    env_file:
-      - .env
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
     volumes:
       - cdd_redis_data:/data
     restart: unless-stopped
