@@ -29,6 +29,21 @@ sudo mkdir -p $APP_DIR 2>/dev/null || true
 # Navegar al directorio
 cd $APP_DIR
 
+# Instalar docker-compose automáticamente si no existe
+echo "🐳 Verificando/Instalando docker-compose..."
+if ! command -v docker-compose &> /dev/null; then
+    echo "📦 Instalando docker-compose automáticamente..."
+    sudo curl -L "https://github.com/docker/compose/releases/download/v2.23.3/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose 2>/dev/null || true
+    sudo chmod +x /usr/local/bin/docker-compose 2>/dev/null || true
+
+    # Si aún no funciona, intentar con Docker Compose V2 integrado
+    if ! command -v docker-compose &> /dev/null; then
+        echo "🔧 Configurando Docker Compose V2..."
+        # Actualizar scripts para usar 'docker compose' en lugar de 'docker-compose'
+        find . -name "*.sh" -exec sed -i 's/docker-compose/docker compose/g' {} \; 2>/dev/null || true
+    fi
+fi
+
 # Detener servicios existentes si los hay
 echo "🔄 Deteniendo servicios existentes..."
 docker compose down -v --remove-orphans 2>/dev/null || true
