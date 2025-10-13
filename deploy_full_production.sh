@@ -114,7 +114,7 @@ APP_ENV=production
 APP_KEY=base64:AlytGytYcUJaNcIxIazlUnqnJberl4olGUL6tadhqqA=
 APP_DEBUG=false
 APP_TIMEZONE=America/Hermosillo
-APP_URL=https://portainer.asistenciavircom.com
+APP_URL=https://admin.asistenciavircom.com
 
 APP_LOCALE=es
 APP_FALLBACK_LOCALE=en
@@ -141,7 +141,7 @@ SESSION_DRIVER=redis
 SESSION_LIFETIME=120
 SESSION_ENCRYPT=false
 SESSION_PATH=/
-SESSION_DOMAIN=portainer.asistenciavircom.com
+SESSION_DOMAIN=admin.asistenciavircom.com
 SESSION_SECURE_COOKIE=true
 SESSION_SAME_SITE=strict
 
@@ -170,7 +170,7 @@ MAIL_TEST_MODE=false
 MAIL_TEST_EMAIL=test@example.com
 
 VITE_APP_NAME="${APP_NAME}"
-SANCTUM_STATEFUL_DOMAINS=portainer.asistenciavircom.com
+SANCTUM_STATEFUL_DOMAINS=admin.asistenciavircom.com
 
 # pgAdmin
 PGADMIN_EMAIL=admin@asistenciavircom.com
@@ -248,7 +248,7 @@ echo ""
 echo "📊 Información del despliegue:"
 echo "   🖥️ Proyecto: $PROJECT_NAME"
 echo "   📂 Directorio: $APP_DIR"
-echo "   🌐 Acceso: https://portainer.asistenciavircom.com"
+echo "   🌐 Acceso: https://admin.asistenciavircom.com"
 echo "   🚀 Estado: $(docker compose ps --format 'table {{.Service}}\t{{.Status}}' 2>/dev/null || echo 'Servicios iniciados')"
 echo ""
 echo "🔧 Comandos útiles:"
@@ -258,4 +258,4 @@ echo "   🛑 Detener: cd $APP_DIR && docker compose down"
 echo ""
 echo "✅ ¡Tu aplicación CDD App está lista!"
 echo ""
-echo "🌐 Accede en: https://portainer.asistenciavircom.com"
+echo "🌐 Accede en: https://admin.asistenciavircom.com"
