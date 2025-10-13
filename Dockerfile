@@ -28,12 +28,13 @@ ENV COMPOSER_ALLOW_SUPERUSER=1 \
     COMPOSER_CACHE_DIR=/tmp/composer-cache
 
 # Instalar dependencias del sistema necesarias para algunos paquetes PHP
-RUN apk add --no-cache git unzip libzip-dev zlib-dev
+RUN apk add --no-cache git unzip libzip-dev zlib-dev libxml2-dev curl-dev
 
 # Copia composer.* y resuelve dependencias (sin dev, con autoloader optimizado)
 COPY composer.json composer.lock ./
 RUN --mount=type=cache,target=/tmp/composer-cache \
-    composer install --no-dev --prefer-dist --no-progress --no-interaction --optimize-autoloader --no-scripts --ignore-platform-req=ext-gd
+    composer install --no-dev --prefer-dist --no-progress --no-interaction --optimize-autoloader --no-scripts \
+    --ignore-platform-req=ext-gd --ignore-platform-req=ext-zip --ignore-platform-req=ext-curl
 
 # Si tu app necesita los archivos para el post-autoload-dump, copia mínimo app/ y demás
 # (opcional; composer 2 suele bastar con composer.json/lock)
@@ -45,19 +46,25 @@ RUN --mount=type=cache,target=/tmp/composer-cache \
 FROM php:8.3-apache
 WORKDIR /var/www/html
 
-# Paquetes del sistema + toolchain de compilación para extensiones PHP
+# Instalar dependencias del sistema necesarias
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev libzip-dev unzip git zlib1g-dev \
     libpng-dev libjpeg62-turbo-dev libfreetype6-dev libwebp-dev \
     libxml2-dev libcurl4-openssl-dev libssl-dev \
+    libonig-dev libargon2-0-dev \
     $PHPIZE_DEPS \
- && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
 
-# Instalar extensiones básicas primero
-RUN docker-php-ext-install pdo mbstring xml curl opcache
+# Instalar extensiones básicas una por una (orden correcto)
+RUN docker-php-ext-install pdo
+RUN docker-php-ext-install mbstring
+RUN docker-php-ext-install xml
+RUN docker-php-ext-install curl
+RUN docker-php-ext-install opcache
 
 # Instalar extensiones que requieren configuración especial
-RUN docker-php-ext-install pdo_pgsql pgsql
+RUN docker-php-ext-install pdo_pgsql
+RUN docker-php-ext-install pgsql
 RUN docker-php-ext-install zip
 
 # Configurar e instalar GD
