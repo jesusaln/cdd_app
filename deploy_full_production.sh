@@ -106,8 +106,8 @@ fi
 echo ""
 echo "⚙️ Paso 4: Configuración de producción automática..."
 
-# Crear archivo .env.production con configuración completa
-cat > .env.production << 'EOF'
+# Crear archivo .env completamente corregido para producción
+cat > .env << 'EOF'
 # Configuración de Producción - Climas del Desierto
 APP_NAME="Climas del Desierto"
 APP_ENV=production
@@ -115,11 +115,9 @@ APP_KEY=base64:AlytGytYcUJaNcIxIazlUnqnJberl4olGUL6tadhqqA=
 APP_DEBUG=false
 APP_TIMEZONE=America/Hermosillo
 APP_URL=https://admin.asistenciavircom.com
-
 APP_LOCALE=es
 APP_FALLBACK_LOCALE=en
 APP_FAKER_LOCALE=es_MX
-
 APP_MAINTENANCE_DRIVER=file
 PHP_CLI_SERVER_WORKERS=4
 BCRYPT_ROUNDS=12
@@ -129,9 +127,9 @@ LOG_STACK=single
 LOG_DEPRECATIONS_CHANNEL=null
 LOG_LEVEL=error
 
-# Base de datos PostgreSQL
+# Base de datos PostgreSQL - CONFIGURACIÓN CORREGIDA
 DB_CONNECTION=pgsql
-DB_HOST=pg
+DB_HOST=db
 DB_PORT=5432
 DB_DATABASE=cdd_production
 DB_USERNAME=cdd_user
@@ -165,18 +163,24 @@ MAIL_PASSWORD=Zl01kpContpaqi1.
 MAIL_ENCRYPTION=ssl
 MAIL_FROM_ADDRESS="proveedores@asistenciavircom.com"
 MAIL_FROM_NAME="Asistencia Vircom"
-
 MAIL_TEST_MODE=false
 MAIL_TEST_EMAIL=test@example.com
 
 VITE_APP_NAME="${APP_NAME}"
 SANCTUM_STATEFUL_DOMAINS=admin.asistenciavircom.com
 
+# Variables de PostgreSQL para Docker
+POSTGRES_DB=cdd_production
+POSTGRES_USER=cdd_user
+POSTGRES_PASSWORD=CdD2024!Pr0d$Str0ngP@ssw0rd#2024
+POSTGRES_HOST=db
+POSTGRES_PORT=5432
+
 # pgAdmin
 PGADMIN_EMAIL=admin@asistenciavircom.com
 PGADMIN_PASSWORD=Pg@Dm1n!CdD2024#Str0ng$Acc3ss
 
-# Docker
+# Configuración específica para Docker
 DOCKER_APP_PORT=8000
 DOCKER_NGINX_PORT=80
 EOF
@@ -194,6 +198,47 @@ if [ -f docker/deploy.sh ]; then
     chmod +x docker/deploy.sh
     ./docker/deploy.sh production
 else
+    echo "🔨 Usando despliegue manual corregido..."
+
+    # Configuración manual paso a paso con correcciones
+    echo "📋 Copiando configuración corregida..."
+    cp .env .env 2>/dev/null || true
+
+    # Crear directorios necesarios
+    mkdir -p docker/pgdata docker/redis docker/pgadmin 2>/dev/null || true
+    mkdir -p storage/app storage/framework/cache storage/framework/sessions storage/framework/views storage/logs 2>/dev/null || true
+
+    # Permisos
+    chmod -R 755 storage bootstrap/cache 2>/dev/null || true
+
+    # Construir e iniciar
+    docker-compose build --no-cache 2>/dev/null || true
+    docker-compose up -d 2>/dev/null || true
+
+    # Esperar
+    echo "⏳ Esperando servicios..."
+    sleep 30
+
+    # CORRECCIÓN ESPECÍFICA: Copiar .env al contenedor
+    echo "🔧 Copiando archivo .env al contenedor..."
+    docker-compose cp .env app:/var/www/html/.env 2>/dev/null || true
+
+    # Reiniciar aplicación para cargar nueva configuración
+    echo "🔄 Reiniciando aplicación con configuración corregida..."
+    docker-compose restart app 2>/dev/null || true
+
+    # Esperar
+    sleep 15
+
+    # Migraciones y configuración
+    echo "🗄️ Ejecutando migraciones..."
+    docker-compose exec -T app php artisan migrate --force 2>/dev/null || true
+    docker-compose exec -T app php artisan db:seed --force 2>/dev/null || true
+    docker-compose exec -T app php artisan config:cache 2>/dev/null || true
+    docker-compose exec -T app php artisan route:cache 2>/dev/null || true
+    docker-compose exec -T app php artisan view:cache 2>/dev/null || true
+    docker-compose exec -T app php artisan storage:link 2>/dev/null || true
+fi
     echo "🔨 Usando despliegue manual..."
 
     # Configuración manual paso a paso
