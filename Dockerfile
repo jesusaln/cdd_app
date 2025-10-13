@@ -28,7 +28,7 @@ ENV COMPOSER_ALLOW_SUPERUSER=1 \
     COMPOSER_CACHE_DIR=/tmp/composer-cache
 
 # Instalar dependencias del sistema necesarias para algunos paquetes PHP
-RUN apk add --no-cache git unzip libzip-dev zlib-dev libxml2-dev curl-dev
+RUN apk add --no-cache git unzip libzip-dev zlib-dev
 
 # Copia composer.* y resuelve dependencias (sin dev, con autoloader optimizado)
 COPY composer.json composer.lock ./
@@ -46,12 +46,11 @@ RUN --mount=type=cache,target=/tmp/composer-cache \
 FROM php:8.3-apache
 WORKDIR /var/www/html
 
-# Instalar dependencias del sistema necesarias
+# Instalar dependencias del sistema necesarias (solo las esenciales)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq-dev libzip-dev unzip git zlib1g-dev \
-    libpng-dev libjpeg62-turbo-dev libfreetype6-dev libwebp-dev \
-    libxml2-dev libcurl4-openssl-dev libssl-dev \
-    libonig-dev libargon2-0-dev \
+    libpq-dev libzip-dev unzip git \
+    libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
+    libxml2-dev libcurl4-openssl-dev \
     $PHPIZE_DEPS \
     && rm -rf /var/lib/apt/lists/*
 
@@ -67,8 +66,8 @@ RUN docker-php-ext-install pdo_pgsql
 RUN docker-php-ext-install pgsql
 RUN docker-php-ext-install zip
 
-# Configurar e instalar GD
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
+# Configurar e instalar GD (configuración básica)
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install gd
 
 # Redis via PECL
