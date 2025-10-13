@@ -9,7 +9,7 @@ services:
       dockerfile: Dockerfile
       args:
         APP_ENV: production
-        BUILD_ASSETS: false
+        BUILD_ASSETS: true
     environment:
       APP_NAME: ${APP_NAME}
       APP_ENV: ${APP_ENV}
@@ -82,7 +82,7 @@ services:
       dockerfile: Dockerfile
       args:
         APP_ENV: production
-        BUILD_ASSETS: false
+        BUILD_ASSETS: true
     command: php artisan queue:work --sleep=1 --tries=3
     environment:
       APP_NAME: ${APP_NAME}
