@@ -22,9 +22,18 @@ RUN npm run build
 FROM composer:2 AS composer_deps
 WORKDIR /app
 
+# Configurar entorno para Composer
+ENV COMPOSER_ALLOW_SUPERUSER=1 \
+    COMPOSER_NO_INTERACTION=1 \
+    COMPOSER_CACHE_DIR=/tmp/composer-cache
+
+# Instalar dependencias del sistema necesarias para algunos paquetes PHP
+RUN apk add --no-cache git unzip libzip-dev zlib-dev
+
 # Copia composer.* y resuelve dependencias (sin dev, con autoloader optimizado)
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --prefer-dist --no-progress --no-interaction --optimize-autoloader --no-scripts
+RUN --mount=type=cache,target=/tmp/composer-cache \
+    composer install --no-dev --prefer-dist --no-progress --no-interaction --optimize-autoloader --no-scripts --ignore-platform-req=ext-gd
 
 # Si tu app necesita los archivos para el post-autoload-dump, copia mínimo app/ y demás
 # (opcional; composer 2 suele bastar con composer.json/lock)
@@ -44,10 +53,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     $PHPIZE_DEPS \
  && rm -rf /var/lib/apt/lists/*
 
-# Extensiones PHP (compilar en paralelo)
+# Instalar extensiones básicas primero
+RUN docker-php-ext-install pdo mbstring xml curl opcache
+
+# Instalar extensiones que requieren configuración especial
+RUN docker-php-ext-install pdo_pgsql pgsql
+RUN docker-php-ext-install zip
+
+# Configurar e instalar GD
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
- && docker-php-ext-install -j"$(nproc)" \
-      pdo pdo_pgsql pgsql zip mbstring xml gd opcache curl
+    && docker-php-ext-install gd
 
 # Redis via PECL
 RUN pecl install redis \
