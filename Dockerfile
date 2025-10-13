@@ -7,15 +7,15 @@ RUN apk add --no-cache python3 make g++
 
 # Copia definiciones y lock (ajusta según uses npm/pnpm/yarn)
 COPY package*.json ./
-RUN npm ci
+RUN npm ci --no-audit --no-fund --prefer-offline
 
 # Copia solo lo necesario para construir front
 COPY vite.config.* ./
 COPY resources ./resources
 COPY public ./public
 
-# Compilar assets → /public/build
-RUN npm run build
+# Compilar assets → /public/build con configuración de producción
+RUN NODE_ENV=production npm run build
 
 
 # ---------- Stage 2: Composer ----------
