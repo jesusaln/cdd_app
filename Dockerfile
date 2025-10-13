@@ -24,15 +24,30 @@ WORKDIR /var/www/html
 # Instalar dependencias del sistema
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev libzip-dev unzip git \
-    libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
+    libpng-dev libjpeg62-turbo-dev libfreetype6-dev libwebp-dev \
     libxml2-dev libcurl4-openssl-dev libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Instalar extensiones PHP necesarias
-RUN docker-php-ext-install pdo pdo_pgsql pgsql zip gd mbstring xml curl opcache \
-    && pecl install redis \
-    && docker-php-ext-enable redis \
-    && a2enmod rewrite headers expires
+# Instalar extensiones PHP necesarias (una por una para mejor debugging)
+RUN docker-php-ext-install pdo
+RUN docker-php-ext-install pdo_pgsql
+RUN docker-php-ext-install pgsql
+RUN docker-php-ext-install zip
+RUN docker-php-ext-install mbstring
+RUN docker-php-ext-install xml
+RUN docker-php-ext-install curl
+RUN docker-php-ext-install opcache
+
+# Instalar GD con soporte completo
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
+    && docker-php-ext-install gd
+
+# Instalar Redis
+RUN pecl install redis \
+    && docker-php-ext-enable redis
+
+# Habilitar módulos de Apache
+RUN a2enmod rewrite headers expires
 
 # Configurar OPcache para producción
 RUN { \
