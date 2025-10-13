@@ -11,9 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('citas', function (Blueprint $table) {
-            $table->string('prioridad')->nullable()->after('problema_reportado');
-        });
+        // La columna prioridad ya existe, no necesitamos hacer nada
+        // Esta migración fue creada como respaldo pero ya no es necesaria
     }
 
     /**
@@ -21,8 +20,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('citas', function (Blueprint $table) {
-            $table->dropColumn('prioridad');
-        });
+        // No eliminamos la columna prioridad ya que puede ser necesaria
+        // para el funcionamiento correcto de la aplicación
     }
 };
