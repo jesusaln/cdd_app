@@ -49,8 +49,8 @@ export default defineConfig({
     // Forzar HTTPS en desarrollo si es necesario
     https: false
   },
-  // Configuración para producción
-  base: process.env.NODE_ENV === 'production' ? '/' : '/',
+  // Configuración para producción - corregir rutas de assets
+  base: process.env.NODE_ENV === 'production' ? '/build/' : '/',
   // Optimización de dependencias
   optimizeDeps: {
     include: ['vue', '@inertiajs/vue3', 'axios']
