@@ -45,7 +45,9 @@ export default defineConfig({
     // Puerto por defecto, puedes cambiarlo si es necesario
     port: 5173,
     // Abre automáticamente el navegador
-    open: false
+    open: false,
+    // Forzar HTTPS en desarrollo si es necesario
+    https: false
   },
   // Optimización de dependencias
   optimizeDeps: {
