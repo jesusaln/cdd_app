@@ -195,6 +195,10 @@ echo "🚀 Paso 5: Despliegue completo automático..."
 # Ejecutar despliegue usando el script disponible
 if [ -f docker/deploy.sh ]; then
     echo "🔨 Usando script avanzado de despliegue..."
+
+    # Crear .env.production para que el script lo encuentre
+    cp .env .env.production 2>/dev/null || true
+
     chmod +x docker/deploy.sh
     ./docker/deploy.sh production
 else
