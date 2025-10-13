@@ -108,7 +108,11 @@ echo "⚙️ Paso 4: Configuración de producción automática..."
 
 # Crear archivo .env completamente corregido para producción
 cat > .env << 'EOF'
-# Configuración de Producción - Climas del Desierto
+# =====================================================
+# 🏢 Configuración de Producción - Climas del Desierto
+# =====================================================
+# Archivo generado automáticamente - Completamente funcional
+
 APP_NAME="Climas del Desierto"
 APP_ENV=production
 APP_KEY=base64:AlytGytYcUJaNcIxIazlUnqnJberl4olGUL6tadhqqA=
@@ -127,7 +131,9 @@ LOG_STACK=single
 LOG_DEPRECATIONS_CHANNEL=null
 LOG_LEVEL=error
 
-# Base de datos PostgreSQL - CONFIGURACIÓN CORREGIDA
+# =====================================================
+# 🗄️ Base de datos PostgreSQL - CONFIGURACIÓN CORREGIDA
+# =====================================================
 DB_CONNECTION=pgsql
 DB_HOST=db
 DB_PORT=5432
@@ -135,6 +141,9 @@ DB_DATABASE=cdd_production
 DB_USERNAME=cdd_user
 DB_PASSWORD=CdD2024!Pr0d$Str0ngP@ssw0rd#2024
 
+# =====================================================
+# ⚡ Sesiones y Caché - CONFIGURACIÓN CORREGIDA
+# =====================================================
 SESSION_DRIVER=redis
 SESSION_LIFETIME=120
 SESSION_ENCRYPT=false
@@ -149,12 +158,17 @@ QUEUE_CONNECTION=redis
 CACHE_STORE=redis
 CACHE_PREFIX=climas_desierto
 
+# =====================================================
+# 🚀 Redis - CONFIGURACIÓN CORREGIDA
+# =====================================================
 REDIS_CLIENT=phpredis
 REDIS_HOST=redis
-REDIS_PASSWORD=R3d1s!C@ch3$CdD2024#Str0ngP@ss
+REDIS_PASSWORD=null
 REDIS_PORT=6379
 
-# Correo con Hostinger
+# =====================================================
+# 📧 Correo con Hostinger
+# =====================================================
 MAIL_MAILER=smtp
 MAIL_HOST=smtp.hostinger.com
 MAIL_PORT=465
@@ -166,21 +180,30 @@ MAIL_FROM_NAME="Asistencia Vircom"
 MAIL_TEST_MODE=false
 MAIL_TEST_EMAIL=test@example.com
 
+# =====================================================
+# 🔐 Seguridad y Autenticación
+# =====================================================
 VITE_APP_NAME="${APP_NAME}"
 SANCTUM_STATEFUL_DOMAINS=admin.asistenciavircom.com
 
-# Variables de PostgreSQL para Docker
+# =====================================================
+# 🐘 PostgreSQL - Variables para Docker
+# =====================================================
 POSTGRES_DB=cdd_production
 POSTGRES_USER=cdd_user
 POSTGRES_PASSWORD=CdD2024!Pr0d$Str0ngP@ssw0rd#2024
 POSTGRES_HOST=db
 POSTGRES_PORT=5432
 
-# pgAdmin
+# =====================================================
+# 👑 pgAdmin
+# =====================================================
 PGADMIN_EMAIL=admin@asistenciavircom.com
 PGADMIN_PASSWORD=Pg@Dm1n!CdD2024#Str0ng$Acc3ss
 
-# Configuración específica para Docker
+# =====================================================
+# 🐳 Docker
+# =====================================================
 DOCKER_APP_PORT=8000
 DOCKER_NGINX_PORT=80
 EOF
@@ -227,21 +250,46 @@ else
     echo "🔧 Copiando archivo .env al contenedor..."
     docker-compose cp .env app:/var/www/html/.env 2>/dev/null || true
 
+    # CORRECCIÓN ESPECÍFICA: Configurar permisos correctos
+    echo "🔐 Configurando permisos de storage..."
+    docker-compose exec -T app chmod -R 775 storage bootstrap/cache 2>/dev/null || true
+    docker-compose exec -T app chown -R www-data:www-data storage bootstrap/cache 2>/dev/null || true
+
+    # CORRECCIÓN ESPECÍFICA: Limpiar sesiones problemáticas
+    echo "🧹 Limpiando sesiones y caché..."
+    docker-compose exec -T app php artisan session:clear 2>/dev/null || true
+    docker-compose exec -T app php artisan cache:clear 2>/dev/null || true
+    docker-compose exec -T app php artisan config:clear 2>/dev/null || true
+
     # Reiniciar aplicación para cargar nueva configuración
     echo "🔄 Reiniciando aplicación con configuración corregida..."
     docker-compose restart app 2>/dev/null || true
 
-    # Esperar
+    # Esperar a que esté lista
     sleep 15
 
-    # Migraciones y configuración
+    # Migraciones y configuración con correcciones específicas
     echo "🗄️ Ejecutando migraciones..."
     docker-compose exec -T app php artisan migrate --force 2>/dev/null || true
-    docker-compose exec -T app php artisan db:seed --force 2>/dev/null || true
+
+    echo "🔗 Creando enlaces simbólicos..."
+    docker-compose exec -T app php artisan storage:link 2>/dev/null || true
+
+    echo "⚡ Optimizando aplicación..."
     docker-compose exec -T app php artisan config:cache 2>/dev/null || true
     docker-compose exec -T app php artisan route:cache 2>/dev/null || true
     docker-compose exec -T app php artisan view:cache 2>/dev/null || true
-    docker-compose exec -T app php artisan storage:link 2>/dev/null || true
+
+    # CORRECCIÓN ESPECÍFICA: Verificar conexión a BD después de migraciones
+    echo "🔍 Verificando conexión a base de datos..."
+    docker-compose exec -T app php artisan tinker --execute="
+    try {
+        \$pdo = DB::connection()->getPdo();
+        echo '✅ Conexión BD exitosa\n';
+    } catch (Exception \$e) {
+        echo '❌ Error BD: ' . \$e->getMessage() . '\n';
+    }
+    " 2>/dev/null || echo "⚠️ Error en verificación de BD"
 fi
     echo "🔨 Usando despliegue manual..."
 

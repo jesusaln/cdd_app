@@ -52,6 +52,11 @@ echo "🔧 Aplicando correcciones automáticas..."
 sed -i 's/DB_HOST=pg/DB_HOST=db/g' .env 2>/dev/null || true
 sed -i 's/DB_HOST=172.23.0.2/DB_HOST=db/g' .env 2>/dev/null || true
 
+# CORRECCIÓN ESPECÍFICA: Configuración de sesiones y Redis
+sed -i 's/SESSION_DRIVER=.*/SESSION_DRIVER=redis/g' .env 2>/dev/null || true
+sed -i 's/CACHE_STORE=.*/CACHE_STORE=redis/g' .env 2>/dev/null || true
+sed -i 's/REDIS_PASSWORD=.*/REDIS_PASSWORD=null/g' .env 2>/dev/null || true
+
 # =============================================================================
 # 4. RECONSTRUIR Y DESPLEGAR
 # =============================================================================
@@ -81,6 +86,17 @@ echo "🔧 Aplicando corrección específica de .env en contenedor..."
 
 # Copiar .env corregido al contenedor
 docker compose cp .env app:/var/www/html/.env 2>/dev/null || true
+
+# Configurar permisos correctos
+echo "🔐 Configurando permisos..."
+docker compose exec -T app chmod -R 775 storage bootstrap/cache 2>/dev/null || true
+docker compose exec -T app chown -R www-data:www-data storage bootstrap/cache 2>/dev/null || true
+
+# Limpiar sesiones y caché problemáticas
+echo "🧹 Limpiando sesiones y caché..."
+docker compose exec -T app php artisan session:clear 2>/dev/null || true
+docker compose exec -T app php artisan cache:clear 2>/dev/null || true
+docker compose exec -T app php artisan config:clear 2>/dev/null || true
 
 # Reiniciar aplicación para cargar nueva configuración
 docker compose restart app 2>/dev/null || true
