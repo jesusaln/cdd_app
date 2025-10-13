@@ -1,8 +1,7 @@
-# ===========================
+# ======================================================
 # 🧱 CDD App - Producción
 # Laravel + PostgreSQL + Redis + Queue
-# ===========================
-
+# ======================================================
 services:
   app:
     build:
@@ -28,12 +27,7 @@ services:
       retries: 3
     networks:
       - cdd_network
-    volumes:
-      # opcional si usas storage persistente local
-      # - ./storage:/var/www/html/storage
-      # - ./public:/var/www/html/public
-      # o solo para logs persistentes
-      # - ./storage/logs:/var/www/html/storage/logs
+    volumes: []  # 👈 arreglado (debe ser lista)
 
   queue:
     build:
@@ -80,18 +74,16 @@ services:
     networks:
       - cdd_network
 
-# ===========================
+# ======================================================
 # 🧩 Volúmenes persistentes
-# ===========================
-
+# ======================================================
 volumes:
   db_data:
   redis_data:
 
-# ===========================
+# ======================================================
 # 🌐 Red interna del stack
-# ===========================
-
+# ======================================================
 networks:
   cdd_network:
     driver: bridge
