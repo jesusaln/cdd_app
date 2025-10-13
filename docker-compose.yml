@@ -1,5 +1,5 @@
 # ======================================================
-# 🧱 CDD App - Producción
+# 🧱 CDD App - Producción (Optimizado para Portainer)
 # Laravel + PostgreSQL + Redis + Queue
 # ======================================================
 services:
@@ -17,17 +17,22 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
-    ports:
-      - "8080:80"
-    restart: always
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 40s
     networks:
       - cdd_network
-    volumes: []  # 👈 arreglado (debe ser lista)
+    volumes: []
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.cdd.rule=Host(`portainer.asistenciavircom.com`)"
+      - "traefik.http.routers.cdd.entrypoints=websecure"
+      - "traefik.http.routers.cdd.tls.certresolver=letsencrypt"
+      - "traefik.http.services.cdd.loadbalancer.server.port=80"
 
   queue:
     build:
@@ -53,37 +58,50 @@ services:
     env_file:
       - .env
     volumes:
-      - db_data:/var/lib/postgresql/data
-    ports:
-      - "5433:5432"
+      - cdd_db_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB -h 127.0.0.1"]
       interval: 10s
       timeout: 5s
       retries: 10
-    restart: always
+      start_period: 30s
+    restart: unless-stopped
     networks:
       - cdd_network
+    labels:
+      - "traefik.enable=false"
 
   redis:
     image: redis:7
-    command: ["redis-server", "--appendonly", "yes"]
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "$$REDIS_PASSWORD"]
+    env_file:
+      - .env
     volumes:
-      - redis_data:/data
-    restart: always
+      - cdd_redis_data:/data
+    restart: unless-stopped
     networks:
       - cdd_network
+    labels:
+      - "traefik.enable=false"
 
 # ======================================================
-# 🧩 Volúmenes persistentes
+# 🧩 Volúmenes persistentes (Portainer)
 # ======================================================
 volumes:
-  db_data:
-  redis_data:
+  cdd_db_data:
+    driver: local
+    labels:
+      - "traefik.enable=false"
+  cdd_redis_data:
+    driver: local
+    labels:
+      - "traefik.enable=false"
 
 # ======================================================
-# 🌐 Red interna del stack
+# 🌐 Red interna del stack (Portainer)
 # ======================================================
 networks:
   cdd_network:
     driver: bridge
+    labels:
+      - "traefik.enable=false"
