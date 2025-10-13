@@ -24,7 +24,7 @@ WORKDIR /app
 
 # Copia composer.* y resuelve dependencias (sin dev, con autoloader optimizado)
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --prefer-dist --no-progress --no-interaction --optimize-autoloader
+RUN composer install --no-dev --prefer-dist --no-progress --no-interaction --optimize-autoloader --no-scripts
 
 # Si tu app necesita los archivos para el post-autoload-dump, copia mínimo app/ y demás
 # (opcional; composer 2 suele bastar con composer.json/lock)
