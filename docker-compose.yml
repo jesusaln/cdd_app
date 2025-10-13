@@ -61,7 +61,7 @@ services:
         condition: service_started
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "php", "-r", "exit((int)!@fsockopen('127.0.0.1', 80, $errno, $errstr, 2));"]
+      test: ["CMD-SHELL", "curl -sS -o /dev/null http://127.0.0.1/ || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
