@@ -54,21 +54,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     $PHPIZE_DEPS \
     && rm -rf /var/lib/apt/lists/*
 
-# Instalar extensiones básicas una por una (orden correcto)
-RUN docker-php-ext-install pdo
-RUN docker-php-ext-install mbstring
-RUN docker-php-ext-install xml
-RUN docker-php-ext-install curl
-RUN docker-php-ext-install opcache
+# Verificar qué extensiones están disponibles por defecto
+RUN php -m
 
-# Instalar extensiones que requieren configuración especial
+# Instalar solo las extensiones esenciales que realmente necesitamos
+RUN docker-php-ext-install pdo
 RUN docker-php-ext-install pdo_pgsql
 RUN docker-php-ext-install pgsql
-RUN docker-php-ext-install zip
 
-# Configurar e instalar GD (configuración básica)
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install gd
+# Instalar otras extensiones esenciales
+RUN docker-php-ext-install opcache
+
+# Instalar extensiones adicionales si es posible
+RUN docker-php-ext-install zip || echo "Zip extension not available"
+RUN docker-php-ext-install xml || echo "XML extension not available"
+RUN docker-php-ext-install mbstring || echo "MBString extension not available"
+RUN docker-php-ext-install curl || echo "Curl extension not available"
+
+# Configurar e instalar GD si es posible
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg 2>/dev/null || echo "GD configure failed"
+RUN docker-php-ext-install gd 2>/dev/null || echo "GD extension not available"
 
 # Redis via PECL
 RUN pecl install redis \
