@@ -1,0 +1,25 @@
+<?php
+
+namespace App\Console;
+
+use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
+
+class Kernel extends ConsoleKernel
+{
+    protected function schedule(Schedule $schedule): void
+    {
+        // Enviar alertas de mantenimiento cada día a las 08:00
+        $schedule->command('mantenimiento:alertas --dias=30')->dailyAt('08:00');
+
+        // Enviar recordatorios de cobranza cada día a las 09:00
+        $schedule->command('cobranza:enviar-recordatorios')->dailyAt('09:00');
+    }
+
+    protected function commands(): void
+    {
+        $this->load(__DIR__.'/Commands');
+
+        require base_path('routes/console.php');
+    }
+}

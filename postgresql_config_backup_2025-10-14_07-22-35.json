@@ -1,0 +1,11 @@
+{
+    "database": "cdd_local",
+    "host": "127.0.0.1",
+    "port": "5432",
+    "username": "cdd_user",
+    "password": "Contpaqi1.",
+    "backup_date": "2025-10-14 07:22:35",
+    "laravel_env": "production",
+    "php_version": "8.2.27",
+    "project": "CDD App - Climas del Desierto"
+}

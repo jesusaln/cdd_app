@@ -1,0 +1,705 @@
+<!-- /resources/js/Pages/Pedidos/Index.vue -->
+<script setup>
+import { ref, computed, watch, onMounted } from 'vue'
+import { router, Head } from '@inertiajs/vue3'
+import axios from 'axios'
+import { Notyf } from 'notyf'
+import 'notyf/notyf.min.css'
+
+import { generarPDF } from '@/Utils/pdfGenerator'
+import AppLayout from '@/Layouts/AppLayout.vue'
+import PedidosHeader from '@/Components/IndexComponents/PedidosHeader.vue'
+import PedidosTable from '@/Components/IndexComponents/PedidosTable.vue'
+import Modal from '@/Components/IndexComponents/Modales.vue'
+import Pagination from '@/Components/Pagination.vue'
+
+defineOptions({ layout: AppLayout })
+
+const props = defineProps({
+  pedidos: {
+    type: Array,
+    default: () => []
+  }
+})
+
+/* =========================
+   Configuración de notificaciones
+========================= */
+const notyf = new Notyf({
+  duration: 4000,
+  position: { x: 'right', y: 'top' },
+  types: [
+    { type: 'success', background: '#10b981', icon: false },
+    { type: 'error', background: '#ef4444', icon: false },
+    { type: 'warning', background: '#f59e0b', icon: false }
+  ]
+})
+
+/* =========================
+   Estado local y modal
+========================= */
+const showModal = ref(false)
+const fila = ref(null)
+const modalMode = ref('details')
+const selectedId = ref(null)
+const loading = ref(false)
+
+const abrirDetalles = (row) => {
+  fila.value = row || null
+  modalMode.value = 'details'
+  showModal.value = true
+}
+
+const cerrarModal = () => {
+  showModal.value = false
+  fila.value = null
+  selectedId.value = null
+}
+
+/* =========================
+   Filtros, orden y datos
+========================= */
+const searchTerm = ref('')
+const sortBy = ref('fecha-desc')
+const filtroEstado = ref('')
+const pedidosOriginales = ref([...props.pedidos])
+
+/* =========================
+   Auditoría segura para el modal
+========================= */
+const auditoriaForModal = computed(() => {
+  const r = fila.value
+  if (!r) return null
+
+  const meta = r.metadata || {}
+  return {
+    creado_por: r.creado_por_nombre || r.created_by_user_name || meta.creado_por || 'N/A',
+    actualizado_por: r.actualizado_por_nombre || r.updated_by_user_name || meta.actualizado_por || 'N/A',
+    eliminado_por: r.eliminado_por_nombre || r.deleted_by_user_name || meta.eliminado_por || null,
+    creado_en: r.created_at || meta.creado_en || null,
+    actualizado_en: r.updated_at || meta.actualizado_en || null,
+    eliminado_en: r.deleted_at || meta.eliminado_en || null,
+  }
+})
+
+/* =========================
+    Datos para los componentes
+ ========================= */
+const documentosPedidos = computed(() => {
+  return [...pedidosOriginales.value]
+})
+
+/* =========================
+    Paginación del lado del cliente
+========================= */
+const currentPage = ref(1)
+const perPage = ref(10)
+
+// Pedidos filtrados y ordenados (sin paginación)
+const pedidosFiltradosYOrdenados = computed(() => {
+  let result = [...pedidosOriginales.value]
+
+  // Aplicar filtro de búsqueda
+  if (searchTerm.value.trim()) {
+    const search = searchTerm.value.toLowerCase().trim()
+    result = result.filter(pedido => {
+      const cliente = pedido.cliente?.nombre?.toLowerCase() || ''
+      const numero = String(pedido.numero_pedido || pedido.id || '').toLowerCase()
+      const estado = pedido.estado?.toLowerCase() || ''
+
+      return cliente.includes(search) ||
+             numero.includes(search) ||
+             estado.includes(search)
+    })
+  }
+
+  // Aplicar filtro de estado
+  if (filtroEstado.value) {
+    result = result.filter(pedido => pedido.estado === filtroEstado.value)
+  }
+
+  // Aplicar ordenamiento
+  if (sortBy.value) {
+    const [field, order] = sortBy.value.split('-')
+    const isDesc = order === 'desc'
+
+    result.sort((a, b) => {
+      let valueA, valueB
+
+      switch (field) {
+        case 'fecha':
+          valueA = new Date(a.fecha || a.created_at || 0)
+          valueB = new Date(b.fecha || b.created_at || 0)
+          break
+        case 'cliente':
+          valueA = a.cliente?.nombre || ''
+          valueB = b.cliente?.nombre || ''
+          break
+        case 'total':
+          valueA = parseFloat(a.total || 0)
+          valueB = parseFloat(b.total || 0)
+          break
+        case 'estado':
+          valueA = a.estado || ''
+          valueB = b.estado || ''
+          break
+        default:
+          valueA = a[field] || ''
+          valueB = b[field] || ''
+      }
+
+      if (valueA < valueB) return isDesc ? 1 : -1
+      if (valueA > valueB) return isDesc ? -1 : 1
+      return 0
+    })
+  }
+
+  return result
+})
+
+// Documentos para mostrar (con paginación del lado del cliente)
+const documentosPedidosPaginados = computed(() => {
+  const startIndex = (currentPage.value - 1) * perPage.value
+  const endIndex = startIndex + perPage.value
+  return pedidosFiltradosYOrdenados.value.slice(startIndex, endIndex)
+})
+
+// Información de paginación
+const totalPages = computed(() => Math.ceil(pedidosFiltradosYOrdenados.value.length / perPage.value))
+const totalFiltered = computed(() => pedidosFiltradosYOrdenados.value.length)
+
+// Datos de paginación simulados para el componente Pagination
+const paginationData = computed(() => ({
+  current_page: currentPage.value,
+  last_page: totalPages.value,
+  per_page: perPage.value,
+  from: totalFiltered.value > 0 ? ((currentPage.value - 1) * perPage.value) + 1 : 0,
+  to: Math.min(currentPage.value * perPage.value, totalFiltered.value),
+  total: totalFiltered.value,
+  prev_page_url: currentPage.value > 1 ? '#' : null,
+  next_page_url: currentPage.value < totalPages.value ? '#' : null,
+  links: [] // No necesitamos links para client-side
+}))
+
+// Watch para resetear página cuando cambien filtros
+watch([searchTerm, sortBy, filtroEstado, perPage], () => {
+  currentPage.value = 1
+}, { deep: true })
+
+// Manejo de paginación
+const handlePerPageChange = (newPerPage) => {
+  perPage.value = newPerPage
+  currentPage.value = 1 // Reset to first page when changing per_page
+}
+
+const handlePageChange = (newPage) => {
+  currentPage.value = newPage
+}
+
+// Watchers para props y filtros
+watch(() => props.pedidos, (newVal) => {
+  if (Array.isArray(newVal)) {
+    pedidosOriginales.value = [...newVal]
+  }
+}, { deep: true, immediate: true })
+
+// Resetear página al cambiar filtros
+watch([searchTerm, filtroEstado], () => {
+  currentPage.value = 1
+})
+
+// Ajustar página si se queda sin elementos después de eliminar
+watch(totalPages, (newTotal) => {
+  if (currentPage.value > newTotal && newTotal > 0) {
+    currentPage.value = newTotal
+  }
+})
+
+// Estadísticas calculadas
+const estadisticas = computed(() => {
+  const stats = {
+    total: pedidosOriginales.value.length,
+    pendientes: 0,
+    borrador: 0,
+    enviado_venta: 0,
+    cancelado: 0,
+  };
+
+  pedidosOriginales.value.forEach(p => {
+    const estado = String(p.estado || '').toLowerCase();
+    switch (estado) {
+      case 'pendiente':
+        stats.pendientes++;
+        break;
+      case 'borrador':
+        stats.borrador++;
+        break;
+      case 'enviado_venta':
+        stats.enviado_venta++;
+        break;
+      case 'enviado':
+        stats.pendientes++;
+        break;
+      case 'cancelado':
+        stats.cancelado++;
+        break;
+      default:
+        // Para cualquier otro estado, lo contamos como pendiente
+        stats.pendientes++;
+        break;
+    }
+  });
+
+  return stats;
+});
+
+const handleLimpiarFiltros = () => {
+  searchTerm.value = ''
+  sortBy.value = 'fecha-desc'
+  filtroEstado.value = ''
+  perPage.value = 10
+  currentPage.value = 1
+  notyf.success('Filtros limpiados correctamente')
+}
+
+const updateSort = (newSort) => {
+  if (newSort && typeof newSort === 'string') {
+    sortBy.value = newSort
+    currentPage.value = 1 // Resetear página al cambiar ordenamiento
+  }
+}
+
+/* =========================
+   Validaciones y utilidades
+========================= */
+function puedeEnviarAVenta(pedido) {
+  if (!pedido) return false
+  const estadosValidos = ['confirmado', 'en_preparacion', 'listo_entrega', 'entregado', 'borrador']
+  return estadosValidos.includes(pedido.estado)
+}
+
+function validarPedido(pedido) {
+  if (!pedido?.id) {
+    throw new Error('ID de pedido no válido')
+  }
+  return true
+}
+
+function validarPedidoParaPDF(doc) {
+  if (!doc.id) throw new Error('ID del documento no encontrado')
+  if (!doc.cliente?.nombre) throw new Error('Datos del cliente no encontrados')
+  if (!Array.isArray(doc.productos) || !doc.productos.length) {
+    throw new Error('Lista de productos no válida')
+  }
+  if (!doc.fecha) throw new Error('Fecha no especificada')
+  return true
+}
+
+/* =========================
+   Acciones CRUD
+========================= */
+const verDetalles = (pedido) => {
+  try {
+    validarPedido(pedido)
+    abrirDetalles(pedido)
+  } catch (error) {
+    notyf.error(error.message)
+  }
+}
+
+const editarPedido = (id) => {
+  try {
+    const pedidoId = id || fila.value?.id
+    if (!pedidoId) throw new Error('ID de pedido no válido')
+
+    router.visit(`/pedidos/${pedidoId}/edit`)
+  } catch (error) {
+    notyf.error(error.message)
+  }
+}
+
+const editarFila = (id) => {
+  editarPedido(id)
+}
+
+const duplicarPedido = async (pedido) => {
+  try {
+    validarPedido(pedido)
+
+    if (!confirm(`¿Duplicar pedido #${pedido.numero_pedido || pedido.id}?`)) {
+      return
+    }
+
+    loading.value = true
+    notyf.success('Duplicando pedido...')
+
+    const { data } = await axios.post(`/pedidos/${pedido.id}/duplicate`)
+
+    if (data?.success) {
+      notyf.success(data.message || 'Pedido duplicado exitosamente')
+
+      // Recargar la página para mostrar el pedido duplicado
+      router.visit('/pedidos', {
+        method: 'get',
+        replace: true
+      })
+    } else {
+      throw new Error(data?.error || 'Error al duplicar el pedido')
+    }
+
+  } catch (error) {
+    console.error('Error al duplicar:', error)
+    let mensaje = 'Error al duplicar el pedido'
+    if (error.response?.data?.error) mensaje = error.response.data.error
+    else if (error.response?.data?.message) mensaje = error.response.data.message
+    else if (error.message) mensaje = error.message
+
+    notyf.error(mensaje)
+  } finally {
+    loading.value = false
+  }
+}
+
+const imprimirPedido = async (pedido) => {
+  try {
+    const doc = {
+      ...pedido,
+      fecha: pedido.fecha || pedido.created_at || new Date().toISOString()
+    }
+
+    validarPedidoParaPDF(doc)
+
+    loading.value = true
+    notyf.success('Generando PDF...')
+
+    await generarPDF('Pedido', doc)
+    notyf.success('PDF generado correctamente')
+
+  } catch (error) {
+    console.error('Error al generar PDF:', error)
+    notyf.error(`Error al generar el PDF: ${error.message}`)
+  } finally {
+    loading.value = false
+  }
+}
+
+const imprimirFila = () => {
+  if (fila.value) {
+    imprimirPedido(fila.value)
+  }
+}
+
+const confirmarEliminacion = (id) => {
+  try {
+    if (!id) throw new Error('ID de pedido no válido')
+
+    selectedId.value = id
+    modalMode.value = 'confirm'
+    showModal.value = true
+  } catch (error) {
+    notyf.error(error.message)
+  }
+}
+
+const eliminarPedido = async () => {
+  try {
+    if (!selectedId.value) throw new Error('No se seleccionó ningún pedido para cancelar')
+
+    loading.value = true
+    notyf.success('Cancelando pedido...')
+
+    const { data } = await axios.post(`/pedidos/${selectedId.value}/cancel`)
+
+    if (data?.success) {
+      notyf.success(data.message || 'Pedido cancelado exitosamente')
+
+      // Actualizar datos locales - marcar como cancelada en lugar de eliminar
+      const index = pedidosOriginales.value.findIndex(p => p.id === selectedId.value)
+      if (index !== -1) {
+        pedidosOriginales.value[index] = {
+          ...pedidosOriginales.value[index],
+          estado: 'cancelado',
+          eliminado_por: data?.eliminado_por || 'Usuario actual',
+          deleted_at: new Date().toISOString()
+        }
+      }
+
+      cerrarModal()
+    } else {
+      throw new Error(data?.error || 'Error al cancelar el pedido')
+    }
+
+  } catch (error) {
+    console.error('Error al cancelar:', error)
+    let mensaje = 'Error al cancelar el pedido'
+    if (error.response?.data?.error) mensaje = error.response.data.error
+    else if (error.response?.data?.message) mensaje = error.response.data.message
+    else if (error.message) mensaje = error.message
+
+    notyf.error(mensaje)
+  } finally {
+    loading.value = false
+  }
+}
+
+const enviarAVenta = async (pedidoData) => {
+  try {
+    const docRaw = pedidoData?.id ? pedidoData : fila.value;
+
+    // Validar que se pueda enviar a venta
+    if (!puedeEnviarAVenta(docRaw)) {
+      throw new Error('El pedido no está en un estado válido para enviar a venta')
+    }
+
+    // Normalizar fecha para el backend
+    const doc = {
+      ...docRaw,
+      fecha: docRaw.fecha || docRaw.created_at || new Date().toISOString()
+    };
+
+    loading.value = true;
+    notyf.success('Enviando pedido a venta...');
+
+    const { data } = await axios.post(`/pedidos/${doc.id}/enviar-a-venta`, {
+      forzarReenvio: !!pedidoData?.forzarReenvio
+    });
+
+    if (data?.success) {
+      notyf.success(data.message || 'Pedido enviado a venta exitosamente');
+
+      // Actualizar el estado local
+      const index = pedidosOriginales.value.findIndex(p => p.id === doc.id);
+      if (index !== -1) {
+        pedidosOriginales.value[index] = {
+          ...pedidosOriginales.value[index],
+          estado: 'enviado_venta'
+        };
+      }
+
+      cerrarModal();
+
+      // Redirigir a ventas
+      router.visit('/ventas');
+    } else {
+      throw new Error(data?.error || 'No se pudo enviar a venta');
+    }
+
+  } catch (error) {
+    console.error('Error al enviar a venta:', error);
+
+    let mensaje = 'Error desconocido al enviar a venta';
+    if (error.response?.data?.error) mensaje = error.response.data.error;
+    else if (error.response?.data?.message) mensaje = error.response.data.message;
+    else if (error.message) mensaje = error.message;
+
+    notyf.error(mensaje);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const enviarACotizacion = () => {
+  notyf.warning('Esta acción no está disponible desde Pedidos.')
+}
+
+// Función para enviar pedido por email
+const enviarPedidoPorEmail = async (pedido) => {
+  try {
+    // Verificar que el cliente tenga email
+    if (!pedido.cliente?.email) {
+      notyf.error('El cliente no tiene email configurado')
+      return
+    }
+
+    console.log('=== ENVIANDO PEDIDO POR EMAIL ===')
+    console.log('Pedido ID:', pedido.id)
+    console.log('Cliente email:', pedido.cliente.email)
+
+    // Configurar modal de confirmación personalizado
+    fila.value = {
+      ...pedido,
+      numero_pedido: pedido.numero_pedido || `P${String(pedido.id).padStart(3, '0')}`,
+      email_destino: pedido.cliente.email
+    }
+    modalMode.value = 'confirm-email'
+    showModal.value = true
+
+  } catch (error) {
+    console.error('Error en enviarPedidoPorEmail:', error)
+    notyf.error('Error inesperado al preparar envío de pedido')
+  }
+}
+
+// Función para confirmar envío de email
+const confirmarEnvioEmail = async () => {
+  try {
+    const pedido = fila.value
+    if (!pedido?.email_destino) {
+      notyf.error('Email de destino no válido')
+      return
+    }
+
+    console.log('✅ Usuario confirmó envío de pedido por email');
+    loading.value = true
+    cerrarModal()
+
+    // Usar axios para tener control total sobre la respuesta
+    const { data } = await axios.post(`/pedidos/${pedido.id}/enviar-email`, {
+      email_destino: pedido.email_destino,
+    })
+
+    if (data?.success) {
+      notyf.success(data.message || 'Pedido enviado por email correctamente')
+
+      // Actualizar estado local del pedido usando los datos del servidor
+      const index = pedidosOriginales.value.findIndex(p => p.id === pedido.id)
+      if (index !== -1 && data.pedido) {
+        pedidosOriginales.value[index] = {
+          ...pedidosOriginales.value[index],
+          email_enviado: data.pedido.email_enviado,
+          email_enviado_fecha: data.pedido.email_enviado_fecha,
+          estado: data.pedido.estado
+        }
+      }
+    } else {
+      throw new Error(data?.error || 'Error desconocido al enviar email')
+    }
+
+  } catch (error) {
+    console.error('Error al enviar pedido:', error)
+    const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message
+    notyf.error('Error al enviar pedido: ' + errorMessage)
+  } finally {
+    loading.value = false
+  }
+}
+
+const crearNuevoPedido = () => {
+  router.visit('/pedidos/create')
+}
+</script>
+
+<template>
+  <Head title="Pedidos" />
+
+  <div class="pedidos-index min-h-screen bg-gray-50">
+    <!-- Contenido principal -->
+    <div class="max-w-8xl mx-auto px-6 py-8">
+      <!-- Header específico de pedidos -->
+      <PedidosHeader
+        :total="estadisticas.total"
+        :pendientes="estadisticas.pendientes"
+        :borrador="estadisticas.borrador"
+        :enviado_venta="estadisticas.enviado_venta"
+        :cancelado="estadisticas.cancelado"
+        v-model:search-term="searchTerm"
+        v-model:sort-by="sortBy"
+        v-model:filtro-estado="filtroEstado"
+        :config="{
+          module: 'pedidos',
+          createButtonText: 'Nuevo Pedido',
+          searchPlaceholder: 'Buscar por cliente, número...'
+        }"
+        @limpiar-filtros="handleLimpiarFiltros"
+        @crear-nuevo="crearNuevoPedido"
+      />
+
+      <!-- Tabla específica de pedidos -->
+      <div class="mt-6">
+        <PedidosTable
+          :documentos="documentosPedidosPaginados"
+          :search-term="searchTerm"
+          :sort-by="sortBy"
+          @ver-detalles="verDetalles"
+          @editar="editarPedido"
+          @eliminar="confirmarEliminacion"
+          @enviar-venta="enviarAVenta"
+          @enviar-email="enviarPedidoPorEmail"
+          @imprimir="imprimirPedido"
+          @sort="updateSort"
+        />
+
+        <!-- Componente de paginación -->
+        <Pagination
+          :pagination-data="paginationData"
+          @per-page-change="handlePerPageChange"
+          @page-change="handlePageChange"
+        />
+      </div>
+
+    </div>
+
+    <!-- Modal de detalles / confirmación -->
+    <Modal
+      :show="showModal"
+      :mode="modalMode"
+      tipo="pedidos"
+      :selected="fila || {}"
+      :auditoria="auditoriaForModal"
+      @close="cerrarModal"
+      @confirm-delete="eliminarPedido"
+      @confirm-email="confirmarEnvioEmail"
+      @editar="editarFila"
+      @enviar-venta="enviarAVenta"
+      @enviar-cotizacion="enviarACotizacion"
+    />
+
+    <!-- Loading overlay -->
+    <div v-if="loading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white p-6 rounded-lg shadow-lg">
+        <div class="flex items-center space-x-3">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          <span class="text-gray-700">Procesando...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.pedidos-index {
+  min-height: 100vh;
+  background-color: #f9fafb;
+}
+
+@media (max-width: 640px) {
+  .pedidos-index .max-w-8xl {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  .pedidos-index h1 {
+    font-size: 1.5rem;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pedidos-index > * {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Estilos adicionales para la paginación */
+.pagination-info {
+  font-size: 0.875rem;
+  color: #4b5563;
+}
+
+.pagination-controls button:focus {
+  outline: none;
+  /* Approximate Tailwind's ring-2 + ring-blue-500 + ring-offset-2 */
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.18);
+}
+
+.loading-overlay {
+  backdrop-filter: blur(2px);
+}
+</style>

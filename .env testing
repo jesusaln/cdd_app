@@ -1,0 +1,17 @@
+APP_NAME="Climas del Desierto"
+APP_ENV=testing
+APP_KEY=base64:AlytGytYcUJaNcIxIazlUnqnJberl4olGUL6tadhqqA=
+APP_DEBUG=true
+APP_TIMEZONE=America/Hermosillo
+APP_URL=http://localhost:8000
+
+DB_CONNECTION=sqlite
+DB_DATABASE=:memory:
+
+MAIL_MAILER=sync
+MAIL_FROM_ADDRESS="hello@example.com"
+MAIL_FROM_NAME="${APP_NAME}"
+
+QUEUE_CONNECTION=sync
+CACHE_STORE=database
+SESSION_DRIVER=file

@@ -1,0 +1,200 @@
+<?php
+
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
+use Illuminate\Foundation\Application;
+use App\Http\Controllers\ClienteController;
+use App\Http\Controllers\PrestamoController;
+use App\Http\Controllers\PagoPrestamoController;
+use App\Http\Controllers\ProductoController;
+use App\Http\Controllers\CategoriaController;
+use App\Http\Controllers\MarcaController;
+use App\Http\Controllers\ProveedorController;
+use App\Http\Controllers\AlmacenController;
+use App\Http\Controllers\CotizacionController;
+use App\Http\Controllers\PedidoController;
+use App\Http\Controllers\UserNotificationController;
+use App\Http\Controllers\VentaController;
+use App\Http\Controllers\CuentasPorCobrarController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\CompraController;
+use App\Http\Controllers\ReporteController;
+use App\Http\Controllers\TecnicoController;
+use App\Http\Controllers\CarroController;
+use App\Http\Controllers\MantenimientoController;
+use App\Http\Controllers\CitaController;
+use App\Http\Controllers\PanelController;
+use App\Http\Controllers\EmpresasController;
+use App\Http\Controllers\ServicioController;
+use App\Http\Controllers\InventarioController;
+use App\Http\Controllers\OrdenCompraController;
+use App\Http\Controllers\DatabaseBackupController;
+use App\Http\Controllers\EquipoController;
+use App\Http\Controllers\RentasController;
+use App\Http\Controllers\RentasContratoController;
+use App\Http\Controllers\CobranzaController;
+use App\Http\Controllers\EntregaDineroController;
+use App\Http\Controllers\BitacoraActividadController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\CfdiController;
+use App\Http\Controllers\ReporteTecnicoController;
+use App\Http\Controllers\ReportesDashboardController;
+use App\Http\Controllers\ReporteMovimientosController;
+// Controladores del m�dulo de herramientas
+use App\Http\Controllers\HerramientaController;
+// use App\Http\Controllers\AsignacionHerramientaController;
+// use App\Http\Controllers\EstadoHerramientaController;
+// use App\Http\Controllers\AsignacionMasivaController;
+// use App\Http\Controllers\TecnicoHerramientasController;
+use App\Http\Controllers\GestionHerramientasController;
+use App\Http\Controllers\MovimientoInventarioController;
+use App\Http\Controllers\TraspasoController;
+use App\Http\Controllers\AjusteInventarioController;
+use App\Http\Controllers\MovimientoManualController;
+use App\Http\Controllers\ReportesInventarioController;
+use App\Http\Controllers\ReportesController;
+use App\Http\Controllers\EmpresaConfiguracionController;
+use App\Http\Controllers\CategoriaHerramientaController;
+use App\Http\Controllers\VacacionController;
+use App\Http\Controllers\RegistroVacacionesController;
+
+// Forzar patr�n num�rico para {herramienta} y evitar colisiones con rutas est�ticas
+Route::pattern('herramienta', '[0-9]+');
+
+
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/clientes/export', [ClienteController::class, 'export'])
+        ->name('clientes.export');
+    Route::get('/productos/export', [ProductoController::class, 'export'])
+        ->name('productos.export');
+    Route::get('/servicios/export', [ServicioController::class, 'export'])
+        ->name('servicios.export');
+    Route::get('/carros/export', [CarroController::class, 'export'])
+        ->name('carros.export');
+    Route::get('/mantenimientos/export', [MantenimientoController::class, 'export'])
+        ->name('mantenimientos.export');
+    Route::get('/bitacora/export', [BitacoraActividadController::class, 'export'])
+        ->name('bitacora.export');
+});
+
+
+/*
+|--------------------------------------------------------------------------
+| Web Routes
+|--------------------------------------------------------------------------
+| AquÃ­ defines todas las rutas web de tu aplicaciÃ³n. Estas rutas estÃ¡n
+| cargadas por el RouteServiceProvider y automÃ¡ticamente tienen el
+| middleware 'web' aplicado.
+*/
+
+
+// Ruta para marcar todas las notificaciones como leÃ­das
+Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
+
+
+// =====================================================
+// RUTAS PÃšBLICAS
+// =====================================================
+Route::get('/', function () {
+    return Inertia::render('Welcome', [
+        'canLogin' => Route::has('login'),
+        'laravelVersion' => Application::VERSION,
+        'phpVersion' => PHP_VERSION,
+    ]);
+})->name('welcome');
+
+Route::get('/empresas', [EmpresasController::class, 'index'])->name('empresas.index');
+
+// =====================================================
+// RUTA PARA PLACEHOLDERS SVG
+// =====================================================
+Route::get('/placeholder/{w}x{h}/{bg?}/{fg?}', function (int $w, int $h, $bg = 'e5e7eb', $fg = '6b7280') {
+    $text = \Illuminate\Support\Str::of(request('text', 'Sin imagen'))->limit(40);
+    $fontSize = max(12, min($w / 12, 24)); // TamaÃ±o de fuente adaptativo
+
+    $svg = <<<SVG
+<svg xmlns="http://www.w3.org/2000/svg" width="{$w}" height="{$h}" viewBox="0 0 {$w} {$h}">
+  <rect width="100%" height="100%" fill="#{$bg}"/>
+  <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
+        font-family="system-ui, -apple-system, sans-serif" font-size="{$fontSize}" fill="#{$fg}"
+        font-weight="500">
+    {$text}
+  </text>
+</svg>
+SVG;
+
+    return response($svg, 200, [
+        'Content-Type' => 'image/svg+xml',
+        'Cache-Control' => 'public, max-age=3600', // Cache por 1 hora
+    ]);
+})->name('placeholder');
+
+// =====================================================
+// RECURSOS PRINCIPALES
+// =====================================================
+
+// =====================================================
+// RECURSOS PRINCIPALES
+// =====================================================
+
+Route::get('/productos/{id}/inventario', [ProductoController::class, 'showInventario'])->name('productos.inventario');
+Route::resource('inventario', InventarioController::class);
+
+// =====================================================
+// RUTAS PROTEGIDAS POR AUTENTICACIÃ“N
+// =====================================================
+Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified'])->group(function () {
+
+    // Dashboard y Panel
+    Route::get('/panel', [PanelController::class, 'index'])->name('panel');
+    Route::get('/dashboard', function () {
+        return redirect()->route('panel');
+    })->name('dashboard');
+
+    // =====================================================
+    // RECURSOS PRINCIPALES
+    // =====================================================
+    Route::resource('ordenescompra', OrdenCompraController::class);
+    Route::post('ordenescompra/{id}/enviar-compra', [OrdenCompraController::class, 'enviarACompra'])->name('ordenescompra.enviar-compra');
+    Route::post('ordenescompra/{id}/recibir-mercancia', [OrdenCompraController::class, 'recibirMercancia'])->name('ordenescompra.recibir-mercancia');
+    Route::post('ordenescompra/{id}/convertir-directo', [OrdenCompraController::class, 'convertirDirecto'])->name('ordenescompra.convertir-directo');
+    Route::post('ordenescompra/{id}/duplicate', [OrdenCompraController::class, 'duplicate'])->name('ordenescompra.duplicate');
+    Route::post('ordenescompra/{id}/urgente', [OrdenCompraController::class, 'marcarUrgente'])->name('ordenescompra.urgente');
+    Route::post('ordenescompra/{id}/cancelar', [OrdenCompraController::class, 'cancelar'])->name('ordenescompra.cancelar');
+    Route::post('ordenescompra/{id}/cambiar-estado', [OrdenCompraController::class, 'cambiarEstado'])->name('ordenescompra.cambiar-estado');
+    Route::get('ordenescompra/{id}/estado', [OrdenCompraController::class, 'getEstado'])->name('ordenescompra.get-estado');
+    Route::post('ordenescompra/{id}/enviar-email', [OrdenCompraController::class, 'enviarEmail'])->name('ordenescompra.enviar-email');
+
+    Route::resource('clientes', ClienteController::class)->names('clientes');
+    Route::resource('prestamos', PrestamoController::class)->names('prestamos');
+    Route::post('/prestamos/calcular-pagos', [PrestamoController::class, 'calcularPagos'])->name('prestamos.calcular-pagos');
+    Route::patch('/prestamos/{prestamo}/cambiar-estado', [PrestamoController::class, 'cambiarEstado'])->name('prestamos.cambiar-estado');
+    Route::get('/prestamos/{prestamo}/pagare', [PrestamoController::class, 'generarPagare'])->name('prestamos.pagare');
+    Route::get('/prestamos/{prestamo}/pagos', [PagoPrestamoController::class, 'pagosPorPrestamo'])->name('prestamos.pagos');
+    Route::resource('pagos', PagoPrestamoController::class)->names('pagos');
+    Route::resource('productos', ProductoController::class)->names('productos');
+    Route::get('productos/{id}/stock-detalle', [ProductoController::class, 'getStockDetalle'])->name('productos.stock-detalle');
+    Route::resource('proveedores', ProveedorController::class)->names('proveedores');
+    Route::resource('categorias', CategoriaController::class)->names('categorias');
+    Route::put('/categorias/{categoria}/toggle', [CategoriaController::class, 'toggle'])->name('categorias.toggle');
+    Route::get('/categorias/export', [CategoriaController::class, 'export'])->name('categorias.export');
+    Route::resource('marcas', MarcaController::class)->names('marcas');
+    Route::put('/marcas/{marca}/toggle', [MarcaController::class, 'toggle'])->name('marcas.toggle');
+    Route::get('/marcas/export', [MarcaController::class, 'export'])->name('marcas.export');
+    Route::resource('almacenes', AlmacenController::class)->names('almacenes'); // âœ… DUPLICACIÃ“N ELIMINADA
+    Route::put('/almacenes/{almacen}/toggle', [AlmacenController::class, 'toggle'])->name('almacenes.toggle');
+    Route::get('/almacenes/export', [AlmacenController::class, 'export'])->name('almacenes.export');
+    Route::resource('traspasos', TraspasoController::class)->names('traspasos');
+    Route::resource('movimientos-inventario', MovimientoInventarioController::class)->names('movimientos-inventario');
+    Route::resource('ajustes-inventario', AjusteInventarioController::class)->names('ajustes-inventario');
+    Route::resource('movimientos-manuales', MovimientoManualController::class)->names('movimientos-manuales');
+    Route::resource('cotizaciones', CotizacionController::class)->names('cotizaciones');
+    Route::resource('pedidos', PedidoController::class)->names('pedidos');
+    Route::resource('ventas', VentaController::class)->names('ventas');
+    Route::resource('servicios', ServicioController::class)->names('servicios');
+    Route::put('/servicios/{servicio}/toggle', [ServicioController::class, 'toggle'])->name('servicios.toggle');
+    Route::resource('usuarios', UserController::class)->names('usuarios');
+    Route::resource('compras', CompraController::class)->names('compras');
+    Route::post('/compras/{id}/cancel', [CompraController::class, 'cancel'])->name('compras.cancel');
+    Route::resource('cuentas-por-pagar', \App\Http\Controllers\CuentasPorPagarController::class)->names('cuentas-por-pagar');

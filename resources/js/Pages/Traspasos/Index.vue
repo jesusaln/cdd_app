@@ -1,0 +1,318 @@
+<!-- /resources/js/Pages/Traspasos/Index.vue -->
+<template>
+  <Head title="Traspasos de Inventario" />
+
+  <div class="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+    <div class="max-w-7xl mx-auto">
+      <!-- Header -->
+      <div class="mb-8">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-3xl font-bold text-gray-900">Traspasos de Inventario</h1>
+            <p class="text-gray-600 mt-1">Historial completo de movimientos entre almacenes</p>
+          </div>
+          <Link
+            :href="route('traspasos.create')"
+            class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl"
+          >
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+            </svg>
+            Nuevo Traspaso
+          </Link>
+        </div>
+      </div>
+
+      <!-- Estadísticas -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div class="flex items-center">
+            <div class="p-3 bg-blue-100 rounded-lg">
+              <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/>
+              </svg>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm font-medium text-gray-600">Total Traspasos</p>
+              <p class="text-2xl font-bold text-gray-900">{{ stats.total }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div class="flex items-center">
+            <div class="p-3 bg-green-100 rounded-lg">
+              <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+              </svg>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm font-medium text-gray-600">Productos Trasladados</p>
+              <p class="text-2xl font-bold text-gray-900">{{ stats.productos_trasladados }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div class="flex items-center">
+            <div class="p-3 bg-orange-100 rounded-lg">
+              <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+              </svg>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm font-medium text-gray-600">Almacenes Origen</p>
+              <p class="text-2xl font-bold text-gray-900">{{ stats.almacenes_origen }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div class="flex items-center">
+            <div class="p-3 bg-purple-100 rounded-lg">
+              <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+              </svg>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm font-medium text-gray-600">Almacenes Destino</p>
+              <p class="text-2xl font-bold text-gray-900">{{ stats.almacenes_destino }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filtros -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- Búsqueda -->
+          <div>
+            <label for="search" class="block text-sm font-medium text-gray-700 mb-2">Buscar</label>
+            <input
+              id="search"
+              v-model="filters.search"
+              type="text"
+              placeholder="ID, producto, almacén..."
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              @input="handleSearch"
+            />
+          </div>
+
+          <!-- Producto -->
+          <div>
+            <label for="producto_id" class="block text-sm font-medium text-gray-700 mb-2">Producto</label>
+            <select
+              id="producto_id"
+              v-model="filters.producto_id"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              @change="handleFilter"
+            >
+              <option value="">Todos los productos</option>
+              <option v-for="producto in productos" :key="producto.id" :value="producto.id">
+                {{ producto.nombre }}
+              </option>
+            </select>
+          </div>
+
+          <!-- Almacén Origen -->
+          <div>
+            <label for="almacen_origen_id" class="block text-sm font-medium text-gray-700 mb-2">Almacén Origen</label>
+            <select
+              id="almacen_origen_id"
+              v-model="filters.almacen_origen_id"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              @change="handleFilter"
+            >
+              <option value="">Todos los orígenes</option>
+              <option v-for="almacen in almacenes" :key="almacen.id" :value="almacen.id">
+                {{ almacen.nombre }}
+              </option>
+            </select>
+          </div>
+
+          <!-- Almacén Destino -->
+          <div>
+            <label for="almacen_destino_id" class="block text-sm font-medium text-gray-700 mb-2">Almacén Destino</label>
+            <select
+              id="almacen_destino_id"
+              v-model="filters.almacen_destino_id"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              @change="handleFilter"
+            >
+              <option value="">Todos los destinos</option>
+              <option v-for="almacen in almacenes" :key="almacen.id" :value="almacen.id">
+                {{ almacen.nombre }}
+              </option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabla -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Origen → Destino</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cantidad</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <tr v-for="traspaso in traspasos.data" :key="traspaso.id" class="hover:bg-gray-50">
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  #{{ traspaso.id }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="flex items-center">
+                    <div class="flex-shrink-0 h-10 w-10">
+                      <div class="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                        <svg class="h-5 w-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                        </svg>
+                      </div>
+                    </div>
+                    <div class="ml-4">
+                      <div class="text-sm font-medium text-gray-900">
+                        {{ traspaso.producto?.nombre || 'Producto no encontrado' }}
+                      </div>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="text-sm text-gray-900">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                      {{ traspaso.almacen_origen?.nombre || 'N/A' }}
+                    </span>
+                    <svg class="inline w-4 h-4 mx-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
+                    </svg>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      {{ traspaso.almacen_destino?.nombre || 'N/A' }}
+                    </span>
+                  </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    {{ traspaso.cantidad }} unidades
+                  </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {{ formatDate(traspaso.created_at) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Paginación -->
+        <div class="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
+          <div class="flex items-center justify-between">
+            <div class="text-sm text-gray-700">
+              Mostrando {{ pagination.from }} a {{ pagination.to }} de {{ pagination.total }} resultados
+            </div>
+            <div class="flex space-x-1">
+              <Link
+                v-if="traspasos.prev_page_url"
+                :href="traspasos.prev_page_url"
+                class="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Anterior
+              </Link>
+              <Link
+                v-if="traspasos.next_page_url"
+                :href="traspasos.next_page_url"
+                class="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Siguiente
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted } from 'vue'
+import { Head, Link, router, usePage } from '@inertiajs/vue3'
+import { Notyf } from 'notyf'
+import 'notyf/notyf.min.css'
+import AppLayout from '@/Layouts/AppLayout.vue';
+
+// Usar layout
+defineOptions({ layout: AppLayout });
+
+// Notificaciones
+const notyf = new Notyf({
+  duration: 4000,
+  position: { x: 'right', y: 'top' },
+  types: [
+    { type: 'success', background: '#10b981', icon: false },
+    { type: 'error', background: '#ef4444', icon: false },
+    { type: 'warning', background: '#f59e0b', icon: false }
+  ]
+})
+
+const page = usePage()
+onMounted(() => {
+  const flash = page.props.flash
+  if (flash?.success) notyf.success(flash.success)
+  if (flash?.error) notyf.error(flash.error)
+})
+
+// Props
+const props = defineProps({
+  traspasos: { type: Object, required: true },
+  stats: { type: Object, default: () => ({}) },
+  filters: { type: Object, default: () => ({}) },
+  sorting: { type: Object, default: () => ({}) },
+  pagination: { type: Object, default: () => ({}) },
+  productos: { type: Array, default: () => [] },
+  almacenes: { type: Array, default: () => [] },
+})
+
+// Estado reactivo
+const filters = ref({ ...props.filters })
+
+// Funciones
+const handleSearch = () => {
+  router.get(route('traspasos.index'), {
+    search: filters.value.search,
+    producto_id: filters.value.producto_id,
+    almacen_origen_id: filters.value.almacen_origen_id,
+    almacen_destino_id: filters.value.almacen_destino_id,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+const handleFilter = () => {
+  router.get(route('traspasos.index'), {
+    search: filters.value.search,
+    producto_id: filters.value.producto_id,
+    almacen_origen_id: filters.value.almacen_origen_id,
+    almacen_destino_id: filters.value.almacen_destino_id,
+    page: 1
+  }, { preserveState: true, preserveScroll: true })
+}
+
+const formatDate = (dateString) => {
+  if (!dateString) return 'N/A'
+  const date = new Date(dateString)
+  return date.toLocaleDateString('es-ES', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+</script>
+
+<style scoped>
+/* Estilos adicionales si son necesarios */
+</style>
