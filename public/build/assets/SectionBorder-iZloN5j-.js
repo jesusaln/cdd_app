@@ -1,0 +1,1 @@
+import{i as o,o as s,f as e}from"./vendor-d19pJyVS.js";import{_ as t}from"./_plugin-vue_export-helper-DlAUqK2U.js";const c={},a={class:"hidden sm:block"};function d(n,r){return s(),o("div",a,r[0]||(r[0]=[e("div",{class:"py-8"},[e("div",{class:"border-t border-gray-200 dark:border-gray-700"})],-1)]))}const f=t(c,[["render",d]]);export{f as S};
