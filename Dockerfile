@@ -1,7 +1,7 @@
 FROM php:8.1-fpm
 
-# Instalar dependencias del sistema
-RUN apt-get update && apt-get install -y \
+# Instalar dependencias del sistema incluyendo PostgreSQL dev
+RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
     libpng-dev \
@@ -13,6 +13,11 @@ RUN apt-get update && apt-get install -y \
     nodejs \
     npm \
     postgresql-client \
+    build-essential \
+    pkg-config \
+    && apt-get install -y --no-install-recommends libpq-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
     && docker-php-ext-install pdo_mysql pdo_pgsql mbstring exif pcntl bcmath gd zip
 
 # Instalar Composer
