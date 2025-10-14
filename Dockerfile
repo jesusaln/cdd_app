@@ -1,117 +1,48 @@
-# ---------- Stage 1: Assets (Vite) ----------
-FROM node:20-alpine AS assets
-WORKDIR /app
+FROM php:8.1-fpm
 
-# Dependencias nativas para algunos paquetes npm
-RUN apk add --no-cache python3 make g++
+# Instalar dependencias del sistema
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    libpng-dev \
+    libonig-dev \
+    libxml2-dev \
+    libzip-dev \
+    zip \
+    unzip \
+    nodejs \
+    npm \
+    postgresql-client \
+    && docker-php-ext-install pdo_mysql pdo_pgsql mbstring exif pcntl bcmath gd zip
 
-# Copia definiciones y lock (ajusta según uses npm/pnpm/yarn)
-COPY package*.json ./
-RUN npm ci --no-audit --no-fund --prefer-offline
+# Instalar Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Copia solo lo necesario para construir front
-COPY vite.config.* ./
-COPY resources ./resources
-COPY public ./public
+# Crear usuario para la aplicación
+RUN useradd -G www-data,root -u 1000 -d /home/cdd_app cdd_app
+RUN mkdir -p /home/cdd_app/.composer && chown -R cdd_app:cdd_app /home/cdd_app
 
-# Compilar assets → /public/build (versión simplificada)
-RUN npm run build || (echo "Build failed, but continuing..." && mkdir -p public/build)
+# Establecer directorio de trabajo
+WORKDIR /var/www/cdd_app
 
-
-# ---------- Stage 2: Composer ----------
-FROM composer:2 AS composer_deps
-WORKDIR /app
-
-# Configurar entorno para Composer
-ENV COMPOSER_ALLOW_SUPERUSER=1 \
-    COMPOSER_NO_INTERACTION=1 \
-    COMPOSER_CACHE_DIR=/tmp/composer-cache
-
-# Instalar dependencias del sistema necesarias para algunos paquetes PHP
-RUN apk add --no-cache git unzip libzip-dev zlib-dev
-
-# Copia composer.* y resuelve dependencias (sin dev, con autoloader optimizado)
-COPY composer.json composer.lock ./
-RUN --mount=type=cache,target=/tmp/composer-cache \
-    composer install --no-dev --prefer-dist --no-progress --no-interaction --optimize-autoloader --no-scripts \
-    --ignore-platform-req=ext-gd --ignore-platform-req=ext-zip --ignore-platform-req=ext-curl
-
-# Si tu app necesita los archivos para el post-autoload-dump, copia mínimo app/ y demás
-# (opcional; composer 2 suele bastar con composer.json/lock)
-# COPY app ./app
-# RUN composer dump-autoload --no-dev --classmap-authoritative
-
-
-# ---------- Stage 3: App (PHP 8.4 + Apache) ----------
-FROM php:8.4-apache
-WORKDIR /var/www/html
-
-# Instalar dependencias del sistema necesarias (solo las esenciales)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq-dev libzip-dev unzip git \
-    libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
-    libxml2-dev libcurl4-openssl-dev \
-    $PHPIZE_DEPS \
-    && rm -rf /var/lib/apt/lists/*
-
-# Verificar qué extensiones están disponibles por defecto
-RUN php -m
-
-# Instalar solo las extensiones esenciales que realmente necesitamos
-RUN docker-php-ext-install pdo
-RUN docker-php-ext-install pdo_pgsql
-RUN docker-php-ext-install pgsql
-
-# Instalar otras extensiones esenciales
-RUN docker-php-ext-install opcache
-
-# Instalar extensiones adicionales si es posible
-RUN docker-php-ext-install zip || echo "Zip extension not available"
-RUN docker-php-ext-install xml || echo "XML extension not available"
-RUN docker-php-ext-install mbstring || echo "MBString extension not available"
-RUN docker-php-ext-install curl || echo "Curl extension not available"
-
-# Configurar e instalar GD si es posible
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg 2>/dev/null || echo "GD configure failed"
-RUN docker-php-ext-install gd 2>/dev/null || echo "GD extension not available"
-
-# Redis via PECL
-RUN pecl install redis \
- && docker-php-ext-enable redis
-
-# Apache modules
-RUN a2enmod rewrite headers expires
-
-# OPcache para producción
-RUN { \
-    echo 'opcache.enable=1'; \
-    echo 'opcache.enable_cli=0'; \
-    echo 'opcache.validate_timestamps=0'; \
-    echo 'opcache.max_accelerated_files=20000'; \
-    echo 'opcache.memory_consumption=256'; \
-    echo 'opcache.interned_strings_buffer=16'; \
-} > /usr/local/etc/php/conf.d/opcache.ini
-
-# DocumentRoot → /public
-ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
-RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf \
-            -e 's!Directory /var/www/!Directory ${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf || true
-
-# Copia el código de la app (sin sobrescribir public todavía)
+# Copiar archivos de la aplicación
 COPY . .
 
-# Borra public para reemplazarlo por el compilado
-RUN rm -rf /var/www/html/public
+# Establecer permisos
+RUN chown -R cdd_app:www-data /var/www/cdd_app \
+    && chmod -R 755 /var/www/cdd_app \
+    && chmod -R 777 /var/www/cdd_app/storage \
+    && chmod -R 777 /var/www/cdd_app/bootstrap/cache
 
-# Copia assets compilados y .htaccess desde Stage assets
-COPY --from=assets /app/public /var/www/html/public
+# Instalar dependencias PHP
+USER cdd_app
+RUN composer install --no-dev --optimize-autoloader
 
-# Copia vendor desde Stage composer
-COPY --from=composer_deps /app/vendor /var/www/html/vendor
+# Instalar dependencias Node.js y compilar assets
+RUN npm install --production && npm run build
 
-# Directorios necesarios y permisos
-RUN mkdir -p storage/framework/{cache/data,sessions,views} storage/logs bootstrap/cache \
- && chown -R www-data:www-data storage bootstrap/cache public \
- && chmod -R ug+rwX storage bootstrap/cache
+# Exponer puerto
+EXPOSE 8000
 
-EXPOSE 80
+# Comando por defecto
+CMD php artisan serve --host=0.0.0.0 --port=8000
