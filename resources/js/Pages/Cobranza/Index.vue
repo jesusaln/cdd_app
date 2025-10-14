@@ -360,8 +360,9 @@ const obtenerLabelEstado = (estado) => {
 </script>
 
 <template>
-  <Head title="Cobranza" />
-  <div class="cobranza-index min-h-screen bg-gray-50">
+  <div>
+    <Head title="Cobranza" />
+    <div class="cobranza-index min-h-screen bg-gray-50">
     <div class="max-w-8xl mx-auto px-6 py-8">
       <!-- Header específico de cobranza -->
       <CobranzaHeader
@@ -780,6 +781,7 @@ const obtenerLabelEstado = (estado) => {
         </div>
       </div>
     </div>
+  </div>
   </div>
 </template>
 

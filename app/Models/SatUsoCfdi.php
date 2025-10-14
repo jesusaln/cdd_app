@@ -20,14 +20,12 @@ class SatUsoCfdi extends Model
     protected $fillable = [
         'clave',
         'descripcion',
-        'persona_fisica',
-        'persona_moral',
         'regimen_fiscal_receptor',
+        'activo',
     ];
 
     protected $casts = [
-        'persona_fisica' => 'boolean',
-        'persona_moral'  => 'boolean',
+        'activo' => 'boolean',
     ];
 
     /**

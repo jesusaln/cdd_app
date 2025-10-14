@@ -82,14 +82,14 @@ class ClienteController extends Controller
         try {
             return Cache::remember('usos_cfdi_db', self::CACHE_TTL, function () {
                 return SatUsoCfdi::orderBy('clave')
-                    ->get(['clave', 'descripcion', 'persona_fisica', 'persona_moral'])
+                    ->get(['clave', 'descripcion', 'regimen_fiscal_receptor', 'activo'])
                     ->keyBy('clave')
                     ->toArray();
             });
         } catch (\Exception $e) {
             Log::warning('Error obteniendo usos CFDI del cache, usando DB directa', ['error' => $e->getMessage()]);
             return SatUsoCfdi::orderBy('clave')
-                ->get(['clave', 'descripcion', 'persona_fisica', 'persona_moral'])
+                ->get(['clave', 'descripcion', 'regimen_fiscal_receptor', 'activo'])
                 ->keyBy('clave')
                 ->toArray();
         }
@@ -487,7 +487,7 @@ class ClienteController extends Controller
                 $q->where('activo', true)->orWhereNull('activo');
             })->count();
 
-            return Inertia::render('Clientes/IndexNew', [
+            return Inertia::render('Clientes/Index', [
                 'clientes' => $clientes,
                 'estadisticas'    => [
                     'total'     => $clientesCount,
@@ -536,7 +536,7 @@ class ClienteController extends Controller
                     ->get(['clave', 'descripcion', 'persona_fisica', 'persona_moral'])
                     ->toArray(),
                 'usosCFDI' => SatUsoCfdi::orderBy('clave')
-                    ->get(['clave', 'descripcion', 'persona_fisica', 'persona_moral'])
+                    ->get(['clave', 'descripcion', 'regimen_fiscal_receptor', 'activo'])
                     ->map(function ($uso) {
                         return [
                             'value' => $uso->clave,

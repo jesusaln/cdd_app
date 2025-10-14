@@ -303,8 +303,9 @@ const obtenerLabelEstado = (estado) => {
 </script>
 
 <template>
-  <Head title="Productos" />
-  <div class="productos-index min-h-screen bg-gray-50">
+  <div>
+    <Head title="Productos" />
+    <div class="productos-index min-h-screen bg-gray-50">
     <div class="max-w-8xl mx-auto px-6 py-8">
       <!-- Header específico de productos -->
       <ProductosHeader
@@ -687,6 +688,7 @@ const obtenerLabelEstado = (estado) => {
         </div>
       </div>
     </div>
+  </div>
   </div>
 </template>
 

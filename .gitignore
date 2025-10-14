@@ -105,4 +105,8 @@ storage/clockwork/*
 # Configuración específica por ambiente
 .env.local
 .env.development
-.env.testing
+
+# -----------------------------
+# Instaladores y archivos grandes
+# -----------------------------
+postgresql-installer.exe

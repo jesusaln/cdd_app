@@ -14,12 +14,14 @@ echo "📋 VERIFICANDO REQUISITOS...\n";
 
 // Verificar si PostgreSQL está disponible
 try {
-    $pdo = new PDO('pgsql:host=127.0.0.1;port=5432;dbname=cdd_local', 'cdd', 'secret');
+    $pdo = new PDO('pgsql:host=127.0.0.1;port=5432;dbname=cdd_local', 'cdd_user', 'Contpaqi1.');
     echo "✅ PostgreSQL conectado exitosamente\n";
 } catch (Exception $e) {
     echo "❌ Error conectando a PostgreSQL: " . $e->getMessage() . "\n";
-    echo "💡 Asegúrate de que Docker esté corriendo:\n";
-    echo "   docker compose up -d\n\n";
+    echo "💡 Verifica que PostgreSQL esté corriendo y las credenciales sean correctas:\n";
+    echo "   Usuario: cdd_user\n";
+    echo "   Password: Contpaqi1.\n";
+    echo "   Base de datos: cdd_local\n\n";
     exit(1);
 }
 
@@ -48,8 +50,8 @@ $envContent = preg_replace('/DB_CONNECTION=.*/', 'DB_CONNECTION=pgsql', $envCont
 $envContent = preg_replace('/DB_HOST=.*/', 'DB_HOST=127.0.0.1', $envContent);
 $envContent = preg_replace('/DB_PORT=.*/', 'DB_PORT=5432', $envContent);
 $envContent = preg_replace('/DB_DATABASE=.*/', 'DB_DATABASE=cdd_local', $envContent);
-$envContent = preg_replace('/DB_USERNAME=.*/', 'DB_USERNAME=cdd', $envContent);
-$envContent = preg_replace('/DB_PASSWORD=.*/', 'DB_PASSWORD=secret', $envContent);
+$envContent = preg_replace('/DB_USERNAME=.*/', 'DB_USERNAME=cdd_user', $envContent);
+$envContent = preg_replace('/DB_PASSWORD=.*/', 'DB_PASSWORD=Contpaqi1.', $envContent);
 
 // Remover líneas de SQLite si existen
 $envContent = preg_replace('/DB_DATABASE=.*\.sqlite.*/', '# DB_DATABASE= (SQLite removido)', $envContent);
