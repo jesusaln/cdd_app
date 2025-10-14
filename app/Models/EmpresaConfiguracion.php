@@ -1,0 +1,338 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
+
+class EmpresaConfiguracion extends Model
+{
+    protected $table = 'empresa_configuracion';
+
+    protected $fillable = [
+        'nombre_empresa',
+        'rfc',
+        'razon_social',
+        'calle',
+        'numero_exterior',
+        'numero_interior',
+        'telefono',
+        'email',
+        'sitio_web',
+        'codigo_postal',
+        'colonia',
+        'ciudad',
+        'estado',
+        'pais',
+        'logo_path',
+        'favicon_path',
+        'descripcion_empresa',
+        'color_principal',
+        'color_secundario',
+        'pie_pagina_facturas',
+        'pie_pagina_cotizaciones',
+        'terminos_condiciones',
+        'politica_privacidad',
+        'iva_porcentaje',
+        'moneda',
+        'formato_numeros',
+        'mantenimiento',
+        'mensaje_mantenimiento',
+        'registro_usuarios',
+        'notificaciones_email',
+        'logo_reportes',
+        'formato_fecha',
+        'formato_hora',
+        'backup_automatico',
+        'frecuencia_backup',
+        'retencion_backups',
+        'intentos_login',
+        'tiempo_bloqueo',
+        'requerir_2fa',
+        // Datos bancarios existentes
+        'banco',
+        'sucursal',
+        'cuenta',
+        'clabe',
+        'titular',
+        // Datos bancarios adicionales
+        'numero_cuenta',
+        'numero_tarjeta',
+        'nombre_titular',
+        'informacion_adicional_bancaria',
+        // Configuración de correo
+        'smtp_host',
+        'smtp_port',
+        'smtp_username',
+        'smtp_password',
+        'smtp_encryption',
+        'email_from_address',
+        'email_from_name',
+        'email_reply_to',
+        // Configuración DKIM
+        'dkim_selector',
+        'dkim_domain',
+        'dkim_public_key',
+        'dkim_enabled',
+        // Configuración de modo oscuro
+        'dark_mode_enabled',
+        'dark_mode_primary_color',
+        'dark_mode_secondary_color',
+        'dark_mode_background_color',
+        'dark_mode_surface_color',
+    ];
+
+    protected $casts = [
+        'mantenimiento' => 'boolean',
+        'registro_usuarios' => 'boolean',
+        'notificaciones_email' => 'boolean',
+        'backup_automatico' => 'boolean',
+        'requerir_2fa' => 'boolean',
+        'dkim_enabled' => 'boolean',
+        'dark_mode_enabled' => 'boolean',
+        'iva_porcentaje' => 'decimal:2',
+        'intentos_login' => 'integer',
+        'tiempo_bloqueo' => 'integer',
+        'frecuencia_backup' => 'integer',
+        'retencion_backups' => 'integer',
+    ];
+
+    /**
+     * Obtener la configuración actual de la empresa
+     * Si no existe, devuelve valores por defecto
+     */
+    public static function getConfig()
+    {
+        return Cache::remember('empresa_configuracion', 3600, function () {
+            $config = self::first();
+
+            if (!$config) {
+                // Crear configuración por defecto si no existe
+                $config = self::create([
+                    'nombre_empresa' => 'CDD - Sistema de Gestión',
+                    'rfc' => 'XAXX010101000',
+                    'razon_social' => 'Empresa de Ejemplo S.A. de C.V.',
+                    'calle' => 'Calle de Ejemplo',
+                    'numero_exterior' => '123',
+                    'numero_interior' => 'A',
+                    'telefono' => '555-000-0000',
+                    'email' => 'contacto@empresa.com',
+                    'sitio_web' => 'https://empresa.com',
+                    'codigo_postal' => '00000',
+                    'ciudad' => 'Ciudad de México',
+                    'estado' => 'CDMX',
+                    'pais' => 'México',
+                    'color_principal' => '#3B82F6',
+                    'color_secundario' => '#1E40AF',
+                    'iva_porcentaje' => 16.00,
+                    'moneda' => 'MXN',
+                    'formato_numeros' => 'es-ES',
+                    'formato_fecha' => 'd/m/Y',
+                    'formato_hora' => 'H:i:s',
+                    'registro_usuarios' => true,
+                    'notificaciones_email' => true,
+                    'backup_automatico' => true,
+                    'frecuencia_backup' => 7,
+                    'retencion_backups' => 30,
+                    'intentos_login' => 5,
+                    'tiempo_bloqueo' => 15,
+                    // Datos bancarios por defecto
+                    'banco' => 'Banamex',
+                    'sucursal' => '7008',
+                    'cuenta' => '5952062',
+                    'clabe' => '002760700859520625',
+                    'titular' => 'Jesús Alberto López Noriega',
+                    // Configuración de correo Hostinger
+                    'smtp_host' => 'smtp.hostinger.com',
+                    'smtp_port' => 587,
+                    'smtp_username' => 'documentos_digitales@asistenciavircom.com',
+                    'smtp_password' => 'Anahid2188',
+                    'smtp_encryption' => 'tls',
+                    'email_from_address' => 'documentos_digitales@asistenciavircom.com',
+                    'email_from_name' => 'CDD - Sistema de Gestión',
+                    'email_reply_to' => 'documentos_digitales@asistenciavircom.com',
+                    // Configuración DKIM por defecto
+                    'dkim_selector' => 'hostingermail',
+                    'dkim_domain' => 'asistenciavircom.com',
+                    'dkim_public_key' => '',
+                    'dkim_enabled' => false,
+                    // Configuración de modo oscuro por defecto
+                    'dark_mode_enabled' => false,
+                    'dark_mode_primary_color' => '#1E40AF',
+                    'dark_mode_secondary_color' => '#3B82F6',
+                    'dark_mode_background_color' => '#0F172A',
+                    'dark_mode_surface_color' => '#1E293B',
+                ]);
+            }
+
+            return $config;
+        });
+    }
+
+    /**
+     * Limpiar caché de configuración
+     */
+    public static function clearCache()
+    {
+        Cache::forget('empresa_configuracion');
+    }
+
+    /**
+     * Obtener URL completa del logo
+     */
+    public function getLogoUrlAttribute()
+    {
+        if ($this->logo_path) {
+            return Storage::url($this->logo_path);
+        }
+        return null;
+    }
+
+    /**
+     * Obtener URL completa del favicon
+     */
+    public function getFaviconUrlAttribute()
+    {
+        if ($this->favicon_path) {
+            return Storage::url($this->favicon_path);
+        }
+        return null;
+    }
+
+    /**
+     * Obtener URL completa del logo para reportes
+     */
+    public function getLogoReportesUrlAttribute()
+    {
+        if ($this->logo_reportes) {
+            return Storage::url($this->logo_reportes);
+        } elseif ($this->logo_path) {
+            return Storage::url($this->logo_path);
+        }
+        return null;
+    }
+
+    /**
+     * Obtener dirección completa formateada
+     */
+    public function getDireccionCompletaAttribute()
+    {
+        // Construir dirección con calle y números
+        $direccionPartes = array_filter([
+            $this->calle,
+            $this->numero_exterior ? 'No. ' . $this->numero_exterior : null,
+            $this->numero_interior ? 'Int. ' . $this->numero_interior : null,
+        ]);
+
+        $direccion = implode(' ', $direccionPartes);
+
+        // Agregar resto de información incluyendo colonia
+        $partes = array_filter([
+            $direccion,
+            $this->colonia,
+            $this->codigo_postal ? 'C.P. ' . $this->codigo_postal : null,
+            $this->ciudad,
+            $this->estado,
+            $this->pais,
+        ]);
+
+        return implode(', ', $partes);
+    }
+
+    /**
+     * Verificar si el sistema está en modo mantenimiento
+     */
+    public static function enMantenimiento()
+    {
+        $config = self::getConfig();
+        return $config->mantenimiento;
+    }
+
+    /**
+     * Obtener mensaje de mantenimiento
+     */
+    public static function mensajeMantenimiento()
+    {
+        $config = self::getConfig();
+        return $config->mensaje_mantenimiento;
+    }
+
+    /**
+     * Obtener información básica de la empresa para documentos
+     */
+    public static function getInfoEmpresa()
+    {
+        $config = self::getConfig();
+
+        return [
+            'nombre' => $config->nombre_empresa,
+            'rfc' => $config->rfc,
+            'razon_social' => $config->razon_social,
+            'direccion' => $config->direccion_completa,
+            'telefono' => $config->telefono,
+            'email' => $config->email,
+            'sitio_web' => $config->sitio_web,
+            'logo_url' => $config->logo_url,
+        ];
+    }
+
+    /**
+     * Obtener configuración de colores
+     */
+    public static function getColores()
+    {
+        $config = self::getConfig();
+
+        return [
+            'principal' => $config->color_principal,
+            'secundario' => $config->color_secundario,
+        ];
+    }
+
+    /**
+     * Obtener configuración financiera
+     */
+    public static function getConfiguracionFinanciera()
+    {
+        $config = self::getConfig();
+
+        return [
+            'iva_porcentaje' => $config->iva_porcentaje,
+            'moneda' => $config->moneda,
+            'formato_numeros' => $config->formato_numeros,
+        ];
+    }
+
+    /**
+     * Obtener pie de página para documentos
+     */
+    public static function getPiePagina($tipo = 'facturas')
+    {
+        $config = self::getConfig();
+
+        switch ($tipo) {
+            case 'cotizaciones':
+                return $config->pie_pagina_cotizaciones;
+            case 'facturas':
+            default:
+                return $config->pie_pagina_facturas;
+        }
+    }
+
+    /**
+     * Override para guardar y limpiar caché
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::saved(function () {
+            self::clearCache();
+        });
+
+        static::deleted(function () {
+            self::clearCache();
+        });
+    }
+}
