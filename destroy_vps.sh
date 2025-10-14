@@ -1,0 +1,3 @@
+#!/bin/bash
+# DESTRUIR SOLO VPS - NO RECONSTRUIR
+chmod +x DESTROY_ONLY.sh && ./DESTROY_ONLY.sh
