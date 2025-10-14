@@ -8,3 +8,6 @@
 *.log
 .DS_Store
 Thumbs.db
+# Build assets
+/public/build
+/public/hot

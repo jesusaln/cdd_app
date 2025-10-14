@@ -1,7 +1,7 @@
 ﻿<!-- /resources/js/Pages/EmpresaConfiguracion/Index.vue -->
 <script setup>
  import { ref, computed, onMounted } from 'vue'
- import { Head, useForm, router } from '@inertiajs/vue3'
+ import { Head, useForm, router, usePage } from '@inertiajs/vue3'
  import AppLayout from '@/Layouts/AppLayout.vue'
  import { notyf } from '@/Utils/notyf.js'
 
