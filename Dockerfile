@@ -13,9 +13,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     nodejs \
     npm \
     postgresql-client \
+    postgresql-server-dev-all \
     build-essential \
     pkg-config \
-    && apt-get install -y --no-install-recommends libpq-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && docker-php-ext-install pdo_mysql pdo_pgsql mbstring exif pcntl bcmath gd zip
