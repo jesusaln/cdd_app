@@ -39,15 +39,20 @@ export default defineConfig({
   },
   // Configuración del servidor de desarrollo
   server: {
+    host: '192.168.191.226',
     hmr: {
-      host: 'localhost',
+      host: '192.168.191.226',
+      port: 5173,
     },
     // Puerto por defecto, puedes cambiarlo si es necesario
     port: 5173,
     // Abre automáticamente el navegador
     open: false,
     // Forzar HTTPS en desarrollo si es necesario
-    https: false
+    https: false,
+    // Configuración adicional para desarrollo en red
+    cors: true,
+    origin: 'http://192.168.191.226:5173'
   },
   // Configuración para producción - corregir rutas de assets
   base: process.env.NODE_ENV === 'production' ? '/build/' : '/',
