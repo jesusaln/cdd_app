@@ -74,7 +74,7 @@ class ProductoController extends Controller
         }
 
         if ($producto->imagen) {
-            $producto->imagen_url = asset('storage/' . $producto->imagen);
+            $producto->imagen_url = $this->generateCorrectStorageUrl($producto->imagen);
         } else {
             $producto->imagen_url = null;
         }
@@ -152,5 +152,20 @@ class ProductoController extends Controller
         $producto->delete();
 
         return response()->json(['message' => 'Producto eliminado correctamente']);
+    }
+
+    /**
+     * Generar URL de storage correcta independientemente de APP_URL
+     */
+    private function generateCorrectStorageUrl($path)
+    {
+        $scheme = request()->isSecure() ? 'https' : 'http';
+        $host = request()->getHost();
+        $port = request()->getPort();
+
+        // No agregar puerto si es el puerto estándar
+        $portString = ( ($scheme === 'http' && $port !== 80) || ($scheme === 'https' && $port !== 443) ) ? ':' . $port : '';
+
+        return "{$scheme}://{$host}{$portString}/storage/{$path}";
     }
 }

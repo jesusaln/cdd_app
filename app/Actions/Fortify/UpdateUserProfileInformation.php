@@ -4,6 +4,7 @@ namespace App\Actions\Fortify;
 
 use App\Models\User;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Laravel\Fortify\Contracts\UpdatesUserProfileInformation;
@@ -24,7 +25,11 @@ class UpdateUserProfileInformation implements UpdatesUserProfileInformation
         ])->validateWithBag('updateProfileInformation');
 
         if (isset($input['photo'])) {
-            $user->updateProfilePhoto($input['photo']);
+            // Convertir el archivo de Inertia.js a UploadedFile si es necesario
+            $photo = $this->convertToUploadedFile($input['photo']);
+            if ($photo) {
+                $user->updateProfilePhoto($photo);
+            }
         }
 
         if ($input['email'] !== $user->email &&
@@ -52,5 +57,33 @@ class UpdateUserProfileInformation implements UpdatesUserProfileInformation
         ])->save();
 
         $user->sendEmailVerificationNotification();
+    }
+
+    /**
+     * Convertir archivo de Inertia.js a UploadedFile
+     *
+     * @param mixed $file
+     * @return UploadedFile|null
+     */
+    private function convertToUploadedFile($file)
+    {
+        // Si ya es un UploadedFile, devolverlo directamente
+        if ($file instanceof UploadedFile) {
+            return $file;
+        }
+
+        // Si es un array (viene desde Inertia.js)
+        if (is_array($file) && isset($file['name'], $file['size'], $file['tmp_name'])) {
+            return new UploadedFile(
+                $file['tmp_name'],
+                $file['name'],
+                $file['type'] ?? null,
+                $file['error'] ?? UPLOAD_ERR_OK,
+                true // test
+            );
+        }
+
+        // Si no se puede convertir, devolver null
+        return null;
     }
 }

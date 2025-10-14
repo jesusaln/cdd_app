@@ -1,23 +1,11 @@
 ﻿<!-- /resources/js/Pages/EmpresaConfiguracion/Index.vue -->
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { Head, useForm, router } from '@inertiajs/vue3'
-import AppLayout from '@/Layouts/AppLayout.vue'
-import { Notyf } from 'notyf'
-import 'notyf/notyf.min.css'
+ import { ref, computed, onMounted } from 'vue'
+ import { Head, useForm, router } from '@inertiajs/vue3'
+ import AppLayout from '@/Layouts/AppLayout.vue'
+ import { notyf } from '@/Utils/notyf.js'
 
-defineOptions({ layout: AppLayout })
-
-// Notificaciones
-const notyf = new Notyf({
-  duration: 4000,
-  position: { x: 'right', y: 'top' },
-  types: [
-    { type: 'success', background: '#10b981', icon: false },
-    { type: 'error', background: '#ef4444', icon: false },
-    { type: 'warning', background: '#f59e0b', icon: false }
-  ]
-})
+ defineOptions({ layout: AppLayout })
 
 // Props
 const props = defineProps({
@@ -30,6 +18,9 @@ const activeTab = ref('general')
 const logoPreview = ref(null)
 const faviconPreview = ref(null)
 const logoReportesPreview = ref(null)
+
+// Obtener datos de Inertia de forma segura
+const page = usePage()
 
 // Configuraciones predefinidas de proveedores SMTP
 const proveedoresSMTP = {

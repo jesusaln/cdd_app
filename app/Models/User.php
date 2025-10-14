@@ -96,18 +96,61 @@ class User extends Authenticatable
      * @return void
      */
 
+     /**
+        * Get the default profile photo URL if no profile photo has been uploaded.
+        *
+        * @return string
+        */
+       protected function defaultProfilePhotoUrl()
+       {
+           return $this->generateCorrectAssetUrl('images/default-profile.svg');
+       }
+ 
+       /**
+        * Get the URL to the user's profile photo.
+        *
+        * @return string
+        */
+       public function getProfilePhotoUrlAttribute()
+       {
+           if ($this->profile_photo_path) {
+               return $this->generateCorrectStorageUrl('profile-photos/' . $this->profile_photo_path);
+           }
+ 
+           return $this->defaultProfilePhotoUrl();
+       }
+ 
+       /**
+        * Generar URL correcta independientemente de APP_URL
+        */
+       private function generateCorrectAssetUrl($path)
+       {
+           $scheme = request()->isSecure() ? 'https' : 'http';
+           $host = request()->getHost();
+           $port = request()->getPort();
+ 
+           // No agregar puerto si es el puerto estándar
+           $portString = ( ($scheme === 'http' && $port !== 80) || ($scheme === 'https' && $port !== 443) ) ? ':' . $port : '';
+ 
+           return "{$scheme}://{$host}{$portString}/{$path}";
+       }
+ 
+       /**
+        * Generar URL de storage correcta independientemente de APP_URL
+        */
+       private function generateCorrectStorageUrl($path)
+       {
+           $scheme = request()->isSecure() ? 'https' : 'http';
+           $host = request()->getHost();
+           $port = request()->getPort();
+ 
+           // No agregar puerto si es el puerto estándar
+           $portString = ( ($scheme === 'http' && $port !== 80) || ($scheme === 'https' && $port !== 443) ) ? ':' . $port : '';
+ 
+           return "{$scheme}://{$host}{$portString}/storage/{$path}";
+       }
 
-    /**
-     * Accessor para la propiedad 'profile_photo_url'.
-     */
-    public function getProfilePhotoUrlAttribute()
-    {
-        return $this->profile_photo_path
-            ? Storage::url($this->profile_photo_path)
-            : asset('images/default-profile.png'); // Foto por defecto si no tiene una foto
-    }
-
-    // Relación con técnico
+     // Relación con técnico
     public function tecnico()
     {
         return $this->hasOne(Tecnico::class);

@@ -3,6 +3,9 @@ import laravel from 'laravel-vite-plugin';
 import vue from '@vitejs/plugin-vue';
 import { resolve } from 'path';
 
+// Leer dinámicamente la URL del servidor de desarrollo
+const viteUrl = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173';
+
 export default defineConfig({
   plugins: [
     laravel({
@@ -39,20 +42,20 @@ export default defineConfig({
   },
   // Configuración del servidor de desarrollo
   server: {
-    host: '192.168.191.226',
-    hmr: {
-      host: '192.168.191.226',
-      port: 5173,
-    },
-    // Puerto por defecto, puedes cambiarlo si es necesario
+    host: true, // Escuchar en todas las interfaces disponibles
     port: 5173,
-    // Abre automáticamente el navegador
-    open: false,
-    // Forzar HTTPS en desarrollo si es necesario
-    https: false,
-    // Configuración adicional para desarrollo en red
     cors: true,
-    origin: 'http://192.168.191.226:5173'
+    strictPort: false,
+    https: false,
+    hmr: {
+      host: viteUrl.replace('http://', '').replace(':5173', '').replace('0.0.0.0', 'localhost'), // Usar localhost para HMR estable
+      port: 5173,
+      clientPort: 5173,
+      protocol: 'ws'
+    },
+    watch: {
+      usePolling: false,
+    },
   },
   // Configuración para producción - corregir rutas de assets
   base: process.env.NODE_ENV === 'production' ? '/build/' : '/',

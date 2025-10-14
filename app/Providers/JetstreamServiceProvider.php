@@ -36,6 +36,9 @@ class JetstreamServiceProvider extends ServiceProvider
         Jetstream::removeTeamMembersUsing(RemoveTeamMember::class);
         Jetstream::deleteTeamsUsing(DeleteTeam::class);
         Jetstream::deleteUsersUsing(DeleteUser::class);
+
+        // Registrar rutas de Jetstream para Inertia
+        Jetstream::inertia();
     }
 
     /**

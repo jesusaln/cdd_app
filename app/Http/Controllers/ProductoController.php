@@ -283,7 +283,7 @@ class ProductoController extends Controller
             return response()->json(['error' => 'Producto no encontrado'], 404);
         }
 
-        $producto->imagen_url = $producto->imagen ? asset('storage/' . $producto->imagen) : null;
+        $producto->imagen_url = $producto->imagen ? $this->generateCorrectStorageUrl($producto->imagen) : null;
 
         return response()->json($producto);
     }
@@ -541,5 +541,20 @@ class ProductoController extends Controller
         }
 
         return true; // Puede ser eliminado
+    }
+
+    /**
+     * Generar URL de storage correcta independientemente de APP_URL
+     */
+    private function generateCorrectStorageUrl($path)
+    {
+        $scheme = request()->isSecure() ? 'https' : 'http';
+        $host = request()->getHost();
+        $port = request()->getPort();
+
+        // No agregar puerto si es el puerto estándar
+        $portString = ( ($scheme === 'http' && $port !== 80) || ($scheme === 'https' && $port !== 443) ) ? ':' . $port : '';
+
+        return "{$scheme}://{$host}{$portString}/storage/{$path}";
     }
 }

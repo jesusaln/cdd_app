@@ -5,11 +5,20 @@ return [
     'allowed_methods' => ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     'allowed_origins' => [
         'https://climasdeldesierto.laravel.cloud',
-        // Orígenes específicos para Ionic
+        // Orígenes específicos para desarrollo local
         'ionic://localhost',
         'http://localhost',
         'https://localhost',
+        'http://localhost:8000',
+        'https://localhost:8000',
+        'http://127.0.0.1:8000',
+        'https://127.0.0.1:8000',
+        'http://0.0.0.0:8000',
+        'https://0.0.0.0:8000',
         'capacitor://localhost',
+        // Permitir cualquier origen localhost con puerto
+        'http://localhost:*',
+        'https://localhost:*',
     ],
     'allowed_origins_patterns' => [
         '/^https:\/\/.*\.climasdeldesierto\.laravel\.cloud$/',

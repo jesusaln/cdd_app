@@ -1,6 +1,7 @@
 ﻿<?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -60,6 +61,7 @@ use App\Http\Controllers\CategoriaHerramientaController;
 use App\Http\Controllers\VacacionController;
 use App\Http\Controllers\RegistroVacacionesController;
 use App\Http\Controllers\EmpresaWhatsAppController;
+use App\Http\Controllers\ImageController;
 use App\Models\Empresa;
 
 // Forzar patrón numérico para {herramienta} y evitar colisiones con rutas estáticas
@@ -517,6 +519,11 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // Ruta temporal para pruebas
     Route::post('/test-notification', [UserNotificationController::class, 'createTest'])->name('test.notification');
 
+    // Ruta de prueba para imágenes
+    Route::get('/test-images', function () {
+        return Inertia::render('TestImages');
+    })->name('test.images');
+
     // =====================================================
     // RUTAS BACKUP
     // =====================================================
@@ -572,3 +579,81 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
 
 // Alias de rutas antiguas a la nueva gestión de herramientas (evita 404 en vistas existentes)
 // Eliminado: alias antiguos relacionados con gestión de herramientas
+
+// =====================================================
+// RUTA DE PRUEBA PARA VERIFICAR CARGA DE IMÁGENES
+// =====================================================
+Route::get('/test-images', function () {
+    $profilePhotos = \Illuminate\Support\Facades\Storage::disk('public')->files('profile-photos');
+    $images = [];
+
+    foreach ($profilePhotos as $photo) {
+        $images[] = [
+            'filename' => basename($photo),
+            'url' => asset('storage/' . $photo),
+            'size' => \Illuminate\Support\Facades\Storage::disk('public')->size($photo),
+            'exists' => \Illuminate\Support\Facades\Storage::disk('public')->exists($photo),
+        ];
+    }
+
+    return response()->json([
+        'server_info' => [
+            'host' => request()->getHost(),
+            'port' => request()->getPort(),
+            'scheme' => request()->getScheme(),
+            'origin' => request()->header('Origin'),
+        ],
+        'images' => $images,
+        'storage_path' => storage_path('app/public'),
+        'public_storage_exists' => is_link(public_path('storage')),
+        'cors_headers' => [
+            'Access-Control-Allow-Origin' => request()->header('Origin') ?: '*',
+            'Access-Control-Allow-Credentials' => 'true',
+        ]
+    ]);
+})->name('test.images');
+
+// =====================================================
+// SERVIDOR ESPECÍFICO PARA IMÁGENES CON HEADERS PERMISIVOS
+// =====================================================
+Route::get('/profile-photo/{filename}', [ImageController::class, 'serveProfilePhoto'])->name('serve-profile-photo');
+Route::get('/api/profile-photos', [ImageController::class, 'listProfilePhotos'])->name('list-profile-photos');
+
+// =====================================================
+// RUTAS ALTERNATIVAS PARA IMÁGENES (INDEPENDIENTES DE APP_URL)
+// =====================================================
+Route::get('/img/profile-photos/{filename}', function ($filename) {
+    $path = 'profile-photos/' . $filename;
+    $fullPath = storage_path('app/public/' . $path);
+
+    // Verificar que el archivo existe
+    if (!file_exists($fullPath)) {
+        return response('Imagen no encontrada', 404);
+    }
+
+    $mimeType = mime_content_type($fullPath) ?: 'image/png';
+
+    return response()->file($fullPath, [
+        'Content-Type' => $mimeType,
+        'Cache-Control' => 'public, max-age=3600',
+        'Access-Control-Allow-Origin' => request()->header('Origin') ?: '*',
+        'Access-Control-Allow-Credentials' => 'true',
+        'Access-Control-Allow-Methods' => 'GET, OPTIONS',
+        'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
+    ]);
+})->name('image.profile-photo');
+
+// Ruta de debug para verificar configuración de URLs
+Route::get('/debug-urls', function () {
+    return response()->json([
+        'app_url' => config('app.url'),
+        'current_host' => request()->getHost(),
+        'current_port' => request()->getPort(),
+        'current_scheme' => request()->getScheme(),
+        'is_secure' => request()->isSecure(),
+        'full_url' => request()->fullUrl(),
+        'storage_url_example' => \App\Helpers\UrlHelper::storageUrl('profile-photos/test.png'),
+        'asset_url_example' => \App\Helpers\UrlHelper::assetUrl('images/logo.png'),
+        'is_misconfigured' => \App\Helpers\UrlHelper::isAppUrlMisconfigured(),
+    ]);
+})->name('debug.urls');
