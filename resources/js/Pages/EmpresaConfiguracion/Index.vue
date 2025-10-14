@@ -103,6 +103,12 @@ const form = useForm({
   descripcion_empresa: props.configuracion.descripcion_empresa,
   color_principal: props.configuracion.color_principal,
   color_secundario: props.configuracion.color_secundario,
+  // Configuración de modo oscuro
+  dark_mode_enabled: props.configuracion.dark_mode_enabled || false,
+  dark_mode_primary_color: props.configuracion.dark_mode_primary_color || '#1E40AF',
+  dark_mode_secondary_color: props.configuracion.dark_mode_secondary_color || '#3B82F6',
+  dark_mode_background_color: props.configuracion.dark_mode_background_color || '#0F172A',
+  dark_mode_surface_color: props.configuracion.dark_mode_surface_color || '#1E293B',
   pie_pagina_facturas: props.configuracion.pie_pagina_facturas,
   pie_pagina_cotizaciones: props.configuracion.pie_pagina_cotizaciones,
   terminos_condiciones: props.configuracion.terminos_condiciones,
@@ -378,6 +384,12 @@ const guardarConfiguracion = () => {
     descripcion_empresa: form.descripcion_empresa,
     color_principal: form.color_principal,
     color_secundario: form.color_secundario,
+    // Configuración de modo oscuro
+    dark_mode_enabled: form.dark_mode_enabled,
+    dark_mode_primary_color: form.dark_mode_primary_color,
+    dark_mode_secondary_color: form.dark_mode_secondary_color,
+    dark_mode_background_color: form.dark_mode_background_color,
+    dark_mode_surface_color: form.dark_mode_surface_color,
     pie_pagina_facturas: form.pie_pagina_facturas,
     pie_pagina_cotizaciones: form.pie_pagina_cotizaciones,
     terminos_condiciones: form.terminos_condiciones,
@@ -1146,9 +1158,169 @@ const tabActiva = computed(() => {
                   </div>
                 </div>
 
-                <!-- Vista previa de colores -->
+                <!-- Configuración del Modo Oscuro -->
+                <div class="mt-8 p-6 bg-gray-50 rounded-lg">
+                  <h3 class="text-lg font-medium text-gray-900 mb-4">Modo Oscuro</h3>
+                  <p class="text-sm text-gray-600 mb-4">
+                    Personaliza la apariencia del sistema cuando el modo oscuro esté activado.
+                  </p>
+
+                  <div class="space-y-6">
+                    <!-- Habilitar modo oscuro -->
+                    <div class="flex items-center">
+                      <input
+                        v-model="form.dark_mode_enabled"
+                        id="dark_mode_enabled"
+                        type="checkbox"
+                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label for="dark_mode_enabled" class="ml-2 block text-sm text-gray-900">
+                        Habilitar modo oscuro
+                      </label>
+                    </div>
+
+                    <!-- Colores del tema oscuro -->
+                    <div v-if="form.dark_mode_enabled" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <!-- Color Principal (Modo Oscuro) -->
+                      <div>
+                        <label for="dark_mode_primary_color" class="block text-sm font-medium text-gray-700 mb-2">
+                          Color Principal (Modo Oscuro)
+                        </label>
+                        <div class="flex items-center gap-3">
+                          <input
+                            v-model="form.dark_mode_primary_color"
+                            id="dark_mode_primary_color"
+                            type="color"
+                            class="w-12 h-10 border border-gray-300 rounded-lg cursor-pointer"
+                          />
+                          <input
+                            v-model="form.dark_mode_primary_color"
+                            type="text"
+                            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="#1E40AF"
+                          />
+                        </div>
+                        <p v-if="form.errors.dark_mode_primary_color" class="mt-1 text-sm text-red-600">
+                          {{ form.errors.dark_mode_primary_color }}
+                        </p>
+                      </div>
+
+                      <!-- Color Secundario (Modo Oscuro) -->
+                      <div>
+                        <label for="dark_mode_secondary_color" class="block text-sm font-medium text-gray-700 mb-2">
+                          Color Secundario (Modo Oscuro)
+                        </label>
+                        <div class="flex items-center gap-3">
+                          <input
+                            v-model="form.dark_mode_secondary_color"
+                            id="dark_mode_secondary_color"
+                            type="color"
+                            class="w-12 h-10 border border-gray-300 rounded-lg cursor-pointer"
+                          />
+                          <input
+                            v-model="form.dark_mode_secondary_color"
+                            type="text"
+                            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="#3B82F6"
+                          />
+                        </div>
+                        <p v-if="form.errors.dark_mode_secondary_color" class="mt-1 text-sm text-red-600">
+                          {{ form.errors.dark_mode_secondary_color }}
+                        </p>
+                      </div>
+
+                      <!-- Color de Fondo (Modo Oscuro) -->
+                      <div>
+                        <label for="dark_mode_background_color" class="block text-sm font-medium text-gray-700 mb-2">
+                          Color de Fondo (Modo Oscuro)
+                        </label>
+                        <div class="flex items-center gap-3">
+                          <input
+                            v-model="form.dark_mode_background_color"
+                            id="dark_mode_background_color"
+                            type="color"
+                            class="w-12 h-10 border border-gray-300 rounded-lg cursor-pointer"
+                          />
+                          <input
+                            v-model="form.dark_mode_background_color"
+                            type="text"
+                            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="#0F172A"
+                          />
+                        </div>
+                        <p v-if="form.errors.dark_mode_background_color" class="mt-1 text-sm text-red-600">
+                          {{ form.errors.dark_mode_background_color }}
+                        </p>
+                      </div>
+
+                      <!-- Color de Superficie (Modo Oscuro) -->
+                      <div>
+                        <label for="dark_mode_surface_color" class="block text-sm font-medium text-gray-700 mb-2">
+                          Color de Superficie (Modo Oscuro)
+                        </label>
+                        <div class="flex items-center gap-3">
+                          <input
+                            v-model="form.dark_mode_surface_color"
+                            id="dark_mode_surface_color"
+                            type="color"
+                            class="w-12 h-10 border border-gray-300 rounded-lg cursor-pointer"
+                          />
+                          <input
+                            v-model="form.dark_mode_surface_color"
+                            type="text"
+                            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="#1E293B"
+                          />
+                        </div>
+                        <p v-if="form.errors.dark_mode_surface_color" class="mt-1 text-sm text-red-600">
+                          {{ form.errors.dark_mode_surface_color }}
+                        </p>
+                      </div>
+                    </div>
+
+                    <!-- Vista previa del tema oscuro -->
+                    <div v-if="form.dark_mode_enabled" class="mt-6 p-4 border border-gray-200 rounded-lg">
+                      <h4 class="text-sm font-medium text-gray-700 mb-3">Vista Previa del Tema Oscuro</h4>
+                      <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-2">
+                          <div
+                            :style="{ backgroundColor: form.dark_mode_primary_color }"
+                            class="w-8 h-8 rounded-lg border border-gray-300"
+                          ></div>
+                          <span class="text-sm text-gray-600">{{ form.dark_mode_primary_color }}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                          <div
+                            :style="{ backgroundColor: form.dark_mode_secondary_color }"
+                            class="w-8 h-8 rounded-lg border border-gray-300"
+                          ></div>
+                          <span class="text-sm text-gray-600">{{ form.dark_mode_secondary_color }}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                          <div
+                            :style="{ backgroundColor: form.dark_mode_background_color }"
+                            class="w-8 h-8 rounded-lg border border-gray-300"
+                          ></div>
+                          <span class="text-sm text-gray-600">{{ form.dark_mode_background_color }}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                          <div
+                            :style="{ backgroundColor: form.dark_mode_surface_color }"
+                            class="w-8 h-8 rounded-lg border border-gray-300"
+                          ></div>
+                          <span class="text-sm text-gray-600">{{ form.dark_mode_surface_color }}</span>
+                        </div>
+                        <button @click="previewColores" class="px-3 py-1 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700">
+                          Aplicar Vista Previa
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Vista previa de colores (tema claro) -->
                 <div class="mt-6 p-4 border border-gray-200 rounded-lg">
-                  <h4 class="text-sm font-medium text-gray-700 mb-3">Vista Previa de Colores</h4>
+                  <h4 class="text-sm font-medium text-gray-700 mb-3">Vista Previa de Colores (Tema Claro)</h4>
                   <div class="flex items-center gap-4">
                     <div class="flex items-center gap-2">
                       <div

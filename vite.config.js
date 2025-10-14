@@ -53,6 +53,6 @@ export default defineConfig({
   base: process.env.NODE_ENV === 'production' ? '/build/' : '/',
   // Optimización de dependencias
   optimizeDeps: {
-    include: ['vue', '@inertiajs/vue3', 'axios']
+    include: ['vue', '@inertiajs/vue3', 'axios', 'ziggy-js']
   }
 });

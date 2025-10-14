@@ -1,6 +1,6 @@
 <template>
-    <div class="flex flex-col h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-        <nav class="bg-gradient-to-r from-gray-900 to-gray-800 shadow-lg border-b border-gray-700">
+    <div :class="isDarkMode ? 'bg-slate-900' : 'bg-gradient-to-br from-gray-50 to-gray-100'" class="flex flex-col h-screen transition-colors duration-300">
+        <nav :class="isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-gradient-to-r from-gray-900 to-gray-800 border-gray-700'" class="shadow-lg border-b transition-colors duration-300">
             <div class="px-4 py-3">
                 <div class="flex justify-between items-center">
                     <div>
@@ -21,6 +21,21 @@
                      </div>
 
                     <div class="flex items-center space-x-3">
+                        <!-- Toggle de Tema Oscuro -->
+                        <button
+                            @click="toggleDarkMode"
+                            class="p-2 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            :class="isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-yellow-400' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'"
+                            :title="isDarkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
+                        >
+                            <svg v-if="isDarkMode" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd" />
+                            </svg>
+                            <svg v-else class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                            </svg>
+                        </button>
+
                         <!-- Componente de Notificaciones Mejorado -->
                         <NotificationBell
                             :auto-refresh="true"
@@ -71,17 +86,19 @@
                                     role="menu"
                                     aria-orientation="vertical"
                                     aria-labelledby="profile-button"
-                                    class="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl z-50 overflow-hidden border border-gray-200"
+                                    :class="isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'"
+                                    class="absolute right-0 mt-2 w-56 rounded-xl shadow-xl z-50 overflow-hidden transition-colors duration-300"
                                 >
-                                    <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
-                                        <p class="text-sm font-medium text-gray-900">{{ usuario.name }}</p>
-                                        <p class="text-xs text-gray-500">{{ usuario.email }}</p>
+                                    <div :class="isDarkMode ? 'bg-slate-700 border-slate-600' : 'bg-gray-50 border-gray-200'" class="px-4 py-3 border-b transition-colors duration-300">
+                                        <p :class="isDarkMode ? 'text-slate-100' : 'text-gray-900'" class="text-sm font-medium">{{ usuario.name }}</p>
+                                        <p :class="isDarkMode ? 'text-slate-300' : 'text-gray-500'" class="text-xs">{{ usuario.email }}</p>
                                     </div>
 
                                     <div class="py-1">
                                         <Link
                                             :href="route('profile.show')"
-                                            class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-150"
+                                            :class="isDarkMode ? 'text-slate-200 hover:bg-slate-700' : 'text-gray-700 hover:bg-gray-100'"
+                                            class="flex items-center px-4 py-2 text-sm transition-colors duration-150"
                                             role="menuitem"
                                         >
                                             <svg class="mr-3 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -91,7 +108,8 @@
                                         </Link>
                                         <Link
                                             :href="route('empresas.index')"
-                                            class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-150"
+                                            :class="isDarkMode ? 'text-slate-200 hover:bg-slate-700' : 'text-gray-700 hover:bg-gray-100'"
+                                            class="flex items-center px-4 py-2 text-sm transition-colors duration-150"
                                             role="menuitem"
                                         >
                                             <svg class="mr-3 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -102,10 +120,11 @@
                                         </Link>
                                     </div>
 
-                                    <div class="border-t border-gray-200">
+                                    <div :class="isDarkMode ? 'border-slate-600' : 'border-gray-200'" class="border-t transition-colors duration-300">
                                         <button
                                             @click="logout"
-                                            class="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-150"
+                                            :class="isDarkMode ? 'text-red-400 hover:bg-slate-700' : 'text-red-600 hover:bg-red-50'"
+                                            class="flex items-center w-full px-4 py-2 text-sm transition-colors duration-150"
                                             role="menuitem"
                                         >
                                             <svg class="mr-3 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -126,8 +145,11 @@
             <Sidebar :isSidebarCollapsed="isSidebarCollapsed" :usuario="usuario" :isMobile="isMobile" @toggleSidebar="toggleSidebar" />
 
             <main
-                :class="{'ml-64': !isSidebarCollapsed, 'ml-20': isSidebarCollapsed}"
-                class="flex-1 overflow-y-auto bg-gray-50 transition-all duration-300 ease-in-out"
+                :class="[
+                    {'ml-64': !isSidebarCollapsed, 'ml-20': isSidebarCollapsed},
+                    'flex-1 overflow-y-auto transition-all duration-300 ease-in-out',
+                    isDarkMode ? 'bg-slate-900' : 'bg-gray-50'
+                ]"
             >
                 <div class="p-6">
                     <slot />
@@ -136,9 +158,9 @@
         </div>
 
         <div v-if="isLoading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" aria-modal="true" role="dialog">
-            <div class="bg-white rounded-lg p-6 flex items-center space-x-3 shadow-lg">
+            <div :class="isDarkMode ? 'bg-slate-800' : 'bg-white'" class="rounded-lg p-6 flex items-center space-x-3 shadow-lg transition-colors duration-300">
                 <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600" role="status" aria-label="Cargando"></div>
-                <span class="text-gray-700">Cargando...</span>
+                <span :class="isDarkMode ? 'text-slate-200' : 'text-gray-700'" class="transition-colors duration-300">Cargando...</span>
             </div>
         </div>
     </div>
@@ -158,6 +180,7 @@ import {
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import axios from 'axios';
+import { useDarkMode } from '@/Utils/useDarkMode.js';
 
 // Configuración de empresa
 const empresaConfig = ref({
@@ -165,7 +188,21 @@ const empresaConfig = ref({
   color_principal: '#3B82F6',
   color_secundario: '#1E40AF',
   logo_url: null,
+  // Configuración de tema oscuro
+  dark_mode_enabled: false,
+  dark_mode_primary_color: '#1E40AF',
+  dark_mode_secondary_color: '#3B82F6',
+  dark_mode_background_color: '#0F172A',
+  dark_mode_surface_color: '#1E293B',
 });
+
+// Usar el composable de tema oscuro
+const {
+  isDarkMode,
+  currentTheme,
+  toggleDarkMode,
+  updateThemeColors,
+} = useDarkMode(empresaConfig.value);
 
 // --- Font Awesome Icon Configuration ---
 library.add(
@@ -189,16 +226,19 @@ const cargarConfiguracionEmpresa = async () => {
     const response = await axios.get('/empresa/configuracion/api');
     empresaConfig.value = response.data.configuracion;
     aplicarColoresDinamicos();
+
+    // Actualizar colores del tema oscuro si están disponibles
+    updateThemeColors(empresaConfig.value);
   } catch (error) {
     console.error('Error al cargar configuración de empresa:', error);
   }
 };
 
-// Aplicar colores dinámicos al CSS
+// Aplicar colores dinámicos al CSS (ahora manejado por useDarkMode)
 const aplicarColoresDinamicos = () => {
-  const root = document.documentElement;
-  root.style.setProperty('--empresa-color-primary', empresaConfig.value.color_principal || '#3B82F6');
-  root.style.setProperty('--empresa-color-secondary', empresaConfig.value.color_secundario || '#1E40AF');
+  // Esta función ahora es manejada por el composable useDarkMode
+  // Pero la mantenemos para compatibilidad con código existente
+  updateThemeColors(empresaConfig.value);
 };
 
 // --- DOM References ---

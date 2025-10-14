@@ -4,7 +4,7 @@ import { createApp, h } from 'vue'
 import { createInertiaApp } from '@inertiajs/vue3'
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers'
 // Importar route desde ziggy-js correctamente
-import route from 'ziggy-js'
+import { route } from 'ziggy-js'
 // FontAwesome core + componente
 import { library } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'

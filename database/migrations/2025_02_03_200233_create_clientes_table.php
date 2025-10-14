@@ -41,7 +41,7 @@ return new class extends Migration
             $table->string('colonia', 150);
             $table->char('codigo_postal', 5);
             $table->string('municipio', 120);
-            $table->char('estado', 3)->comment('SAT c_Estado');
+            $table->string('estado', 100)->comment('Nombre completo del estado');
             $table->char('pais', 2)->default('MX');
 
             $table->text('notas')->nullable();

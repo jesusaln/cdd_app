@@ -42,8 +42,8 @@ RUN --mount=type=cache,target=/tmp/composer-cache \
 # RUN composer dump-autoload --no-dev --classmap-authoritative
 
 
-# ---------- Stage 3: App (PHP 8.3 + Apache) ----------
-FROM php:8.3-apache
+# ---------- Stage 3: App (PHP 8.4 + Apache) ----------
+FROM php:8.4-apache
 WORKDIR /var/www/html
 
 # Instalar dependencias del sistema necesarias (solo las esenciales)

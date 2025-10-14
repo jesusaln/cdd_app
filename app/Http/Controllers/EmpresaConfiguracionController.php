@@ -68,6 +68,12 @@ class EmpresaConfiguracionController extends Controller
             'descripcion_empresa' => 'nullable|string|max:1000',
             'color_principal' => 'nullable|string|regex:/^#[0-9A-F]{6}$/i',
             'color_secundario' => 'nullable|string|regex:/^#[0-9A-F]{6}$/i',
+            // Configuración de modo oscuro
+            'dark_mode_enabled' => 'nullable|boolean',
+            'dark_mode_primary_color' => 'nullable|string|regex:/^#[0-9A-F]{6}$/i',
+            'dark_mode_secondary_color' => 'nullable|string|regex:/^#[0-9A-F]{6}$/i',
+            'dark_mode_background_color' => 'nullable|string|regex:/^#[0-9A-F]{6}$/i',
+            'dark_mode_surface_color' => 'nullable|string|regex:/^#[0-9A-F]{6}$/i',
             'pie_pagina_facturas' => 'nullable|string|max:1000',
             'pie_pagina_cotizaciones' => 'nullable|string|max:1000',
             'terminos_condiciones' => 'nullable|string|max:2000',
@@ -150,7 +156,7 @@ class EmpresaConfiguracionController extends Controller
         }
 
         // Forzar actualización de booleanos aunque no vengan en el request (checkbox desmarcado)
-        $booleanos = ['mantenimiento','registro_usuarios','notificaciones_email','backup_automatico','requerir_2fa','dkim_enabled'];
+        $booleanos = ['mantenimiento','registro_usuarios','notificaciones_email','backup_automatico','requerir_2fa','dkim_enabled','dark_mode_enabled'];
         foreach ($booleanos as $b) {
             $data[$b] = $request->boolean($b);
         }

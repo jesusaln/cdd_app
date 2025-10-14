@@ -55,21 +55,21 @@ class ClienteSeeder extends Seeder
 
                 Cliente::create([
                     'nombre_razon_social' => $tipoPersona === 'fisica' ?
-                        $faker->name() :
-                        $faker->company(),
+                        substr($faker->name(), 0, 100) : // Limitar longitud
+                        substr($faker->company(), 0, 100),
                     'tipo_persona' => $tipoPersona,
                     'rfc' => $this->generarRFC($tipoPersona),
                     'regimen_fiscal' => $faker->randomElement($regimenesFiscales),
                     'uso_cfdi' => $faker->randomElement($usosCFDI),
                     'email' => $faker->unique()->safeEmail(),
                     'telefono' => $faker->numerify('55#######'),
-                    'calle' => $faker->streetName(),
+                    'calle' => substr($faker->streetName(), 0, 50), // Limitar calle
                     'numero_exterior' => $faker->buildingNumber(),
                     'numero_interior' => $faker->optional(0.3)->buildingNumber(),
-                    'colonia' => $coloniaAleatoria,
+                    'colonia' => substr($coloniaAleatoria, 0, 50), // Limitar colonia
                     'codigo_postal' => $datosCP['codigo_postal'],
-                    'municipio' => $datosCP['municipio'],
-                    'estado' => $datosCP['estado'], // ⬅️ ¡Nombre completo del estado!
+                    'municipio' => substr($datosCP['municipio'], 0, 50), // Limitar municipio
+                    'estado' => substr($datosCP['estado'], 0, 100), // Usar nombre completo del estado
                     'pais' => 'MX',
                     'activo' => $faker->boolean(90)
                 ]);
@@ -172,4 +172,5 @@ class ClienteSeeder extends Seeder
 
         return $faker->unique()->regexify('[A-Z]{3}[0-9]{6}[A-Z0-9]{3}');
     }
+
 }

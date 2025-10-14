@@ -75,6 +75,12 @@ class EmpresaConfiguracion extends Model
         'dkim_domain',
         'dkim_public_key',
         'dkim_enabled',
+        // Configuración de modo oscuro
+        'dark_mode_enabled',
+        'dark_mode_primary_color',
+        'dark_mode_secondary_color',
+        'dark_mode_background_color',
+        'dark_mode_surface_color',
     ];
 
     protected $casts = [
@@ -83,6 +89,8 @@ class EmpresaConfiguracion extends Model
         'notificaciones_email' => 'boolean',
         'backup_automatico' => 'boolean',
         'requerir_2fa' => 'boolean',
+        'dkim_enabled' => 'boolean',
+        'dark_mode_enabled' => 'boolean',
         'iva_porcentaje' => 'decimal:2',
         'intentos_login' => 'integer',
         'tiempo_bloqueo' => 'integer',
@@ -149,6 +157,12 @@ class EmpresaConfiguracion extends Model
                     'dkim_domain' => 'asistenciavircom.com',
                     'dkim_public_key' => '',
                     'dkim_enabled' => false,
+                    // Configuración de modo oscuro por defecto
+                    'dark_mode_enabled' => false,
+                    'dark_mode_primary_color' => '#1E40AF',
+                    'dark_mode_secondary_color' => '#3B82F6',
+                    'dark_mode_background_color' => '#0F172A',
+                    'dark_mode_surface_color' => '#1E293B',
                 ]);
             }
 

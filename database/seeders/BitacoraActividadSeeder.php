@@ -32,7 +32,7 @@ class BitacoraActividadSeeder extends Seeder
                 'fin_at'        => Carbon::now(),
                 'tipo'          => 'soporte',
                 'estado'        => 'completado',
-                'prioridad'     => 'media',
+                'prioridad'     => 2,
                 'ubicacion'     => 'Sucursal Centro',
                 'adjuntos'      => ['capturas' => ['error1.png']],
                 'es_facturable' => true,
@@ -53,7 +53,7 @@ class BitacoraActividadSeeder extends Seeder
                 'fin_at'        => Carbon::yesterday()->setTime(18, 30),
                 'tipo'          => 'instalacion',
                 'estado'        => 'completado',
-                'prioridad'     => 'alta',
+                'prioridad'     => 3,
                 'ubicacion'     => 'Sucursal Norte',
                 'adjuntos'      => ['fotos' => ['cam1.jpg', 'cam2.jpg']],
                 'es_facturable' => true,
@@ -65,7 +65,7 @@ class BitacoraActividadSeeder extends Seeder
         if (app()->environment('local', 'testing')) {
             $tipos = ['soporte', 'instalacion', 'mantenimiento'];
             $estados = ['pendiente', 'en_proceso', 'completado', 'cancelado'];
-            $prioridades = ['baja', 'media', 'alta'];
+            $prioridades = [1, 2, 3];
 
             for ($i = 0; $i < 20; $i++) {
                 $inicio = $faker->dateTimeBetween('-1 month', 'now');
