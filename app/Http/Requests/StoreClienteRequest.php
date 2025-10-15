@@ -57,6 +57,7 @@ class StoreClienteRequest extends FormRequest
     public function rules(): array
     {
         $requiereFactura = $this->input('requiere_factura', false);
+        $mostrarDireccion = $this->input('mostrar_direccion', false);
 
         $rules = [
             'nombre_razon_social' => [
@@ -66,19 +67,19 @@ class StoreClienteRequest extends FormRequest
                 'regex:/^[a-zA-Z0-9ñÑáéíóúÁÉÍÓÚüÜ\s\.,&\-\']+$/',
             ],
 
-            'calle' => ['required', 'string', 'max:255'],
-            'numero_exterior' => ['required', 'string', 'max:20'],
+            'calle' => [$mostrarDireccion ? 'required' : 'nullable', 'string', 'max:255'],
+            'numero_exterior' => [$mostrarDireccion ? 'required' : 'nullable', 'string', 'max:20'],
             'numero_interior' => ['nullable', 'string', 'max:20'],
-            'colonia' => ['required', 'string', 'max:255'],
+            'colonia' => [$mostrarDireccion ? 'required' : 'nullable', 'string', 'max:255'],
 
             'codigo_postal' => [
-                'required',
+                $mostrarDireccion ? 'required' : 'nullable',
                 'string',
                 'size:5',
                 'regex:/^[0-9]{5}$/',
             ],
 
-            'municipio' => ['required', 'string', 'max:255'],
+            'municipio' => [$mostrarDireccion ? 'required' : 'nullable', 'string', 'max:255'],
 
             // Estado: hacer opcional para clientes extranjeros
             'estado' => [
@@ -200,15 +201,15 @@ class StoreClienteRequest extends FormRequest
 
             'telefono.regex' => 'El teléfono solo debe contener números, espacios, paréntesis, guiones y el signo +.',
 
-            'calle.required'           => 'La calle es obligatoria.',
-            'numero_exterior.required' => 'El número exterior es obligatorio.',
-            'colonia.required'         => 'La colonia es obligatoria.',
+            'calle.required'           => 'La calle es obligatoria cuando se agrega información de dirección.',
+            'numero_exterior.required' => 'El número exterior es obligatorio cuando se agrega información de dirección.',
+            'colonia.required'         => 'La colonia es obligatoria cuando se agrega información de dirección.',
 
-            'codigo_postal.required' => 'El código postal es obligatorio.',
+            'codigo_postal.required' => 'El código postal es obligatorio cuando se agrega información de dirección.',
             'codigo_postal.size'     => 'El código postal debe tener 5 dígitos.',
             'codigo_postal.regex'    => 'El código postal debe contener solo números.',
 
-            'municipio.required' => 'El municipio es obligatorio.',
+            'municipio.required' => 'El municipio es obligatorio cuando se agrega información de dirección.',
 
             'estado.required' => 'El estado es obligatorio.',
             'estado.size'     => 'El estado debe ser una clave de 3 caracteres.',

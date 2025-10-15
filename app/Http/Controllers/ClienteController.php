@@ -689,13 +689,22 @@ class ClienteController extends Controller
             $data = $request->validated();
 
             // Normalización
-            $data['rfc']                 = strtoupper(trim($data['rfc']));
-            $data['email']               = strtolower(trim($data['email']));
             $data['nombre_razon_social'] = trim($data['nombre_razon_social']);
             $data['pais']                = self::DEFAULT_COUNTRY;
 
-            // Establecer domicilio_fiscal_cp igual al codigo_postal para CFDI 4.0
-            $data['domicilio_fiscal_cp'] = $data['codigo_postal'];
+            // Solo normalizar campos fiscales si están presentes (cuando requiere_factura es verdadero)
+            if (isset($data['rfc']) && !is_null($data['rfc'])) {
+                $data['rfc'] = strtoupper(trim($data['rfc']));
+            }
+
+            if (isset($data['email']) && !is_null($data['email'])) {
+                $data['email'] = strtolower(trim($data['email']));
+            }
+
+            // Establecer domicilio_fiscal_cp igual al codigo_postal para CFDI 4.0 (solo si existe)
+            if (isset($data['codigo_postal']) && !is_null($data['codigo_postal'])) {
+                $data['domicilio_fiscal_cp'] = $data['codigo_postal'];
+            }
 
             // Actualizar datos primero
             $cliente->update($data);

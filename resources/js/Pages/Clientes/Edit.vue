@@ -329,7 +329,8 @@
             <div class="md:col-span-2">
               <div class="mb-4">
                 <label for="calle" class="block text-sm font-medium text-gray-700">
-                  Calle <span class="text-red-500">*</span>
+                  Calle
+                  <span class="text-gray-400">(opcional)</span>
                 </label>
                 <input
                   type="text"
@@ -341,7 +342,6 @@
                     'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                     form.errors.calle ? 'border-red-300 bg-red-50' : 'border-gray-300'
                   ]"
-                  required
                 />
                 <div v-if="form.errors.calle" class="mt-2 text-sm text-red-600">
                   {{ form.errors.calle }}
@@ -351,7 +351,8 @@
 
             <div class="mb-4">
               <label for="numero_exterior" class="block text-sm font-medium text-gray-700">
-                Número Exterior <span class="text-red-500">*</span>
+                Número Exterior
+                <span class="text-gray-400">(opcional)</span>
               </label>
               <input
                 type="text"
@@ -363,7 +364,6 @@
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.numero_exterior ? 'border-red-300 bg-red-50' : 'border-gray-300'
                 ]"
-                required
               />
               <div v-if="form.errors.numero_exterior" class="mt-2 text-sm text-red-600">
                 {{ form.errors.numero_exterior }}
@@ -392,7 +392,8 @@
 
             <div class="mb-4">
               <label for="colonia" class="block text-sm font-medium text-gray-700">
-                Colonia <span class="text-red-500">*</span>
+                Colonia
+                <span class="text-gray-400">(opcional)</span>
               </label>
               <select
                 id="colonia"
@@ -403,7 +404,6 @@
                   form.errors.colonia ? 'border-red-300 bg-red-50' : 'border-gray-300',
                   availableColonias.length === 0 ? 'bg-gray-100 text-gray-400' : ''
                 ]"
-                required
               >
                 <option value="">
                   {{ availableColonias.length === 0 ? 'Ingresa un código postal primero' : 'Selecciona una colonia' }}
@@ -426,7 +426,8 @@
 
             <div class="mb-4">
               <label for="codigo_postal" class="block text-sm font-medium text-gray-700">
-                Código Postal <span class="text-red-500">*</span>
+                Código Postal
+                <span class="text-gray-400">(opcional)</span>
               </label>
               <input
                 type="text"
@@ -441,7 +442,6 @@
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.codigo_postal ? 'border-red-300 bg-red-50' : 'border-gray-300'
                 ]"
-                required
               />
               <div v-if="form.errors.codigo_postal" class="mt-2 text-sm text-red-600">
                 {{ form.errors.codigo_postal }}
@@ -450,7 +450,8 @@
 
             <div class="mb-4">
               <label for="municipio" class="block text-sm font-medium text-gray-700">
-                Municipio <span class="text-red-500">*</span>
+                Municipio
+                <span class="text-gray-400">(opcional)</span>
               </label>
               <input
                 type="text"
@@ -461,7 +462,6 @@
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.municipio ? 'border-red-300 bg-red-50' : 'border-gray-300'
                 ]"
-                required
               />
               <div v-if="form.errors.municipio" class="mt-2 text-sm text-red-600">
                 {{ form.errors.municipio }}
@@ -647,7 +647,7 @@ const initFormData = () => ({
   numero_exterior: props.cliente?.numero_exterior || '',
   numero_interior: props.cliente?.numero_interior || '',
   colonia: props.cliente?.colonia || '',
-  codigo_postal: props.cliente?.codigo_postal || '',
+  codigo_postal: props.cliente?.codigo_postal || '', // Asegurar que sea string vacío, no null
   municipio: props.cliente?.municipio || '',
   estado: props.cliente?.estado || 'SON', // Sonora por defecto
   pais: props.cliente?.pais || 'MX',
@@ -659,7 +659,7 @@ const form = useForm(initFormData())
 // Cargar colonias disponibles cuando el componente se monte
 onMounted(async () => {
   const codigoPostal = form.codigo_postal
-  if (codigoPostal && codigoPostal.length === 5) {
+  if (codigoPostal && codigoPostal.length === 5 && codigoPostal !== '00000') {
     try {
       const response = await fetch(`/api/cp/${codigoPostal}`)
       if (response.ok) {
@@ -711,10 +711,8 @@ const requiredFields = computed(() => {
     baseFields.push('telefono')
   }
 
-  // Si muestra dirección, agregar campos de dirección
-  if (form.mostrar_direccion) {
-    baseFields.push('calle', 'numero_exterior', 'colonia', 'codigo_postal', 'municipio')
-  }
+  // Los campos de dirección ahora son opcionales incluso cuando se muestra la dirección
+  // No agregamos campos de dirección a requiredFields
 
   // Si requiere factura, agregar campos fiscales
   if (form.requiere_factura) {
@@ -1142,8 +1140,15 @@ const submit = () => {
     delete dataToSend.estado
     delete dataToSend.pais
   } else {
-    // Si muestra dirección, limpiar campos de dirección vacíos
+    // Si muestra dirección, eliminar campos de dirección vacíos ya que ahora son opcionales
+    if (!dataToSend.calle || dataToSend.calle.trim() === '') delete dataToSend.calle
+    if (!dataToSend.numero_exterior || dataToSend.numero_exterior.trim() === '') delete dataToSend.numero_exterior
     if (!dataToSend.numero_interior || dataToSend.numero_interior.trim() === '') delete dataToSend.numero_interior
+    if (!dataToSend.colonia || dataToSend.colonia.trim() === '') delete dataToSend.colonia
+    if (!dataToSend.codigo_postal || dataToSend.codigo_postal.trim() === '') delete dataToSend.codigo_postal
+    if (!dataToSend.municipio || dataToSend.municipio.trim() === '') delete dataToSend.municipio
+    if (!dataToSend.estado || dataToSend.estado.trim() === '') delete dataToSend.estado
+    if (!dataToSend.pais || dataToSend.pais.trim() === '') delete dataToSend.pais
   }
 
   console.log('Datos a enviar:', dataToSend)

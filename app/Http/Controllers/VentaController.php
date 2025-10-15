@@ -205,7 +205,7 @@ class VentaController extends Controller
                     ->get(['clave', 'descripcion', 'persona_fisica', 'persona_moral'])
                     ->toArray(),
                 'usosCFDI' => SatUsoCfdi::orderBy('clave')
-                    ->get(['clave', 'descripcion', 'persona_fisica', 'persona_moral'])
+                    ->get(['clave', 'descripcion'])
                     ->map(function ($uso) {
                         return [
                             'value' => $uso->clave,

@@ -240,16 +240,16 @@ class Cliente extends Model implements AuditableContract
 
     public function getDireccionCompletaAttribute(): string
     {
-        return trim(sprintf(
-            '%s %s%s, %s, %s, %s, %s',
+        $partes = array_filter([
             $this->calle,
-            $this->numero_exterior,
-            $this->numero_interior ? " Int. {$this->numero_interior}" : '',
+            trim($this->numero_exterior . ($this->numero_interior ? " Int. {$this->numero_interior}" : '')),
             $this->colonia,
             $this->codigo_postal,
             $this->municipio,
             $this->estado
-        ));
+        ]);
+
+        return trim(implode(', ', $partes));
     }
 
     public function getEstadoNombreAttribute(): ?string

@@ -127,9 +127,7 @@ class PrestamoController extends Controller
                     'rfc',
                     'email',
                     'telefono',
-                    'estado',
-                    'limite_credito',
-                    'credito_disponible'
+                    'estado'
                 ]);
 
             return Inertia::render('Prestamos/Create', [
@@ -241,9 +239,7 @@ class PrestamoController extends Controller
                     'rfc',
                     'email',
                     'telefono',
-                    'estado',
-                    'limite_credito',
-                    'credito_disponible'
+                    'estado'
                 ]);
 
             return Inertia::render('Prestamos/Edit', [

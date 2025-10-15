@@ -46,36 +46,15 @@ class UpdateClienteRequest extends FormRequest
     public function rules(): array
     {
         $clienteId = $this->input('cliente_id');
+        $requiereFactura = $this->input('requiere_factura', false);
+        $mostrarDireccion = $this->input('mostrar_direccion', false);
 
-        return [
+        $rules = [
             'nombre_razon_social' => [
                 'required',
                 'string',
                 'max:255',
                 'regex:/^[a-zA-Z0-9ñÑáéíóúÁÉÍÓÚüÜ\s\.,&\-\']+$/',
-            ],
-
-            'tipo_persona' => ['required', Rule::in(['fisica', 'moral'])],
-
-            'rfc' => array_merge($this->getRfcValidationRules($clienteId), [
-                'required',
-                'string',
-                'max:13',
-                'regex:/^[A-ZÑ&]{3,4}[0-9]{6}[A-Z0-9]{3}$/',
-            ]),
-
-            'regimen_fiscal' => array_merge($this->getRegimenFiscalValidationRules(), [
-                'required',
-                'string',
-                'size:3',
-                Rule::exists('sat_regimenes_fiscales', 'clave'),
-            ]),
-
-            'uso_cfdi' => [
-                'required',
-                'string',
-                'size:3',
-                Rule::exists('sat_usos_cfdi', 'clave'),
             ],
 
             'email' => [
@@ -87,25 +66,26 @@ class UpdateClienteRequest extends FormRequest
 
             'telefono' => ['nullable', 'string', 'max:20', 'regex:/^[0-9+\-\s()]+$/'],
 
-            'calle'            => ['required', 'string', 'max:255'],
-            'numero_exterior'  => ['required', 'string', 'max:20'],
+            'calle'            => [$mostrarDireccion ? 'required' : 'nullable', 'string', 'max:255'],
+            'numero_exterior'  => [$mostrarDireccion ? 'required' : 'nullable', 'string', 'max:20'],
             'numero_interior'  => ['nullable', 'string', 'max:20'],
-            'colonia'          => ['required', 'string', 'max:255'],
-            'codigo_postal'    => ['required', 'string', 'size:5', 'regex:/^[0-9]{5}$/'],
-            'municipio'        => ['required', 'string', 'max:255'],
+            'colonia'          => [$mostrarDireccion ? 'required' : 'nullable', 'string', 'max:255'],
+            'codigo_postal'    => [
+                $mostrarDireccion ? 'required' : 'nullable',
+                'string',
+                'size:5',
+                'regex:/^[0-9]{5}$/',
+            ],
+            'municipio'        => [$mostrarDireccion ? 'required' : 'nullable', 'string', 'max:255'],
 
             'estado' => [
-                'required',
+                'nullable',
                 'string',
-                'size:3',
-                tap(Rule::exists('sat_estados', 'clave'), function ($rule) {
-                    if (Schema::hasColumn('sat_estados', 'activo')) {
-                        $rule->where(fn($q) => $q->where('activo', 1));
-                    }
-                }),
+                'min:2',
+                'max:255',
             ],
 
-            'pais'  => ['required', 'string', Rule::in(['MX'])],
+            'pais'  => ['nullable', 'string', Rule::in(['MX'])],
             'notas' => ['nullable', 'string', 'max:1000'],
             'activo' => ['boolean'],
 
@@ -123,6 +103,67 @@ class UpdateClienteRequest extends FormRequest
             'cfdi_default_use'      => ['nullable', 'string', 'size:3', Rule::exists('sat_usos_cfdi', 'clave')],
             'payment_form_default'  => ['nullable', 'string', 'size:2'],
         ];
+
+        // Solo agregar reglas fiscales si requiere factura
+        if ($requiereFactura) {
+            $rules = array_merge($rules, [
+                'tipo_persona' => ['required', Rule::in(['fisica', 'moral'])],
+
+                'rfc' => array_merge($this->getRfcValidationRules($clienteId), [
+                    'required',
+                    'string',
+                    'max:13',
+                    'regex:/^[A-ZÑ&]{3,4}[0-9]{6}[A-Z0-9]{3}$/',
+                ]),
+
+                'regimen_fiscal' => array_merge($this->getRegimenFiscalValidationRules(), [
+                    'required',
+                    'string',
+                    'size:3',
+                    Rule::exists('sat_regimenes_fiscales', 'clave'),
+                ]),
+
+                'uso_cfdi' => [
+                    'required',
+                    'string',
+                    'size:3',
+                    Rule::exists('sat_usos_cfdi', 'clave'),
+                ],
+
+                'email' => [
+                    'required',
+                    'email',
+                    'max:255',
+                    Rule::unique('clientes', 'email')->ignore($clienteId),
+                ],
+
+                'telefono' => [
+                    'required',
+                    'string',
+                    'size:10',
+                    'regex:/^[0-9]{10}$/',
+                ],
+            ]);
+        } else {
+            // Si no requiere factura, hacer email y teléfono opcionales
+            $rules = array_merge($rules, [
+                'email' => [
+                    'nullable',
+                    'email',
+                    'max:255',
+                    Rule::unique('clientes', 'email')->ignore($clienteId),
+                ],
+
+                'telefono' => [
+                    'nullable',
+                    'string',
+                    'max:20',
+                    'regex:/^[0-9+\-\s()]+$/',
+                ],
+            ]);
+        }
+
+        return $rules;
     }
 
     public function messages(): array
@@ -151,22 +192,17 @@ class UpdateClienteRequest extends FormRequest
 
             'telefono.regex' => 'El teléfono solo debe contener números, espacios, paréntesis, guiones y el signo +.',
 
-            'calle.required'            => 'La calle es obligatoria.',
-            'numero_exterior.required'  => 'El número exterior es obligatorio.',
-            'colonia.required'          => 'La colonia es obligatoria.',
+            'calle.required'            => 'La calle es obligatoria cuando se agrega información de dirección.',
+            'numero_exterior.required'  => 'El número exterior es obligatorio cuando se agrega información de dirección.',
+            'colonia.required'          => 'La colonia es obligatoria cuando se agrega información de dirección.',
 
-            'codigo_postal.required' => 'El código postal es obligatorio.',
+            'codigo_postal.required' => 'El código postal es obligatorio cuando se agrega información de dirección.',
             'codigo_postal.size'     => 'El código postal debe tener 5 dígitos.',
             'codigo_postal.regex'    => 'El código postal debe contener solo números.',
 
-            'municipio.required' => 'El municipio es obligatorio.',
+            'municipio.required' => 'El municipio es obligatorio cuando se agrega información de dirección.',
 
-            'estado.required' => 'El estado es obligatorio.',
-            'estado.exists'   => 'El estado seleccionado no es válido.',
-            'estado.size'     => 'El estado debe ser una clave de 3 caracteres.',
-
-            'pais.required' => 'El país es obligatorio.',
-            'pais.in'       => 'El país debe ser MX.',
+            'estado.min' => 'El estado debe tener al menos 2 caracteres.',
 
             'notas.max'  => 'Las notas no pueden exceder 1000 caracteres.',
             'curp.regex' => 'El CURP no tiene un formato válido.',
