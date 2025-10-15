@@ -152,6 +152,26 @@
               </div>
             </div>
           </div>
+
+          <!-- Checkbox para mostrar dirección -->
+          <div class="mb-6">
+            <div class="flex items-center">
+              <input
+                type="checkbox"
+                id="mostrar_direccion"
+                v-model="form.mostrar_direccion"
+                :class="[
+                  'h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
+                ]"
+              />
+              <label for="mostrar_direccion" class="ml-2 block text-sm font-medium text-gray-700">
+                Agregar información de dirección
+              </label>
+            </div>
+            <div class="mt-1 text-sm text-gray-500">
+              Marque esta opción si desea agregar la dirección del cliente (calle, colonia, código postal, etc.)
+            </div>
+          </div>
         </div>
 
         <!-- Información Fiscal -->
@@ -313,13 +333,14 @@
         </div>
 
         <!-- Dirección -->
-        <div>
+        <div v-if="form.mostrar_direccion">
           <h2 class="text-lg font-medium text-gray-900 mb-4">Dirección</h2>
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div class="md:col-span-2">
               <div class="mb-4">
                 <label for="calle" class="block text-sm font-medium text-gray-700">
-                  Calle <span class="text-red-500">*</span>
+                  Calle <span v-if="form.mostrar_direccion" class="text-red-500">*</span>
+                  <span v-else class="text-gray-400">(opcional)</span>
                 </label>
                 <input
                   type="text"
@@ -331,7 +352,7 @@
                     'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                     form.errors.calle ? 'border-red-300 bg-red-50' : 'border-gray-300'
                   ]"
-                  required
+                  :required="form.mostrar_direccion"
                 />
                 <div v-if="form.errors.calle" class="mt-2 text-sm text-red-600">
                   {{ form.errors.calle }}
@@ -341,7 +362,8 @@
 
             <div class="mb-4">
               <label for="numero_exterior" class="block text-sm font-medium text-gray-700">
-                Número Exterior <span class="text-red-500">*</span>
+                Número Exterior <span v-if="form.mostrar_direccion" class="text-red-500">*</span>
+                <span v-else class="text-gray-400">(opcional)</span>
               </label>
               <input
                 type="text"
@@ -353,7 +375,7 @@
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.numero_exterior ? 'border-red-300 bg-red-50' : 'border-gray-300'
                 ]"
-                required
+                :required="form.mostrar_direccion"
               />
               <div v-if="form.errors.numero_exterior" class="mt-2 text-sm text-red-600">
                 {{ form.errors.numero_exterior }}
@@ -382,18 +404,19 @@
 
             <div class="mb-4">
               <label for="colonia" class="block text-sm font-medium text-gray-700">
-                Colonia <span class="text-red-500">*</span>
+                Colonia <span v-if="form.mostrar_direccion" class="text-red-500">*</span>
+                <span v-else class="text-gray-400">(opcional)</span>
               </label>
               <select
                 id="colonia"
                 v-model="form.colonia"
-                :disabled="availableColonias.length === 0"
+                :disabled="availableColonias.length === 0 || !form.mostrar_direccion"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.colonia ? 'border-red-300 bg-red-50' : 'border-gray-300',
-                  availableColonias.length === 0 ? 'bg-gray-100 text-gray-400' : ''
+                  (availableColonias.length === 0 || !form.mostrar_direccion) ? 'bg-gray-100 text-gray-400' : ''
                 ]"
-                required
+                :required="form.mostrar_direccion"
               >
                 <option value="">
                   {{ availableColonias.length === 0 ? 'Ingresa un código postal primero' : 'Selecciona una colonia' }}
@@ -416,7 +439,8 @@
 
             <div class="mb-4">
               <label for="codigo_postal" class="block text-sm font-medium text-gray-700">
-                Código Postal <span class="text-red-500">*</span>
+                Código Postal <span v-if="form.mostrar_direccion" class="text-red-500">*</span>
+                <span v-else class="text-gray-400">(opcional)</span>
               </label>
               <input
                 type="text"
@@ -425,13 +449,15 @@
                 pattern="[0-9]{5}"
                 :value="form.codigo_postal"
                 @input="onCpInput"
+                :disabled="!form.mostrar_direccion"
                 placeholder="12345"
                 autocomplete="new-password"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
-                  form.errors.codigo_postal ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                  form.errors.codigo_postal ? 'border-red-300 bg-red-50' : 'border-gray-300',
+                  !form.mostrar_direccion ? 'bg-gray-100 text-gray-400' : ''
                 ]"
-                required
+                :required="form.mostrar_direccion"
               />
               <div v-if="form.errors.codigo_postal" class="mt-2 text-sm text-red-600">
                 {{ form.errors.codigo_postal }}
@@ -443,18 +469,21 @@
 
             <div class="mb-4">
               <label for="municipio" class="block text-sm font-medium text-gray-700">
-                Municipio <span class="text-red-500">*</span>
+                Municipio <span v-if="form.mostrar_direccion" class="text-red-500">*</span>
+                <span v-else class="text-gray-400">(opcional)</span>
               </label>
               <input
                 type="text"
                 id="municipio"
                 v-model="form.municipio"
+                :disabled="!form.mostrar_direccion"
                 autocomplete="new-password"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
-                  form.errors.municipio ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                  form.errors.municipio ? 'border-red-300 bg-red-50' : 'border-gray-300',
+                  !form.mostrar_direccion ? 'bg-gray-100 text-gray-400' : ''
                 ]"
-                required
+                :required="form.mostrar_direccion"
               />
               <div v-if="form.errors.municipio" class="mt-2 text-sm text-red-600">
                 {{ form.errors.municipio }}
@@ -584,6 +613,7 @@ const initFormData = () => ({
   email: props.cliente?.email || '',
   telefono: props.cliente?.telefono || '',
   requiere_factura: props.cliente?.requiere_factura || false,
+  mostrar_direccion: props.cliente?.calle || props.cliente?.numero_exterior || false, // Si tiene datos de dirección, mostrarla
   tipo_persona: '',
   rfc: props.cliente?.rfc || '',
   curp: props.cliente?.curp || '',                 // <<< NUEVO
@@ -605,16 +635,22 @@ const hasGlobalErrors = computed(() => Object.keys(form.errors).length > 0)
 
 const requiredFields = computed(() => {
   const baseFields = [
-    'nombre_razon_social', 'email', 'calle', 'numero_exterior',
-    'colonia', 'codigo_postal', 'municipio'
+    'nombre_razon_social', 'email'
   ]
+
+  // Agregar teléfono si requiere factura
+  if (form.requiere_factura) {
+    baseFields.push('telefono')
+  }
+
+  // Si muestra dirección, agregar campos de dirección
+  if (form.mostrar_direccion) {
+    baseFields.push('calle', 'numero_exterior', 'colonia', 'codigo_postal', 'municipio')
+  }
 
   // Si requiere factura, agregar campos fiscales
   if (form.requiere_factura) {
-    return [
-      ...baseFields,
-      'tipo_persona', 'rfc', 'regimen_fiscal', 'uso_cfdi'
-    ]
+    baseFields.push('tipo_persona', 'rfc', 'regimen_fiscal', 'uso_cfdi')
   }
 
   return baseFields
@@ -719,6 +755,24 @@ watch(() => form.tipo_persona, (newVal, oldVal) => {
 // Forzar país a "MX" cuando no es extranjero
 watch(isExtranjero, (val) => {
   if (!val) form.pais = 'MX'
+})
+
+// Limpiar campos de dirección si se desmarca el checkbox
+watch(() => form.mostrar_direccion, (nuevoValor) => {
+  if (!nuevoValor) {
+    // Limpiar campos de dirección
+    form.calle = ''
+    form.numero_exterior = ''
+    form.numero_interior = ''
+    form.colonia = ''
+    form.codigo_postal = ''
+    form.municipio = ''
+    form.estado = 'SON'
+    form.pais = 'MX'
+
+    // Limpiar errores de dirección
+    form.clearErrors(['calle', 'numero_exterior', 'colonia', 'codigo_postal', 'municipio'])
+  }
 })
 
 // Handlers
@@ -894,7 +948,21 @@ const submit = () => {
   // Limpiar campos básicos vacíos
   if (!dataToSend.email || dataToSend.email.trim() === '') delete dataToSend.email
   if (!dataToSend.telefono || dataToSend.telefono.trim() === '') delete dataToSend.telefono
-  if (!dataToSend.numero_interior || dataToSend.numero_interior.trim() === '') delete dataToSend.numero_interior
+
+  // Si no muestra dirección, eliminar campos de dirección del envío
+  if (!dataToSend.mostrar_direccion) {
+    delete dataToSend.calle
+    delete dataToSend.numero_exterior
+    delete dataToSend.numero_interior
+    delete dataToSend.colonia
+    delete dataToSend.codigo_postal
+    delete dataToSend.municipio
+    delete dataToSend.estado
+    delete dataToSend.pais
+  } else {
+    // Si muestra dirección, limpiar campos de dirección vacíos
+    if (!dataToSend.numero_interior || dataToSend.numero_interior.trim() === '') delete dataToSend.numero_interior
+  }
 
   console.log('Datos a enviar:', dataToSend)
 

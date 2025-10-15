@@ -134,6 +134,26 @@
               </div>
             </div>
           </div>
+
+          <!-- Checkbox para mostrar dirección -->
+          <div class="mb-6">
+            <div class="flex items-center">
+              <input
+                type="checkbox"
+                id="mostrar_direccion"
+                v-model="form.mostrar_direccion"
+                :class="[
+                  'h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
+                ]"
+              />
+              <label for="mostrar_direccion" class="ml-2 block text-sm font-medium text-gray-700">
+                Agregar información de dirección
+              </label>
+            </div>
+            <div class="mt-1 text-sm text-gray-500">
+              Marque esta opción si desea agregar la dirección del cliente (calle, colonia, código postal, etc.)
+            </div>
+          </div>
         </div>
 
         <!-- Estado del Cliente -->
@@ -303,8 +323,8 @@
         </div>
 
         <!-- Dirección -->
-        <div>
-          <h2 class="text-lg font-medium text-gray-900 mb-4">Dirección</h2>
+        <div v-if="form.mostrar_direccion">
+           <h2 class="text-lg font-medium text-gray-900 mb-4">Dirección</h2>
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div class="md:col-span-2">
               <div class="mb-4">
@@ -617,6 +637,7 @@ const initFormData = () => ({
   nombre_razon_social: props.cliente?.nombre_razon_social || '',
   email: props.cliente?.email || '',
   telefono: props.cliente?.telefono || '',
+  mostrar_direccion: props.cliente?.calle || props.cliente?.numero_exterior || false, // Si tiene datos de dirección, mostrarla
   tipo_persona: props.cliente?.tipo_persona || '',
   rfc: props.cliente?.rfc || '',
   curp: props.cliente?.curp || '',
@@ -682,16 +703,22 @@ const hasGlobalErrors = computed(() => Object.keys(form.errors).length > 0)
 
 const requiredFields = computed(() => {
   const baseFields = [
-    'nombre_razon_social', 'calle', 'numero_exterior',
-    'colonia', 'codigo_postal', 'municipio'
+    'nombre_razon_social', 'email'
   ]
+
+  // Agregar teléfono si requiere factura
+  if (form.requiere_factura) {
+    baseFields.push('telefono')
+  }
+
+  // Si muestra dirección, agregar campos de dirección
+  if (form.mostrar_direccion) {
+    baseFields.push('calle', 'numero_exterior', 'colonia', 'codigo_postal', 'municipio')
+  }
 
   // Si requiere factura, agregar campos fiscales
   if (form.requiere_factura) {
-    return [
-      ...baseFields,
-      'tipo_persona', 'rfc', 'regimen_fiscal', 'uso_cfdi'
-    ]
+    baseFields.push('tipo_persona', 'rfc', 'regimen_fiscal', 'uso_cfdi')
   }
 
   return baseFields
@@ -816,6 +843,24 @@ watch(() => form.tipo_persona, (newVal, oldVal) => {
 // Forzar país a "MX" cuando no es extranjero
 watch(isExtranjero, (val) => {
   if (!val) form.pais = 'MX'
+})
+
+// Limpiar campos de dirección si se desmarca el checkbox
+watch(() => form.mostrar_direccion, (nuevoValor) => {
+  if (!nuevoValor) {
+    // Limpiar campos de dirección
+    form.calle = ''
+    form.numero_exterior = ''
+    form.numero_interior = ''
+    form.colonia = ''
+    form.codigo_postal = ''
+    form.municipio = ''
+    form.estado = 'SON'
+    form.pais = 'MX'
+
+    // Limpiar errores de dirección
+    form.clearErrors(['calle', 'numero_exterior', 'colonia', 'codigo_postal', 'municipio'])
+  }
 })
 
 // Funciones de manejo de input
@@ -1085,7 +1130,21 @@ const submit = () => {
   // Limpiar campos básicos vacíos
   if (!dataToSend.email || dataToSend.email.trim() === '') delete dataToSend.email
   if (!dataToSend.telefono || dataToSend.telefono.trim() === '') delete dataToSend.telefono
-  if (!dataToSend.numero_interior || dataToSend.numero_interior.trim() === '') delete dataToSend.numero_interior
+
+  // Si no muestra dirección, eliminar campos de dirección del envío
+  if (!dataToSend.mostrar_direccion) {
+    delete dataToSend.calle
+    delete dataToSend.numero_exterior
+    delete dataToSend.numero_interior
+    delete dataToSend.colonia
+    delete dataToSend.codigo_postal
+    delete dataToSend.municipio
+    delete dataToSend.estado
+    delete dataToSend.pais
+  } else {
+    // Si muestra dirección, limpiar campos de dirección vacíos
+    if (!dataToSend.numero_interior || dataToSend.numero_interior.trim() === '') delete dataToSend.numero_interior
+  }
 
   console.log('Datos a enviar:', dataToSend)
 
