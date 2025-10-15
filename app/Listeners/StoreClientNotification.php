@@ -31,8 +31,8 @@ class StoreClientNotification
                 $notification = \App\Models\Notification::createForUser(
                     $user->id,
                     'new_client',
-                    'Nuevo Cliente Registrado',
-                    "Se ha registrado el cliente: {$event->cliente->nombre_razon_social}",
+                    'Nuevo Cliente',
+                    "Se registro a: {$event->cliente->nombre_razon_social}",
                     [
                         'client_id' => $event->cliente->id,
                         'client_name' => $event->cliente->nombre_razon_social,

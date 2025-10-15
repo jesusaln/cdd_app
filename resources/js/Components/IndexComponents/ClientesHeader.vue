@@ -120,7 +120,7 @@
             <input
               v-model="searchTerm"
               type="text"
-              placeholder="Buscar por nombre, RFC o email..."
+              placeholder="Buscar por nombre, teléfono o email..."
               class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
               @input="onSearchChange"
             />
@@ -180,8 +180,8 @@
             <option value="created_at-asc">Fecha (Más antiguo)</option>
             <option value="nombre_razon_social-asc">Nombre (A-Z)</option>
             <option value="nombre_razon_social-desc">Nombre (Z-A)</option>
-            <option value="rfc-asc">RFC (A-Z)</option>
-            <option value="rfc-desc">RFC (Z-A)</option>
+            <option value="telefono-asc">Teléfono (A-Z)</option>
+            <option value="telefono-desc">Teléfono (Z-A)</option>
             <option value="email-asc">Email (A-Z)</option>
             <option value="email-desc">Email (Z-A)</option>
           </select>

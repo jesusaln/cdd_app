@@ -57,6 +57,27 @@
         <!-- Información General -->
         <div class="border-b border-gray-200 pb-6">
           <h2 class="text-lg font-medium text-gray-900 mb-4">Información General</h2>
+
+          <!-- Checkbox para factura -->
+          <div class="mb-6">
+            <div class="flex items-center">
+              <input
+                type="checkbox"
+                id="requiere_factura"
+                v-model="form.requiere_factura"
+                @change="onFacturaChange"
+                :class="[
+                  'h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
+                ]"
+              />
+              <label for="requiere_factura" class="ml-2 block text-sm font-medium text-gray-700">
+                ¿Requiere factura? <span class="text-red-500">*</span>
+              </label>
+            </div>
+            <div class="mt-1 text-sm text-gray-500">
+              Marque esta opción si el cliente necesita facturación electrónica
+            </div>
+          </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div class="md:col-span-2">
               <div class="mb-4">
@@ -84,6 +105,7 @@
             <div class="mb-4">
               <label for="email" class="block text-sm font-medium text-gray-700">
                 Email <span class="text-red-500">*</span>
+                <span v-if="form.requiere_factura" class="text-gray-400">(requerido para facturación)</span>
               </label>
               <input
                type="email"
@@ -97,7 +119,7 @@
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.email ? 'border-red-300 bg-red-50' : 'border-gray-300'
                 ]"
-                required
+                :required="form.requiere_factura"
               />
               <div v-if="form.errors.email" class="mt-2 text-sm text-red-600">
                 {{ form.errors.email }}
@@ -106,7 +128,8 @@
 
             <div class="mb-4">
               <label for="telefono" class="block text-sm font-medium text-gray-700">
-                Teléfono
+                Teléfono <span v-if="form.requiere_factura" class="text-red-500">*</span>
+                <span v-if="form.requiere_factura" class="text-gray-400">(requerido para facturación)</span>
               </label>
               <input
                type="tel"
@@ -115,13 +138,14 @@
                v-model="form.telefono"
                @input="validateTelefono"
                maxlength="10"
-               placeholder="10 dígitos (opcional)"
-               pattern="[0-9]{10}"
+               :placeholder="form.requiere_factura ? '10 dígitos (requerido)' : '10 dígitos (opcional)'"
+               :pattern="form.requiere_factura ? '[0-9]{10}' : undefined"
 
                :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.telefono ? 'border-red-300 bg-red-50' : 'border-gray-300'
                 ]"
+                :required="form.requiere_factura"
               />
               <div v-if="form.errors.telefono" class="mt-2 text-sm text-red-600">
                 {{ form.errors.telefono }}
@@ -131,12 +155,13 @@
         </div>
 
         <!-- Información Fiscal -->
-        <div class="border-b border-gray-200 pb-6">
+        <div v-if="form.requiere_factura" class="border-b border-gray-200 pb-6">
           <h2 class="text-lg font-medium text-gray-900 mb-4">Información Fiscal</h2>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div class="mb-4">
               <label for="tipo_persona" class="block text-sm font-medium text-gray-700">
-                Tipo de Persona <span class="text-red-500">*</span>
+                Tipo de Persona <span v-if="form.requiere_factura" class="text-red-500">*</span>
+                <span v-if="!form.requiere_factura" class="text-gray-400">(opcional)</span>
               </label>
               <select
                 id="tipo_persona"
@@ -146,7 +171,7 @@
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.tipo_persona ? 'border-red-300 bg-red-50' : 'border-gray-300'
                 ]"
-                required
+                :required="form.requiere_factura"
               >
                 <option value="">Selecciona una opción</option>
                 <option value="fisica">Persona Física</option>
@@ -159,28 +184,32 @@
 
             <div class="mb-4">
               <label for="rfc" class="block text-sm font-medium text-gray-700">
-                RFC <span class="text-red-500">*</span>
+                RFC <span v-if="form.requiere_factura" class="text-red-500">*</span>
+                <span v-if="!form.requiere_factura" class="text-gray-400">(opcional)</span>
               </label>
               <input
                 type="text"
                 id="rfc"
                 :maxlength="rfcMaxLength"
-                :placeholder="rfcPlaceholder"
+                :placeholder="!form.requiere_factura ? 'Solo requerido si necesita facturación' : rfcPlaceholder"
                 :value="form.rfc"
                 @input="onRfcInput"
-                :disabled="!form.tipo_persona"
+                :disabled="!form.tipo_persona || !form.requiere_factura"
                 autocomplete="off"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.rfc ? 'border-red-300 bg-red-50' : 'border-gray-300',
-                  !form.tipo_persona ? 'bg-gray-100 text-gray-400' : ''
+                  (!form.tipo_persona || !form.requiere_factura) ? 'bg-gray-100 text-gray-400' : ''
                 ]"
-                required
+                :required="form.requiere_factura && form.tipo_persona"
               />
               <div v-if="form.errors.rfc" class="mt-2 text-sm text-red-600">
                 {{ form.errors.rfc }}
               </div>
-              <div v-if="!form.tipo_persona" class="mt-1 text-xs text-gray-500">
+              <div v-if="!form.requiere_factura" class="mt-1 text-xs text-gray-500">
+                Régimen fiscal solo requerido cuando el cliente necesita facturación
+              </div>
+              <div v-else-if="!form.tipo_persona" class="mt-1 text-xs text-gray-500">
                 Primero selecciona el tipo de persona
               </div>
             </div>
@@ -189,27 +218,28 @@
             <div class="mb-4">
               <label for="curp" class="block text-sm font-medium text-gray-700">
                 CURP
-                <span v-if="form.tipo_persona === 'fisica'" class="text-gray-400">(opcional)</span>
+                <span v-if="form.tipo_persona === 'fisica' && form.requiere_factura" class="text-gray-400">(opcional)</span>
+                <span v-if="!form.requiere_factura" class="text-gray-400">(opcional)</span>
               </label>
               <input
                 type="text"
                 id="curp"
                 :maxlength="18"
-                :placeholder="form.tipo_persona === 'fisica' ? 'ABCD880321HXXLRN09' : 'No aplica para Persona Moral'"
+                :placeholder="!form.requiere_factura ? 'Solo requerido si necesita facturación' : (form.tipo_persona === 'fisica' ? 'ABCD880321HXXLRN09' : 'No aplica para Persona Moral')"
                 :value="form.curp"
                 @input="onCurpInput"
-                :disabled="form.tipo_persona === 'moral' || !form.tipo_persona"
+                :disabled="form.tipo_persona === 'moral' || !form.tipo_persona || !form.requiere_factura"
                 autocomplete="off"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.curp ? 'border-red-300 bg-red-50' : 'border-gray-300',
-                  (form.tipo_persona === 'moral' || !form.tipo_persona) ? 'bg-gray-100 text-gray-400' : ''
+                  (form.tipo_persona === 'moral' || !form.tipo_persona || !form.requiere_factura) ? 'bg-gray-100 text-gray-400' : ''
                 ]"
               />
               <div v-if="form.errors.curp" class="mt-2 text-sm text-red-600">
                 {{ form.errors.curp }}
               </div>
-              <div class="mt-1 text-xs text-gray-500">
+              <div v-if="form.requiere_factura" class="mt-1 text-xs text-gray-500">
                 {{ curpHelperText }}
               </div>
             </div>
@@ -217,18 +247,19 @@
 
             <div class="mb-4">
               <label for="regimen_fiscal" class="block text-sm font-medium text-gray-700">
-                Régimen Fiscal <span class="text-red-500">*</span>
+                Régimen Fiscal <span v-if="form.requiere_factura" class="text-red-500">*</span>
+                <span v-if="!form.requiere_factura" class="text-gray-400">(opcional)</span>
               </label>
               <select
                 id="regimen_fiscal"
                 v-model="form.regimen_fiscal"
-                :disabled="!form.tipo_persona"
+                :disabled="!form.tipo_persona || !form.requiere_factura"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.regimen_fiscal ? 'border-red-300 bg-red-50' : 'border-gray-300',
-                  !form.tipo_persona ? 'bg-gray-100 text-gray-400' : ''
+                  (!form.tipo_persona || !form.requiere_factura) ? 'bg-gray-100 text-gray-400' : ''
                 ]"
-                required
+                :required="form.requiere_factura && form.tipo_persona"
               >
                 <option value="">Selecciona una opción</option>
                 <option
@@ -242,23 +273,28 @@
               <div v-if="form.errors.regimen_fiscal" class="mt-2 text-sm text-red-600">
                 {{ form.errors.regimen_fiscal }}
               </div>
-              <div v-if="!form.tipo_persona" class="mt-1 text-xs text-gray-500">
+              <div v-if="!form.requiere_factura" class="mt-1 text-xs text-gray-500">
+                RFC solo requerido cuando el cliente necesita facturación
+              </div>
+              <div v-else-if="!form.tipo_persona" class="mt-1 text-xs text-gray-500">
                 Primero selecciona el tipo de persona
               </div>
             </div>
 
             <div class="mb-4">
               <label for="uso_cfdi" class="block text-sm font-medium text-gray-700">
-                Uso CFDI <span class="text-red-500">*</span>
+                Uso CFDI <span v-if="form.requiere_factura" class="text-red-500">*</span>
+                <span v-if="!form.requiere_factura" class="text-gray-400">(opcional)</span>
               </label>
               <select
                 id="uso_cfdi"
                 v-model="form.uso_cfdi"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
-                  form.errors.uso_cfdi ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                  form.errors.uso_cfdi ? 'border-red-300 bg-red-50' : 'border-gray-300',
+                  !form.requiere_factura ? 'bg-gray-100 text-gray-400' : ''
                 ]"
-                required
+                :required="form.requiere_factura"
               >
                 <option value="">Selecciona una opción</option>
                 <option
@@ -547,6 +583,7 @@ const initFormData = () => ({
   nombre_razon_social: props.cliente?.nombre_razon_social || '',
   email: props.cliente?.email || '',
   telefono: props.cliente?.telefono || '',
+  requiere_factura: props.cliente?.requiere_factura || false,
   tipo_persona: '',
   rfc: props.cliente?.rfc || '',
   curp: props.cliente?.curp || '',                 // <<< NUEVO
@@ -566,16 +603,25 @@ const form = useForm(initFormData())
 
 const hasGlobalErrors = computed(() => Object.keys(form.errors).length > 0)
 
-const requiredFields = [
-  'nombre_razon_social', 'email', 'tipo_persona', 'rfc',
-  'regimen_fiscal', 'uso_cfdi', 'calle', 'numero_exterior',
-  'colonia', 'codigo_postal', 'municipio'
-]
-// Nota: estado y pais son opcionales para clientes extranjeros
-// Nota: CURP NO es requerida (backend la valida como nullable)
+const requiredFields = computed(() => {
+  const baseFields = [
+    'nombre_razon_social', 'email', 'calle', 'numero_exterior',
+    'colonia', 'codigo_postal', 'municipio'
+  ]
+
+  // Si requiere factura, agregar campos fiscales
+  if (form.requiere_factura) {
+    return [
+      ...baseFields,
+      'tipo_persona', 'rfc', 'regimen_fiscal', 'uso_cfdi'
+    ]
+  }
+
+  return baseFields
+})
 
 const requiredFieldsFilled = computed(() => {
-  return requiredFields.every(field => {
+  return requiredFields.value.every(field => {
     const value = form[field]
     return value !== null &&
            value !== undefined &&
@@ -648,9 +694,11 @@ const usosCFDI = computed(() => {
 const rfcMaxLength = computed(() => form.tipo_persona === 'fisica' ? 13 : 12)
 const rfcPlaceholder = computed(() => form.tipo_persona === 'fisica' ? 'ABCD123456EFG' : 'ABC123456EF')
 const curpHelperText = computed(() =>
-  form.tipo_persona === 'moral'
-    ? 'CURP no aplica para Personas Morales.'
-    : 'Formato CURP: 18 caracteres (solo A–Z y 0–9).'
+  !form.requiere_factura
+    ? 'CURP solo requerida cuando el cliente necesita facturación.'
+    : form.tipo_persona === 'moral'
+      ? 'CURP no aplica para Personas Morales.'
+      : 'Formato CURP: 18 caracteres (solo A–Z y 0–9).'
 )
 
 // Watchers
@@ -674,6 +722,18 @@ watch(isExtranjero, (val) => {
 })
 
 // Handlers
+const onFacturaChange = () => {
+  if (!form.requiere_factura) {
+    // Si desmarca factura, limpiar campos fiscales
+    form.tipo_persona = ''
+    form.rfc = ''
+    form.curp = ''
+    form.regimen_fiscal = ''
+    form.uso_cfdi = 'G03'
+    form.clearErrors(['tipo_persona', 'rfc', 'curp', 'regimen_fiscal', 'uso_cfdi'])
+  }
+}
+
 const onTipoPersonaChange = () => {
   form.rfc = ''
   form.regimen_fiscal = ''
@@ -809,8 +869,37 @@ const submit = () => {
     return
   }
 
+  // Preparar datos para enviar
+  let dataToSend = { ...form.data() }
+
+  // Si no requiere factura, eliminar campos fiscales del envío
+  if (!dataToSend.requiere_factura) {
+    delete dataToSend.tipo_persona
+    delete dataToSend.rfc
+    delete dataToSend.curp
+    delete dataToSend.regimen_fiscal
+    delete dataToSend.uso_cfdi
+    // Hacer email y teléfono opcionales cuando no requiere factura
+    if (!dataToSend.email || dataToSend.email.trim() === '') delete dataToSend.email
+    if (!dataToSend.telefono || dataToSend.telefono.trim() === '') delete dataToSend.telefono
+  } else {
+    // Si requiere factura, limpiar campos fiscales vacíos
+    if (!dataToSend.tipo_persona || dataToSend.tipo_persona.trim() === '') delete dataToSend.tipo_persona
+    if (!dataToSend.rfc || dataToSend.rfc.trim() === '') delete dataToSend.rfc
+    if (!dataToSend.curp || dataToSend.curp.trim() === '') delete dataToSend.curp
+    if (!dataToSend.regimen_fiscal || dataToSend.regimen_fiscal.trim() === '') delete dataToSend.regimen_fiscal
+    if (!dataToSend.uso_cfdi || dataToSend.uso_cfdi.trim() === '') delete dataToSend.uso_cfdi
+  }
+
+  // Limpiar campos básicos vacíos
+  if (!dataToSend.email || dataToSend.email.trim() === '') delete dataToSend.email
+  if (!dataToSend.telefono || dataToSend.telefono.trim() === '') delete dataToSend.telefono
+  if (!dataToSend.numero_interior || dataToSend.numero_interior.trim() === '') delete dataToSend.numero_interior
+
+  console.log('Datos a enviar:', dataToSend)
+
   // Normalizar datos para el backend
-  const dataToSend = normalizeForBackend(form.data())
+  dataToSend = normalizeForBackend(dataToSend)
 
   form.post(route('clientes.store'), {
     data: dataToSend,

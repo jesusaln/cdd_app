@@ -61,13 +61,15 @@ onMounted(() => {
 })
 
 /* =========================
-   Estado local y modal
-========================= */
+    Estado local y modal
+ ========================= */
 const showModal = ref(false)
 const modalMode = ref('details')
 const selectedCliente = ref(null)
 const selectedId = ref(null)
 const loading = ref(false)
+const clientesCanDelete = ref(new Map())
+const clientesPrestamos = ref(new Map())
 
 /* =========================
    Filtros, orden y datos
@@ -226,15 +228,73 @@ const editarFila = (id) => {
   editarCliente(id)
 }
 
-const confirmarEliminacion = (id) => {
+const confirmarEliminacion = async (cliente) => {
   try {
-    if (!id) throw new Error('ID de cliente no válido')
+    if (!cliente?.id) throw new Error('ID de cliente no válido')
 
-    selectedId.value = id
+    // Verificar si el cliente puede ser eliminado
+    const canDelete = await checkCanDelete(cliente.id)
+
+    if (!canDelete) {
+      notyf.error('No se puede eliminar este cliente porque tiene documentos relacionados')
+      return
+    }
+
+    selectedId.value = cliente.id
     modalMode.value = 'confirm'
     showModal.value = true
   } catch (error) {
     notyf.error(error.message)
+  }
+}
+
+const checkCanDelete = async (clienteId) => {
+  try {
+    const response = await fetch(`/clientes/${clienteId}/can-delete`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+      }
+    })
+
+    const data = await response.json()
+
+    if (data.success) {
+      return data.can_delete
+    } else {
+      console.error('Error verificando si cliente puede ser eliminado:', data.message)
+      return false
+    }
+  } catch (error) {
+    console.error('Error en verificación de eliminación:', error)
+    return false
+  }
+}
+
+const checkHasPrestamos = async (clienteId) => {
+  try {
+    const response = await fetch(`/clientes/${clienteId}/has-prestamos`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+      }
+    })
+
+    const data = await response.json()
+
+    if (data.success) {
+      return data.has_prestamos
+    } else {
+      console.error('Error verificando préstamos del cliente:', data.message)
+      return false
+    }
+  } catch (error) {
+    console.error('Error en verificación de préstamos:', error)
+    return false
   }
 }
 
@@ -244,19 +304,20 @@ const eliminarCliente = async () => {
 
     loading.value = true
 
-    router.post(`/clientes/${selectedId.value}/cancel`, {}, {
+    // Usar la ruta nombrada correcta para eliminar
+    router.delete(route('clientes.destroy', selectedId.value), {}, {
       onStart: () => {
-        notyf.success('Cancelando cliente...')
+        notyf.success('Eliminando cliente...')
       },
       onSuccess: (response) => {
-        notyf.success('Cliente cancelado exitosamente')
+        notyf.success('Cliente eliminado exitosamente')
 
         showModal.value = false
         selectedId.value = null
       },
       onError: (errors) => {
-        console.error('Error al cancelar:', errors)
-        notyf.error('Error al cancelar el cliente')
+        console.error('Error al eliminar:', errors)
+        notyf.error('Error al eliminar el cliente')
       },
       onFinish: () => {
         loading.value = false
@@ -480,11 +541,11 @@ const items = computed(() => {
     const term = searchTerm.value.toLowerCase().trim();
     filtered = filtered.filter(doc => {
       const nombre = doc.nombre_razon_social?.toLowerCase() || '';
-      const rfc = doc.rfc?.toLowerCase() || '';
+      const telefono = (doc.telefono ?? '').toString().toLowerCase();
       const email = doc.email?.toLowerCase() || '';
 
       return nombre.includes(term) ||
-             rfc.includes(term) ||
+             telefono.includes(term) ||
              email.includes(term);
     });
   }
@@ -627,7 +688,7 @@ const isNumber = (n) => Number.isFinite(parseFloat(n))
                   <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Fecha</th>
                   <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Cliente</th>
                   <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Email</th>
-                  <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">RFC</th>
+                  <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Teléfono</th>
                   <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Estado</th>
                   <th class="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Acciones</th>
                 </tr>
@@ -666,9 +727,9 @@ const isNumber = (n) => Number.isFinite(parseFloat(n))
                       <div class="text-sm text-gray-700">{{ cliente.email || 'N/A' }}</div>
                     </td>
 
-                    <!-- RFC -->
+                    <!-- Teléfono -->
                     <td class="px-6 py-4">
-                      <div class="text-sm text-gray-700">{{ cliente.rfc || 'N/A' }}</div>
+                      <div class="text-sm text-gray-700">{{ cliente.telefono || 'N/A' }}</div>
                     </td>
 
                     <!-- Estado -->
@@ -700,11 +761,12 @@ const isNumber = (n) => Number.isFinite(parseFloat(n))
                           </svg>
                         </button>
 
-                        <!-- Ver préstamos del cliente -->
+                        <!-- Ver préstamos del cliente (solo si tiene préstamos) -->
                         <Link
+                          v-if="cliente.prestamos_count > 0"
                           :href="`/reportes/prestamos-por-cliente?cliente_id=${cliente.id}`"
                           class="group/btn relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-1"
-                          title="Ver préstamos del cliente"
+                          :title="`Ver ${cliente.prestamos_count} préstamo(s) del cliente`"
                         >
                           <svg class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -722,12 +784,11 @@ const isNumber = (n) => Number.isFinite(parseFloat(n))
                           </svg>
                         </button>
 
-                        <!-- Eliminar (solo inactivos) -->
+                        <!-- Eliminar (solo si no tiene documentos relacionados) -->
                         <button
-                          v-if="cliente.activo === false"
-                          @click="confirmarEliminacion(cliente.id)"
+                          @click="confirmarEliminacion(cliente)"
                           class="group/btn relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:ring-offset-1"
-                          title="Eliminar cliente"
+                          title="Eliminar cliente (solo si no tiene documentos relacionados)"
                         >
                           <svg class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

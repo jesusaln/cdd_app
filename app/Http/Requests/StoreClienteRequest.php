@@ -19,72 +19,51 @@ class StoreClienteRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        $this->merge([
+        $requiereFactura = $this->input('requiere_factura', false);
+
+        $normalized = [
             'nombre_razon_social' => trim((string) $this->input('nombre_razon_social')),
-            'tipo_persona'        => strtolower(trim((string) $this->input('tipo_persona'))),
-            'rfc'                 => strtoupper(trim((string) $this->input('rfc'))),
-            'regimen_fiscal'      => strtoupper(trim((string) $this->input('regimen_fiscal'))),
-            'uso_cfdi'            => strtoupper(trim((string) $this->input('uso_cfdi'))),
-            'email'               => trim((string) $this->input('email')),
-            'telefono'            => trim((string) $this->input('telefono')),
             'calle'               => trim((string) $this->input('calle')),
             'numero_exterior'     => trim((string) $this->input('numero_exterior')),
             'numero_interior'     => trim((string) $this->input('numero_interior')),
             'colonia'             => trim((string) $this->input('colonia')),
             'codigo_postal'       => trim((string) $this->input('codigo_postal')),
             'municipio'           => trim((string) $this->input('municipio')),
-            'estado'              => strtoupper(trim((string) $this->input('estado'))), // ← SON, JAL, etc.
-            'pais'                => strtoupper(trim((string) $this->input('pais'))),   // ← MX
-        ]);
+            'estado'              => strtoupper(trim((string) $this->input('estado'))),
+            'pais'                => strtoupper(trim((string) $this->input('pais'))),
+        ];
+
+        // Solo normalizar campos fiscales si requiere factura
+        if ($requiereFactura) {
+            $normalized = array_merge($normalized, [
+                'tipo_persona'        => strtolower(trim((string) $this->input('tipo_persona'))),
+                'rfc'                 => strtoupper(trim((string) $this->input('rfc'))),
+                'regimen_fiscal'      => strtoupper(trim((string) $this->input('regimen_fiscal'))),
+                'uso_cfdi'            => strtoupper(trim((string) $this->input('uso_cfdi'))),
+                'email'               => trim((string) $this->input('email')),
+                'telefono'            => trim((string) $this->input('telefono')),
+            ]);
+        } else {
+            // Para clientes sin factura, hacer email y teléfono opcionales
+            $normalized = array_merge($normalized, [
+                'email'    => trim((string) $this->input('email')),
+                'telefono' => trim((string) $this->input('telefono')),
+            ]);
+        }
+
+        $this->merge($normalized);
     }
 
     public function rules(): array
     {
-        return [
+        $requiereFactura = $this->input('requiere_factura', false);
+
+        $rules = [
             'nombre_razon_social' => [
                 'required',
                 'string',
                 'max:255',
                 'regex:/^[a-zA-Z0-9ñÑáéíóúÁÉÍÓÚüÜ\s\.,&\-\']+$/',
-            ],
-
-            'tipo_persona' => ['required', Rule::in(['fisica', 'moral'])],
-
-            'rfc' => array_merge($this->getRfcValidationRules(), [
-                'required',
-                'string',
-                'max:13',
-                'regex:/^[A-ZÑ&]{3,4}[0-9]{6}[A-Z0-9]{3}$/',
-            ]),
-
-            // Clave SAT (3)
-            'regimen_fiscal' => array_merge($this->getRegimenFiscalValidationRules(), [
-                'required',
-                'string',
-                'size:3',
-                Rule::exists('sat_regimenes_fiscales', 'clave'),
-            ]),
-
-            // Clave SAT (3)
-            'uso_cfdi' => [
-                'required',
-                'string',
-                'size:3',
-                Rule::exists('sat_usos_cfdi', 'clave'),
-            ],
-
-            'email' => [
-                'required',
-                'email',
-                'max:255',
-                'unique:clientes,email',
-            ],
-
-            'telefono' => [
-                'nullable',
-                'string',
-                'max:20',
-                'regex:/^[0-9+\-\s()]+$/',
             ],
 
             'calle' => ['required', 'string', 'max:255'],
@@ -101,12 +80,12 @@ class StoreClienteRequest extends FormRequest
 
             'municipio' => ['required', 'string', 'max:255'],
 
-            // 🔴 Cambiamos de "in:{$estadosCsv}" a exists en BD
+            // Estado: hacer opcional para clientes extranjeros
             'estado' => [
-                'required',
+                'nullable',
                 'string',
                 'size:3',
-                Rule::exists('sat_estados', 'clave'), // si tienes columna "activo", puedes añadir ->where(fn($q) => $q->where('activo',1))
+                Rule::exists('sat_estados', 'clave'),
             ],
 
             'pais' => ['required', 'string', Rule::in(['MX'])],
@@ -118,18 +97,81 @@ class StoreClienteRequest extends FormRequest
             'tipo_identificacion' => ['nullable', 'string', 'max:20'],
             'identificacion' => ['nullable', 'string', 'max:50'],
 
-            'curp' => [
-                'nullable',
-                'string',
-                'size:18',
-                'regex:/^[A-Z][AEIOU][A-Z]{2}[0-9]{6}[HM][A-Z]{5}[A-Z0-9][0-9]$/',
-            ],
-
             // Facturapi (opcionales)
             'facturapi_customer_id' => ['nullable', 'string', 'max:255'],
             'cfdi_default_use'      => ['nullable', 'string', 'size:3', Rule::exists('sat_usos_cfdi', 'clave')],
             'payment_form_default'  => ['nullable', 'string', 'size:2'],
         ];
+
+        // Solo agregar reglas fiscales si requiere factura
+        if ($requiereFactura) {
+            $rules = array_merge($rules, [
+                'tipo_persona' => ['required', Rule::in(['fisica', 'moral'])],
+
+                'rfc' => array_merge($this->getRfcValidationRules(), [
+                    'required',
+                    'string',
+                    'max:13',
+                    'regex:/^[A-ZÑ&]{3,4}[0-9]{6}[A-Z0-9]{3}$/',
+                ]),
+
+                // Clave SAT (3)
+                'regimen_fiscal' => array_merge($this->getRegimenFiscalValidationRules(), [
+                    'required',
+                    'string',
+                    'size:3',
+                    Rule::exists('sat_regimenes_fiscales', 'clave'),
+                ]),
+
+                // Clave SAT (3)
+                'uso_cfdi' => [
+                    'required',
+                    'string',
+                    'size:3',
+                    Rule::exists('sat_usos_cfdi', 'clave'),
+                ],
+
+                'email' => [
+                    'required',
+                    'email',
+                    'max:255',
+                    'unique:clientes,email',
+                ],
+
+                'telefono' => [
+                    'required',
+                    'string',
+                    'size:10',
+                    'regex:/^[0-9]{10}$/',
+                ],
+
+                'curp' => [
+                    'nullable',
+                    'string',
+                    'size:18',
+                    'regex:/^[A-Z][AEIOU][A-Z]{2}[0-9]{6}[HM][A-Z]{5}[A-Z0-9][0-9]$/',
+                ],
+            ]);
+        } else {
+            // Si no requiere factura, hacer email y teléfono opcionales
+            $rules = array_merge($rules, [
+                'email' => [
+                    'nullable',
+                    'email',
+                    'max:255',
+                    'unique:clientes,email',
+                ],
+
+                'telefono' => [
+                    'nullable',
+                    'string',
+                    'max:20',
+                    'regex:/^[0-9+\-\s()]+$/',
+                ],
+            ]);
+        }
+
+        return $rules;
     }
 
     public function messages(): array

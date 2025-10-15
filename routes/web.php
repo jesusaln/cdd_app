@@ -416,6 +416,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::get('/clientes/stats', [ClienteController::class, 'stats'])->name('clientes.stats');
     Route::post('/clientes/clear-cache', [ClienteController::class, 'clearCache'])->name('clientes.clearCache');
     Route::put('/clientes/{cliente}/toggle', [ClienteController::class, 'toggle'])->name('clientes.toggle');
+    Route::get('/clientes/{cliente}/can-delete', [ClienteController::class, 'canDelete'])->name('clientes.canDelete');
+    Route::get('/clientes/{cliente}/has-prestamos', [ClienteController::class, 'hasPrestamos'])->name('clientes.hasPrestamos');
 
     // =====================================================
     // RUTAS ESPECÃƒÂFICAS DE PROVEEDORES

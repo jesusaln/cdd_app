@@ -142,27 +142,36 @@ class ClienteController extends Controller
         return $formatted;
     }
 
-    private function getTipoPersonaNombre(string $codigo): string
+    private function getTipoPersonaNombre(?string $codigo): string
     {
+        if (!$codigo) {
+            return 'No aplica';
+        }
         $tipos = $this->getTiposPersona();
         return $tipos[$codigo] ?? $codigo;
     }
 
-    private function getRegimenFiscalNombre(string $codigo): string
+    private function getRegimenFiscalNombre(?string $codigo): string
     {
+        if (!$codigo) {
+            return 'No aplica';
+        }
         $reg = $this->getRegimenesFiscales();
         return isset($reg[$codigo]) ? ($reg[$codigo]['descripcion'] ?? $codigo) : $codigo;
     }
 
-    private function getUsoCFDINombre(string $codigo): string
+    private function getUsoCFDINombre(?string $codigo): string
     {
+        if (!$codigo) {
+            return 'No aplica';
+        }
         $u = $this->getUsosCFDI();
         return isset($u[$codigo]) ? ($u[$codigo]['descripcion'] ?? $codigo) : $codigo;
     }
 
     private function getEstadoNombre(?string $clave): ?string
     {
-        if (!$clave) return null;
+        if (!$clave) return 'No especificado';
 
         // Si la clave tiene 3 caracteres, buscar en la tabla SAT
         if (strlen($clave) === 3) {
@@ -278,6 +287,13 @@ class ClienteController extends Controller
             }
 
             $cliente->estado_texto = $cliente->activo ? 'Activo' : 'Inactivo';
+
+            // Agregar indicador si requiere factura
+            $cliente->requiere_factura_texto = $cliente->requiere_factura ? 'Sí requiere factura' : 'No requiere factura';
+
+            // Agregar conteo de préstamos
+            $cliente->prestamos_count = $cliente->prestamos()->count();
+
             return $cliente;
         });
 
@@ -561,24 +577,33 @@ class ClienteController extends Controller
         try {
             $data = $request->validated();
 
-            // Normalización de datos
-            $data['rfc']                 = strtoupper(trim($data['rfc']));
-            $data['email']               = strtolower(trim($data['email']));
+            // Normalización de datos básicos (siempre presentes)
             $data['nombre_razon_social'] = trim($data['nombre_razon_social']);
             $data['pais']                = self::DEFAULT_COUNTRY; // Forzado
+
+            // Solo normalizar campos fiscales si están presentes y no son null
+            if (isset($data['rfc']) && !is_null($data['rfc'])) {
+                $data['rfc'] = strtoupper(trim($data['rfc']));
+            }
+
+            if (isset($data['email']) && !is_null($data['email'])) {
+                $data['email'] = strtolower(trim($data['email']));
+            }
 
             // Establecer domicilio_fiscal_cp igual al codigo_postal para CFDI 4.0
             $data['domicilio_fiscal_cp'] = $data['codigo_postal'];
 
             $cliente = Cliente::create($data);
 
-            // Validar que el cliente tenga datos completos para CFDI
-            $erroresCfdi = $cliente->validarParaCfdi();
-            if (!empty($erroresCfdi)) {
-                DB::rollBack();
-                throw ValidationException::withMessages([
-                    'cfdi' => 'El cliente no cumple con los requisitos para facturación CFDI: ' . implode(', ', $erroresCfdi)
-                ]);
+            // Solo validar CFDI si el cliente requiere factura
+            if ($data['requiere_factura'] ?? false) {
+                $erroresCfdi = $cliente->validarParaCfdi();
+                if (!empty($erroresCfdi)) {
+                    DB::rollBack();
+                    throw ValidationException::withMessages([
+                        'cfdi' => 'El cliente no cumple con los requisitos para facturación CFDI: ' . implode(', ', $erroresCfdi)
+                    ]);
+                }
             }
 
             // Crear notificaciones directamente (sistema simplificado)
@@ -594,8 +619,8 @@ class ClienteController extends Controller
                 // No fallar la creación del cliente por error en notificaciones
             }
 
-            // Integrar con Facturapi si no tiene ID
-            if (empty($cliente->facturapi_customer_id)) {
+            // Solo integrar con Facturapi si requiere factura
+            if (($data['requiere_factura'] ?? false) && empty($cliente->facturapi_customer_id)) {
                 $this->createOrUpdateFacturapiCustomer($cliente);
             }
 
@@ -1087,6 +1112,53 @@ class ClienteController extends Controller
             return response()->json(['success' => true, 'message' => 'Cache limpiada correctamente']);
         } catch (Exception $e) {
             Log::error('Error limpiando cache: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Error interno del servidor'], 500);
+        }
+    }
+
+    /**
+     * Verificar si un cliente puede ser eliminado (sin documentos relacionados)
+     */
+    public function canDelete(Cliente $cliente): JsonResponse
+    {
+        try {
+            $relaciones = $this->verificarRelacionesCliente($cliente);
+
+            $puedeEliminar = empty($relaciones);
+
+            return response()->json([
+                'success' => true,
+                'can_delete' => $puedeEliminar,
+                'relaciones' => $relaciones,
+                'message' => $puedeEliminar
+                    ? 'El cliente puede ser eliminado'
+                    : 'El cliente tiene documentos relacionados: ' . implode(', ', $relaciones)
+            ]);
+        } catch (Exception $e) {
+            Log::error('Error verificando si cliente puede ser eliminado: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Error interno del servidor'], 500);
+        }
+    }
+
+    /**
+     * Verificar si un cliente tiene préstamos
+     */
+    public function hasPrestamos(Cliente $cliente): JsonResponse
+    {
+        try {
+            $prestamosCount = $cliente->prestamos()->count();
+            $tienePrestamos = $prestamosCount > 0;
+
+            return response()->json([
+                'success' => true,
+                'has_prestamos' => $tienePrestamos,
+                'prestamos_count' => $prestamosCount,
+                'message' => $tienePrestamos
+                    ? "El cliente tiene {$prestamosCount} préstamo(s)"
+                    : 'El cliente no tiene préstamos'
+            ]);
+        } catch (Exception $e) {
+            Log::error('Error verificando préstamos del cliente: ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => 'Error interno del servidor'], 500);
         }
     }
