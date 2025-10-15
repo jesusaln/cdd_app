@@ -50,9 +50,13 @@ onMounted(() => {
 })
 
 /* =========================
-   Estado del formulario
-========================= */
-const form = ref({ ...props.prestamo })
+    Estado del formulario
+ ========================= */
+const form = ref({
+  ...props.prestamo,
+  // Asegurar que tasa_interes_mensual siempre tenga un valor numérico válido
+  tasa_interes_mensual: props.prestamo.tasa_interes_mensual || 5
+})
 const loading = ref(false)
 const calculando = ref(false)
 const clienteSeleccionado = ref(null)
@@ -230,6 +234,21 @@ watch(
   }
 )
 
+// Watcher adicional para asegurar que tasa_interes_mensual nunca sea null
+watch(
+  () => form.value.tasa_interes_mensual,
+  (newValue, oldValue) => {
+    console.log('Cambio en tasa_interes_mensual:', oldValue, '->', newValue)
+    // Si el valor es null, undefined o vacío, asignar un valor por defecto
+    if (newValue === null || newValue === undefined || newValue === '') {
+      console.log('Valor inválido detectado, asignando valor por defecto')
+      form.value.tasa_interes_mensual = 5
+    }
+    calcularPagos()
+  },
+  { immediate: true }
+)
+
 /* =========================
    Validación del formulario
 ========================= */
@@ -247,7 +266,10 @@ const validateForm = () => {
     errors.value.monto_prestado = 'El monto debe ser mayor a cero'
   }
 
-  if (form.value.tasa_interes_mensual < 0 || form.value.tasa_interes_mensual > 100) {
+  // Validación más estricta para tasa_interes_mensual
+  if (form.value.tasa_interes_mensual === null || form.value.tasa_interes_mensual === undefined || form.value.tasa_interes_mensual === '') {
+    errors.value.tasa_interes_mensual = 'La tasa de interés es requerida'
+  } else if (form.value.tasa_interes_mensual < 0 || form.value.tasa_interes_mensual > 100) {
     errors.value.tasa_interes_mensual = 'La tasa de interés debe estar entre 0% y 100%'
   }
 
@@ -266,6 +288,11 @@ const validateForm = () => {
    Envío del formulario
 ========================= */
 const submitForm = () => {
+  // Verificación adicional antes de validar
+  if (form.value.tasa_interes_mensual === null || form.value.tasa_interes_mensual === undefined || form.value.tasa_interes_mensual === '') {
+    form.value.tasa_interes_mensual = 5
+  }
+
   if (!validateForm()) {
     notyf.error('Por favor corrija los errores del formulario')
     return
@@ -285,6 +312,8 @@ const submitForm = () => {
     descripcion: form.value.descripcion,
     notas: form.value.notas,
   }
+
+  console.log('Datos a enviar al servidor:', datosPrestamo)
 
   router.post('/prestamos', datosPrestamo, {
     onStart: () => {

@@ -1064,7 +1064,7 @@ const validateRfc = async (rfc, clienteId = null) => {
     const params = { rfc: rfc.trim() }
     if (clienteId) params.cliente_id = clienteId
 
-    const response = await axios.get(route('clientes.validarRfc'), { params })
+    const response = await axios.post(route('clientes.validarRfc'), params)
     if (response.data.success) {
       form.clearErrors('rfc')
       if (response.data.exists) {

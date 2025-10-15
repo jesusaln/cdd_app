@@ -80,7 +80,7 @@
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm font-medium text-gray-600">Total Prestado</p>
-              <p class="text-lg font-bold text-green-600">${{ formatearMoneda(monto_total_prestado) }}</p>
+              <p class="text-lg font-bold text-green-600">${{ formatearMoneda(totalPrestado) }}</p>
             </div>
             <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
               <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -94,7 +94,7 @@
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm font-medium text-gray-600">Total Pagado</p>
-              <p class="text-lg font-bold text-blue-600">${{ formatearMoneda(monto_total_pagado) }}</p>
+              <p class="text-lg font-bold text-blue-600">${{ formatearMoneda(totalPagado) }}</p>
             </div>
             <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
               <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -108,7 +108,7 @@
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm font-medium text-gray-600">Pendiente</p>
-              <p class="text-lg font-bold text-orange-600">${{ formatearMoneda(monto_total_pendiente) }}</p>
+              <p class="text-lg font-bold text-orange-600">${{ formatearMoneda(totalPendiente) }}</p>
             </div>
             <div class="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
               <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -238,6 +238,17 @@ const formatearMoneda = (num) => {
     maximumFractionDigits: 2
   }).format(safe);
 }
+
+// Coerción robusta por si el backend envía strings
+const toNumber = (v) => {
+  if (typeof v === 'number') return v
+  if (typeof v === 'string') return parseFloat(v) || 0
+  return 0
+}
+
+const totalPrestado = computed(() => toNumber(props.monto_total_prestado))
+const totalPagado = computed(() => toNumber(props.monto_total_pagado))
+const totalPendiente = computed(() => toNumber(props.monto_total_pendiente))
 
 // Watch para limpiar filtros automáticamente
 watch([searchTerm, sortBy, filtroEstado, filtroCliente], () => {

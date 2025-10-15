@@ -81,15 +81,15 @@ class PrestamoController extends Controller
 
             $prestamos = $query->paginate($perPage)->appends($request->query());
 
-            // Estadísticas
+            // Estadísticas (forzar números para evitar props String en Vue)
             $estadisticas = [
                 'total' => Prestamo::count(),
                 'activos' => Prestamo::where('estado', 'activo')->count(),
                 'completados' => Prestamo::where('estado', 'completado')->count(),
                 'cancelados' => Prestamo::where('estado', 'cancelado')->count(),
-                'monto_total_prestado' => Prestamo::sum('monto_prestado'),
-                'monto_total_pagado' => Prestamo::sum('monto_pagado'),
-                'monto_total_pendiente' => Prestamo::sum('monto_pendiente'),
+                'monto_total_prestado' => (float) Prestamo::sum('monto_prestado'),
+                'monto_total_pagado' => (float) Prestamo::sum('monto_pagado'),
+                'monto_total_pendiente' => (float) Prestamo::sum('monto_pendiente'),
             ];
 
             return Inertia::render('Prestamos/Index', [
@@ -496,7 +496,8 @@ class PrestamoController extends Controller
                     'rfc' => $empresaRfc,
                     'direccion' => $empresaDireccion,
                 ],
-                'fecha_actual' => now()->format('d/m/Y'),
+                // Enviar fecha en formato ISO 8601 (con zona) para parseo confiable en JS
+                'fecha_actual' => now()->toIso8601String(),
                 'monto_letras' => $this->numeroALetras($prestamo->monto_prestado),
                 'tasa_mensual' => floatval($prestamo->tasa_interes_mensual),
                 'pago_mensual_letras' => $this->numeroALetras($prestamo->pago_periodico),

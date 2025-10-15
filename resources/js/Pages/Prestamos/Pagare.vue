@@ -246,7 +246,7 @@ const generarContenidoPagare = (tamano = 'carta') => {
   const empresaRFC = props.empresa?.rfc || 'RFC no especificado'
   const clienteNombre = props.cliente?.nombre_razon_social || 'DEUDOR NO ESPECIFICADO'
   const clienteDom = props.cliente?.direccion_completa || 'Domicilio del deudor no especificado'
-  const clienteRFC = props.cliente?.rfc || 'RFC no especificado'
+  const clienteRFC = props.cliente?.rfc || ''
   const monto = formatearMoneda(props.prestamo?.monto_prestado)
   const pagoMensual = formatearMoneda(props.prestamo?.pago_periodico)
   const numeroPagos = props.prestamo?.numero_pagos ?? 'N/D'
@@ -516,7 +516,7 @@ const generarContenidoPagare = (tamano = 'carta') => {
     <div class="block">
       <div class="block-title">Promesa de pago</div>
       <p style="text-align:justify;">
-        Por este medio, yo <strong>${clienteNombre}</strong>, con domicilio en <strong>${clienteDom}</strong> (RFC: <strong>${clienteRFC}</strong>),
+        Por este medio, yo <strong>${clienteNombre}</strong>, con domicilio en <strong>${clienteDom}</strong>${clienteRFC ? ` (RFC: <strong>${clienteRFC}</strong>)` : ''},
         me obligo incondicionalmente a pagar a la orden de <strong>${empresaNombre}</strong> (RFC: <strong>${empresaRFC}</strong>),
         en <strong>${empresaDomicilio}</strong>, la cantidad de <strong>${monto}</strong> (${props.monto_letras}),
         más intereses ordinarios a razón de <strong>${tasa}% mensual</strong>, pagaderos mensualmente junto con cada exhibición de capital.
@@ -530,7 +530,7 @@ const generarContenidoPagare = (tamano = 'carta') => {
         <table>
           <tr><td class="label">Nombre</td><td>${clienteNombre}</td></tr>
           <tr><td class="label">Domicilio</td><td>${clienteDom}</td></tr>
-          <tr><td class="label">RFC</td><td>${clienteRFC}</td></tr>
+          ${clienteRFC ? `<tr><td class="label">RFC</td><td>${clienteRFC}</td></tr>` : ''}
         </table>
       </div>
       <div class="block soft">
