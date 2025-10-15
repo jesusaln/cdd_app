@@ -41,6 +41,27 @@
         <!-- Información General -->
         <div class="border-b border-gray-200 pb-6">
           <h2 class="text-lg font-medium text-gray-900 mb-4">Información General</h2>
+
+          <!-- Checkbox para factura -->
+          <div class="mb-6">
+            <div class="flex items-center">
+              <input
+                type="checkbox"
+                id="requiere_factura"
+                v-model="form.requiere_factura"
+                @change="onFacturaChange"
+                :class="[
+                  'h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
+                ]"
+              />
+              <label for="requiere_factura" class="ml-2 block text-sm font-medium text-gray-700">
+                ¿Requiere factura? <span class="text-red-500">*</span>
+              </label>
+            </div>
+            <div class="mt-1 text-sm text-gray-500">
+              Marque esta opción si el cliente necesita facturación electrónica
+            </div>
+          </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div class="md:col-span-2">
               <div class="mb-4">
@@ -67,7 +88,8 @@
 
             <div class="mb-4">
               <label for="email" class="block text-sm font-medium text-gray-700">
-                Email <span class="text-red-500">*</span>
+                Email <span v-if="form.requiere_factura" class="text-red-500">*</span>
+                <span v-if="form.requiere_factura" class="text-gray-400">(requerido para facturación)</span>
               </label>
               <input
                type="email"
@@ -80,7 +102,7 @@
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.email ? 'border-red-300 bg-red-50' : 'border-gray-300'
                 ]"
-                required
+                :required="form.requiere_factura"
               />
               <div v-if="form.errors.email" class="mt-2 text-sm text-red-600">
                 {{ form.errors.email }}
@@ -89,7 +111,8 @@
 
             <div class="mb-4">
               <label for="telefono" class="block text-sm font-medium text-gray-700">
-                Teléfono
+                Teléfono <span v-if="form.requiere_factura" class="text-red-500">*</span>
+                <span v-if="form.requiere_factura" class="text-gray-400">(requerido para facturación)</span>
               </label>
               <input
                 type="tel"
@@ -101,9 +124,10 @@
                 pattern="[0-9]{10}"
                 autocomplete="tel-national"
                 :class="[
-                  'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
-                  form.errors.telefono ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                ]"
+                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                   form.errors.telefono ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                 ]"
+                 :required="form.requiere_factura"
               />
               <div v-if="form.errors.telefono" class="mt-2 text-sm text-red-600">
                 {{ form.errors.telefono }}
@@ -133,12 +157,13 @@
         </div>
 
         <!-- Información Fiscal -->
-        <div class="border-b border-gray-200 pb-6">
+        <div v-if="form.requiere_factura" class="border-b border-gray-200 pb-6">
           <h2 class="text-lg font-medium text-gray-900 mb-4">Información Fiscal</h2>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div class="mb-4">
               <label for="tipo_persona" class="block text-sm font-medium text-gray-700">
-                Tipo de Persona <span class="text-red-500">*</span>
+                Tipo de Persona <span v-if="form.requiere_factura" class="text-red-500">*</span>
+                <span v-if="!form.requiere_factura" class="text-gray-400">(opcional)</span>
               </label>
               <select
                 id="tipo_persona"
@@ -148,7 +173,7 @@
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.tipo_persona ? 'border-red-300 bg-red-50' : 'border-gray-300'
                 ]"
-                required
+                :required="form.requiere_factura"
               >
                 <option value="">Selecciona una opción</option>
                 <option value="fisica">Persona Física</option>
@@ -485,7 +510,7 @@
           <div class="mt-2">
             <strong>Valores actuales:</strong>
             <ul class="ml-4 list-disc">
-              <li v-for="field in requiredFields" :key="field">
+              <li v-for="field in (Array.isArray(requiredFields) ? requiredFields : [])" :key="field">
                 {{ field }}: "{{ form[field] }}" ({{ typeof form[field] }})
               </li>
             </ul>
@@ -655,15 +680,28 @@ onMounted(async () => {
 
 const hasGlobalErrors = computed(() => Object.keys(form.errors).length > 0)
 
-const requiredFields = [
-  'nombre_razon_social', 'email', 'tipo_persona', 'rfc',
-  'regimen_fiscal', 'uso_cfdi', 'calle', 'numero_exterior',
-  'colonia', 'codigo_postal', 'municipio'
-]
-// Nota: estado y pais son opcionales para clientes extranjeros
+const requiredFields = computed(() => {
+  const baseFields = [
+    'nombre_razon_social', 'calle', 'numero_exterior',
+    'colonia', 'codigo_postal', 'municipio'
+  ]
+
+  // Si requiere factura, agregar campos fiscales
+  if (form.requiere_factura) {
+    return [
+      ...baseFields,
+      'tipo_persona', 'rfc', 'regimen_fiscal', 'uso_cfdi'
+    ]
+  }
+
+  return baseFields
+})
 
 const requiredFieldsFilled = computed(() => {
-  return requiredFields.every(field => {
+  // Asegurar que requiredFields sea un array válido
+  const fields = Array.isArray(requiredFields.value) ? requiredFields.value : []
+
+  return fields.every(field => {
     const value = form[field]
     return value !== null &&
            value !== undefined &&
@@ -781,6 +819,18 @@ watch(isExtranjero, (val) => {
 })
 
 // Funciones de manejo de input
+const onFacturaChange = () => {
+  if (!form.requiere_factura) {
+    // Si desmarca factura, limpiar campos fiscales
+    form.tipo_persona = ''
+    form.rfc = ''
+    form.curp = ''
+    form.regimen_fiscal = ''
+    form.uso_cfdi = 'G03'
+    form.clearErrors(['tipo_persona', 'rfc', 'curp', 'regimen_fiscal', 'uso_cfdi'])
+  }
+}
+
 const onTipoPersonaChange = () => {
   // En edición, solo limpiar si realmente cambió el tipo
   const originalTipo = props.cliente?.tipo_persona
@@ -1010,9 +1060,38 @@ const submit = () => {
     return
   }
 
+  // Preparar datos para enviar
+  let dataToSend = { ...form.data() }
+
+  // Si no requiere factura, eliminar campos fiscales del envío
+  if (!dataToSend.requiere_factura) {
+    delete dataToSend.tipo_persona
+    delete dataToSend.rfc
+    delete dataToSend.curp
+    delete dataToSend.regimen_fiscal
+    delete dataToSend.uso_cfdi
+    // Hacer email y teléfono opcionales cuando no requiere factura
+    if (!dataToSend.email || dataToSend.email.trim() === '') delete dataToSend.email
+    if (!dataToSend.telefono || dataToSend.telefono.trim() === '') delete dataToSend.telefono
+  } else {
+    // Si requiere factura, limpiar campos fiscales vacíos
+    if (!dataToSend.tipo_persona || dataToSend.tipo_persona.trim() === '') delete dataToSend.tipo_persona
+    if (!dataToSend.rfc || dataToSend.rfc.trim() === '') delete dataToSend.rfc
+    if (!dataToSend.curp || dataToSend.curp.trim() === '') delete dataToSend.curp
+    if (!dataToSend.regimen_fiscal || dataToSend.regimen_fiscal.trim() === '') delete dataToSend.regimen_fiscal
+    if (!dataToSend.uso_cfdi || dataToSend.uso_cfdi.trim() === '') delete dataToSend.uso_cfdi
+  }
+
+  // Limpiar campos básicos vacíos
+  if (!dataToSend.email || dataToSend.email.trim() === '') delete dataToSend.email
+  if (!dataToSend.telefono || dataToSend.telefono.trim() === '') delete dataToSend.telefono
+  if (!dataToSend.numero_interior || dataToSend.numero_interior.trim() === '') delete dataToSend.numero_interior
+
+  console.log('Datos a enviar:', dataToSend)
+
   // Normalizar email y datos para el backend
   normalizeEmail()
-  const dataToSend = normalizeForBackend(form.data())
+  dataToSend = normalizeForBackend(dataToSend)
 
   // Usar PUT/PATCH para actualización
   form.put(route('clientes.update', props.cliente.id), {

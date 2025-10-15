@@ -119,6 +119,11 @@ class Cliente extends Model implements AuditableContract
         return $this->hasMany(Renta::class)->withTrashed();
     }
 
+    public function prestamos(): HasMany
+    {
+        return $this->hasMany(Prestamo::class)->withTrashed();
+    }
+
     // ------------------------------------------------------------------
     // Relaciones a catálogos SAT (por clave)
     // ------------------------------------------------------------------
