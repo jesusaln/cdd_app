@@ -49,15 +49,15 @@
                             <!-- Código -->
                             <div>
                                 <label for="codigo" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Código *
+                                    Código
                                 </label>
                                 <input
                                     v-model="form.codigo"
                                     type="text"
                                     id="codigo"
-                                    placeholder="Código único"
+                                    placeholder="Se asignará automáticamente"
                                     class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
-                                    required
+                                    disabled
                                 />
                                 <div v-if="form.errors.codigo" class="mt-1 text-sm text-red-600">
                                     {{ form.errors.codigo }}
@@ -174,17 +174,18 @@
                                 <label for="categoria_id" class="block text-sm font-medium text-gray-700 mb-2">
                                     Categoría *
                                 </label>
-                                <select
-                                    v-model="form.categoria_id"
-                                    id="categoria_id"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
-                                    required
-                                >
+                                 <select
+                                     v-model="form.categoria_id"
+                                     id="categoria_id"
+                                     class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
+                                     required
+                                 >
                                     <option value="">Selecciona una categoría</option>
                                     <option v-for="categoria in categorias" :key="categoria.id" :value="categoria.id">
                                         {{ categoria.nombre || categoria.descripcion || `Categoría ${categoria.id}` }}
                                     </option>
-                                </select>
+                                 </select>
+                                 <button type="button" class="mt-2 text-sm text-blue-600 hover:underline" @click="showCategoriaModal = true">+ Nueva categoría</button>
                                 <div v-if="form.errors.categoria_id" class="mt-1 text-sm text-red-600">
                                     {{ form.errors.categoria_id }}
                                 </div>
@@ -205,17 +206,18 @@
                                 <label for="marca_id" class="block text-sm font-medium text-gray-700 mb-2">
                                     Marca *
                                 </label>
-                                <select
-                                    v-model="form.marca_id"
-                                    id="marca_id"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
-                                    required
-                                >
+                                 <select
+                                     v-model="form.marca_id"
+                                     id="marca_id"
+                                     class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
+                                     required
+                                 >
                                     <option value="">Selecciona una marca</option>
                                     <option v-for="marca in marcas" :key="marca.id" :value="marca.id">
                                         {{ marca.nombre || marca.descripcion || `Marca ${marca.id}` }}
                                     </option>
-                                </select>
+                                 </select>
+                                 <button type="button" class="mt-2 text-sm text-blue-600 hover:underline" @click="showMarcaModal = true">+ Nueva marca</button>
                                 <div v-if="form.errors.marca_id" class="mt-1 text-sm text-red-600">
                                     {{ form.errors.marca_id }}
                                 </div>
@@ -280,16 +282,17 @@
                                 <label for="almacen_id" class="block text-sm font-medium text-gray-700 mb-2">
                                     Almacén
                                 </label>
-                                <select
-                                    v-model="form.almacen_id"
-                                    id="almacen_id"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
-                                >
+                                 <select
+                                     v-model="form.almacen_id"
+                                     id="almacen_id"
+                                     class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
+                                 >
                                     <option value="">Selecciona un almacén</option>
                                     <option v-for="almacen in almacenes" :key="almacen.id" :value="almacen.id">
                                         {{ almacen.nombre || almacen.descripcion || `Almacén ${almacen.id}` }}
                                     </option>
-                                </select>
+                                 </select>
+                                 <button type="button" class="mt-2 text-sm text-blue-600 hover:underline" @click="showAlmacenModal = true">+ Nuevo almacén</button>
                                 <div v-if="form.errors.almacen_id" class="mt-1 text-sm text-red-600">
                                     {{ form.errors.almacen_id }}
                                 </div>
@@ -552,10 +555,49 @@
             </div>
         </div>
     </div>
+        <!-- Modales rápidos -->
+        <div v-if="showCategoriaModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div class="bg-white rounded-lg shadow p-6 w-full max-w-md">
+            <h3 class="text-lg font-semibold mb-4">Nueva categoría</h3>
+            <input v-model="quickCategoria.nombre" type="text" placeholder="Nombre" class="w-full px-3 py-2 border border-gray-300 rounded mb-2" />
+            <textarea v-model="quickCategoria.descripcion" placeholder="Descripción (opcional)" class="w-full px-3 py-2 border border-gray-300 rounded mb-4"></textarea>
+            <div class="flex justify-end space-x-2">
+              <button class="px-3 py-2 bg-gray-200 rounded" @click="closeCategoriaModal">Cancelar</button>
+              <button class="px-3 py-2 bg-blue-600 text-white rounded" @click="crearCategoriaRapida" :disabled="savingQuick">{{ savingQuick ? 'Guardando...' : 'Guardar' }}</button>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="showMarcaModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div class="bg-white rounded-lg shadow p-6 w-full max-w-md">
+            <h3 class="text-lg font-semibold mb-4">Nueva marca</h3>
+            <input v-model="quickMarca.nombre" type="text" placeholder="Nombre" class="w-full px-3 py-2 border border-gray-300 rounded mb-2" />
+            <textarea v-model="quickMarca.descripcion" placeholder="Descripción (opcional)" class="w-full px-3 py-2 border border-gray-300 rounded mb-4"></textarea>
+            <div class="flex justify-end space-x-2">
+              <button class="px-3 py-2 bg-gray-200 rounded" @click="closeMarcaModal">Cancelar</button>
+              <button class="px-3 py-2 bg-blue-600 text-white rounded" @click="crearMarcaRapida" :disabled="savingQuick">{{ savingQuick ? 'Guardando...' : 'Guardar' }}</button>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="showAlmacenModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div class="bg-white rounded-lg shadow p-6 w-full max-w-md">
+            <h3 class="text-lg font-semibold mb-4">Nuevo almacén</h3>
+            <input v-model="quickAlmacen.nombre" type="text" placeholder="Nombre" class="w-full px-3 py-2 border border-gray-300 rounded mb-2" />
+            <input v-model="quickAlmacen.ubicacion" type="text" placeholder="Ubicación/Dirección" class="w-full px-3 py-2 border border-gray-300 rounded mb-2" />
+            <textarea v-model="quickAlmacen.descripcion" placeholder="Descripción (opcional)" class="w-full px-3 py-2 border border-gray-300 rounded mb-4"></textarea>
+            <div class="flex justify-end space-x-2">
+              <button class="px-3 py-2 bg-gray-200 rounded" @click="closeAlmacenModal">Cancelar</button>
+              <button class="px-3 py-2 bg-blue-600 text-white rounded" @click="crearAlmacenRapido" :disabled="savingQuick">{{ savingQuick ? 'Guardando...' : 'Guardar' }}</button>
+            </div>
+          </div>
+        </div>
+
 </template>
 
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3';
+import { ref } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue';
 
 // Define el layout del dashboard
@@ -647,6 +689,46 @@ const handleImageError = (event) => {
     event.target.src = '/images/placeholder-product.svg';
     event.target.alt = 'Imagen no disponible';
 };
+
+// Modales rápidos
+const showCategoriaModal = ref(false)
+const showMarcaModal = ref(false)
+const showAlmacenModal = ref(false)
+const savingQuick = ref(false)
+const quickCategoria = ref({ nombre: '', descripcion: '' })
+const quickMarca = ref({ nombre: '', descripcion: '' })
+const quickAlmacen = ref({ nombre: '', ubicacion: '', descripcion: '' })
+const csrfToken = () => document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+const closeCategoriaModal = () => { showCategoriaModal.value = false; quickCategoria.value = { nombre: '', descripcion: '' } }
+const closeMarcaModal = () => { showMarcaModal.value = false; quickMarca.value = { nombre: '', descripcion: '' } }
+const closeAlmacenModal = () => { showAlmacenModal.value = false; quickAlmacen.value = { nombre: '', ubicacion: '', descripcion: '' } }
+const crearCategoriaRapida = async () => {
+  if (!quickCategoria.value.nombre?.trim()) return;
+  savingQuick.value = true
+  try {
+    const res = await fetch('/api/categorias', { method:'POST', headers:{'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest','X-CSRF-TOKEN': csrfToken()}, body: JSON.stringify({ nombre: quickCategoria.value.nombre, descripcion: quickCategoria.value.descripcion||null })})
+    if (!res.ok) throw new Error('Error al crear categoría')
+    const nueva = await res.json(); categorias.push(nueva); form.categoria_id = nueva.id; closeCategoriaModal()
+  } catch(e){ console.error(e) } finally { savingQuick.value = false }
+}
+const crearMarcaRapida = async () => {
+  if (!quickMarca.value.nombre?.trim()) return;
+  savingQuick.value = true
+  try {
+    const res = await fetch('/api/marcas', { method:'POST', headers:{'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest','X-CSRF-TOKEN': csrfToken()}, body: JSON.stringify({ nombre: quickMarca.value.nombre, descripcion: quickMarca.value.descripcion||null })})
+    if (!res.ok) throw new Error('Error al crear marca')
+    const nueva = await res.json(); marcas.push(nueva); form.marca_id = nueva.id; closeMarcaModal()
+  } catch(e){ console.error(e) } finally { savingQuick.value = false }
+}
+const crearAlmacenRapido = async () => {
+  if (!quickAlmacen.value.nombre?.trim()) return;
+  savingQuick.value = true
+  try {
+    const res = await fetch('/api/almacenes', { method:'POST', headers:{'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest','X-CSRF-TOKEN': csrfToken()}, body: JSON.stringify({ nombre: quickAlmacen.value.nombre, descripcion: quickAlmacen.value.descripcion||null, ubicacion: quickAlmacen.value.ubicacion||'' })})
+    if (!res.ok) throw new Error('Error al crear almacén')
+    const nuevo = await res.json(); almacenes.push(nuevo); form.almacen_id = nuevo.id; closeAlmacenModal()
+  } catch(e){ console.error(e) } finally { savingQuick.value = false }
+}
 </script>
 
 <style scoped>

@@ -11,6 +11,25 @@ use Illuminate\Support\Facades\Storage;
 class ProductoController extends Controller
 {
     /**
+     * Obtener el siguiente código disponible para un nuevo producto.
+     */
+    public function nextCodigo()
+    {
+        try {
+            $siguienteCodigo = Producto::generateNextCodigo();
+            return response()->json([
+                'siguiente_codigo' => $siguienteCodigo,
+                'mensaje' => 'Código siguiente disponible obtenido correctamente'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Error al obtener el siguiente código',
+                'detalle' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Mostrar todos los productos.
      */
     public function index()

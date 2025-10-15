@@ -111,6 +111,48 @@ const formatearFechaCompleta = (date) => {
   }
 }
 
+// =============== Utilidades de fecha robustas ===============
+// Acepta Date, ISO, YYYY-MM-DD y DD/MM/YYYY
+const parseFechaFlexible = (input) => {
+  if (!input) return null
+  if (input instanceof Date) return isNaN(input.getTime()) ? null : input
+  if (typeof input === 'string') {
+    const s = input.trim()
+    const m = s.match(/^([0-3]?\d)\/([0-1]?\d)\/(\d{4})$/)
+    if (m) {
+      const d = parseInt(m[1], 10)
+      const mo = parseInt(m[2], 10) - 1
+      const y = parseInt(m[3], 10)
+      const dt = new Date(y, mo, d)
+      if (dt && dt.getFullYear() === y && dt.getMonth() === mo && dt.getDate() === d) return dt
+      return null
+    }
+    const t = Date.parse(s)
+    if (!Number.isNaN(t)) return new Date(t)
+  }
+  return null
+}
+
+const formatearFechaFlex = (date) => {
+  const dt = parseFechaFlexible(date)
+  if (!dt) return 'Fecha inválida'
+  try {
+    return dt.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  } catch {
+    return 'Fecha inválida'
+  }
+}
+
+const formatearFechaCompletaFlex = (date) => {
+  const dt = parseFechaFlexible(date)
+  if (!dt) return 'Fecha inválida'
+  try {
+    return dt.toLocaleString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  } catch {
+    return 'Fecha inválida'
+  }
+}
+
 /* =========================
    Funciones auxiliares
 ========================= */
@@ -132,7 +174,7 @@ const formatearNumeroContrato = () => {
 ========================= */
 const fechaPrimerPago = computed(() => {
   if (!props.prestamo?.fecha_primer_pago) return 'Fecha no disponible'
-  return formatearFecha(props.prestamo.fecha_primer_pago)
+  return formatearFechaFlex(props.prestamo.fecha_primer_pago)
 })
 
 const fechaVencimiento = computed(() => {
@@ -140,7 +182,7 @@ const fechaVencimiento = computed(() => {
   if (!props.prestamo?.fecha_inicio || !props.prestamo?.numero_pagos) return 'Fecha no disponible'
   const fecha = new Date(props.prestamo.fecha_inicio)
   fecha.setMonth(fecha.getMonth() + Number(props.prestamo.numero_pagos || 0))
-  return formatearFecha(fecha)
+  return formatearFechaFlex(fecha)
 })
 
 const resumenFinanciero = computed(() => {
@@ -149,7 +191,7 @@ const resumenFinanciero = computed(() => {
     pagoMensual: formatearMoneda(props.prestamo?.pago_periodico || 0),
     numeroPagos: props.prestamo?.numero_pagos || 0,
     tasaInteres: `${(props.tasa_mensual || 0).toFixed(2)}%`,
-    fechaInicio: formatearFecha(props.prestamo?.fecha_inicio),
+    fechaInicio: formatearFechaFlex(props.prestamo?.fecha_inicio),
     primerPago: fechaPrimerPago.value
   }
 })
@@ -239,7 +281,7 @@ const generarPDF = (tamano = 'carta') => {
 const generarContenidoPagare = (tamano = 'carta') => {
   // ========= Datos seguros =========
   const folio = `PAG-${String(props.prestamo?.id ?? '').padStart(6, '0')}`
-  const fechaHoy = formatearFecha(props.fecha_actual)
+  const fechaHoy = formatearFechaFlex(props.fecha_actual)
   const empresaNombre = props.empresa?.nombre || 'ACREEDOR NO ESPECIFICADO'
   const empresaComercial = props.empresa?.nombre_comercial ? ` • ${props.empresa?.nombre_comercial}` : ''
   const empresaDomicilio = props.empresa?.direccion || 'Domicilio del acreedor no especificado'
@@ -747,7 +789,7 @@ const generarContenidoPagare = (tamano = 'carta') => {
               <div class="flex items-center justify-center gap-2 mt-3">
                 <span class="text-sm text-gray-500">{{ empresa.direccion }}</span>
                 <span class="text-gray-300">•</span>
-                <span class="text-sm text-gray-500">{{ formatearFecha(fecha_actual) }}</span>
+                <span class="text-sm text-gray-500">{{ formatearFechaFlex(fecha_actual) }}</span>
               </div>
             </div>
 

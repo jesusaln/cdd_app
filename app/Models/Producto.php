@@ -55,6 +55,40 @@ class Producto extends Model
         'comision_vendedor' => 0,
     ];
 
+    protected static function booted()
+    {
+        static::creating(function (Producto $producto) {
+            if (empty($producto->codigo)) {
+                $producto->codigo = self::generateNextCodigo();
+            }
+        });
+    }
+
+    public static function generateNextCodigo(): string
+    {
+        try {
+            $driver = config('database.default');
+            $query = self::query();
+
+            if ($driver === 'pgsql') {
+                $max = $query->whereRaw("codigo ~ '^[0-9]+'")->selectRaw('MAX(CAST(codigo AS BIGINT)) as max')->value('max');
+            } elseif ($driver === 'mysql') {
+                $max = $query->whereRaw("codigo REGEXP '^[0-9]+'")->selectRaw('MAX(CAST(codigo AS UNSIGNED)) as max')->value('max');
+            } else {
+                // Fallback genérico: intentar parsear en PHP
+                $max = self::all()->reduce(function ($carry, $item) {
+                    $c = $item->codigo;
+                    return ctype_digit((string)$c) ? max($carry, (int)$c) : $carry;
+                }, 0);
+            }
+
+            $next = ((int) $max) + 1;
+            return (string) $next;
+        } catch (\Throwable $e) {
+            return (string) (time());
+        }
+    }
+
     /* =========================
      * Relaciones base
      * ========================= */

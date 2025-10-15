@@ -76,14 +76,28 @@
                             <label for="codigo" class="block text-sm font-medium text-gray-700 mb-2">
                                 Código <span class="text-red-500">*</span>
                             </label>
-                            <input
-                                v-model="form.codigo"
-                                type="text"
-                                id="codigo"
-                                placeholder="Código único del producto"
-                                class="input-field"
-                                required
-                            />
+                            <div class="relative">
+                                <input
+                                    v-model="siguienteCodigo"
+                                    type="text"
+                                    id="codigo"
+                                    :placeholder="cargandoCodigo ? 'Cargando...' : 'Se asignará automáticamente'"
+                                    class="input-field pr-12"
+                                    disabled
+                                />
+                                <div class="absolute inset-y-0 right-0 flex items-center pr-3">
+                                    <svg v-if="cargandoCodigo" class="animate-spin h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <svg v-else class="h-4 w-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">
+                                El código se asignará automáticamente cuando guardes el producto
+                            </p>
                             <div v-if="form.errors.codigo" class="error-message">{{ form.errors.codigo }}</div>
                         </div>
 
@@ -129,6 +143,7 @@
                                     {{ categoria.nombre }}
                                 </option>
                             </select>
+                            <button type="button" class="mt-2 text-sm text-blue-600 hover:underline" @click="showCategoriaModal = true">+ Nueva categoría</button>
                             <div v-if="form.errors.categoria_id" class="error-message">{{ form.errors.categoria_id }}</div>
                         </div>
 
@@ -143,6 +158,7 @@
                                     {{ marca.nombre }}
                                 </option>
                             </select>
+                            <button type="button" class="mt-2 text-sm text-blue-600 hover:underline" @click="showMarcaModal = true">+ Nueva marca</button>
                             <div v-if="form.errors.marca_id" class="error-message">{{ form.errors.marca_id }}</div>
                         </div>
 
@@ -171,6 +187,7 @@
                                     {{ almacen.nombre }}
                                 </option>
                             </select>
+                            <button type="button" class="mt-2 text-sm text-blue-600 hover:underline" @click="showAlmacenModal = true">+ Nuevo almacén</button>
                             <div v-if="form.errors.almacen_id" class="error-message">{{ form.errors.almacen_id }}</div>
                         </div>
                     </div>
@@ -413,11 +430,49 @@
             </form>
         </div>
     </div>
+        <!-- Modales rápidos -->
+        <div v-if="showCategoriaModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div class="bg-white rounded-lg shadow p-6 w-full max-w-md">
+            <h3 class="text-lg font-semibold mb-4">Nueva categoría</h3>
+            <input v-model="quickCategoria.nombre" type="text" placeholder="Nombre" class="input-field mb-2" />
+            <textarea v-model="quickCategoria.descripcion" placeholder="Descripción (opcional)" class="input-field mb-4"></textarea>
+            <div class="flex justify-end space-x-2">
+              <button class="px-3 py-2 bg-gray-200 rounded" @click="closeCategoriaModal">Cancelar</button>
+              <button class="px-3 py-2 bg-blue-600 text-white rounded" @click="crearCategoriaRapida" :disabled="savingQuick">{{ savingQuick ? 'Guardando...' : 'Guardar' }}</button>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="showMarcaModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div class="bg-white rounded-lg shadow p-6 w-full max-w-md">
+            <h3 class="text-lg font-semibold mb-4">Nueva marca</h3>
+            <input v-model="quickMarca.nombre" type="text" placeholder="Nombre" class="input-field mb-2" />
+            <textarea v-model="quickMarca.descripcion" placeholder="Descripción (opcional)" class="input-field mb-4"></textarea>
+            <div class="flex justify-end space-x-2">
+              <button class="px-3 py-2 bg-gray-200 rounded" @click="closeMarcaModal">Cancelar</button>
+              <button class="px-3 py-2 bg-blue-600 text-white rounded" @click="crearMarcaRapida" :disabled="savingQuick">{{ savingQuick ? 'Guardando...' : 'Guardar' }}</button>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="showAlmacenModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div class="bg-white rounded-lg shadow p-6 w-full max-w-md">
+            <h3 class="text-lg font-semibold mb-4">Nuevo almacén</h3>
+            <input v-model="quickAlmacen.nombre" type="text" placeholder="Nombre" class="input-field mb-2" />
+            <input v-model="quickAlmacen.ubicacion" type="text" placeholder="Ubicación/Dirección" class="input-field mb-2" />
+            <textarea v-model="quickAlmacen.descripcion" placeholder="Descripción (opcional)" class="input-field mb-4"></textarea>
+            <div class="flex justify-end space-x-2">
+              <button class="px-3 py-2 bg-gray-200 rounded" @click="closeAlmacenModal">Cancelar</button>
+              <button class="px-3 py-2 bg-blue-600 text-white rounded" @click="crearAlmacenRapido" :disabled="savingQuick">{{ savingQuick ? 'Guardando...' : 'Guardar' }}</button>
+            </div>
+          </div>
+        </div>
+
 </template>
 
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
 // Define el layout del dashboard
@@ -431,11 +486,20 @@ const props = defineProps({
     almacenes: Array,
 });
 
+// Crear referencias reactivas para poder actualizar las listas
+const categorias = ref([...props.categorias]);
+const marcas = ref([...props.marcas]);
+const almacenes = ref([...props.almacenes]);
+
 // Estado para las pestañas
 const activeTab = ref('general');
 
 // Vista previa de imagen
 const imagePreview = ref(null);
+
+// Estado para el siguiente código disponible
+const siguienteCodigo = ref('');
+const cargandoCodigo = ref(false);
 
 // Lista de unidades de medida
 const unidadesMedida = [
@@ -473,12 +537,50 @@ const form = useForm({
     comision_vendedor: '',
 });
 
+// Inicializar componente
+onMounted(() => {
+    obtenerSiguienteCodigo();
+});
+
+// Obtener el siguiente código disponible
+const obtenerSiguienteCodigo = async () => {
+    cargandoCodigo.value = true;
+    try {
+        const apiUrl = `${window.location.origin}/api/productos/next-codigo`;
+        console.log('Obteniendo siguiente código desde:', apiUrl);
+
+        const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Error HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        siguienteCodigo.value = data.siguiente_codigo;
+        console.log('Siguiente código obtenido:', data.siguiente_codigo);
+
+    } catch (error) {
+        console.error('Error obteniendo siguiente código:', error);
+        siguienteCodigo.value = 'No disponible';
+    } finally {
+        cargandoCodigo.value = false;
+    }
+};
+
 // Enviar formulario
 const submit = () => {
     form.post(route('productos.store'), {
         onSuccess: () => {
             form.reset();
             imagePreview.value = null;
+            // Obtener el siguiente código después de crear un producto
+            obtenerSiguienteCodigo();
         },
     });
 };
@@ -497,6 +599,212 @@ const handleImageUpload = (event) => {
         reader.readAsDataURL(file);
     }
 };
+
+// Modales rápidos
+const showCategoriaModal = ref(false)
+const showMarcaModal = ref(false)
+const showAlmacenModal = ref(false)
+const savingQuick = ref(false)
+
+const quickCategoria = ref({ nombre: '', descripcion: '' })
+const quickMarca = ref({ nombre: '', descripcion: '' })
+const quickAlmacen = ref({ nombre: '', ubicacion: '', descripcion: '' })
+
+const csrfToken = () => document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+
+const closeCategoriaModal = () => { showCategoriaModal.value = false; quickCategoria.value = { nombre: '', descripcion: '' } }
+const closeMarcaModal = () => { showMarcaModal.value = false; quickMarca.value = { nombre: '', descripcion: '' } }
+const closeAlmacenModal = () => { showAlmacenModal.value = false; quickAlmacen.value = { nombre: '', ubicacion: '', descripcion: '' } }
+
+const crearCategoriaRapida = async () => {
+  if (!quickCategoria.value.nombre?.trim()) return;
+  savingQuick.value = true;
+
+  try {
+    const apiUrl = `${window.location.origin}/api/categorias`;
+    console.log('Creando categoría en:', apiUrl);
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRF-TOKEN': csrfToken(),
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        nombre: quickCategoria.value.nombre.trim(),
+        descripcion: quickCategoria.value.descripcion?.trim() || null
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error response:', response.status, errorText);
+      throw new Error(`Error HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const nuevaCategoria = await response.json();
+    console.log('Categoría creada exitosamente:', nuevaCategoria);
+
+    // Agregar la nueva categoría a la lista local
+    categorias.value.push(nuevaCategoria);
+
+    // Seleccionar automáticamente la nueva categoría
+    form.categoria_id = nuevaCategoria.id;
+
+    // Cerrar modal y limpiar formulario
+    closeCategoriaModal();
+
+    // Mostrar mensaje de éxito
+    alert('Categoría creada exitosamente');
+
+  } catch (error) {
+    console.error('Error completo creando categoría:', error);
+
+    let errorMessage = 'Error al crear la categoría. ';
+    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      errorMessage += 'Verifique su conexión a internet.';
+    } else if (error.message.includes('403')) {
+      errorMessage += 'No tiene permisos para crear categorías.';
+    } else if (error.message.includes('422')) {
+      errorMessage += 'Los datos ingresados no son válidos.';
+    } else {
+      errorMessage += 'Por favor, inténtelo de nuevo.';
+    }
+
+    alert(errorMessage);
+  } finally {
+    savingQuick.value = false;
+  }
+}
+
+const crearMarcaRapida = async () => {
+  if (!quickMarca.value.nombre?.trim()) return;
+  savingQuick.value = true;
+
+  try {
+    const apiUrl = `${window.location.origin}/api/marcas`;
+    console.log('Creando marca en:', apiUrl);
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRF-TOKEN': csrfToken(),
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        nombre: quickMarca.value.nombre.trim(),
+        descripcion: quickMarca.value.descripcion?.trim() || null
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error response:', response.status, errorText);
+      throw new Error(`Error HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const nuevaMarca = await response.json();
+    console.log('Marca creada exitosamente:', nuevaMarca);
+
+    // Agregar la nueva marca a la lista local
+    marcas.value.push(nuevaMarca);
+
+    // Seleccionar automáticamente la nueva marca
+    form.marca_id = nuevaMarca.id;
+
+    // Cerrar modal y limpiar formulario
+    closeMarcaModal();
+
+    // Mostrar mensaje de éxito
+    alert('Marca creada exitosamente');
+
+  } catch (error) {
+    console.error('Error completo creando marca:', error);
+
+    let errorMessage = 'Error al crear la marca. ';
+    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      errorMessage += 'Verifique su conexión a internet.';
+    } else if (error.message.includes('403')) {
+      errorMessage += 'No tiene permisos para crear marcas.';
+    } else if (error.message.includes('422')) {
+      errorMessage += 'Los datos ingresados no son válidos.';
+    } else {
+      errorMessage += 'Por favor, inténtelo de nuevo.';
+    }
+
+    alert(errorMessage);
+  } finally {
+    savingQuick.value = false;
+  }
+}
+
+const crearAlmacenRapido = async () => {
+  if (!quickAlmacen.value.nombre?.trim()) return;
+  savingQuick.value = true;
+
+  try {
+    const apiUrl = `${window.location.origin}/api/almacenes`;
+    console.log('Creando almacén en:', apiUrl);
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRF-TOKEN': csrfToken(),
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        nombre: quickAlmacen.value.nombre.trim(),
+        descripcion: quickAlmacen.value.descripcion?.trim() || null,
+        ubicacion: quickAlmacen.value.ubicacion?.trim() || ''
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error response:', response.status, errorText);
+      throw new Error(`Error HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const nuevoAlmacen = await response.json();
+    console.log('Almacén creado exitosamente:', nuevoAlmacen);
+
+    // Agregar el nuevo almacén a la lista local
+    almacenes.value.push(nuevoAlmacen);
+
+    // Seleccionar automáticamente el nuevo almacén
+    form.almacen_id = nuevoAlmacen.id;
+
+    // Cerrar modal y limpiar formulario
+    closeAlmacenModal();
+
+    // Mostrar mensaje de éxito
+    alert('Almacén creado exitosamente');
+
+  } catch (error) {
+    console.error('Error completo creando almacén:', error);
+
+    let errorMessage = 'Error al crear el almacén. ';
+    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      errorMessage += 'Verifique su conexión a internet.';
+    } else if (error.message.includes('403')) {
+      errorMessage += 'No tiene permisos para crear almacenes.';
+    } else if (error.message.includes('422')) {
+      errorMessage += 'Los datos ingresados no son válidos.';
+    } else {
+      errorMessage += 'Por favor, inténtelo de nuevo.';
+    }
+
+    alert(errorMessage);
+  } finally {
+    savingQuick.value = false;
+  }
+}
 </script>
 
 <style scoped>

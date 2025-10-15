@@ -94,6 +94,7 @@ Route::prefix('clientes')->name('api.clientes.')->group(function () {
 Route::prefix('productos')->name('api.productos.')->group(function () {
     Route::get('/', [ProductoController::class, 'index'])->name('index');
     Route::post('/', [ProductoController::class, 'store'])->name('store');
+    Route::get('/next-codigo', [ProductoController::class, 'nextCodigo'])->name('next-codigo');
     Route::get('/{producto}', [ProductoController::class, 'show'])->name('show');
     Route::put('/{producto}', [ProductoController::class, 'update'])->name('update');
     Route::delete('/{producto}', [ProductoController::class, 'destroy'])->name('destroy');

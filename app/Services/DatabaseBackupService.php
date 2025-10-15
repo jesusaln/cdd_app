@@ -24,6 +24,16 @@ class DatabaseBackupService
 
     protected string $backupPath = 'backups/database/';
 
+    public function __construct()
+    {
+        // Permitir configurar disco y ruta desde config/backup.php o .env
+        $this->backupDisk = config('backup.disk', $this->backupDisk);
+        $configuredPath = config('backup.path', $this->backupPath);
+        // Normalizar y asegurar trailing slash
+        $configuredPath = str_replace('\\', '/', trim($configuredPath));
+        $this->backupPath = rtrim($configuredPath, '/') . '/';
+    }
+
     /**
      * Obtener lista de tablas sensibles desde configuración
      */
@@ -156,6 +166,9 @@ class DatabaseBackupService
             if ($driver === 'mysql' && $this->isMysqldumpAvailable() && !$specificTables) {
                 $result = $this->createBackupWithMysqldump($fullPath, $specificTables);
                 $logData['method'] = 'mysqldump';
+            } elseif ($driver === 'pgsql' && $this->isPgDumpAvailable() && !$specificTables) {
+                $result = $this->createBackupWithPgDump($fullPath, $specificTables);
+                $logData['method'] = 'pg_dump';
             } else {
                 $result = $this->createBackupWithLaravel($fullPath, $specificTables);
                 $logData['method'] = 'laravel';
@@ -875,6 +888,72 @@ class DatabaseBackupService
         $error = implode("\n", $output);
         Log::error('mysqldump failed', ['command' => $command, 'output' => $error]);
         throw new \Exception("Error en mysqldump: {$error}");
+    }
+
+    /**
+     * Crear respaldo usando pg_dump (solo PostgreSQL).
+     *
+     * @param  string       $path            Ruta relativa dentro de storage/app
+     * @param  array|null   $specificTables  Tablas específicas a respaldar
+     */
+    protected function createBackupWithPgDump(string $path, ?array $specificTables = null): array
+    {
+        $config = config('database.connections.'.config('database.default'));
+        $storagePath = storage_path('app/'.$path);
+
+        $directory = dirname($storagePath);
+        if (! file_exists($directory)) {
+            mkdir($directory, 0755, true);
+        }
+
+        $host = $config['host'] ?? '127.0.0.1';
+        $port = $config['port'] ?? 5432;
+        $database = $config['database'];
+        $username = $config['username'];
+        $password = $config['password'] ?? '';
+        $schema = $config['schema'] ?? 'public';
+
+        // Tablas específicas
+        $tableArgs = '';
+        if (!empty($specificTables)) {
+            foreach ($specificTables as $t) {
+                $qualified = (strpos($t, '.') === false) ? ($schema . '.' . $t) : $t;
+                $tableArgs .= ' -t ' . escapeshellarg($qualified);
+            }
+        }
+
+        $env = '';
+        if ($password !== '') {
+            $env = 'PGPASSWORD='.escapeshellarg($password).' ';
+        }
+
+        // Formato plano (-F p) para coherencia con flujo actual
+        $command = sprintf(
+            '%spg_dump -h %s -p %s -U %s -n %s%s -F p -f %s %s 2>&1',
+            $env,
+            escapeshellarg($host),
+            escapeshellarg((string)$port),
+            escapeshellarg($username),
+            escapeshellarg($schema),
+            $tableArgs,
+            escapeshellarg($storagePath),
+            escapeshellarg($database)
+        );
+
+        exec($command, $output, $returnCode);
+
+        if ($returnCode === 0 && file_exists($storagePath) && filesize($storagePath) > 0) {
+            return [
+                'success' => true,
+                'message' => 'Respaldo creado con pg_dump',
+                'path' => $path,
+                'size' => filesize($storagePath),
+            ];
+        }
+
+        $error = implode("\n", $output);
+        Log::error('pg_dump failed', ['command' => $command, 'output' => $error]);
+        throw new \Exception("Error en pg_dump: {$error}");
     }
 
     /**
@@ -2036,6 +2115,15 @@ class DatabaseBackupService
     {
         exec('mysqldump --version 2>&1', $output, $returnCode);
 
+        return $returnCode === 0;
+    }
+
+    /**
+     * Verificar si pg_dump está disponible (PostgreSQL).
+     */
+    public function isPgDumpAvailable(): bool
+    {
+        exec('pg_dump --version 2>&1', $output, $returnCode);
         return $returnCode === 0;
     }
 
