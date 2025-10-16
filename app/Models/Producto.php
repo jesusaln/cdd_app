@@ -154,6 +154,26 @@ class Producto extends Model
         return $this->hasMany(Lote::class);
     }
 
+    /**
+     * Citas donde este producto fue utilizado
+     */
+    public function citasComoUtilizado(): BelongsToMany
+    {
+        return $this->belongsToMany(Cita::class, 'cita_productos_utilizados')
+            ->withPivot('cantidad', 'precio_unitario', 'tipo_uso')
+            ->withTimestamps();
+    }
+
+    /**
+     * Citas donde este producto fue vendido
+     */
+    public function citasComoVendido(): BelongsToMany
+    {
+        return $this->belongsToMany(Cita::class, 'cita_productos_vendidos')
+            ->withPivot('cantidad', 'precio_venta', 'venta_id')
+            ->withTimestamps();
+    }
+
     /** @return HasMany<ProductoSerie> */
     public function series(): HasMany
     {

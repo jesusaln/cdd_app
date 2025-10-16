@@ -262,6 +262,57 @@
                     </div>
                 </div>
 
+                <!-- Sección: Productos/Servicios de la Cita -->
+                <div class="border-b border-gray-200 pb-6">
+                    <h2 class="text-lg font-medium text-gray-900 mb-4">Productos/Servicios de la Cita</h2>
+                    <div class="space-y-4">
+                        <BuscarProducto
+                            ref="buscarProductoRef"
+                            :productos="productos || []"
+                            :servicios="servicios || []"
+                            :validar-stock="true"
+                            @agregar-producto="onAgregarItem"
+                        />
+
+                        <div v-if="selectedItems.length > 0" class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
+                                        <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Cantidad</th>
+                                        <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Precio</th>
+                                        <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Subtotal</th>
+                                        <th class="px-3 py-2"></th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr v-for="row in selectedItems" :key="`${row.tipo}-${row.id}`">
+                                        <td class="px-3 py-2 text-sm text-gray-600">
+                                            <span :class="row.tipo === 'producto' ? 'text-blue-700' : 'text-purple-700'">{{ row.tipo }}</span>
+                                        </td>
+                                        <td class="px-3 py-2 text-sm text-gray-900">{{ getItemName(row) }}</td>
+                                        <td class="px-3 py-2 text-sm text-gray-900 text-right">
+                                            <input type="number" min="1" class="w-24 text-right border rounded px-2 py-1"
+                                                   v-model.number="quantities[`${row.tipo}-${row.id}`]" />
+                                        </td>
+                                        <td class="px-3 py-2 text-sm text-gray-900 text-right">
+                                            <input type="number" min="0" step="0.01" class="w-28 text-right border rounded px-2 py-1"
+                                                   v-model.number="prices[`${row.tipo}-${row.id}`]" />
+                                        </td>
+                                        <td class="px-3 py-2 text-sm text-gray-900 text-right">
+                                            {{ ((quantities[`${row.tipo}-${row.id}`] || 0) * (prices[`${row.tipo}-${row.id}`] || 0)).toFixed(2) }}
+                                        </td>
+                                        <td class="px-3 py-2 text-right">
+                                            <button type="button" class="text-red-600 hover:underline" @click="removeItem(row)">Quitar</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Botones de acción -->
                 <div class="flex justify-between items-center pt-6 border-t border-gray-200">
                     <div class="flex space-x-4">
@@ -321,13 +372,15 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import FormField from '@/Components/FormField.vue';
 import BuscarCliente from '@/Components/CreateComponents/BuscarCliente.vue';
 import BuscarServicios from '@/Components/CreateComponents/BuscarServicios.vue';
+import BuscarProducto from '@/Components/CreateComponents/BuscarProducto.vue';
 
 defineOptions({ layout: AppLayout });
 
 const props = defineProps({
     tecnicos: Array,
     clientes: Array,
-    servicios: Array
+    servicios: Array,
+    productos: Array,
 });
 
 // Referencias reactivas para el buscador de clientes
@@ -337,6 +390,15 @@ const showSuccessMessage = ref(false);
 // Referencias a los componentes
 const buscarClienteRef = ref(null);
 const buscarServiciosRef = ref(null);
+const buscarProductoRef = ref(null);
+
+// Items seleccionados para venta
+const selectedItems = ref([]); // [{id, tipo, nombre?}]
+const quantities = ref({}); // key: `${tipo}-${id}` => cantidad
+const prices = ref({});     // key: `${tipo}-${id}` => precio
+
+const productosSeleccionados = computed(() => selectedItems.value.filter(it => it.tipo === 'producto'));
+const serviciosSeleccionados = computed(() => selectedItems.value.filter(it => it.tipo === 'servicio'));
 
 // Opciones de selección mejoradas
 const tecnicosOptions = computed(() => [
@@ -448,6 +510,33 @@ const onServicioSeleccionado = (servicio) => {
 
         showTemporaryMessage(`Servicio seleccionado: ${servicio.nombre}`, 'success');
     }
+};
+
+// Agregar producto/servicio a la lista
+const onAgregarItem = (item) => {
+    if (!item || typeof item.id === 'undefined' || !item.tipo) return;
+    const key = `${item.tipo}-${item.id}`;
+    const exists = selectedItems.value.some(e => e.id === item.id && e.tipo === item.tipo);
+    if (!exists) {
+        selectedItems.value.push({ id: item.id, tipo: item.tipo, nombre: item.nombre });
+        quantities.value[key] = 1;
+        let precio = 0;
+        if (item.tipo === 'producto') precio = typeof item.precio_venta === 'number' ? item.precio_venta : 0;
+        else precio = typeof item.precio === 'number' ? item.precio : 0;
+        prices.value[key] = precio;
+    }
+};
+
+const getItemName = (row) => {
+    if (row?.nombre) return row.nombre;
+    const src = row.tipo === 'producto' ? (props.productos || []) : (props.servicios || []);
+    const found = src.find(x => x.id === row.id);
+    return found?.nombre || `${row.tipo} #${row.id}`;
+};
+
+const removeItem = (row) => {
+    const idx = selectedItems.value.findIndex(r => r.id === row.id && r.tipo === row.tipo);
+    if (idx >= 0) selectedItems.value.splice(idx, 1);
 };
 
 // Formulario usando useForm de Inertia con campos adicionales
@@ -667,6 +756,20 @@ const submit = () => {
             formData.append(key, form[key] || '');
         }
     }
+
+    // Adjuntar arrays de venta (productos/servicios) como JSON
+    const productosVendidos = productosSeleccionados.value.map(p => ({
+        id: p.id,
+        cantidad: quantities.value[`producto-${p.id}`] || 1,
+        precio: prices.value[`producto-${p.id}`] || 0,
+    }));
+    const serviciosRealizados = serviciosSeleccionados.value.map(s => ({
+        id: s.id,
+        cantidad: quantities.value[`servicio-${s.id}`] || 1,
+        precio: prices.value[`servicio-${s.id}`] || 0,
+    }));
+    formData.append('productos_vendidos', JSON.stringify(productosVendidos));
+    formData.append('servicios_realizados', JSON.stringify(serviciosRealizados));
 
     form.post(route('citas.store'), {
         data: formData,

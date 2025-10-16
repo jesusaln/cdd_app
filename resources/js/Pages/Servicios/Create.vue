@@ -99,6 +99,7 @@
                                     {{ categoria.nombre }}
                                 </option>
                             </select>
+                            <button type="button" class="mt-2 text-sm text-blue-600 hover:underline" @click="showCategoriaModal = true">+ Nueva categoría</button>
                             <div v-if="form.errors.categoria_id" class="error-message">{{ form.errors.categoria_id }}</div>
                         </div>
                     </div>
@@ -271,6 +272,19 @@
                 </div>
             </form>
         </div>
+
+        <!-- Modal para crear categoría rápida -->
+        <div v-if="showCategoriaModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg shadow p-6 w-full max-w-md">
+                <h3 class="text-lg font-semibold mb-4">Nueva categoría</h3>
+                <input v-model="quickCategoria.nombre" type="text" placeholder="Nombre" class="input-field mb-2" />
+                <textarea v-model="quickCategoria.descripcion" placeholder="Descripción (opcional)" class="input-field mb-4"></textarea>
+                <div class="flex justify-end space-x-2">
+                    <button class="px-3 py-2 bg-gray-200 rounded" @click="closeCategoriaModal">Cancelar</button>
+                    <button class="px-3 py-2 bg-blue-600 text-white rounded" @click="crearCategoriaRapida" :disabled="savingQuick">{{ savingQuick ? 'Guardando...' : 'Guardar' }}</button>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -289,6 +303,11 @@ const props = defineProps({
 
 // Estado para las pestañas
 const activeTab = ref('general');
+
+// Estado para el modal de categorías
+const showCategoriaModal = ref(false);
+const savingQuick = ref(false);
+const quickCategoria = ref({ nombre: '', descripcion: '' });
 
 // Formulario para crear un servicio
 const form = useForm({
@@ -324,18 +343,124 @@ const submit = () => {
         },
     });
 };
+
+// Funciones para manejar el modal de categorías
+const closeCategoriaModal = () => {
+    showCategoriaModal.value = false;
+    quickCategoria.value = { nombre: '', descripcion: '' };
+};
+
+const crearCategoriaRapida = async () => {
+    if (!quickCategoria.value.nombre?.trim()) return;
+    savingQuick.value = true;
+
+    try {
+        const apiUrl = `${window.location.origin}/api/categorias`;
+        console.log('Creando categoría en:', apiUrl);
+
+        // Obtener token CSRF de manera más segura
+        const csrfTokenElement = document.querySelector('meta[name="csrf-token"]');
+        if (!csrfTokenElement) {
+            throw new Error('Token CSRF no encontrado');
+        }
+
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': csrfTokenElement.getAttribute('content'),
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                nombre: quickCategoria.value.nombre.trim(),
+                descripcion: quickCategoria.value.descripcion?.trim() || null
+            })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Error response:', response.status, errorText);
+            throw new Error(`Error HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const nuevaCategoria = await response.json();
+        console.log('Categoría creada exitosamente:', nuevaCategoria);
+
+        // Agregar la nueva categoría a la lista local
+        categorias.value.push(nuevaCategoria);
+
+        // Seleccionar automáticamente la nueva categoría
+        form.categoria_id = nuevaCategoria.id;
+
+        // Cerrar modal y limpiar formulario
+        closeCategoriaModal();
+
+        // Mostrar mensaje de éxito
+        alert('Categoría creada exitosamente');
+
+    } catch (error) {
+        console.error('Error completo creando categoría:', error);
+
+        let errorMessage = 'Error al crear la categoría. ';
+        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+            errorMessage += 'Verifique su conexión a internet.';
+        } else if (error.message.includes('Token CSRF no encontrado')) {
+            errorMessage += 'Error de seguridad. Recargue la página.';
+        } else if (error.message.includes('403')) {
+            errorMessage += 'No tiene permisos para crear categorías.';
+        } else if (error.message.includes('422')) {
+            errorMessage += 'Los datos ingresados no son válidos.';
+        } else {
+            errorMessage += 'Por favor, inténtelo de nuevo.';
+        }
+
+        alert(errorMessage);
+    } finally {
+        savingQuick.value = false;
+    }
+};
 </script>
 
 <style scoped>
 .input-field {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900;
+    width: 100%;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-width: 1px;
+    border-style: solid;
+    border-color: #D1D5DB; /* gray-300 */
+    border-radius: 0.375rem; /* rounded-md */
+    box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); /* shadow-sm */
+    color: #111827; /* text-gray-900 */
+}
+
+.input-field::placeholder {
+    color: #9CA3AF; /* gray-400 */
+}
+
+.input-field:focus {
+    outline: none;
+    border-color: #3B82F6; /* blue-500 */
+    box-shadow: 0 0 0 2px rgba(59,130,246,0.15); /* approximate focus ring */
 }
 
 .input-field option {
-    @apply text-gray-900 bg-white;
+    color: #111827; /* text-gray-900 */
+    background-color: #ffffff; /* bg-white */
 }
 
 .error-message {
-    @apply mt-1 text-sm text-red-600;
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    color: #DC2626; /* red-600 */
+}
+
+/* Estilos adicionales para el modal */
+.input-field:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 </style>

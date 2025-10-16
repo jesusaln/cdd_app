@@ -6,6 +6,11 @@ use App\Models\Cita;
 use App\Models\Tecnico;
 use App\Models\Cliente;
 use App\Models\Servicio;
+use App\Models\Producto;
+use App\Models\Venta;
+use App\Models\VentaItem;
+use App\Services\InventarioService;
+use App\Enums\EstadoVenta;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
@@ -147,12 +152,18 @@ class CitaController extends Controller
     {
         $tecnicos = Tecnico::all();
         $clientes = Cliente::select('id', 'nombre_razon_social', 'email', 'telefono')->get();
-        $servicios = Servicio::select('id', 'nombre', 'precio', 'descripcion', 'categoria')->get();
+        $servicios = Servicio::with('categoria')->select('id', 'nombre', 'precio', 'descripcion', 'categoria_id')->get();
+        // Productos básicos para buscador
+        $productos = \App\Models\Producto::with(['categoria', 'marca'])
+            ->select('id', 'nombre', 'descripcion', 'codigo', 'categoria_id', 'marca_id', 'precio_venta', 'stock', 'estado')
+            ->active()
+            ->get();
 
         return Inertia::render('Citas/Create', [
             'tecnicos' => $tecnicos,
             'clientes' => $clientes,
-            'servicios' => $servicios
+            'servicios' => $servicios,
+            'productos' => $productos,
         ]);
     }
 
@@ -191,6 +202,11 @@ class CitaController extends Controller
             'foto_equipo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'foto_hoja_servicio' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'foto_identificacion' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'productos_utilizados' => 'nullable|array',
+            'productos_vendidos' => 'nullable|array',
+            'servicios_realizados' => 'nullable|array',
+            'monto_productos_vendidos' => 'nullable|numeric|min:0',
+            'requiere_venta' => 'nullable|boolean',
         ], [
             'tecnico_id.required' => 'Debe seleccionar un técnico.',
             'cliente_id.required' => 'Debe seleccionar un cliente.',
@@ -223,7 +239,61 @@ class CitaController extends Controller
             $filePaths = $this->saveFiles($request, ['foto_equipo', 'foto_hoja_servicio', 'foto_identificacion']);
 
             // Crear la cita con los datos validados y las rutas de los archivos
-            $cita = Cita::create(array_merge($validated, $filePaths));
+            $cita = Cita::create(array_merge(collect($validated)->except([
+                'productos_utilizados',
+                'productos_vendidos',
+                'servicios_realizados',
+                'monto_productos_vendidos',
+                'requiere_venta',
+            ])->toArray(), $filePaths));
+
+            // Adjuntar productos vendidos
+            $productosVendidos = $request->input('productos_vendidos');
+            if (is_string($productosVendidos)) {
+                $decoded = json_decode($productosVendidos, true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $productosVendidos = $decoded;
+                }
+            }
+            if (is_array($productosVendidos)) {
+                foreach ($productosVendidos as $item) {
+                    $productoId = (int) ($item['id'] ?? 0);
+                    $cantidad = max(1, (int) ($item['cantidad'] ?? 1));
+                    $precio = (float) ($item['precio'] ?? 0);
+                    if ($productoId > 0 && $cantidad > 0) {
+                        $subtotal = $cantidad * $precio;
+                        $cita->productosVendidos()->attach($productoId, [
+                            'cantidad' => $cantidad,
+                            'precio_venta' => $precio,
+                            'subtotal' => $subtotal,
+                        ]);
+                    }
+                }
+            }
+
+            // Adjuntar servicios realizados
+            $serviciosRealizados = $request->input('servicios_realizados');
+            if (is_string($serviciosRealizados)) {
+                $decoded = json_decode($serviciosRealizados, true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $serviciosRealizados = $decoded;
+                }
+            }
+            if (is_array($serviciosRealizados)) {
+                foreach ($serviciosRealizados as $item) {
+                    $servicioId = (int) ($item['id'] ?? 0);
+                    $cantidad = max(1, (int) ($item['cantidad'] ?? 1));
+                    $precio = (float) ($item['precio'] ?? 0);
+                    if ($servicioId > 0 && $cantidad > 0) {
+                        $subtotal = $cantidad * $precio;
+                        $cita->serviciosRealizados()->attach($servicioId, [
+                            'cantidad' => $cantidad,
+                            'precio' => $precio,
+                            'subtotal' => $subtotal,
+                        ]);
+                    }
+                }
+            }
 
             DB::commit();
 
@@ -248,7 +318,7 @@ class CitaController extends Controller
     {
         $tecnicos = Tecnico::all();
         $clientes = Cliente::all();
-        $servicios = Servicio::select('id', 'nombre', 'precio', 'descripcion', 'categoria')->get();
+        $servicios = Servicio::with('categoria')->select('id', 'nombre', 'precio', 'descripcion', 'categoria_id')->get();
 
         return Inertia::render('Citas/Edit', [
             'cita' => $cita,
@@ -300,6 +370,7 @@ class CitaController extends Controller
 
         try {
             DB::beginTransaction();
+            $estadoAnterior = $cita->estado;
 
             // Verificar disponibilidad del técnico si cambió
             if (
@@ -340,6 +411,11 @@ class CitaController extends Controller
             // Actualizar la cita con los datos validados y las rutas de los archivos
             $cita->update(array_merge($validated, $filePaths));
 
+            // Si la cita se marcó como completada, convertir a venta con verificación de inventario
+            if (($validated['estado'] ?? $cita->estado) === Cita::ESTADO_COMPLETADO && $estadoAnterior !== Cita::ESTADO_COMPLETADO) {
+                $this->convertirCitaAVenta($cita, $request->user());
+            }
+
             DB::commit();
 
             return redirect()->route('citas.index')->with('success', 'Cita actualizada exitosamente.');
@@ -354,6 +430,126 @@ class CitaController extends Controller
                 ->withInput()
                 ->with('error', 'Error al actualizar la cita. Por favor, intente nuevamente.');
         }
+    }
+
+    /**
+     * Convierte una cita completada en una venta y descuenta inventario para productos
+     */
+    private function convertirCitaAVenta(Cita $cita, $user = null): void
+    {
+        // Cargar relaciones necesarias
+        $cita->load(['cliente', 'tecnico', 'productosVendidos', 'serviciosRealizados']);
+
+        // Recolectar ítems
+        $items = [];
+        foreach ($cita->productosVendidos as $producto) {
+            $items[] = [
+                'modelo' => $producto,
+                'tipo' => 'producto',
+                'cantidad' => (int) ($producto->pivot->cantidad ?? 1),
+                'precio' => (float) ($producto->pivot->precio_venta ?? $producto->precio_venta ?? 0),
+            ];
+        }
+        foreach ($cita->serviciosRealizados as $servicio) {
+            $items[] = [
+                'modelo' => $servicio,
+                'tipo' => 'servicio',
+                'cantidad' => (int) ($servicio->pivot->cantidad ?? 1),
+                'precio' => (float) ($servicio->pivot->precio ?? $servicio->precio ?? 0),
+            ];
+        }
+
+        if (empty($items)) {
+            return; // No hay nada que vender, salir silenciosamente
+        }
+
+        // Validar stock disponible para productos
+        foreach ($items as $it) {
+            if ($it['tipo'] === 'producto') {
+                $producto = $it['modelo'];
+                $cantidad = $it['cantidad'];
+                if ($producto->stock_disponible < $cantidad) {
+                    throw ValidationException::withMessages([
+                        'productos' => "Stock insuficiente para '{$producto->nombre}'. Disponible: {$producto->stock_disponible}, Solicitado: {$cantidad}",
+                    ]);
+                }
+            }
+        }
+
+        // Crear venta
+        $venta = Venta::create([
+            'cliente_id' => $cita->cliente_id,
+            'numero_venta' => $this->generarNumeroVenta(),
+            'fecha' => now()->toDateString(),
+            'estado' => EstadoVenta::Pendiente,
+            'subtotal' => 0,
+            'descuento_general' => 0,
+            'iva' => 0,
+            'total' => 0,
+            'vendedor_type' => $cita->tecnico ? get_class($cita->tecnico) : null,
+            'vendedor_id' => $cita->tecnico_id,
+        ]);
+
+        $subtotal = 0;
+        foreach ($items as $it) {
+            $modelo = $it['modelo'];
+            $cantidad = $it['cantidad'];
+            $precio = $it['precio'];
+            $descuento = 0;
+            $lineaSubtotal = $cantidad * $precio;
+            $subtotal += $lineaSubtotal;
+
+            VentaItem::create([
+                'venta_id' => $venta->id,
+                'ventable_id' => $modelo->id,
+                'ventable_type' => get_class($modelo),
+                'cantidad' => $cantidad,
+                'precio' => $precio,
+                'descuento' => $descuento,
+                'subtotal' => $lineaSubtotal,
+            ]);
+        }
+
+        // Actualizar totales simples (sin IVA configurable aquí)
+        $venta->update([
+            'subtotal' => $subtotal,
+            'iva' => 0,
+            'total' => $subtotal,
+        ]);
+
+        // Descontar inventario para productos
+        $inventarioService = app(InventarioService::class);
+        foreach ($items as $it) {
+            if ($it['tipo'] === 'producto') {
+                $producto = $it['modelo'];
+                $cantidad = $it['cantidad'];
+                $inventarioService->salida($producto, $cantidad, [
+                    'motivo' => 'Venta generada desde cita completada',
+                    'referencia' => $venta,
+                    'detalles' => [
+                        'cita_id' => $cita->id,
+                    ],
+                    'user_id' => $user?->id,
+                ]);
+            }
+        }
+
+        // Marcar en los pivotes de productos vendidos el id de venta
+        foreach ($cita->productosVendidos as $producto) {
+            $cita->productosVendidos()->updateExistingPivot($producto->id, [
+                'venta_id' => $venta->id,
+            ]);
+        }
+    }
+
+    /**
+     * Genera un número de venta único.
+     */
+    private function generarNumeroVenta(): string
+    {
+        $ultimo = Venta::orderBy('id', 'desc')->first();
+        $numero = $ultimo ? $ultimo->id + 1 : 1;
+        return 'VEN-' . str_pad($numero, 6, '0', STR_PAD_LEFT);
     }
 
     /**

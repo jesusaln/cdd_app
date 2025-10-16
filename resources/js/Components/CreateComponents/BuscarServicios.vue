@@ -21,6 +21,21 @@
           </svg>
         </div>
       </div>
+      <!-- Filtros rápidos -->
+      <div class="flex flex-wrap gap-2 mt-3">
+        <button
+          type="button"
+          @click="filtroActivo = 'todos'"
+          :class="[
+            'px-3 py-1 text-xs font-medium rounded-full transition-colors duration-200',
+            filtroActivo === 'todos'
+              ? 'bg-purple-100 text-purple-800 border-purple-300'
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border-gray-300'
+          ]"
+        >
+          Todos ({{ serviciosFiltrados.length }})
+        </button>
+      </div>
     </div>
 
     <!-- Servicios agregados recientemente -->
@@ -179,6 +194,7 @@ const emit = defineEmits(['servicio-seleccionado']);
 // Variables reactivas
 const busqueda = ref('');
 const mostrarLista = ref(false);
+const filtroActivo = ref('todos');
 const serviciosRecientes = ref([]);
 const inputBusqueda = ref(null);
 const inputWidth = ref(0);
@@ -193,18 +209,21 @@ defineExpose({
   }
 });
 
-// Filtrar servicios según búsqueda
+// Filtrar servicios según búsqueda y filtro activo
 const serviciosFiltrados = computed(() => {
-  if (!busqueda.value) {
-    return [];
+  let servicios = props.servicios;
+
+  // Aplicar filtro de búsqueda
+  if (busqueda.value) {
+    const termino = busqueda.value.toLowerCase();
+    servicios = servicios.filter(servicio =>
+      servicio.nombre.toLowerCase().includes(termino) ||
+      (servicio.categoria && servicio.categoria.toLowerCase().includes(termino)) ||
+      (servicio.descripcion && servicio.descripcion.toLowerCase().includes(termino))
+    );
   }
 
-  const termino = busqueda.value.toLowerCase();
-  return props.servicios.filter(servicio =>
-    servicio.nombre.toLowerCase().includes(termino) ||
-    (servicio.categoria && servicio.categoria.toLowerCase().includes(termino)) ||
-    (servicio.descripcion && servicio.descripcion.toLowerCase().includes(termino))
-  ).slice(0, 20); // Limitar a 20 resultados
+  return servicios.slice(0, 50); // Limitar a 50 resultados
 });
 
 // Sugerencias rápidas (servicios más populares)
