@@ -540,6 +540,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
             Route::post('/restore/{filename}', [DatabaseBackupController::class, 'restore'])->name('restore');
             Route::post('/clean', [DatabaseBackupController::class, 'clean'])->name('clean');
             Route::get('/monitoring', [DatabaseBackupController::class, 'monitoring'])->name('monitoring');
+            Route::get('/stats', [DatabaseBackupController::class, 'stats'])->name('stats');
+            Route::get('/security-stats', [DatabaseBackupController::class, 'securityStats'])->name('security.stats');
         });
 
     // =====================================================

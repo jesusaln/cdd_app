@@ -105,8 +105,14 @@ class TecnicoController extends Controller
             'comision_instalacion' => 'nullable|numeric|min:0',
         ]);
 
-        // Crear un nuevo técnico con los datos del formulario
-        $tecnico = Tecnico::create($request->all());
+        // Preparar los datos, convirtiendo valores nulos en 0 para los campos de margen
+        $data = $request->all();
+        $data['margen_venta_productos'] = $data['margen_venta_productos'] ?? 0;
+        $data['margen_venta_servicios'] = $data['margen_venta_servicios'] ?? 0;
+        $data['comision_instalacion'] = $data['comision_instalacion'] ?? 0;
+
+        // Crear un nuevo técnico con los datos preparados
+        $tecnico = Tecnico::create($data);
 
         // Opcional: Emitir un evento para notificar la creación del técnico
         //event(new TecnicoCreated($tecnico));
@@ -144,8 +150,14 @@ class TecnicoController extends Controller
             'comision_instalacion' => 'nullable|numeric|min:0',
         ]);
 
-        // Actualizar el técnico con los datos validados
-        $tecnico->update($validated);
+        // Preparar los datos, convirtiendo valores nulos en 0 para los campos de margen
+        $data = $validated;
+        $data['margen_venta_productos'] = $data['margen_venta_productos'] ?? 0;
+        $data['margen_venta_servicios'] = $data['margen_venta_servicios'] ?? 0;
+        $data['comision_instalacion'] = $data['comision_instalacion'] ?? 0;
+
+        // Actualizar el técnico con los datos preparados
+        $tecnico->update($data);
 
         // Redirigir al índice con un mensaje de éxito
         return redirect()->route('tecnicos.index')->with('success', 'Técnico actualizado correctamente.');

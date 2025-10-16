@@ -55,15 +55,15 @@ class HerramientaController extends Controller
             switch ($mantenimiento) {
                 case 'requiere':
                     $query->where('requiere_mantenimiento', true)
-                          ->whereRaw('julianday("now") - julianday(fecha_ultimo_mantenimiento) >= dias_para_mantenimiento');
+                          ->whereRaw('(CURRENT_DATE - fecha_ultimo_mantenimiento) >= dias_para_mantenimiento');
                     break;
                 case 'proximo':
                     $query->where('requiere_mantenimiento', true)
-                          ->whereRaw('julianday("now") - julianday(fecha_ultimo_mantenimiento) >= (dias_para_mantenimiento * 0.8)');
+                          ->whereRaw('(CURRENT_DATE - fecha_ultimo_mantenimiento) >= (dias_para_mantenimiento * 0.8)');
                     break;
                 case 'vencida':
                     $query->where('requiere_mantenimiento', true)
-                          ->whereRaw('julianday("now") - julianday(fecha_ultimo_mantenimiento) >= dias_para_mantenimiento');
+                          ->whereRaw('(CURRENT_DATE - fecha_ultimo_mantenimiento) >= dias_para_mantenimiento');
                     break;
             }
         }
@@ -79,7 +79,7 @@ class HerramientaController extends Controller
             'baja' => Herramienta::where('estado', Herramienta::ESTADO_BAJA)->count(),
             'perdida' => Herramienta::where('estado', Herramienta::ESTADO_PERDIDA)->count(),
             'requieren_mantenimiento' => Herramienta::requierenMantenimiento()
-               ->whereRaw('julianday("now") - julianday(fecha_ultimo_mantenimiento) >= dias_para_mantenimiento')->count(),
+               ->whereRaw('(CURRENT_DATE - fecha_ultimo_mantenimiento) >= dias_para_mantenimiento')->count(),
         ];
 
         return Inertia::render('Herramientas/Index', [
@@ -231,15 +231,15 @@ class HerramientaController extends Controller
             'herramientas_baja' => Herramienta::where('estado', Herramienta::ESTADO_BAJA)->count(),
             'herramientas_perdidas' => Herramienta::where('estado', Herramienta::ESTADO_PERDIDA)->count(),
             'herramientas_requieren_mantenimiento' => Herramienta::requierenMantenimiento()
-                ->whereRaw('julianday("now") - julianday(fecha_ultimo_mantenimiento) >= dias_para_mantenimiento')->count(),
+                ->whereRaw('(CURRENT_DATE - fecha_ultimo_mantenimiento) >= dias_para_mantenimiento')->count(),
             'herramientas_proximo_mantenimiento' => Herramienta::requierenMantenimiento()
-               ->whereRaw('julianday("now") - julianday(fecha_ultimo_mantenimiento) >= (dias_para_mantenimiento * 0.8)')
-               ->whereRaw('julianday("now") - julianday(fecha_ultimo_mantenimiento) < dias_para_mantenimiento')->count(),
+               ->whereRaw('(CURRENT_DATE - fecha_ultimo_mantenimiento) >= (dias_para_mantenimiento * 0.8)')
+               ->whereRaw('(CURRENT_DATE - fecha_ultimo_mantenimiento) < dias_para_mantenimiento')->count(),
         ];
 
         // Herramientas que requieren mantenimiento urgente
         $mantenimiento_urgente = Herramienta::requierenMantenimiento()
-            ->whereRaw('julianday("now") - julianday(fecha_ultimo_mantenimiento) >= dias_para_mantenimiento')
+            ->whereRaw('(CURRENT_DATE - fecha_ultimo_mantenimiento) >= dias_para_mantenimiento')
             ->with(['categoriaHerramienta', 'tecnico'])
             ->limit(10)
             ->get();
@@ -247,7 +247,7 @@ class HerramientaController extends Controller
         // Herramientas próximas a vencer vida útil
         $vida_util_proxima = Herramienta::whereNotNull('vida_util_meses')
             ->whereNotNull('fecha_ultimo_mantenimiento')
-            ->whereRaw('julianday("now") - julianday(fecha_ultimo_mantenimiento) >= (vida_util_meses * 30 * 0.8)')
+            ->whereRaw('(CURRENT_DATE - fecha_ultimo_mantenimiento) >= (vida_util_meses * 30 * 0.8)')
             ->with(['categoriaHerramienta', 'tecnico'])
             ->limit(10)
             ->get();
@@ -285,7 +285,7 @@ class HerramientaController extends Controller
     {
         $herramientas = Herramienta::requierenMantenimiento()
             ->with(['categoriaHerramienta', 'tecnico'])
-            ->orderByRaw('julianday("now") - julianday(fecha_ultimo_mantenimiento) DESC')
+            ->orderByRaw('(CURRENT_DATE - fecha_ultimo_mantenimiento) DESC')
             ->paginate(15);
 
         return Inertia::render('Herramientas/Mantenimiento', [
@@ -383,29 +383,29 @@ class HerramientaController extends Controller
     {
         // Herramientas que requieren mantenimiento urgente
         $mantenimiento_urgente = Herramienta::requierenMantenimiento()
-            ->whereRaw('julianday("now") - julianday(fecha_ultimo_mantenimiento) >= dias_para_mantenimiento')
+            ->whereRaw('(CURRENT_DATE - fecha_ultimo_mantenimiento) >= dias_para_mantenimiento')
             ->with(['categoriaHerramienta', 'tecnico'])
             ->get();
 
         // Herramientas próximas a mantenimiento
         $mantenimiento_proximo = Herramienta::requierenMantenimiento()
-            ->whereRaw('julianday("now") - julianday(fecha_ultimo_mantenimiento) >= (dias_para_mantenimiento * 0.8)')
-            ->whereRaw('julianday("now") - julianday(fecha_ultimo_mantenimiento) < dias_para_mantenimiento')
+            ->whereRaw('(CURRENT_DATE - fecha_ultimo_mantenimiento) >= (dias_para_mantenimiento * 0.8)')
+            ->whereRaw('(CURRENT_DATE - fecha_ultimo_mantenimiento) < dias_para_mantenimiento')
             ->with(['categoriaHerramienta', 'tecnico'])
             ->get();
 
         // Herramientas con vida útil vencida
         $vida_util_vencida = Herramienta::whereNotNull('vida_util_meses')
             ->whereNotNull('fecha_ultimo_mantenimiento')
-            ->whereRaw('julianday("now") - julianday(fecha_ultimo_mantenimiento) >= (vida_util_meses * 30)')
+            ->whereRaw('(CURRENT_DATE - fecha_ultimo_mantenimiento) >= (vida_util_meses * 30)')
             ->with(['categoriaHerramienta', 'tecnico'])
             ->get();
 
         // Herramientas próximas a vencer vida útil
         $vida_util_proxima = Herramienta::whereNotNull('vida_util_meses')
             ->whereNotNull('fecha_ultimo_mantenimiento')
-            ->whereRaw('julianday("now") - julianday(fecha_ultimo_mantenimiento) >= (vida_util_meses * 30 * 0.8)')
-            ->whereRaw('julianday("now") - julianday(fecha_ultimo_mantenimiento) < (vida_util_meses * 30)')
+            ->whereRaw('(CURRENT_DATE - fecha_ultimo_mantenimiento) >= (vida_util_meses * 30 * 0.8)')
+            ->whereRaw('(CURRENT_DATE - fecha_ultimo_mantenimiento) < (vida_util_meses * 30)')
             ->with(['categoriaHerramienta', 'tecnico'])
             ->get();
 
@@ -469,7 +469,7 @@ class HerramientaController extends Controller
             'herramientas_asignadas' => Herramienta::asignadas()->count(),
             'herramientas_mantenimiento' => Herramienta::enMantenimiento()->count(),
             'herramientas_requieren_mantenimiento' => Herramienta::requierenMantenimiento()
-                ->whereRaw('julianday("now") - julianday(fecha_ultimo_mantenimiento) >= dias_para_mantenimiento')->count(),
+                ->whereRaw('(CURRENT_DATE - fecha_ultimo_mantenimiento) >= dias_para_mantenimiento')->count(),
             'total_asignaciones' => 0, // Esto vendría de historial si existe
             'promedio_dias_uso' => 0, // Esto vendría de historial si existe
         ];
