@@ -111,13 +111,14 @@ class ProductoController extends Controller
             'descripcion'       => 'nullable|string',
             'codigo'            => 'nullable|string|unique:productos,codigo',
             'codigo_barras'     => 'required|string|unique:productos,codigo_barras',
-            'numero_serie'      => 'nullable|string',
-            'categoria_id'      => 'required|exists:categorias,id',
+                        'categoria_id'      => 'required|exists:categorias,id',
             'marca_id'          => 'required|exists:marcas,id',
             'proveedor_id'      => 'nullable|exists:proveedores,id',
             'almacen_id'        => 'nullable|exists:almacenes,id',
             'stock_minimo'      => 'required|integer|min:0',
-            'expires'           => 'boolean',
+            'expires'       => 'boolean',
+            'requiere_serie'=> 'boolean',
+            'requiere_serie'    => 'boolean',
             'precio_compra'     => 'required|numeric|min:0',
             'precio_venta'      => 'required|numeric|min:0',
             'impuesto'          => 'required|numeric|min:0',
@@ -200,11 +201,12 @@ class ProductoController extends Controller
             'codigo'        => 'nullable|string|unique:productos,codigo,' . $producto->id,
             'codigo_barras' => 'nullable|string|unique:productos,codigo_barras,' . $producto->id,
 
-            'numero_serie'  => 'nullable|string',
-            'marca_id'      => 'required|exists:marcas,id',
+                        'marca_id'      => 'required|exists:marcas,id',
             'almacen_id'    => 'nullable|exists:almacenes,id',
             'stock_minimo'  => 'nullable|integer|min:0',
             'expires'       => 'boolean',
+            'requiere_serie'=> 'boolean',
+            'requiere_serie'    => 'boolean',
             'precio_compra' => 'nullable|numeric|min:0',
             'impuesto'      => 'nullable|numeric|min:0',
             'unidad_medida' => 'nullable|string',
@@ -558,3 +560,5 @@ class ProductoController extends Controller
         return "{$scheme}://{$host}{$portString}/storage/{$path}";
     }
 }
+
+

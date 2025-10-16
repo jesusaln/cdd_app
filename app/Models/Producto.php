@@ -35,6 +35,7 @@ class Producto extends Model
         'reservado',
         'stock_minimo',
         'expires',
+        'requiere_serie',
         'precio_compra',
         'precio_venta',
         'margen_ganancia',
@@ -151,6 +152,12 @@ class Producto extends Model
     public function lotes(): HasMany
     {
         return $this->hasMany(Lote::class);
+    }
+
+    /** @return HasMany<ProductoSerie> */
+    public function series(): HasMany
+    {
+        return $this->hasMany(ProductoSerie::class);
     }
 
     /* =========================================================================

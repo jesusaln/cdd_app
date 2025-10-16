@@ -92,6 +92,7 @@ Route::prefix('clientes')->name('api.clientes.')->group(function () {
 
 // Productos - Definición manual para mayor control
 Route::prefix('productos')->name('api.productos.')->group(function () {
+    Route::get('/next-codigo', [ProductoController::class, 'nextCodigo'])->name('next-codigo');
     Route::get('/', [ProductoController::class, 'index'])->name('index');
     Route::post('/', [ProductoController::class, 'store'])->name('store');
     Route::get('/next-codigo', [ProductoController::class, 'nextCodigo'])->name('next-codigo');

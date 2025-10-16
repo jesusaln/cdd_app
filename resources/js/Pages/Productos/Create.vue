@@ -117,20 +117,12 @@
                             <div v-if="form.errors.codigo_barras" class="error-message">{{ form.errors.codigo_barras }}</div>
                         </div>
 
-                        <!-- Número de Serie -->
-                        <div>
-                            <label for="numero_serie" class="block text-sm font-medium text-gray-700 mb-2">
-                                Número de Serie
-                            </label>
-                            <input
-                                v-model="form.numero_serie"
-                                type="text"
-                                id="numero_serie"
-                                placeholder="Número de serie (opcional)"
-                                class="input-field"
-                            />
-                            <div v-if="form.errors.numero_serie" class="error-message">{{ form.errors.numero_serie }}</div>
-                        </div>
+<div class="md:col-span-2">
+  <div class="flex items-center space-x-3 mt-6">
+    <input id="requiere_serie" type="checkbox" v-model="form.requiere_serie" class="h-4 w-4 text-blue-600 border-gray-300 rounded" />
+    <label for="requiere_serie" class="text-sm text-gray-700">Este producto requiere capturar número de serie por unidad (en Compras)</label>
+  </div>
+</div>
 
                         <!-- Categoría -->
                         <div>
@@ -519,9 +511,7 @@ const form = useForm({
     nombre: '',
     descripcion: '',
     codigo: '',
-    codigo_barras: '',
-    numero_serie: '',
-    categoria_id: '',
+    codigo_barras: '',categoria_id: '',
     marca_id: '',
     proveedor_id: '',
     almacen_id: '',
@@ -529,9 +519,8 @@ const form = useForm({
     precio_compra: '',
     precio_venta: '',
     impuesto: '16',
-    unidad_medida: 'Piezas',
-    fecha_vencimiento: '',
     tipo_producto: 'fisico',
+    requiere_serie: false,
     imagen: null,
     estado: 'activo',
     comision_vendedor: '',
@@ -820,3 +809,7 @@ const crearAlmacenRapido = async () => {
     @apply mt-1 text-sm text-red-600;
 }
 </style>
+
+
+
+

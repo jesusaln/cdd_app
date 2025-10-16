@@ -82,20 +82,11 @@
                                 </div>
                             </div>
 
-                            <!-- Número de Serie -->
-                            <div>
-                                <label for="numero_serie" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Número de Serie
-                                </label>
-                                <input
-                                    v-model="form.numero_serie"
-                                    type="text"
-                                    id="numero_serie"
-                                    placeholder="Número de serie (opcional)"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
-                                />
-                                <div v-if="form.errors.numero_serie" class="mt-1 text-sm text-red-600">
-                                    {{ form.errors.numero_serie }}
+                            <!-- Requiere serie por unidad -->
+                            <div class="md:col-span-1">
+                                <div class="flex items-center space-x-3 mt-6">
+                                    <input id="requiere_serie" type="checkbox" v-model="form.requiere_serie" class="h-4 w-4 text-blue-600 border-gray-300 rounded" />
+                                    <label for="requiere_serie" class="text-sm text-gray-700">Requiere capturar número de serie por unidad (en Compras)</label>
                                 </div>
                             </div>
 
@@ -612,6 +603,11 @@ const props = defineProps({
     almacenes: { type: Array, default: () => [] },
 });
 
+// Crear referencias reactivas para poder actualizar las listas
+const categorias = ref([...props.categorias]);
+const marcas = ref([...props.marcas]);
+const almacenes = ref([...props.almacenes]);
+
 // Inicializa el formulario con los datos del producto
 const form = useForm({
     id: props.producto?.id || '',
@@ -623,7 +619,7 @@ const form = useForm({
     descripcion: props.producto?.descripcion || '',
     codigo: props.producto?.codigo || '',
     codigo_barras: props.producto?.codigo_barras || '',
-    numero_serie: props.producto?.numero_serie || '',
+    requiere_serie: props.producto?.requiere_serie ?? false,
     stock_minimo: props.producto?.stock_minimo || '',
     precio_compra: props.producto?.precio_compra || '',
     precio_venta: props.producto?.precio_venta || '',
@@ -704,30 +700,190 @@ const closeMarcaModal = () => { showMarcaModal.value = false; quickMarca.value =
 const closeAlmacenModal = () => { showAlmacenModal.value = false; quickAlmacen.value = { nombre: '', ubicacion: '', descripcion: '' } }
 const crearCategoriaRapida = async () => {
   if (!quickCategoria.value.nombre?.trim()) return;
-  savingQuick.value = true
+  savingQuick.value = true;
+
   try {
-    const res = await fetch('/api/categorias', { method:'POST', headers:{'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest','X-CSRF-TOKEN': csrfToken()}, body: JSON.stringify({ nombre: quickCategoria.value.nombre, descripcion: quickCategoria.value.descripcion||null })})
-    if (!res.ok) throw new Error('Error al crear categoría')
-    const nueva = await res.json(); categorias.push(nueva); form.categoria_id = nueva.id; closeCategoriaModal()
-  } catch(e){ console.error(e) } finally { savingQuick.value = false }
+    const apiUrl = `${window.location.origin}/api/categorias`;
+    console.log('Creando categoría en:', apiUrl);
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRF-TOKEN': csrfToken(),
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        nombre: quickCategoria.value.nombre.trim(),
+        descripcion: quickCategoria.value.descripcion?.trim() || null
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error response:', response.status, errorText);
+      throw new Error(`Error HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const nuevaCategoria = await response.json();
+    console.log('Categoría creada exitosamente:', nuevaCategoria);
+
+    // Agregar la nueva categoría a la lista local
+    categorias.push(nuevaCategoria);
+
+    // Seleccionar automáticamente la nueva categoría
+    form.categoria_id = nuevaCategoria.id;
+
+    // Cerrar modal y limpiar formulario
+    closeCategoriaModal();
+
+    // Mostrar mensaje de éxito
+    alert('Categoría creada exitosamente');
+
+  } catch (error) {
+    console.error('Error completo creando categoría:', error);
+
+    let errorMessage = 'Error al crear la categoría. ';
+    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      errorMessage += 'Verifique su conexión a internet.';
+    } else if (error.message.includes('403')) {
+      errorMessage += 'No tiene permisos para crear categorías.';
+    } else if (error.message.includes('422')) {
+      errorMessage += 'Los datos ingresados no son válidos.';
+    } else {
+      errorMessage += 'Por favor, inténtelo de nuevo.';
+    }
+
+    alert(errorMessage);
+  } finally {
+    savingQuick.value = false;
+  }
 }
 const crearMarcaRapida = async () => {
   if (!quickMarca.value.nombre?.trim()) return;
-  savingQuick.value = true
+  savingQuick.value = true;
+
   try {
-    const res = await fetch('/api/marcas', { method:'POST', headers:{'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest','X-CSRF-TOKEN': csrfToken()}, body: JSON.stringify({ nombre: quickMarca.value.nombre, descripcion: quickMarca.value.descripcion||null })})
-    if (!res.ok) throw new Error('Error al crear marca')
-    const nueva = await res.json(); marcas.push(nueva); form.marca_id = nueva.id; closeMarcaModal()
-  } catch(e){ console.error(e) } finally { savingQuick.value = false }
+    const apiUrl = `${window.location.origin}/api/marcas`;
+    console.log('Creando marca en:', apiUrl);
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRF-TOKEN': csrfToken(),
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        nombre: quickMarca.value.nombre.trim(),
+        descripcion: quickMarca.value.descripcion?.trim() || null
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error response:', response.status, errorText);
+      throw new Error(`Error HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const nuevaMarca = await response.json();
+    console.log('Marca creada exitosamente:', nuevaMarca);
+
+    // Agregar la nueva marca a la lista local
+    marcas.push(nuevaMarca);
+
+    // Seleccionar automáticamente la nueva marca
+    form.marca_id = nuevaMarca.id;
+
+    // Cerrar modal y limpiar formulario
+    closeMarcaModal();
+
+    // Mostrar mensaje de éxito
+    alert('Marca creada exitosamente');
+
+  } catch (error) {
+    console.error('Error completo creando marca:', error);
+
+    let errorMessage = 'Error al crear la marca. ';
+    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      errorMessage += 'Verifique su conexión a internet.';
+    } else if (error.message.includes('403')) {
+      errorMessage += 'No tiene permisos para crear marcas.';
+    } else if (error.message.includes('422')) {
+      errorMessage += 'Los datos ingresados no son válidos.';
+    } else {
+      errorMessage += 'Por favor, inténtelo de nuevo.';
+    }
+
+    alert(errorMessage);
+  } finally {
+    savingQuick.value = false;
+  }
 }
 const crearAlmacenRapido = async () => {
   if (!quickAlmacen.value.nombre?.trim()) return;
-  savingQuick.value = true
+  savingQuick.value = true;
+
   try {
-    const res = await fetch('/api/almacenes', { method:'POST', headers:{'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest','X-CSRF-TOKEN': csrfToken()}, body: JSON.stringify({ nombre: quickAlmacen.value.nombre, descripcion: quickAlmacen.value.descripcion||null, ubicacion: quickAlmacen.value.ubicacion||'' })})
-    if (!res.ok) throw new Error('Error al crear almacén')
-    const nuevo = await res.json(); almacenes.push(nuevo); form.almacen_id = nuevo.id; closeAlmacenModal()
-  } catch(e){ console.error(e) } finally { savingQuick.value = false }
+    const apiUrl = `${window.location.origin}/api/almacenes`;
+    console.log('Creando almacén en:', apiUrl);
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRF-TOKEN': csrfToken(),
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        nombre: quickAlmacen.value.nombre.trim(),
+        descripcion: quickAlmacen.value.descripcion?.trim() || null,
+        ubicacion: quickAlmacen.value.ubicacion?.trim() || ''
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error response:', response.status, errorText);
+      throw new Error(`Error HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const nuevoAlmacen = await response.json();
+    console.log('Almacén creado exitosamente:', nuevoAlmacen);
+
+    // Agregar el nuevo almacén a la lista local
+    almacenes.push(nuevoAlmacen);
+
+    // Seleccionar automáticamente el nuevo almacén
+    form.almacen_id = nuevoAlmacen.id;
+
+    // Cerrar modal y limpiar formulario
+    closeAlmacenModal();
+
+    // Mostrar mensaje de éxito
+    alert('Almacén creado exitosamente');
+
+  } catch (error) {
+    console.error('Error completo creando almacén:', error);
+
+    let errorMessage = 'Error al crear el almacén. ';
+    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      errorMessage += 'Verifique su conexión a internet.';
+    } else if (error.message.includes('403')) {
+      errorMessage += 'No tiene permisos para crear almacenes.';
+    } else if (error.message.includes('422')) {
+      errorMessage += 'Los datos ingresados no son válidos.';
+    } else {
+      errorMessage += 'Por favor, inténtelo de nuevo.';
+    }
+
+    alert(errorMessage);
+  } finally {
+    savingQuick.value = false;
+  }
 }
 </script>
 

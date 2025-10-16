@@ -49,8 +49,7 @@ class ProductoController extends Controller
                 'descripcion' => 'nullable|string',
                 'codigo' => 'required|string|unique:productos,codigo',
                 'codigo_barras' => 'required|string|unique:productos,codigo_barras',
-                'numero_serie' => 'nullable|string',
-                'categoria_id' => 'required|exists:categorias,id',
+                                'categoria_id' => 'required|exists:categorias,id',
                 'marca_id' => 'required|exists:marcas,id',
                 'proveedor_id' => 'nullable|exists:proveedores,id',
                 'almacen_id' => 'nullable|exists:almacenes,id',
@@ -62,6 +61,8 @@ class ProductoController extends Controller
                 'unidad_medida' => 'required|string',
                 'fecha_vencimiento' => 'nullable|date',
                 'tipo_producto' => 'required|in:fisico,digital',
+                'requiere_serie' => 'boolean',
+                'requiere_serie' => 'boolean',
                 'imagen' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
                 'estado' => 'required|in:activo,inactivo',
             ]);
@@ -118,8 +119,7 @@ class ProductoController extends Controller
                 'descripcion' => 'nullable|string',
                 'codigo' => 'required|string|unique:productos,codigo,' . $producto->id,
                 'codigo_barras' => 'required|string|unique:productos,codigo_barras,' . $producto->id,
-                'numero_serie' => 'nullable|string',
-                'categoria_id' => 'required|exists:categorias,id',
+                                'categoria_id' => 'required|exists:categorias,id',
                 'marca_id' => 'required|exists:marcas,id',
                 'proveedor_id' => 'nullable|exists:proveedores,id',
                 'almacen_id' => 'nullable|exists:almacenes,id',
@@ -131,6 +131,8 @@ class ProductoController extends Controller
                 'unidad_medida' => 'required|string',
                 'fecha_vencimiento' => 'nullable|date',
                 'tipo_producto' => 'required|in:fisico,digital',
+                'requiere_serie' => 'boolean',
+                'requiere_serie' => 'boolean',
                 'imagen' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
                 'estado' => 'required|in:activo,inactivo',
             ]);
@@ -188,3 +190,4 @@ class ProductoController extends Controller
         return "{$scheme}://{$host}{$portString}/storage/{$path}";
     }
 }
+

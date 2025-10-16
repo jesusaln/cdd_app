@@ -303,13 +303,17 @@ class CompraController extends Controller
             'productos.*.descuento' => 'nullable|numeric|min:0|max:100',
         ];
 
-        // Agregar validación de lotes para productos que vencen
+        // Agregar validación de lotes para productos que vencen y series por unidad
         foreach ($request->productos ?? [] as $index => $producto) {
             $productoModel = Producto::find($producto['id']);
             if ($productoModel && $productoModel->expires) {
                 $rules["productos.{$index}.numero_lote"] = 'required|string|max:100';
                 $rules["productos.{$index}.fecha_caducidad"] = 'nullable|date|after:today';
                 $rules["productos.{$index}.costo_unitario"] = 'nullable|numeric|min:0';
+            }
+            if ($productoModel && ($productoModel->requiere_serie ?? false)) {
+                $rules["productos.{$index}.seriales"] = 'required|array|min:1';
+                $rules["productos.{$index}.seriales.*"] = 'required|string|max:191|distinct';
             }
         }
 
@@ -441,6 +445,19 @@ class CompraController extends Controller
                     'subtotal' => $subtotalFinal,
                     'descuento_monto' => $descuentoMonto,
                 ]);
+
+                // Registrar series si el producto lo requiere
+                if (($producto->requiere_serie ?? false) && !empty($productoData['seriales']) && is_array($productoData['seriales'])) {
+                    foreach ($productoData['seriales'] as $serie) {
+                        \App\Models\ProductoSerie::create([
+                            'producto_id' => $producto->id,
+                            'compra_id' => $compra->id,
+                            'almacen_id' => $validatedData['almacen_id'],
+                            'numero_serie' => trim((string) $serie),
+                            'estado' => 'en_stock',
+                        ]);
+                    }
+                }
             }
         });
 

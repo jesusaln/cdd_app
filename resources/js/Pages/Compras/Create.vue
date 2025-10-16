@@ -251,17 +251,18 @@
             </div>
 
             <!-- Productos seleccionados -->
-            <ProductosSeleccionados
-              :selected-products="selectedProducts"
-              :productos="props.productos"
-              :servicios="props.servicios"
-              :quantities="quantities"
-              :prices="prices"
-              :discounts="discounts"
-              @eliminar-producto="eliminarProducto"
-              @update-quantity="updateQuantity"
-              @update-discount="updateDiscount"
-            />
+  <ProductosSeleccionados
+    :selected-products="selectedProducts"
+    :productos="props.productos"
+    :servicios="props.servicios"
+    :quantities="quantities"
+    :prices="prices"
+    :discounts="discounts"
+    @open-serials="openSerials"
+    @eliminar-producto="eliminarProducto"
+    @update-quantity="updateQuantity"
+    @update-discount="updateDiscount"
+  />
           </div>
         </div>
 
@@ -443,6 +444,12 @@ const selectedProducts = ref([]);
 const quantities = ref({});
 const prices = ref({});
 const discounts = ref({});
+// Series por producto seleccionado
+const serialsMap = ref({});
+const showSerialsModal = ref(false);
+const serialsForEntry = ref([]);
+const currentSerialKey = ref('');
+const currentSerialQty = ref(1);
 const mostrarVistaPrevia = ref(false);
 const mostrarAtajos = ref(true);
 const productoSeleccionado = ref(null);
@@ -703,6 +710,7 @@ const crearCompra = () => {
       cantidad: parseFloat(quantities.value[key]) || 1,
       precio: parseFloat(prices.value[key]) || 0,
       descuento: parseFloat(discounts.value[key]) || 0,
+      seriales: serialsMap.value[key] || undefined,
     };
   });
 
@@ -729,6 +737,30 @@ const crearCompra = () => {
       }
     },
   });
+};
+
+// Captura de series
+const openSerials = (entry) => {
+  const key = `${entry.tipo}-${entry.id}`;
+  currentSerialKey.value = key;
+  currentSerialQty.value = Number(quantities.value[key]) || 1;
+  const existentes = serialsMap.value[key] || [];
+  serialsForEntry.value = Array.from({ length: currentSerialQty.value }, (_, i) => existentes[i] || '');
+  showSerialsModal.value = true;
+};
+
+const saveSerials = () => {
+  const serials = serialsForEntry.value.map(s => (s || '').trim()).filter(Boolean);
+  if (serials.length !== currentSerialQty.value) {
+    alert(`Debes capturar ${currentSerialQty.value} series.`);
+    return;
+  }
+  if ((new Set(serials)).size !== serials.length) {
+    alert('Las series deben ser únicas.');
+    return;
+  }
+  serialsMap.value[currentSerialKey.value] = serials;
+  showSerialsModal.value = false;
 };
 
 const limpiarFormulario = () => {
