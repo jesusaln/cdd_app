@@ -50,7 +50,7 @@ class EntregaDineroController extends Controller
         // Obtener cobranzas pagadas con saldos pendientes
         $cobranzasQuery = Cobranza::with(['renta.cliente', 'responsableCobro'])
             ->where('estado', 'pagado')
-            ->whereRaw('monto_pagado > COALESCE((SELECT SUM(total) FROM entregas_dinero WHERE tipo_origen = "cobranza" AND id_origen = cobranzas.id AND estado = "recibido"), 0)');
+            ->whereRaw("monto_pagado > COALESCE((SELECT SUM(total) FROM entregas_dinero WHERE tipo_origen = 'cobranza' AND id_origen = id AND estado = 'recibido'), 0)");
 
         // Si no es admin, filtrar solo por el usuario actual
         if (!$isAdmin) {
@@ -87,7 +87,7 @@ class EntregaDineroController extends Controller
         // Obtener ventas pagadas con saldos pendientes
         $ventasQuery = Venta::with(['cliente', 'pagadoPor'])
             ->where('pagado', true)
-            ->whereRaw('total > COALESCE((SELECT SUM(total) FROM entregas_dinero WHERE tipo_origen = "venta" AND id_origen = ventas.id AND estado = "recibido"), 0)');
+            ->whereRaw("total > COALESCE((SELECT SUM(total) FROM entregas_dinero WHERE tipo_origen = 'venta' AND id_origen = id AND estado = 'recibido'), 0)");
 
         // Si no es admin, filtrar solo por el usuario actual
         if (!$isAdmin) {

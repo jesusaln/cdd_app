@@ -53,11 +53,11 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
-                <span class="text-sm font-medium">{{ showAdvancedMetrics ? 'Ocultar MÃ©tricas' : 'Ver MÃ©tricas' }}</span>
+                <span class="text-sm font-medium">{{ showAdvancedMetrics ? 'Ocultar Métricas' : 'Ver Métricas' }}</span>
               </button>
             </div>
 
-            <!-- EstadÃ­sticas Avanzadas -->
+            <!-- Estadísticas Avanzadas -->
             <div class="flex flex-wrap items-center gap-4 text-sm">
               <div class="flex items-center gap-2 px-4 py-3 bg-slate-50 rounded-xl border border-slate-200">
                 <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -87,11 +87,11 @@
                 <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                 </svg>
-                <span class="font-medium text-slate-700">TamaÃ±o Total:</span>
+                <span class="font-medium text-slate-700">Tamaño Total:</span>
                 <span class="font-bold text-yellow-700 text-lg">{{ formatFileSize(stats.total_size) }}</span>
               </div>
 
-              <!-- MÃ©tricas de Salud del Sistema -->
+              <!-- Métricas de Salud del Sistema -->
               <div class="flex items-center gap-2 px-4 py-3 bg-green-50 rounded-xl border border-green-200">
                 <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -100,12 +100,12 @@
                 <span :class="getHealthColor(systemHealth)" class="font-bold text-lg">{{ systemHealth }}%</span>
               </div>
 
-              <!-- MÃ©tricas de Rendimiento -->
+              <!-- Métricas de Rendimiento -->
               <div class="flex items-center gap-2 px-4 py-3 bg-purple-50 rounded-xl border border-purple-200">
                 <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
-                <span class="font-medium text-slate-700">Tasa Ã‰xito:</span>
+                <span class="font-medium text-slate-700">Tasa Éxito:</span>
                 <span class="font-bold text-purple-700 text-lg">{{ successRate }}%</span>
               </div>
             </div>
@@ -133,28 +133,28 @@
               @change="handleSortChange($event.target.value)"
               class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
             >
-              <option value="created_at-desc">MÃ¡s Recientes</option>
-              <option value="created_at-asc">MÃ¡s Antiguos</option>
+              <option value="created_at-desc">Más Recientes</option>
+              <option value="created_at-asc">Más Antiguos</option>
               <option value="name-asc">Nombre A-Z</option>
               <option value="name-desc">Nombre Z-A</option>
-              <option value="size-desc">TamaÃ±o Mayor</option>
-              <option value="size-asc">TamaÃ±o Menor</option>
+              <option value="size-desc">Tamaño Mayor</option>
+              <option value="size-asc">Tamaño Menor</option>
             </select>
           </div>
         </div>
       </div>
 
-      <!-- Panel de MÃ©tricas Avanzadas -->
+      <!-- Panel de Métricas Avanzadas -->
       <div v-if="showAdvancedMetrics" class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">
         <div class="px-6 py-4 border-b border-gray-200">
-          <h3 class="text-lg font-semibold text-gray-900">MÃ©tricas Avanzadas del Sistema</h3>
-          <p class="text-sm text-gray-600 mt-1">InformaciÃ³n detallada sobre el rendimiento y salud del sistema de respaldos</p>
+          <h3 class="text-lg font-semibold text-gray-900">Métricas Avanzadas del Sistema</h3>
+          <p class="text-sm text-gray-600 mt-1">Información detallada sobre el rendimiento y salud del sistema de respaldos</p>
         </div>
 
         <div class="p-6">
           <div v-if="loadingMetrics" class="flex items-center justify-center py-8">
             <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span class="ml-3 text-gray-600">Cargando mÃ©tricas avanzadas...</span>
+            <span class="ml-3 text-gray-600">Cargando métricas avanzadas...</span>
           </div>
 
           <div v-else-if="monitoringData.monitoring" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -215,7 +215,7 @@
                 </svg>
               </div>
               <div class="text-2xl font-bold text-teal-700 mb-1">{{ monitoringData.monitoring.reliability.reliability_score }}%</div>
-              <div class="text-sm text-teal-600">PuntuaciÃ³n de confiabilidad</div>
+              <div class="text-sm text-teal-600">Puntuación de confiabilidad</div>
             </div>
 
             <!-- Tiempo hasta lleno -->
@@ -291,8 +291,8 @@
               <tr>
                 <th class="px-4 py-4"><input type="checkbox" :checked="allSelectedOnPage" @change="toggleSelectAllOnPage($event)" /></th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Nombre</th>
-                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Fecha de CreaciÃ³n</th>
-                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">TamaÃ±o</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Fecha de Creación</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Tamaño</th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Tipo</th>
                 <th class="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Acciones</th>
               </tr>
@@ -345,7 +345,7 @@
                     </div>
                     <div class="space-y-1">
                       <p class="text-gray-700 font-medium">No hay copias de seguridad</p>
-                      <p class="text-sm text-gray-500">Las copias de seguridad aparecerÃ¡n aquÃ­ cuando se creen</p>
+                      <p class="text-sm text-gray-500">Las copias de seguridad aparecerán aquí cuando se creen</p>
                     </div>
                   </div>
                 </td>
@@ -354,7 +354,7 @@
           </table>
         </div>
 
-        <!-- PaginaciÃ³n -->
+        <!-- Paginación -->
         <div v-if="pagination.lastPage > 1" class="bg-white border-t border-gray-200 px-4 py-3 sm:px-6">
           <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div class="flex items-center gap-4">
@@ -420,13 +420,13 @@
         </div>
       </div>
 
-      <!-- Modal de ConfirmaciÃ³n de RestauraciÃ³n -->
+      <!-- Modal de Confirmación de Restauración -->
       <div v-if="restoreDialog.show" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="restoreDialog.show = false">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
           <!-- Header del modal -->
           <div class="flex items-center justify-between p-6 border-b border-gray-200">
             <h3 class="text-lg font-medium text-gray-900">
-              Confirmar RestauraciÃ³n
+              Confirmar Restauración
             </h3>
             <button @click="restoreDialog.show = false" class="text-gray-400 hover:text-gray-600 transition-colors">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -444,8 +444,8 @@
               </div>
               <h3 class="text-lg font-medium text-gray-900 mb-2">Â¿Restaurar Base de Datos?</h3>
               <p class="text-sm text-gray-500 mb-4">
-                Â¿EstÃ¡s seguro de que deseas restaurar la base de datos desde el respaldo <strong>{{ restoreDialog.backup?.name }}</strong>?
-                Esta acciÃ³n reemplazarÃ¡ todos los datos actuales.
+                Â¿Estás seguro de que deseas restaurar la base de datos desde el respaldo <strong>{{ restoreDialog.backup?.name }}</strong>?
+                Esta acción reemplazará todos los datos actuales.
               </p>
             </div>
           </div>
@@ -462,13 +462,13 @@
         </div>
       </div>
 
-      <!-- Modal de ConfirmaciÃ³n de EliminaciÃ³n -->
+      <!-- Modal de Confirmación de Eliminación -->
       <div v-if="deleteDialog.show" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="deleteDialog.show = false">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
           <!-- Header del modal -->
           <div class="flex items-center justify-between p-6 border-b border-gray-200">
             <h3 class="text-lg font-medium text-gray-900">
-              Confirmar EliminaciÃ³n
+              Confirmar Eliminación
             </h3>
             <button @click="deleteDialog.show = false" class="text-gray-400 hover:text-gray-600 transition-colors">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -486,8 +486,8 @@
               </div>
               <h3 class="text-lg font-medium text-gray-900 mb-2">ÂEliminar Copia de Seguridad?</h3>
               <p class="text-sm text-gray-500 mb-4">
-                Â¿EstÃ¡s seguro de que deseas eliminar la copia de seguridad <strong>{{ deleteDialog.backup?.name }}</strong>?
-                Esta acciÃ³n no se puede deshacer.
+                Â¿Estás seguro de que deseas eliminar la copia de seguridad <strong>{{ deleteDialog.backup?.name }}</strong>?
+                Esta acción no se puede deshacer.
               </p>
             </div>
           </div>
@@ -528,17 +528,17 @@
               </div>
               <h3 class="text-lg font-medium text-gray-900 mb-2">Â¿Limpiar Copias Antiguas?</h3>
               <p class="text-sm text-gray-500 mb-4">
-                Se eliminarÃ¡n las copias de seguridad mÃ¡s antiguas que:
+                Se eliminarán las copias de seguridad más antiguas que:
               </p>
               <select
                 v-model="cleanForm.daysOld"
                 class="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm"
               >
-                <option value="7">7 dÃ­as</option>
-                <option value="15">15 dÃ­as</option>
-                <option value="30">30 dÃ­as</option>
-                <option value="60">60 dÃ­as</option>
-                <option value="90">90 dÃ­as</option>
+                <option value="7">7 días</option>
+                <option value="15">15 días</option>
+                <option value="30">30 días</option>
+                <option value="60">60 días</option>
+                <option value="90">90 días</option>
               </select>
             </div>
           </div>
@@ -600,7 +600,7 @@ const props = defineProps({
 // Variable reactiva para backups
 const backups = ref(props.backups)
 
-// Estado reactivo para mÃ©tricas avanzadas
+// Estado reactivo para métricas avanzadas
 const systemHealth = ref(100)
 const successRate = ref(100)
 const monitoringData = ref({})
@@ -628,7 +628,7 @@ const cleanForm = ref({
   daysOld: 30
 })
 
-// DiÃ¡logos
+// Diálogos
 const restoreDialog = ref({
   show: false,
   backup: null
@@ -798,7 +798,7 @@ const downloadBackup = (backup) => {
   notyf.success('Descarga iniciada')
 }
 
-// MÃ©todos para mÃ©tricas avanzadas
+// Métodos para métricas avanzadas
 const loadAdvancedMetrics = async () => {
   loadingMetrics.value = true
   try {
@@ -812,12 +812,12 @@ const loadAdvancedMetrics = async () => {
       }
     }
 
-    // Cargar estadÃ­sticas de seguridad
+    // Cargar estadísticas de seguridad
     const securityResponse = await fetch(route('backup.security.stats'))
     if (securityResponse.ok) {
       const securityData = await securityResponse.json()
       if (securityData.success) {
-        // Actualizar mÃ©tricas de seguridad si es necesario
+        // Actualizar métricas de seguridad si es necesario
       }
     }
 
@@ -850,7 +850,7 @@ const formatearFecha = (date) => {
     const d = new Date(date)
     return d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })
   } catch {
-    return 'Fecha invÃ¡lida'
+    return 'Fecha inválida'
   }
 }
 
@@ -860,7 +860,7 @@ const formatearHora = (date) => {
     const d = new Date(date)
     return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
   } catch {
-    return 'Hora invÃ¡lida'
+    return 'Hora inválida'
   }
 }
 
@@ -903,7 +903,7 @@ const formatFileSize = (bytes) => {
     transition: transform 0.3s ease;
 }
 
-/* AnimaciÃ³n de spin personalizada */
+/* Animación de spin personalizada */
 @keyframes spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
