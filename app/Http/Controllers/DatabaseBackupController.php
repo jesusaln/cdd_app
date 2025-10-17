@@ -227,6 +227,54 @@ class DatabaseBackupController extends Controller
     }
 
     /**
+     * Eliminar múltiples archivos de respaldo
+     */
+    public function deleteMultiple(Request $request)
+    {
+        $validated = $request->validate([
+            'filenames' => 'required|array',
+            'filenames.*' => 'string'
+        ]);
+
+        $filenames = $validated['filenames'];
+        $deletedCount = 0;
+        $errors = [];
+
+        foreach ($filenames as $filename) {
+            try {
+                $filename = basename($filename);
+
+                if (!$this->backupService->backupExists($filename)) {
+                    $errors[] = "El archivo {$filename} no existe.";
+                    continue;
+                }
+
+                $result = $this->backupService->deleteBackup($filename);
+
+                if ($result['success']) {
+                    $deletedCount++;
+                } else {
+                    $errors[] = "Error al eliminar {$filename}: " . $result['message'];
+                }
+            } catch (Exception $e) {
+                $errors[] = "Error crítico al eliminar {$filename}: " . $e->getMessage();
+                Log::error('Error in bulk delete: ' . $e->getMessage(), [
+                    'filename' => $filename,
+                    'user_id' => Auth::id()
+                ]);
+            }
+        }
+
+        $message = "Se eliminaron {$deletedCount} respaldo(s) exitosamente.";
+        if (!empty($errors)) {
+            $message .= " Errores: " . implode(", ", $errors);
+        }
+
+        return redirect()->route('backup.index')->with($deletedCount > 0 ? 'success' : 'error', $message);
+    }
+
+
+    /**
      * Restaurar tablas específicas desde un respaldo (granular restore)
      */
     public function granularRestore(Request $request, $filename)
@@ -298,24 +346,11 @@ class DatabaseBackupController extends Controller
                 return redirect()->route('backup.index')->with('error', 'El archivo de respaldo no existe.');
             }
 
-            // Crear un respaldo automático antes de la restauración
-            $preRestoreBackup = $this->backupService->createBackup([
-                'name' => 'pre_restore_' . date('Y-m-d_H-i-s'),
-                'compress' => true,
-                'include_structure_only' => false
-            ]);
-
-            if (!$preRestoreBackup['success']) {
-                Log::warning('Could not create pre-restore backup: ' . $preRestoreBackup['message']);
-            }
-
+            // Pre-respaldo lo maneja el servicio internamente
             $result = $this->backupService->restoreBackup($path);
 
             if ($result['success']) {
                 $message = 'Base de datos restaurada exitosamente.';
-                if ($preRestoreBackup['success']) {
-                    $message .= ' Se creó un respaldo automático antes de la restauración.';
-                }
 
                 return redirect()->route('backup.index')->with('success', $message);
             }

@@ -537,6 +537,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
             Route::post('/create', [DatabaseBackupController::class, 'create'])->name('create');
             Route::get('/download/{filename}', [DatabaseBackupController::class, 'download'])->name('download');
             Route::delete('/delete/{filename}', [DatabaseBackupController::class, 'delete'])->name('delete');
+            Route::post('/delete-multiple', [DatabaseBackupController::class, 'deleteMultiple'])->name('deleteMultiple');
             Route::post('/restore/{filename}', [DatabaseBackupController::class, 'restore'])->name('restore');
             Route::post('/clean', [DatabaseBackupController::class, 'clean'])->name('clean');
             Route::get('/monitoring', [DatabaseBackupController::class, 'monitoring'])->name('monitoring');

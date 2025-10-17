@@ -7,7 +7,9 @@ Write-Host "Fecha: $(Get-Date)" -ForegroundColor Yellow
 # Variables de configuración
 $dbName = "cdd_app_prod"
 $dbUser = "cdd_user"
-$backupDir = "C:\inetpub\wwwroot\cdd_app\backups"
+# Unificar destino con Laravel: storage/app/backups/database
+$projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$backupDir = Join-Path $projectRoot "storage\app\backups\database"
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
 
 # Crear directorio de respaldos si no existe
@@ -35,7 +37,7 @@ catch {
 }
 
 # Crear paquete de aplicación
-$appPackage = "C:\inetpub\wwwroot\cdd_app\cdd_app_migracion_$timestamp.tar.gz"
+$appPackage = Join-Path $projectRoot "cdd_app_migracion_$timestamp.tar.gz"
 
 Write-Host "Creando paquete de aplicación..." -ForegroundColor Cyan
 

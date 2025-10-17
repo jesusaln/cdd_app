@@ -84,7 +84,8 @@ class CategoriaController extends Controller
             'estado' => 'required|in:activo,inactivo',
         ]);
 
-        Categoria::create($request->all());
+        // Solo pasar los campos fillable para evitar conflictos con ID
+        Categoria::create($request->only(['nombre', 'descripcion', 'estado']));
 
         return redirect()->route('categorias.index')->with('success', 'Categoría creada correctamente.');
     }
