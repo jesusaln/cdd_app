@@ -326,6 +326,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::get('herramientas/gestion/{tecnico}/edit', [GestionHerramientasController::class, 'edit'])->name('herramientas.gestion.edit');
     Route::post('herramientas/gestion/asignar', [GestionHerramientasController::class, 'asignar'])->name('herramientas.gestion.asignar');
     Route::put('herramientas/gestion/{tecnico}', [GestionHerramientasController::class, 'update'])->name('herramientas.gestion.update');
+    Route::get('herramientas/gestion/{tecnico}/exportar', [GestionHerramientasController::class, 'exportarPorTecnico'])->name('herramientas.gestion.exportar');
+    Route::get('herramientas/gestion/{tecnico}/descargar', [GestionHerramientasController::class, 'descargarReporteTecnico'])->name('herramientas.gestion.descargar');
 
     // Alias para enlaces antiguos del sidebar
     Route::get('herramientas/tecnicos-herramientas', function () {

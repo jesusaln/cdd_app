@@ -106,6 +106,18 @@ const reasignarHerramienta = () => {
       <Link class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700" :href="route('herramientas.dashboard')">
         Dashboard
       </Link>
+      <Link
+        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+        :href="`/herramientas/gestion/${tecnico.id}/exportar`"
+      >
+        📋 Ver Reporte
+      </Link>
+      <Link
+        class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+        :href="`/herramientas/gestion/${tecnico.id}/descargar`"
+      >
+        📥 Exportar CSV
+      </Link>
     </div>
   </div>
 

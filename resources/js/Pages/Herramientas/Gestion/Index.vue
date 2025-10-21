@@ -98,12 +98,21 @@ const calcularEstadisticasTecnico = (tecnico) => {
               <div class="text-sm text-gray-500">Herramientas asignadas</div>
               <div class="text-2xl font-bold text-blue-600">{{ calcularEstadisticasTecnico(tecnico).total }}</div>
             </div>
-            <Link
-              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              :href="`/herramientas/gestion/${tecnico.id}/edit`"
-            >
-              Gestionar Herramientas
-            </Link>
+            <div class="flex gap-2">
+              <Link
+                class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                :href="`/herramientas/gestion/${tecnico.id}/edit`"
+              >
+                Gestionar
+              </Link>
+              <Link
+                v-if="calcularEstadisticasTecnico(tecnico).total > 0"
+                class="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
+                :href="`/herramientas/gestion/${tecnico.id}/exportar`"
+              >
+                Reporte
+              </Link>
+            </div>
           </div>
         </div>
       </div>

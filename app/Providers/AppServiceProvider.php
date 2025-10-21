@@ -21,10 +21,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Forzar HTTPS en producción
-        if (app()->environment('production')) {
-            URL::forceScheme('https');
-        }
+        // HTTPS forcing commented out for HTTP fix pack
+        // if (app()->environment('production')) {
+        //     URL::forceScheme('https');
+        // }
 
         // Registrar el evento y el listener
         Event::listen(
