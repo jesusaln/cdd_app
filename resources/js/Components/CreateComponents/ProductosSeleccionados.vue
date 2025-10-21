@@ -130,7 +130,7 @@
               </div>
 
                             <!-- Series (si el producto requiere) -->
-              <div v-if="getProducto(entry)?.requiere_serie" class="sm:col-span-2">
+              <div v-if="getItemInfo(entry)?.requiere_serie" class="sm:col-span-2">
                 <label class="block text-xs font-medium text-gray-700 mb-1">Series por unidad</label>
                 <div class="flex items-center space-x-2">
                   <button type="button" @click="emit('open-serials', entry)" class="px-3 py-2 text-xs font-medium bg-indigo-600 text-white rounded hover:bg-indigo-700">

@@ -16,7 +16,7 @@ class AlmacenController extends Controller
     public function index(Request $request)
     {
         try {
-            $query = Almacen::query();
+            $query = Almacen::with(['responsable:id,name']);
 
             // Filtros
             if ($search = trim($request->input('search', ''))) {
@@ -89,63 +89,71 @@ class AlmacenController extends Controller
     }
 
     /**
-     * Almacena un nuevo almacén en la base de datos.
-     */
-    public function store(Request $request)
-    {
-        $request->validate([
-            'nombre' => 'required|string|max:100|unique:almacenes,nombre',
-            'descripcion' => 'nullable|string|max:1000',
-            'direccion' => 'nullable|string|max:255',
-            'telefono' => 'nullable|string|max:20',
-            'responsable' => 'nullable|string|max:100',
-            'estado' => 'required|in:activo,inactivo',
-        ]);
+      * Almacena un nuevo almacén en la base de datos.
+      */
+     public function store(Request $request)
+     {
+         $validated = $request->validate([
+             'nombre' => 'required|string|max:100|unique:almacenes,nombre',
+             'descripcion' => 'nullable|string|max:1000',
+             'ubicacion' => 'nullable|string|max:255',
+             'direccion' => 'nullable|string|max:255',
+             'telefono' => 'nullable|string|max:20',
+             'responsable' => 'nullable|integer|exists:users,id',
+             'estado' => 'required|in:activo,inactivo',
+         ]);
 
-        Almacen::create($request->all());
+         // Convertir responsable vacío a null
+         if (isset($validated['responsable']) && $validated['responsable'] === '') {
+             $validated['responsable'] = null;
+         }
 
-        return redirect()->route('almacenes.index')->with('success', 'Almacén creado correctamente.');
-    }
+         Almacen::create($validated);
 
-    /**
-     * Muestra el formulario para editar un almacén existente.
-     */
-    public function edit($id)
-    {
-        $almacen = Almacen::findOrFail($id);
-        // Asegurar que tenga valores por defecto
-        $almacen->direccion = $almacen->direccion ?: '';
-        $almacen->telefono = $almacen->telefono ?: '';
-        $almacen->responsable = $almacen->responsable ?: '';
-
-        $usuarios = User::select('id', 'name')->orderBy('name')->get();
-
-        return Inertia::render('Almacenes/Edit', [
-            'almacen' => $almacen,
-            'usuarios' => $usuarios,
-        ]);
-    }
+         return redirect()->route('almacenes.index')->with('success', 'Almacén creado correctamente.');
+     }
 
     /**
-     * Actualiza un almacén existente en la base de datos.
-     */
-    public function update(Request $request, $id)
-    {
-        $almacen = Almacen::findOrFail($id);
+      * Muestra el formulario para editar un almacén existente.
+      */
+     public function edit($id)
+     {
+         $almacen = Almacen::with(['responsable:id,name'])->findOrFail($id);
 
-        $validated = $request->validate([
-            'nombre' => 'required|string|max:100|unique:almacenes,nombre,' . $id,
-            'descripcion' => 'nullable|string|max:1000',
-            'direccion' => 'nullable|string|max:255',
-            'telefono' => 'nullable|string|max:20',
-            'responsable' => 'nullable|string|max:100',
-            'estado' => 'required|in:activo,inactivo',
-        ]);
+         $usuarios = User::select('id', 'name')->orderBy('name')->get();
 
-        $almacen->update($validated);
+         return Inertia::render('Almacenes/Edit', [
+             'almacen' => $almacen,
+             'usuarios' => $usuarios,
+         ]);
+     }
 
-        return redirect()->route('almacenes.index')->with('success', 'Almacen actualizado correctamente.');
-    }
+    /**
+      * Actualiza un almacén existente en la base de datos.
+      */
+     public function update(Request $request, $id)
+     {
+         $almacen = Almacen::findOrFail($id);
+
+         $validated = $request->validate([
+             'nombre' => 'required|string|max:100|unique:almacenes,nombre,' . $id,
+             'descripcion' => 'nullable|string|max:1000',
+             'ubicacion' => 'nullable|string|max:255',
+             'direccion' => 'nullable|string|max:255',
+             'telefono' => 'nullable|string|max:20',
+             'responsable' => 'nullable|integer|exists:users,id',
+             'estado' => 'required|in:activo,inactivo',
+         ]);
+
+         // Convertir responsable vacío a null
+         if (isset($validated['responsable']) && $validated['responsable'] === '') {
+             $validated['responsable'] = null;
+         }
+
+         $almacen->update($validated);
+
+         return redirect()->route('almacenes.index')->with('success', 'Almacen actualizado correctamente.');
+     }
 
     /**
      * Elimina un almacén de la base de datos.
@@ -193,7 +201,7 @@ class AlmacenController extends Controller
     public function export(Request $request)
     {
         try {
-            $query = Almacen::query();
+            $query = Almacen::with(['responsable:id,name']);
 
             // Aplicar los mismos filtros que en index
             if ($search = trim($request->input('search', ''))) {

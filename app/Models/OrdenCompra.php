@@ -89,7 +89,7 @@ class OrdenCompra extends Model
     {
         // Buscar el último número de orden
         $ultimo = self::where('numero_orden', 'like', 'OC-%')
-            ->orderByRaw("CAST(SUBSTRING(numero_orden, 4) AS UNSIGNED) DESC")
+            ->orderByRaw("CAST(SUBSTRING(numero_orden, 4) AS INTEGER) DESC")
             ->first();
 
         if ($ultimo) {

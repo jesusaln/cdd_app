@@ -15,6 +15,7 @@ class Almacen extends Model
     protected $fillable = [
         'nombre',
         'descripcion',
+        'ubicacion',
         'direccion',
         'telefono',
         'responsable',
@@ -41,7 +42,13 @@ class Almacen extends Model
         return $this->hasMany(Inventario::class);
     }
 
-
+    /**
+     * Relación con el usuario responsable
+     */
+    public function responsable()
+    {
+        return $this->belongsTo(User::class, 'responsable', 'id');
+    }
 
     /**
      * Scope para almacenes activos

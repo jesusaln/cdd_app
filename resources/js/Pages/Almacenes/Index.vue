@@ -71,7 +71,7 @@ const conResponsable = computed(() => {
   // Contar almacenes que tienen responsable asignado
   if (almacenesData.value && almacenesData.value.length > 0) {
     return almacenesData.value.filter(almacen =>
-      almacen.responsable && almacen.responsable.trim() !== ''
+      almacen.responsable && almacen.responsable.id
     ).length
   }
   return 0
@@ -81,7 +81,7 @@ const conTelefono = computed(() => {
   // Contar almacenes que tienen teléfono
   if (almacenesData.value && almacenesData.value.length > 0) {
     return almacenesData.value.filter(almacen =>
-      almacen.telefono && almacen.telefono.trim() !== ''
+      almacen.telefono && typeof almacen.telefono === 'string' && almacen.telefono.trim() !== ''
     ).length
   }
   return 0
@@ -121,7 +121,7 @@ const almacenesDocumentos = computed(() => {
     titulo: a.nombre || 'Sin nombre',
     subtitulo: a.direccion ? `Dirección: ${a.direccion.substring(0, 40)}${a.direccion.length > 40 ? '...' : ''}` : 'Sin dirección',
     estado: a.estado || 'activo',
-    extra: `Responsable: ${a.responsable || 'Sin asignar'} • Tel: ${a.telefono || 'N/A'}`,
+    extra: `Responsable: ${a.responsable?.name || 'Sin asignar'} • Tel: ${a.telefono || 'N/A'}`,
     fecha: a.created_at,
     raw: a
   }))
@@ -331,7 +331,7 @@ const obtenerLabelEstado = (estado) => {
                   <div class="text-sm text-gray-700 max-w-xs truncate">{{ almacen.raw.direccion || 'Sin dirección' }}</div>
                 </td>
                 <td class="px-6 py-4">
-                  <div class="text-sm text-gray-700">{{ almacen.raw.responsable || 'Sin asignar' }}</div>
+                  <div class="text-sm text-gray-700">{{ almacen.raw.responsable?.name || 'Sin asignar' }}</div>
                 </td>
                 <td class="px-6 py-4">
                   <span :class="obtenerClasesEstado(almacen.estado)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
@@ -483,7 +483,7 @@ const obtenerLabelEstado = (estado) => {
                   <div class="space-y-3">
                     <div>
                       <label class="block text-sm font-medium text-gray-700">Responsable</label>
-                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedAlmacen.responsable || 'Sin asignar' }}</p>
+                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedAlmacen.responsable?.name || 'Sin asignar' }}</p>
                     </div>
                     <div>
                       <label class="block text-sm font-medium text-gray-700">Teléfono</label>
