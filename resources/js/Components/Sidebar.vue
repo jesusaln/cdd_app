@@ -368,6 +368,38 @@
               Gestión de Herramientas
             </NavLink>
           </div>
+        </div>
+
+        <!-- Taller -->
+        <div class="mb-4">
+          <div
+            @click="toggleAccordion('taller')"
+            class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
+          >
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 9l6-6m0 0v6m0-6h-6M3 12h18M3 12l2-2m0 0l2 2M3 10l2 2m0 0l2-2M21 12l-2 2m0 0l-2-2m2 2l2-2" />
+              </svg>
+              <span>Taller</span>
+            </div>
+            <svg
+              :class="accordionStates.taller ? 'rotate-90' : ''"
+              class="w-3 h-3 transition-transform duration-200"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+          <div v-show="accordionStates.taller" class="mt-2 space-y-1">
+            <NavLink href="/carros" icon="car" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Vehículos' : null">
+              Vehículos
+            </NavLink>
+            <NavLink href="/mantenimientos" icon="wrench" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Mantenimientos' : null">
+              Mantenimientos
+            </NavLink>
+          </div>
         </div><!-- Administración -->
         <div class="mb-4">
           <div

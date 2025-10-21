@@ -65,14 +65,34 @@
                     <label class="block text-gray-700 text-sm font-semibold mb-2">
                         Color <span class="text-red-500">*</span>
                     </label>
-                    <input
+                    <select
                         v-model="form.color"
-                        type="text"
                         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
-                        placeholder="Ej: Rojo, Azul, Blanco"
                         :class="{ 'border-red-500': errors.color }"
                         required
                     >
+                        <option value="">Seleccionar Color</option>
+                        <option value="Blanco">Blanco</option>
+                        <option value="Negro">Negro</option>
+                        <option value="Gris">Gris</option>
+                        <option value="Gris Plata">Gris Plata</option>
+                        <option value="Rojo">Rojo</option>
+                        <option value="Azul">Azul</option>
+                        <option value="Azul Marino">Azul Marino</option>
+                        <option value="Verde">Verde</option>
+                        <option value="Amarillo">Amarillo</option>
+                        <option value="Naranja">Naranja</option>
+                        <option value="Morado">Morado</option>
+                        <option value="Rosa">Rosa</option>
+                        <option value="Marrón">Marrón</option>
+                        <option value="Beige">Beige</option>
+                        <option value="Dorado">Dorado</option>
+                        <option value="Plateado">Plateado</option>
+                        <option value="Bronce">Bronce</option>
+                        <option value="Cobre">Cobre</option>
+                        <option value="Perla">Perla</option>
+                        <option value="Otro">Otro</option>
+                    </select>
                     <p v-if="errors.color" class="text-red-500 text-xs mt-1">{{ errors.color }}</p>
                 </div>
 
@@ -165,6 +185,21 @@
                         :class="{ 'border-red-500': errors.placa }"
                     >
                     <p v-if="errors.placa" class="text-red-500 text-xs mt-1">{{ errors.placa }}</p>
+                </div>
+
+                <!-- Estado -->
+                <div>
+                    <label class="block text-gray-700 text-sm font-semibold mb-2">
+                        Estado
+                    </label>
+                    <select
+                        v-model="form.activo"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
+                    >
+                        <option :value="true">Activo</option>
+                        <option :value="false">Inactivo</option>
+                    </select>
+                    <p v-if="errors.activo" class="text-red-500 text-xs mt-1">{{ errors.activo }}</p>
                 </div>
             </div>
 
@@ -280,6 +315,7 @@ const form = reactive({
     kilometraje: 0,
     placa: '',
     foto: null,
+    activo: true,
 });
 
 const previewImage = ref(null);
@@ -339,6 +375,7 @@ const resetForm = () => {
         kilometraje: 0,
         placa: '',
         foto: null,
+        activo: true,
     });
     previewImage.value = null;
     if (fileInput.value) {
@@ -359,12 +396,14 @@ const submit = async () => {
         Object.keys(form).forEach(key => {
             if (key === 'foto' && form[key]) {
                 formData.append(key, form[key]);
+            } else if (key === 'activo') {
+                formData.append(key, form[key] ? '1' : '0');
             } else if (form[key] !== null && form[key] !== '') {
                 formData.append(key, form[key]);
             }
         });
 
-        await router.post(route('carros.store'), formData, {
+        await router.post('/carros', formData, {
             forceFormData: true,
             onSuccess: (page) => {
                 notyf.success('¡El carro ha sido creado exitosamente!');

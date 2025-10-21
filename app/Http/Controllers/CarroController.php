@@ -30,6 +30,14 @@ class CarroController extends Controller
                 $query->where('combustible', $combustible);
             }
 
+            if ($estado = $request->input('estado')) {
+                if ($estado === '1') {
+                    $query->where('activo', '=', true);
+                } elseif ($estado === '0') {
+                    $query->where('activo', '=', false);
+                }
+            }
+
             // Ordenamiento
             $sortBy = $request->input('sort_by', 'marca');
             $sortDirection = $request->input('sort_direction', 'asc');
@@ -45,13 +53,18 @@ class CarroController extends Controller
             $perPage = min((int) $request->input('per_page', 10), 50);
             $carros = $query->paginate($perPage)->appends($request->query());
 
-            // Estadísticas
+            // Estadísticas mejoradas
             $stats = [
                 'total' => Carro::count(),
+                'activos' => Carro::where('activo', '=', true)->count(),
+                'inactivos' => Carro::where('activo', '=', false)->count(),
                 'gasolina' => Carro::where('combustible', 'Gasolina')->count(),
                 'diesel' => Carro::where('combustible', 'Diésel')->count(),
                 'electrico' => Carro::where('combustible', 'Eléctrico')->count(),
                 'hibrido' => Carro::where('combustible', 'Híbrido')->count(),
+                'nuevos_mes' => Carro::whereMonth('created_at', now()->month)
+                                   ->whereYear('created_at', now()->year)
+                                   ->count(),
             ];
 
             // Mapear fotos
@@ -64,13 +77,21 @@ class CarroController extends Controller
 
             return Inertia::render('Carros/Index', [
                 'carros' => $carros,
-                'stats' => $stats,
+                'estadisticas' => $stats,
                 'filters' => $request->only(['search', 'combustible']),
                 'sorting' => ['sort_by' => $sortBy, 'sort_direction' => $sortDirection],
+                'pagination' => [
+                    'current_page' => $carros->currentPage(),
+                    'last_page' => $carros->lastPage(),
+                    'per_page' => $carros->perPage(),
+                    'from' => $carros->firstItem(),
+                    'to' => $carros->lastItem(),
+                    'total' => $carros->total(),
+                ],
             ]);
         } catch (\Exception $e) {
             \Log::error('Error en CarroController@index: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Error al cargar los carros.');
+            return redirect('/carros')->with('error', 'Error al cargar los carros.');
         }
     }
 
@@ -94,15 +115,21 @@ class CarroController extends Controller
             'kilometraje' => 'required|integer|min:0',
             'placa' => 'nullable|string|max:20',
             'foto' => 'nullable|image|max:2048', // Máximo 2MB
+            'activo' => 'required|boolean',
         ]);
 
         if ($request->hasFile('foto')) {
             $validated['foto'] = $request->file('foto')->store('fotos_carros', 'public');
         }
 
+        // Asegurar que activo sea un booleano estricto
+        if (isset($validated['activo'])) {
+            $validated['activo'] = (bool) $validated['activo'];
+        }
+
         Carro::create($validated);
 
-        return redirect()->route('carros.index')->with('success', 'Carro creado exitosamente.');
+        return redirect('/carros')->with('success', 'Carro creado exitosamente.');
     }
 
     // Mostrar formulario para editar un carro
@@ -129,15 +156,21 @@ class CarroController extends Controller
             'kilometraje' => 'required|integer|min:0',
             'placa' => 'nullable|string|max:20',
             'foto' => 'nullable|image|max:2048', // Máximo 2MB
+            'activo' => 'required|boolean',
         ]);
 
         if ($request->hasFile('foto')) {
             $validated['foto'] = $request->file('foto')->store('fotos_carros', 'public');
         }
 
+        // Asegurar que activo sea un booleano estricto
+        if (isset($validated['activo'])) {
+            $validated['activo'] = (bool) $validated['activo'];
+        }
+
         $carro->update($validated);
 
-        return redirect()->route('carros.index')->with('success', 'Carro actualizado exitosamente.');
+        return redirect('/carros')->with('success', 'Carro actualizado exitosamente.');
     }
 
     // Eliminar un carro
@@ -145,7 +178,7 @@ class CarroController extends Controller
     {
         $carro->delete();
 
-        return redirect()->route('carros.index')->with('success', 'Carro eliminado exitosamente.');
+        return redirect('/carros')->with('success', 'Carro eliminado exitosamente.');
     }
 
     // Exportar carros a CSV
@@ -166,6 +199,22 @@ class CarroController extends Controller
 
             if ($combustible = $request->input('combustible')) {
                 $query->where('combustible', $combustible);
+            }
+
+            if ($estado = $request->input('estado')) {
+                if ($estado === '1') {
+                    $query->where('activo', '=', true);
+                } elseif ($estado === '0') {
+                    $query->where('activo', '=', false);
+                }
+            }
+
+            if ($estado = $request->input('estado')) {
+                if ($estado === '1') {
+                    $query->where('activo', '=', true);
+                } elseif ($estado === '0') {
+                    $query->where('activo', '=', false);
+                }
             }
 
             $carros = $query->get();
@@ -218,7 +267,7 @@ class CarroController extends Controller
             return response()->stream($callback, 200, $headers);
         } catch (\Exception $e) {
             Log::error('Error en exportación de carros: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Error al exportar los carros.');
+            return redirect('/carros')->with('error', 'Error al exportar los carros.');
         }
     }
 }

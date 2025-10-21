@@ -1,6 +1,6 @@
 <!-- /resources/js/Pages/Carros/Index.vue -->
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { Head, router, usePage, Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { Notyf } from 'notyf'
@@ -8,7 +8,41 @@ import 'notyf/notyf.min.css'
 
 defineOptions({ layout: AppLayout })
 
-// Notificaciones
+const props = defineProps({
+  carros: {
+    type: Object,
+    default: () => ({ data: [] })
+  },
+  estadisticas: {
+    type: Object,
+    default: () => ({
+      total: 0,
+      activos: 0,
+      inactivos: 0,
+      gasolina: 0,
+      diesel: 0,
+      electrico: 0,
+      hibrido: 0,
+      nuevos_mes: 0
+    })
+  },
+  filters: {
+    type: Object,
+    default: () => ({})
+  },
+  sorting: {
+    type: Object,
+    default: () => ({ sort_by: 'created_at', sort_direction: 'desc' })
+  },
+  pagination: {
+    type: Object,
+    default: () => ({})
+  }
+})
+
+/* =========================
+   Configuración de notificaciones
+========================= */
 const notyf = new Notyf({
   duration: 4000,
   position: { x: 'right', y: 'top' },
@@ -26,227 +60,575 @@ onMounted(() => {
   if (flash?.error) notyf.error(flash.error)
 })
 
-// Props
-const props = defineProps({
-  carros: { type: [Object, Array], required: true },
-  stats: { type: Object, default: () => ({}) },
-  filters: { type: Object, default: () => ({}) },
-  sorting: { type: Object, default: () => ({ sort_by: 'marca', sort_direction: 'asc' }) },
-})
-
-// Estado UI
+/* =========================
+   Estado local y modal
+========================= */
 const showModal = ref(false)
 const modalMode = ref('details')
 const selectedCarro = ref(null)
 const selectedId = ref(null)
+const loading = ref(false)
 
-// Filtros
-const searchTerm = ref(props.filters?.search ?? '')
-const sortBy = ref('marca-asc')
+/* =========================
+   Filtros, orden y datos
+========================= */
+const searchTerm = ref('')
+const sortBy = ref('fecha-desc')
+const filtroEstado = ref('')
 const filtroCombustible = ref('')
 
-// Paginación
-const perPage = ref(10)
+/* =========================
+   Auditoría segura para el modal
+========================= */
+const auditoriaForModal = computed(() => {
+  const r = selectedCarro.value
+  if (!r) return null
 
-// Header config
-const headerConfig = {
-  module: 'carros',
-  createButtonText: 'Nuevo Carro',
-  searchPlaceholder: 'Buscar por marca, modelo, placa o serie...'
-}
-
-// Datos
-const carrosPaginator = computed(() => props.carros)
-const carrosData = computed(() => carrosPaginator.value?.data || [])
-
-// Estadísticas
-const estadisticas = computed(() => ({
-  total: props.stats?.total ?? 0,
-  gasolina: props.stats?.gasolina ?? 0,
-  diesel: props.stats?.diesel ?? 0,
-  electrico: props.stats?.electrico ?? 0,
-  hibrido: props.stats?.hibrido ?? 0,
-  gasolinaPorcentaje: props.stats?.gasolina > 0 ? Math.round((props.stats.gasolina / props.stats.total) * 100) : 0,
-  dieselPorcentaje: props.stats?.diesel > 0 ? Math.round((props.stats.diesel / props.stats.total) * 100) : 0,
-  electricoPorcentaje: props.stats?.electrico > 0 ? Math.round((props.stats.electrico / props.stats.total) * 100) : 0,
-  hibridoPorcentaje: props.stats?.hibrido > 0 ? Math.round((props.stats.hibrido / props.stats.total) * 100) : 0
-}))
-
-// Transformación de datos
-const carrosDocumentos = computed(() => {
-  return carrosData.value.map(c => ({
-    id: c.id,
-    titulo: `${c.marca} ${c.modelo}`,
-    subtitulo: `Año: ${c.anio} | Color: ${c.color}`,
-    estado: c.combustible || 'Sin combustible',
-    extra: `Precio: $${c.precio} | Km: ${c.kilometraje} | Placa: ${c.placa || 'N/A'}`,
-    fecha: c.created_at,
-    raw: c
-  }))
+  const meta = r.metadata || {}
+  return {
+    creado_por: r.creado_por_nombre || r.created_by_user_name || meta.creado_por || 'N/A',
+    actualizado_por: r.actualizado_por_nombre || r.updated_by_user_name || meta.actualizado_por || 'N/A',
+    eliminado_por: r.eliminado_por_nombre || r.deleted_by_user_name || meta.eliminado_por || null,
+    creado_en: r.created_at || meta.creado_en || null,
+    actualizado_en: r.updated_at || meta.actualizado_en || null,
+    eliminado_en: r.deleted_at || meta.eliminado_en || null,
+  }
 })
 
-// Handlers
-function handleSearchChange(newSearch) {
-  searchTerm.value = newSearch
-  router.get(route('carros.index'), {
-    search: newSearch,
-    sort_by: sortBy.value.split('-')[0],
-    sort_direction: sortBy.value.split('-')[1] || 'asc',
-    combustible: filtroCombustible.value,
-    per_page: perPage.value,
-    page: 1
-  }, { preserveState: true, preserveScroll: true })
-}
+/* =========================
+   Paginación del servidor
+========================= */
+const paginationData = computed(() => ({
+  current_page: props.pagination?.current_page || 1,
+  last_page: props.pagination?.last_page || 1,
+  per_page: props.pagination?.per_page || 10,
+  from: props.pagination?.from || 0,
+  to: props.pagination?.to || 0,
+  total: props.pagination?.total || 0,
+}))
 
-function handleCombustibleChange(newCombustible) {
-  filtroCombustible.value = newCombustible
-  router.get(route('carros.index'), {
+const goToPage = (page) => {
+  const query = {
+    page,
     search: searchTerm.value,
-    sort_by: sortBy.value.split('-')[0],
-    sort_direction: sortBy.value.split('-')[1] || 'asc',
-    combustible: newCombustible,
-    per_page: perPage.value,
-    page: 1
-  }, { preserveState: true, preserveScroll: true })
-}
-
-function handleSortChange(newSort) {
-  sortBy.value = newSort
-  router.get(route('carros.index'), {
-    search: searchTerm.value,
-    sort_by: newSort.split('-')[0],
-    sort_direction: newSort.split('-')[1] || 'asc',
+    estado: filtroEstado.value,
     combustible: filtroCombustible.value,
-    per_page: perPage.value,
-    page: 1
-  }, { preserveState: true, preserveScroll: true })
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc'
+  }
+  router.visit('/carros', { data: query })
 }
 
-const verDetalles = (doc) => {
-  selectedCarro.value = doc.raw
-  modalMode.value = 'details'
-  showModal.value = true
+const nextPage = () => {
+  const currentPage = props.pagination?.current_page || 1
+  const lastPage = props.pagination?.last_page || 1
+
+  if (currentPage < lastPage) {
+    goToPage(currentPage + 1)
+  }
+}
+
+const prevPage = () => {
+  const currentPage = props.pagination?.current_page || 1
+
+  if (currentPage > 1) {
+    goToPage(currentPage - 1)
+  }
+}
+
+const handleLimpiarFiltros = () => {
+  searchTerm.value = ''
+  sortBy.value = 'fecha-desc'
+  filtroEstado.value = ''
+  filtroCombustible.value = ''
+  router.visit('/carros')
+  notyf.success('Filtros limpiados correctamente')
+}
+
+const updateSort = (newSort) => {
+  if (newSort && typeof newSort === 'string') {
+    sortBy.value = newSort
+    const query = {
+      sort_by: newSort.split('-')[0],
+      sort_direction: newSort.split('-')[1] || 'desc',
+      search: searchTerm.value,
+      estado: filtroEstado.value,
+      combustible: filtroCombustible.value
+    }
+    router.visit('/carros', { data: query })
+  }
+}
+
+const changePerPage = (event) => {
+  const perPage = event.target.value
+  const query = {
+    per_page: perPage,
+    search: searchTerm.value,
+    estado: filtroEstado.value,
+    combustible: filtroCombustible.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc'
+  }
+  router.visit('/carros', { data: query })
+}
+
+const handleSearch = () => {
+  const query = {
+    search: searchTerm.value,
+    estado: filtroEstado.value,
+    combustible: filtroCombustible.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc'
+  }
+  router.visit('/carros', { data: query })
+}
+
+const handleFilter = () => {
+  const query = {
+    search: searchTerm.value,
+    estado: filtroEstado.value,
+    combustible: filtroCombustible.value,
+    sort_by: sortBy.value.split('-')[0],
+    sort_direction: sortBy.value.split('-')[1] || 'desc'
+  }
+  router.visit('/carros', { data: query })
+}
+
+/* =========================
+   Validaciones y utilidades
+========================= */
+function validarCarro(carro) {
+  if (!carro?.id) {
+    throw new Error('ID de carro no válido')
+  }
+  return true
+}
+
+/* =========================
+   Acciones CRUD
+========================= */
+const verDetalles = (carro) => {
+  try {
+    validarCarro(carro)
+    selectedCarro.value = carro
+    modalMode.value = 'details'
+    showModal.value = true
+  } catch (error) {
+    notyf.error(error.message)
+  }
 }
 
 const editarCarro = (id) => {
-  router.visit(route('carros.edit', id))
+  try {
+    const carroId = id || selectedCarro.value?.id
+    if (!carroId) throw new Error('ID de carro no válido')
+
+    router.visit(`/carros/${carroId}/edit`)
+  } catch (error) {
+    notyf.error(error.message)
+  }
 }
 
-const confirmarEliminacion = (id) => {
-  selectedId.value = id
-  modalMode.value = 'confirm'
-  showModal.value = true
+const confirmarEliminacion = async (carro) => {
+  try {
+    if (!carro?.id) throw new Error('ID de carro no válido')
+
+    selectedId.value = carro.id
+    modalMode.value = 'confirm'
+    showModal.value = true
+  } catch (error) {
+    notyf.error(error.message)
+  }
 }
 
-const eliminarCarro = () => {
-  router.delete(route('carros.destroy', selectedId.value), {
-    preserveScroll: true,
-    onSuccess: () => {
-      notyf.success('Carro eliminado correctamente')
-      showModal.value = false
-      selectedId.value = null
-      router.reload()
-    },
-    onError: (errors) => {
-      notyf.error('No se pudo eliminar el carro')
-    }
-  })
+const eliminarCarro = async () => {
+  try {
+    if (!selectedId.value) throw new Error('No se seleccionó ningún carro')
+
+    loading.value = true
+
+    router.delete(route('carros.destroy', selectedId.value), {}, {
+      onStart: () => {
+        notyf.success('Eliminando carro...')
+      },
+      onSuccess: (response) => {
+        notyf.success('Carro eliminado exitosamente')
+        showModal.value = false
+        selectedId.value = null
+      },
+      onError: (errors) => {
+        console.error('Error al eliminar:', errors)
+        notyf.error('Error al eliminar el carro')
+      },
+      onFinish: () => {
+        loading.value = false
+      }
+    })
+  } catch (error) {
+    notyf.error(error.message)
+    loading.value = false
+  }
+}
+
+const crearNuevoCarro = () => {
+  router.visit('/carros/create')
 }
 
 const exportCarros = () => {
   const params = new URLSearchParams()
   if (searchTerm.value) params.append('search', searchTerm.value)
   if (filtroCombustible.value) params.append('combustible', filtroCombustible.value)
+  if (filtroEstado.value) params.append('estado', filtroEstado.value)
   const queryString = params.toString()
-  const url = route('carros.export') + (queryString ? `?${queryString}` : '')
+  const url = '/carros/export' + (queryString ? `?${queryString}` : '')
   window.location.href = url
 }
 
-// Paginación
-const paginationData = computed(() => ({
-  current_page: carrosPaginator.value?.current_page || 1,
-  last_page: carrosPaginator.value?.last_page || 1,
-  per_page: carrosPaginator.value?.per_page || 10,
-  from: carrosPaginator.value?.from || 0,
-  to: carrosPaginator.value?.to || 0,
-  total: carrosPaginator.value?.total || 0,
-  prev_page_url: carrosPaginator.value?.prev_page_url,
-  next_page_url: carrosPaginator.value?.next_page_url,
-  links: carrosPaginator.value?.links || []
-}))
+// Estadísticas con porcentajes para carros
+const estadisticasConPorcentaje = computed(() => {
+  const total = estadisticas.value.total || 1;
 
-const handlePerPageChange = (newPerPage) => {
-  router.get(route('carros.index'), {
-    ...props.filters,
-    ...props.sorting,
-    per_page: newPerPage,
-    page: 1
-  }, { preserveState: true, preserveScroll: true })
+  return {
+    activos: { ...{ label: 'Activos', icon: 'check-circle', color: 'green', description: 'Vehículos activos' }, porcentaje: Math.round(((estadisticas.value.activos || 0) / total) * 100) },
+    inactivos: { ...{ label: 'Inactivos', icon: 'x-circle', color: 'red', description: 'Vehículos inactivos' }, porcentaje: Math.round(((estadisticas.value.inactivos || 0) / total) * 100) },
+    gasolina: { ...{ label: 'Gasolina', icon: 'gas-pump', color: 'blue', description: 'Vehículos a gasolina' }, porcentaje: Math.round(((estadisticas.value.gasolina || 0) / total) * 100) },
+    diesel: { ...{ label: 'Diésel', icon: 'truck', color: 'green', description: 'Vehículos diésel' }, porcentaje: Math.round(((estadisticas.value.diesel || 0) / total) * 100) },
+  };
+})
+
+// Variables para la tabla
+const showTooltip = ref(false)
+const hoveredCarro = ref(null)
+const tooltipPosition = ref({ x: 0, y: 0 })
+let tooltipTimeout = null
+
+// Tooltip optimizado
+const showCarroTooltip = (carro, event) => {
+  if (!carro) return;
+  clearTimeout(tooltipTimeout);
+  hoveredCarro.value = carro;
+  updateTooltipPosition(event);
+  tooltipTimeout = setTimeout(() => { showTooltip.value = true; }, 500);
 }
 
-const handlePageChange = (newPage) => {
-  router.get(route('carros.index'), {
-    ...props.filters,
-    ...props.sorting,
-    page: newPage
-  }, { preserveState: true, preserveScroll: true })
+const hideCarroTooltip = () => {
+  clearTimeout(tooltipTimeout);
+  tooltipTimeout = setTimeout(() => {
+    showTooltip.value = false;
+    hoveredCarro.value = null;
+  }, 300);
 }
 
-// Helpers
-const formatNumber = (num) => new Intl.NumberFormat('es-ES').format(num)
+const clearHideTimeout = () => {
+  clearTimeout(tooltipTimeout);
+}
+
+const updateTooltipPosition = (event) => {
+  tooltipPosition.value = { x: event.clientX, y: event.clientY };
+}
+
+// Tooltip style computed
+const tooltipStyle = computed(() => {
+  const OFFSET = 20, TOOLTIP_WIDTH = 320, TOOLTIP_HEIGHT = 384, VIEWPORT_PADDING = 16;
+  const { w, h } = getViewport();
+
+  let x = tooltipPosition.value.x + OFFSET;
+  let y = tooltipPosition.value.y - (TOOLTIP_HEIGHT / 2);
+
+  if (x + TOOLTIP_WIDTH > w - VIEWPORT_PADDING) x = tooltipPosition.value.x - TOOLTIP_WIDTH - OFFSET;
+  if (x < VIEWPORT_PADDING) x = VIEWPORT_PADDING;
+  if (y < VIEWPORT_PADDING) y = VIEWPORT_PADDING;
+  else if (y + TOOLTIP_HEIGHT > h - VIEWPORT_PADDING) y = h - TOOLTIP_HEIGHT - VIEWPORT_PADDING;
+
+  return {
+    left: `${x}px`,
+    top: `${y}px`,
+    transform: showTooltip.value ? 'scale(1) translateY(0)' : 'scale(0.95) translateY(-10px)',
+    opacity: showTooltip.value ? '1' : '0'
+  };
+})
+
+const getViewport = () => {
+  if (typeof window === 'undefined') return { w: 1280, h: 800 };
+  return { w: window.innerWidth, h: window.innerHeight };
+}
+
+// Cache de formatos para mejor rendimiento
+const formatCache = new Map();
+
 const formatearFecha = (date) => {
-  if (!date) return 'Fecha no disponible'
+  if (!date) return 'Fecha no disponible';
+  const cacheKey = `fecha-${date}`;
+  if (formatCache.has(cacheKey)) return formatCache.get(cacheKey);
+
   try {
-    const d = new Date(date)
-    return d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    const time = new Date(date).getTime();
+    if (Number.isNaN(time)) return 'Fecha inválida';
+    const formatted = new Date(time).toLocaleDateString('es-MX', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+    formatCache.set(cacheKey, formatted);
+    return formatted;
   } catch {
-    return 'Fecha inválida'
+    return 'Fecha inválida';
   }
+}
+
+const formatearHora = (date) => {
+  if (!date) return '';
+  const cacheKey = `hora-${date}`;
+  if (formatCache.has(cacheKey)) return formatCache.get(cacheKey);
+
+  try {
+    const time = new Date(date).getTime();
+    if (Number.isNaN(time)) return '';
+    const formatted = new Date(time).toLocaleTimeString('es-MX', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    formatCache.set(cacheKey, formatted);
+    return formatted;
+  } catch {
+    return '';
+  }
+}
+
+const formatearMoneda = (num) => {
+  const value = parseFloat(num);
+  const safe = Number.isFinite(value) ? value : 0;
+  const cacheKey = `moneda-${safe}`;
+  if (formatCache.has(cacheKey)) return formatCache.get(cacheKey);
+
+  const formatted = new Intl.NumberFormat('es-MX', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(safe);
+  formatCache.set(cacheKey, formatted);
+  return formatted;
+}
+
+// Configuración de estados para carros
+const configEstados = {
+  'activo': {
+    label: 'Activo',
+    classes: 'bg-green-100 text-green-700',
+    color: 'bg-green-400'
+  },
+  'inactivo': {
+    label: 'Inactivo',
+    classes: 'bg-red-100 text-red-700',
+    color: 'bg-red-400'
+  }
+};
+
+const configCombustible = {
+  'Gasolina': {
+    label: 'Gasolina',
+    classes: 'bg-blue-100 text-blue-700',
+    color: 'bg-blue-400'
+  },
+  'Diésel': {
+    label: 'Diésel',
+    classes: 'bg-green-100 text-green-700',
+    color: 'bg-green-400'
+  },
+  'Eléctrico': {
+    label: 'Eléctrico',
+    classes: 'bg-yellow-100 text-yellow-700',
+    color: 'bg-yellow-400'
+  },
+  'Híbrido': {
+    label: 'Híbrido',
+    classes: 'bg-purple-100 text-purple-700',
+    color: 'bg-purple-400'
+  }
+};
+
+const obtenerClasesEstado = (estado) => {
+  return configEstados[estado]?.classes || 'bg-gray-100 text-gray-700';
+}
+
+const obtenerColorPuntoEstado = (estado) => {
+  return configEstados[estado]?.color || 'bg-gray-400';
+}
+
+const obtenerLabelEstado = (estado) => {
+  return configEstados[estado]?.label || 'Pendiente';
 }
 
 const obtenerClasesCombustible = (combustible) => {
-  const clases = {
-    'Gasolina': 'bg-blue-100 text-blue-700',
-    'Diésel': 'bg-green-100 text-green-700',
-    'Eléctrico': 'bg-yellow-100 text-yellow-700',
-    'Híbrido': 'bg-purple-100 text-purple-700'
-  }
-  return clases[combustible] || 'bg-gray-100 text-gray-700'
+  return configCombustible[combustible]?.classes || 'bg-gray-100 text-gray-700';
+}
+
+const obtenerColorCombustible = (combustible) => {
+  return configCombustible[combustible]?.color || 'bg-gray-400';
 }
 
 const obtenerLabelCombustible = (combustible) => {
-  const labels = {
-    'Gasolina': 'Gasolina',
-    'Diésel': 'Diésel',
-    'Eléctrico': 'Eléctrico',
-    'Híbrido': 'Híbrido'
+  return configCombustible[combustible]?.label || 'Sin combustible';
+}
+
+// Items filtrados y ordenados
+const items = computed(() => {
+  if (!Array.isArray(props.carros.data)) {
+    return [];
   }
-  return labels[combustible] || 'Sin combustible'
+
+  let filtered = props.carros.data.slice();
+
+  // Filtro de búsqueda
+  if (searchTerm.value) {
+    const term = searchTerm.value.toLowerCase().trim();
+    filtered = filtered.filter(carro => {
+      const marca = carro.marca?.toLowerCase() || '';
+      const modelo = carro.modelo?.toLowerCase() || '';
+      const placa = carro.placa?.toLowerCase() || '';
+      const serie = carro.numero_serie?.toLowerCase() || '';
+
+      return marca.includes(term) ||
+             modelo.includes(term) ||
+             placa.includes(term) ||
+             serie.includes(term);
+    });
+  }
+
+  // Filtro de estado
+  if (filtroEstado.value) {
+    filtered = filtered.filter(carro => {
+      if (filtroEstado.value === '1') return carro.activo === true || carro.activo === null;
+      if (filtroEstado.value === '0') return carro.activo === false;
+      return true;
+    });
+  }
+
+  // Filtro de combustible
+  if (filtroCombustible.value) {
+    filtered = filtered.filter(carro => {
+      return carro.combustible === filtroCombustible.value;
+    });
+  }
+
+  // Ordenamiento
+  if (sortBy.value) {
+    const [field, direction] = sortBy.value.split('-');
+
+    filtered.sort((a, b) => {
+      let aVal, bVal;
+
+      switch (field) {
+        case 'fecha':
+          aVal = new Date(a.created_at || a.fecha).getTime() || 0;
+          bVal = new Date(b.created_at || b.fecha).getTime() || 0;
+          break;
+        case 'marca':
+          aVal = (a.marca || '').toLowerCase();
+          bVal = (b.marca || '').toLowerCase();
+          break;
+        case 'modelo':
+          aVal = (a.modelo || '').toLowerCase();
+          bVal = (b.modelo || '').toLowerCase();
+          break;
+        case 'anio':
+          aVal = parseInt(a.anio) || 0;
+          bVal = parseInt(b.anio) || 0;
+          break;
+        case 'precio':
+          aVal = parseFloat(a.precio) || 0;
+          bVal = parseFloat(b.precio) || 0;
+          break;
+        case 'kilometraje':
+          aVal = parseInt(a.kilometraje) || 0;
+          bVal = parseInt(b.kilometraje) || 0;
+          break;
+        case 'estado':
+          aVal = obtenerLabelEstado(a.activo ? 'activo' : 'inactivo').toLowerCase();
+          bVal = obtenerLabelEstado(b.activo ? 'activo' : 'inactivo').toLowerCase();
+          break;
+        case 'combustible':
+          aVal = obtenerLabelCombustible(a.combustible || '').toLowerCase();
+          bVal = obtenerLabelCombustible(b.combustible || '').toLowerCase();
+          break;
+        default:
+          aVal = (a[field] || '').toString().toLowerCase();
+          bVal = (b[field] || '').toString().toLowerCase();
+      }
+
+      const comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+      return direction === 'desc' ? -comparison : comparison;
+    });
+  }
+
+  return filtered;
+});
+
+// Sort function
+const onSort = (field) => {
+  const current = sortBy.value.startsWith(field) ? sortBy.value : `${field}-desc`;
+  const newOrder = current === `${field}-desc` ? `${field}-asc` : `${field}-desc`;
+  updateSort(newOrder);
+}
+
+// Funciones para Modal
+const modalRef = ref(null)
+
+const focusFirst = () => { try { modalRef.value?.focus() } catch {} }
+watch(() => showModal, (v) => { if (v) setTimeout(focusFirst, 0) })
+
+const onKey = (e) => { if (e.key === 'Escape' && showModal.value) onClose() }
+onMounted(() => window.addEventListener('keydown', onKey))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
+
+const onCancel = () => { showModal.value = false; selectedCarro.value = null; selectedId.value = null; }
+const onConfirm = () => { eliminarCarro() }
+const onClose = () => { showModal.value = false; selectedCarro.value = null; selectedId.value = null; }
+const onEditarFila = () => { editarCarro(selectedCarro.value?.id) }
+
+const hayFiltrosActivos = computed(() => !!searchTerm.value || !!filtroEstado.value || !!filtroCombustible.value)
+
+const limpiarFiltros = () => {
+  searchTerm.value = ''
+  sortBy.value = 'fecha-desc'
+  filtroEstado.value = ''
+  filtroCombustible.value = ''
+  handleLimpiarFiltros()
+}
+
+// Helper functions
+const isNumber = (n) => Number.isFinite(parseFloat(n))
+
+// Función para formatear números
+const formatNumber = (num) => {
+  const value = parseFloat(num);
+  return Number.isFinite(value) ? new Intl.NumberFormat('es-ES').format(value) : '0';
 }
 </script>
 
 <template>
-  <Head title="Carros" />
+  <Head title="Vehículos" />
+
   <div class="carros-index min-h-screen bg-gray-50">
+    <!-- Contenido principal -->
     <div class="max-w-8xl mx-auto px-6 py-8">
-      <!-- Header -->
-      <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-8 mb-6">
+      <!-- Header específico de vehículos -->
+      <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-8 mb-6">
         <div class="flex flex-col lg:flex-row gap-8 items-start lg:items-center justify-between">
           <!-- Izquierda -->
           <div class="flex flex-col gap-6 w-full lg:w-auto">
             <div class="flex items-center gap-3">
-              <h1 class="text-2xl font-bold text-slate-900">Carros</h1>
+              <h1 class="text-2xl font-bold text-gray-900">Vehículos</h1>
             </div>
 
             <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
               <Link
-                :href="route('carros.create')"
+                href="/carros/create"
                 class="inline-flex items-center gap-2.5 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg"
               >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                 </svg>
-                <span>{{ headerConfig.createButtonText }}</span>
+                <span>Nuevo Vehículo</span>
               </Link>
 
               <button
@@ -260,31 +642,35 @@ const obtenerLabelCombustible = (combustible) => {
               </button>
             </div>
 
-            <!-- Estadísticas con barras de progreso -->
-            <div class="flex flex-wrap items-center gap-4 text-sm">
-              <div class="flex items-center gap-2 px-4 py-3 bg-slate-50 rounded-xl border border-slate-200">
-                <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <!-- Estadísticas mejoradas -->
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              <div class="flex items-center gap-2 px-4 py-3 bg-gray-50 rounded-xl border border-gray-200">
+                <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <span class="font-medium text-slate-700">Total:</span>
-                <span class="font-bold text-slate-900 text-lg">{{ formatNumber(estadisticas.total) }}</span>
+                <div class="flex flex-col">
+                  <span class="font-medium text-gray-700 text-sm">Total</span>
+                  <span class="font-bold text-gray-900 text-lg">{{ formatNumber(estadisticas.total) }}</span>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2 px-4 py-3 bg-green-50 rounded-xl border border-green-200">
+                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div class="flex flex-col">
+                  <span class="font-medium text-gray-700 text-sm">Activos</span>
+                  <span class="font-bold text-green-700 text-lg">{{ formatNumber(estadisticas.activos) }}</span>
+                </div>
               </div>
 
               <div class="flex items-center gap-2 px-4 py-3 bg-blue-50 rounded-xl border border-blue-200">
                 <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5a2 2 0 012-2h4a2 2 0 012 2v2H8V5z" />
                 </svg>
-                <span class="font-medium text-slate-700">Gasolina:</span>
-                <span class="font-bold text-blue-700 text-lg">{{ formatNumber(estadisticas.gasolina) }}</span>
-                <div class="ml-2 flex items-center gap-2">
-                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      class="h-full bg-blue-500 transition-all duration-300"
-                      :style="{ width: estadisticas.gasolinaPorcentaje + '%' }"
-                    ></div>
-                  </div>
-                  <span class="text-xs text-blue-600 font-medium">{{ estadisticas.gasolinaPorcentaje }}%</span>
+                <div class="flex flex-col">
+                  <span class="font-medium text-gray-700 text-sm">Gasolina</span>
+                  <span class="font-bold text-blue-700 text-lg">{{ formatNumber(estadisticas.gasolina) }}</span>
                 </div>
               </div>
 
@@ -292,16 +678,9 @@ const obtenerLabelCombustible = (combustible) => {
                 <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
-                <span class="font-medium text-slate-700">Diésel:</span>
-                <span class="font-bold text-green-700 text-lg">{{ formatNumber(estadisticas.diesel) }}</span>
-                <div class="ml-2 flex items-center gap-2">
-                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      class="h-full bg-green-500 transition-all duration-300"
-                      :style="{ width: estadisticas.dieselPorcentaje + '%' }"
-                    ></div>
-                  </div>
-                  <span class="text-xs text-green-600 font-medium">{{ estadisticas.dieselPorcentaje }}%</span>
+                <div class="flex flex-col">
+                  <span class="font-medium text-gray-700 text-sm">Diésel</span>
+                  <span class="font-bold text-green-700 text-lg">{{ formatNumber(estadisticas.diesel) }}</span>
                 </div>
               </div>
 
@@ -309,16 +688,9 @@ const obtenerLabelCombustible = (combustible) => {
                 <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
-                <span class="font-medium text-slate-700">Eléctrico:</span>
-                <span class="font-bold text-yellow-700 text-lg">{{ formatNumber(estadisticas.electrico) }}</span>
-                <div class="ml-2 flex items-center gap-2">
-                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      class="h-full bg-yellow-500 transition-all duration-300"
-                      :style="{ width: estadisticas.electricoPorcentaje + '%' }"
-                    ></div>
-                  </div>
-                  <span class="text-xs text-yellow-600 font-medium">{{ estadisticas.electricoPorcentaje }}%</span>
+                <div class="flex flex-col">
+                  <span class="font-medium text-gray-700 text-sm">Eléctrico</span>
+                  <span class="font-bold text-yellow-700 text-lg">{{ formatNumber(estadisticas.electrico) }}</span>
                 </div>
               </div>
 
@@ -326,16 +698,9 @@ const obtenerLabelCombustible = (combustible) => {
                 <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
-                <span class="font-medium text-slate-700">Híbrido:</span>
-                <span class="font-bold text-purple-700 text-lg">{{ formatNumber(estadisticas.hibrido) }}</span>
-                <div class="ml-2 flex items-center gap-2">
-                  <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      class="h-full bg-purple-500 transition-all duration-300"
-                      :style="{ width: estadisticas.hibridoPorcentaje + '%' }"
-                    ></div>
-                  </div>
-                  <span class="text-xs text-purple-600 font-medium">{{ estadisticas.hibridoPorcentaje }}%</span>
+                <div class="flex flex-col">
+                  <span class="font-medium text-gray-700 text-sm">Híbrido</span>
+                  <span class="font-bold text-purple-700 text-lg">{{ formatNumber(estadisticas.hibrido) }}</span>
                 </div>
               </div>
             </div>
@@ -347,21 +712,32 @@ const obtenerLabelCombustible = (combustible) => {
             <div class="relative">
               <input
                 v-model="searchTerm"
-                @input="handleSearchChange($event.target.value)"
+                @input="handleSearch"
                 type="text"
-                :placeholder="headerConfig.searchPlaceholder"
-                class="w-full sm:w-64 lg:w-80 pl-4 pr-10 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+                placeholder="Buscar por marca, modelo, placa..."
+                class="w-full sm:w-64 lg:w-80 pl-4 pr-10 py-3 border border-gray-300 rounded-xl bg-white text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
               />
-              <svg class="absolute right-3 top-3.5 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="absolute right-3 top-3.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
 
+            <!-- Estado -->
+            <select
+              v-model="filtroEstado"
+              @change="handleFilter"
+              class="px-4 py-3 border border-gray-300 rounded-xl bg-white text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+            >
+              <option value="">Todos los Estados</option>
+              <option value="1">Activos</option>
+              <option value="0">Inactivos</option>
+            </select>
+
             <!-- Combustible -->
             <select
               v-model="filtroCombustible"
-              @change="handleCombustibleChange($event.target.value)"
-              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+              @change="handleFilter"
+              class="px-4 py-3 border border-gray-300 rounded-xl bg-white text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
             >
               <option value="">Todos los Combustibles</option>
               <option value="Gasolina">Gasolina</option>
@@ -370,270 +746,394 @@ const obtenerLabelCombustible = (combustible) => {
               <option value="Híbrido">Híbrido</option>
             </select>
 
-            <!-- Orden -->
-            <select
-              v-model="sortBy"
-              @change="handleSortChange($event.target.value)"
-              class="px-4 py-3 border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200"
+            <!-- Limpiar filtros -->
+            <button
+              v-if="hayFiltrosActivos"
+              @click="limpiarFiltros"
+              class="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all duration-200 border border-gray-300"
             >
-              <option value="marca-asc">Marca A-Z</option>
-              <option value="marca-desc">Marca Z-A</option>
-              <option value="modelo-asc">Modelo A-Z</option>
-              <option value="modelo-desc">Modelo Z-A</option>
-              <option value="anio-desc">Año Más Reciente</option>
-              <option value="anio-asc">Año Más Antiguo</option>
-              <option value="precio-desc">Precio Mayor</option>
-              <option value="precio-asc">Precio Menor</option>
-              <option value="created_at-desc">Más Recientes</option>
-              <option value="created_at-asc">Más Antiguos</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tabla -->
-      <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Fecha</th>
-                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Vehículo</th>
-                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Año</th>
-                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Precio</th>
-                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Kilometraje</th>
-                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Combustible</th>
-                <th class="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Acciones</th>
-              </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <tr v-for="carro in carrosDocumentos" :key="carro.id" class="hover:bg-gray-50 transition-colors duration-150">
-                <td class="px-6 py-4">
-                  <div class="text-sm text-gray-900">{{ formatearFecha(carro.fecha) }}</div>
-                </td>
-                <td class="px-6 py-4">
-                  <div class="text-sm font-medium text-gray-900">{{ carro.titulo }}</div>
-                  <div class="text-sm text-gray-500">{{ carro.subtitulo }}</div>
-                </td>
-                <td class="px-6 py-4">
-                  <div class="text-sm text-gray-700">{{ carro.raw.anio }}</div>
-                </td>
-                <td class="px-6 py-4">
-                  <div class="text-sm text-gray-700">${{ formatNumber(carro.raw.precio) }}</div>
-                </td>
-                <td class="px-6 py-4">
-                  <div class="text-sm text-gray-700">{{ formatNumber(carro.raw.kilometraje) }} km</div>
-                </td>
-                <td class="px-6 py-4">
-                  <span :class="obtenerClasesCombustible(carro.estado)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
-                    {{ obtenerLabelCombustible(carro.estado) }}
-                  </span>
-                </td>
-                <td class="px-6 py-4 text-right">
-                  <div class="flex items-center justify-end space-x-1">
-                    <button @click="verDetalles(carro)" class="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors duration-150" title="Ver detalles">
-                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                    </button>
-                    <button @click="editarCarro(carro.id)" class="w-8 h-8 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-colors duration-150" title="Editar">
-                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                    <button @click="confirmarEliminacion(carro.id)" class="w-8 h-8 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors duration-150" title="Eliminar">
-                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-              <tr v-if="carrosDocumentos.length === 0">
-                <td colspan="7" class="px-6 py-16 text-center">
-                  <div class="flex flex-col items-center space-y-4">
-                    <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                      <svg class="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                    </div>
-                    <div class="space-y-1">
-                      <p class="text-gray-700 font-medium">No hay carros</p>
-                      <p class="text-sm text-gray-500">Los carros aparecerán aquí cuando se creen</p>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Paginación -->
-        <div v-if="paginationData.lastPage > 1" class="bg-white border-t border-gray-200 px-4 py-3 sm:px-6">
-          <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div class="flex items-center gap-4">
-              <p class="text-sm text-gray-700">
-                Mostrando {{ paginationData.from }} - {{ paginationData.to }} de {{ paginationData.total }} resultados
-              </p>
-              <select
-                :value="paginationData.perPage"
-                @change="handlePerPageChange(parseInt($event.target.value))"
-                class="border border-gray-300 rounded-md text-sm py-1 px-2 bg-white"
-              >
-                <option value="10">10</option>
-                <option value="15">15</option>
-                <option value="25">25</option>
-                <option value="50">50</option>
-              </select>
-            </div>
-
-            <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-              <button
-                v-if="paginationData.prevPageUrl"
-                @click="handlePageChange(paginationData.currentPage - 1)"
-                class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
-              >
-                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
-                </svg>
-              </button>
-
-              <span v-else class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-gray-100 text-sm font-medium text-gray-400">
-                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
-                </svg>
-              </span>
-
-              <button
-                v-for="page in [paginationData.currentPage - 1, paginationData.currentPage, paginationData.currentPage + 1].filter(p => p > 0 && p <= paginationData.lastPage)"
-                :key="page"
-                @click="handlePageChange(page)"
-                :class="page === paginationData.currentPage ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'"
-                class="relative inline-flex items-center px-4 py-2 border text-sm font-medium"
-              >
-                {{ page }}
-              </button>
-
-              <button
-                v-if="paginationData.nextPageUrl"
-                @click="handlePageChange(paginationData.currentPage + 1)"
-                class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
-              >
-                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                </svg>
-              </button>
-
-              <span v-else class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-gray-100 text-sm font-medium text-gray-400">
-                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                </svg>
-              </span>
-            </nav>
-          </div>
-        </div>
-      </div>
-
-      <!-- Modal mejorado -->
-      <div v-if="showModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="showModal = false">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-          <!-- Header del modal -->
-          <div class="flex items-center justify-between p-6 border-b border-gray-200">
-            <h3 class="text-lg font-medium text-gray-900">
-              {{ modalMode === 'details' ? 'Detalles del Carro' : 'Confirmar Eliminación' }}
-            </h3>
-            <button @click="showModal = false" class="text-gray-400 hover:text-gray-600 transition-colors">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
+        </div>
+      </div>
 
-          <div class="p-6">
-            <div v-if="modalMode === 'details' && selectedCarro">
-              <div class="space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div class="space-y-3">
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700">Marca</label>
-                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedCarro.marca }}</p>
-                    </div>
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700">Modelo</label>
-                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedCarro.modelo }}</p>
-                    </div>
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700">Año</label>
-                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedCarro.anio }}</p>
-                    </div>
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700">Color</label>
-                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedCarro.color }}</p>
-                    </div>
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700">Combustible</label>
-                      <span :class="obtenerClasesCombustible(selectedCarro.combustible)" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium mt-1">
-                        {{ obtenerLabelCombustible(selectedCarro.combustible) }}
-                      </span>
-                    </div>
-                  </div>
-                  <div class="space-y-3">
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700">Precio</label>
-                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">${{ formatNumber(selectedCarro.precio) }}</p>
-                    </div>
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700">Número de Serie</label>
-                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedCarro.numero_serie }}</p>
-                    </div>
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700">Kilometraje</label>
-                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ formatNumber(selectedCarro.kilometraje) }} km</p>
-                    </div>
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700">Placa</label>
-                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ selectedCarro.placa || 'N/A' }}</p>
-                    </div>
-                    <div>
-                      <label class="block text-sm font-medium text-gray-700">Fecha de Creación</label>
-                      <p class="mt-1 text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ formatearFecha(selectedCarro.created_at) }}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+      <!-- Información de paginación -->
+      <div class="flex justify-between items-center mb-4 text-sm text-gray-600">
+        <div>
+          Mostrando {{ paginationData.from }} - {{ paginationData.to }} de {{ paginationData.total }} vehículos
+        </div>
+        <div class="flex items-center space-x-2">
+          <span>Elementos por página:</span>
+          <select
+            :value="paginationData.per_page"
+            @change="changePerPage"
+            class="border border-gray-300 rounded px-2 py-1 text-sm"
+          >
+            <option value="10">10</option>
+            <option value="15">15</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+      </div>
 
-            <div v-if="modalMode === 'confirm'">
-              <div class="text-center">
-                <div class="w-12 h-12 mx-auto bg-red-100 rounded-full flex items-center justify-center mb-4">
-                  <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
-                  </svg>
-                </div>
-                <h3 class="text-lg font-medium text-gray-900 mb-2">¿Eliminar Carro?</h3>
-                <p class="text-sm text-gray-500 mb-4">
-                  ¿Estás seguro de que deseas eliminar el carro <strong>{{ selectedCarro?.marca }} {{ selectedCarro?.modelo }}</strong>?
-                  Esta acción no se puede deshacer.
-                </p>
+      <!-- Tabla de vehículos -->
+      <div class="mt-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <!-- Header -->
+          <div class="bg-gradient-to-r from-gray-50 to-gray-100/50 px-6 py-4 border-b border-gray-200/60">
+            <div class="flex items-center justify-between">
+              <h2 class="text-lg font-semibold text-gray-900 tracking-tight">Lista de Vehículos</h2>
+              <div class="text-sm text-gray-600 bg-white/70 px-3 py-1 rounded-full border border-gray-200/50">
+                {{ items.length }} de {{ paginationData.total }} vehículos
               </div>
             </div>
           </div>
 
-          <!-- Footer del modal -->
-          <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
-            <button @click="showModal = false" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
-              {{ modalMode === 'details' ? 'Cerrar' : 'Cancelar' }}
-            </button>
-            <div v-if="modalMode === 'details'" class="flex gap-2">
-              <button @click="editarCarro(selectedCarro.id)" class="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors">
-                Editar
+          <!-- Table -->
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200/60">
+              <thead class="bg-gray-50/60">
+                <tr>
+                  <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <button @click="onSort('fecha')" class="flex items-center gap-1 hover:text-gray-900">
+                      Fecha
+                      <svg class="w-3 h-3" :class="sortBy.startsWith('fecha') ? 'text-blue-600' : 'text-gray-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                      </svg>
+                    </button>
+                  </th>
+                  <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <button @click="onSort('marca')" class="flex items-center gap-1 hover:text-gray-900">
+                      Vehículo
+                      <svg class="w-3 h-3" :class="sortBy.startsWith('marca') ? 'text-blue-600' : 'text-gray-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                      </svg>
+                    </button>
+                  </th>
+                  <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Año</th>
+                  <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Precio</th>
+                  <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Kilometraje</th>
+                  <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Estado</th>
+                  <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Combustible</th>
+                  <th class="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Acciones</th>
+                </tr>
+              </thead>
+
+              <tbody class="bg-white divide-y divide-gray-200/40">
+                <template v-if="items.length > 0">
+                  <tr
+                    v-for="carro in items"
+                    :key="carro.id"
+                    class="group hover:bg-gray-50/60 transition-all duration-150 hover:shadow-sm"
+                  >
+                    <!-- Fecha -->
+                    <td class="px-6 py-4">
+                      <div class="flex flex-col space-y-0.5">
+                        <div class="text-sm font-medium text-gray-900">
+                          {{ formatearFecha(carro.created_at || carro.fecha) }}
+                        </div>
+                        <div class="text-xs text-gray-500">
+                          {{ formatearHora(carro.created_at || carro.fecha) }}
+                        </div>
+                      </div>
+                    </td>
+
+                    <!-- Vehículo -->
+                    <td class="px-6 py-4">
+                      <div class="flex flex-col space-y-0.5">
+                        <div class="text-sm font-medium text-gray-900 group-hover:text-gray-800">
+                          {{ carro.marca || 'Sin marca' }} {{ carro.modelo || 'Sin modelo' }}
+                        </div>
+                        <div class="text-xs text-gray-500">
+                          Placa: {{ carro.placa || 'N/A' }}
+                        </div>
+                      </div>
+                    </td>
+
+                    <!-- Año -->
+                    <td class="px-6 py-4">
+                      <div class="text-sm text-gray-700">{{ carro.anio || 'N/A' }}</div>
+                    </td>
+
+                    <!-- Precio -->
+                    <td class="px-6 py-4">
+                      <div class="text-sm text-gray-700">${{ formatearMoneda(carro.precio) }}</div>
+                    </td>
+
+                    <!-- Kilometraje -->
+                    <td class="px-6 py-4">
+                      <div class="text-sm text-gray-700">{{ formatNumber(carro.kilometraje || 0) }} km</div>
+                    </td>
+
+                    <!-- Estado -->
+                    <td class="px-6 py-4">
+                      <span
+                        :class="obtenerClasesEstado(carro.activo ? 'activo' : 'inactivo')"
+                        class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150 hover:shadow-sm"
+                      >
+                        <span
+                          class="w-2 h-2 rounded-full mr-2 transition-all duration-150"
+                          :class="obtenerColorPuntoEstado(carro.activo ? 'activo' : 'inactivo')"
+                        ></span>
+                        {{ obtenerLabelEstado(carro.activo ? 'activo' : 'inactivo') }}
+                      </span>
+                    </td>
+
+                    <!-- Combustible -->
+                    <td class="px-6 py-4">
+                      <span
+                        :class="obtenerClasesCombustible(carro.combustible)"
+                        class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150 hover:shadow-sm"
+                      >
+                        <span
+                          class="w-2 h-2 rounded-full mr-2 transition-all duration-150"
+                          :class="obtenerColorCombustible(carro.combustible)"
+                        ></span>
+                        {{ obtenerLabelCombustible(carro.combustible) }}
+                      </span>
+                    </td>
+
+                    <!-- Acciones -->
+                    <td class="px-6 py-4">
+                      <div class="flex items-center justify-end space-x-2">
+                        <!-- Ver detalles -->
+                        <button
+                          @click="verDetalles(carro)"
+                          class="group/btn relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-1"
+                          title="Ver detalles"
+                        >
+                          <svg class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        </button>
+
+                        <!-- Editar -->
+                        <button
+                          @click="editarCarro(carro.id)"
+                          class="group/btn relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 hover:text-amber-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-1"
+                          title="Editar vehículo"
+                        >
+                          <svg class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+
+                        <!-- Eliminar -->
+                        <button
+                          @click="confirmarEliminacion(carro)"
+                          class="group/btn relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:ring-offset-1"
+                          title="Eliminar vehículo"
+                        >
+                          <svg class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
+
+                <!-- Empty State -->
+                <tr v-else>
+                  <td :colspan="8" class="px-6 py-16 text-center">
+                    <div class="flex flex-col items-center space-y-4">
+                      <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                        <svg class="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                        </svg>
+                      </div>
+                      <div class="space-y-1">
+                        <p class="text-gray-700 font-medium">No hay vehículos</p>
+                        <p class="text-sm text-gray-500">Los vehículos aparecerán aquí cuando se creen</p>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controles de paginación -->
+      <div v-if="paginationData.last_page > 1" class="flex justify-center items-center space-x-2 mt-6">
+        <button
+          @click="prevPage"
+          :disabled="paginationData.current_page === 1"
+          class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Anterior
+        </button>
+
+        <div class="flex space-x-1">
+          <button
+            v-for="page in [paginationData.current_page - 1, paginationData.current_page, paginationData.current_page + 1].filter(p => p > 0 && p <= paginationData.last_page)"
+            :key="page"
+            @click="goToPage(page)"
+            :class="[
+              'px-3 py-2 text-sm font-medium border border-gray-300 rounded-md',
+              page === paginationData.current_page
+                ? 'bg-blue-500 text-white border-blue-500'
+                : 'text-gray-700 bg-white hover:bg-gray-50'
+            ]"
+          >
+            {{ page }}
+          </button>
+        </div>
+
+        <button
+          @click="nextPage"
+          :disabled="paginationData.current_page === paginationData.last_page"
+          class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Siguiente
+        </button>
+      </div>
+    </div>
+
+    <!-- Modal de detalles / confirmación -->
+    <Transition name="modal">
+      <div
+        v-if="showModal"
+        class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+        @click.self="onClose"
+      >
+        <div
+          class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 outline-none"
+          role="dialog"
+          aria-modal="true"
+          :aria-label="`Modal de Vehículo`"
+          tabindex="-1"
+          ref="modalRef"
+          @keydown.esc.prevent="onClose"
+        >
+          <!-- Modo: Confirmación de eliminación -->
+          <div v-if="modalMode === 'confirm'" class="text-center">
+            <div class="w-12 h-12 mx-auto bg-red-100 rounded-full flex items-center justify-center mb-4">
+              <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+                />
+              </svg>
+            </div>
+            <h3 class="text-lg font-medium mb-2">
+              ¿Eliminar vehículo?
+            </h3>
+            <p class="text-gray-600 mb-6">
+              Esta acción no se puede deshacer.
+            </p>
+            <div class="flex gap-3">
+              <button
+                @click="onCancel"
+                class="flex-1 px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                @click="onConfirm"
+                class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Eliminar
               </button>
             </div>
-            <button v-if="modalMode === 'confirm'" @click="eliminarCarro" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
-              Eliminar
-            </button>
           </div>
+
+          <!-- Modo: Detalles -->
+          <div v-else-if="modalMode === 'details'" class="space-y-4">
+            <h3 class="text-lg font-medium mb-1 flex items-center gap-2">
+              Detalles de Vehículo
+              <span v-if="selectedCarro?.id" class="text-sm text-gray-500">#{{ selectedCarro.id }}</span>
+            </h3>
+
+            <div v-if="selectedCarro" class="space-y-4">
+              <!-- Información general -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <p class="text-sm text-gray-600">
+                    <strong>Marca:</strong> {{ selectedCarro.marca || 'Sin marca' }}
+                  </p>
+                  <p class="text-sm text-gray-600">
+                    <strong>Modelo:</strong> {{ selectedCarro.modelo || 'Sin modelo' }}
+                  </p>
+                  <p class="text-sm text-gray-600">
+                    <strong>Año:</strong> {{ selectedCarro.anio || 'N/A' }}
+                  </p>
+                  <p class="text-sm text-gray-600">
+                    <strong>Color:</strong> {{ selectedCarro.color || 'N/A' }}
+                  </p>
+                  <p class="text-sm text-gray-600">
+                    <strong>Estado:</strong>
+                    <span
+                      :class="obtenerClasesEstado(selectedCarro.activo ? 'activo' : 'inactivo')"
+                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                    >
+                      {{ obtenerLabelEstado(selectedCarro.activo ? 'activo' : 'inactivo') }}
+                    </span>
+                  </p>
+                </div>
+
+                <div>
+                  <p class="text-sm text-gray-600">
+                    <strong>Precio:</strong> ${{ formatearMoneda(selectedCarro.precio) }}
+                  </p>
+                  <p class="text-sm text-gray-600">
+                    <strong>Kilometraje:</strong> {{ formatNumber(selectedCarro.kilometraje || 0) }} km
+                  </p>
+                  <p class="text-sm text-gray-600">
+                    <strong>Placa:</strong> {{ selectedCarro.placa || 'N/A' }}
+                  </p>
+                  <p class="text-sm text-gray-600">
+                    <strong>Número de Serie:</strong> {{ selectedCarro.numero_serie || 'N/A' }}
+                  </p>
+                  <p class="text-sm text-gray-600">
+                    <strong>Combustible:</strong>
+                    <span
+                      :class="obtenerClasesCombustible(selectedCarro.combustible)"
+                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                    >
+                      {{ obtenerLabelCombustible(selectedCarro.combustible) }}
+                    </span>
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Botones de acción -->
+            <div class="flex flex-wrap justify-end gap-2 mt-6">
+              <button
+                @click="onEditarFila"
+                class="px-3 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm"
+              >
+                ✏️ Editar
+              </button>
+
+              <button
+                @click="onClose"
+                class="px-3 py-2 bg-gray-300 rounded-lg hover:bg-gray-400 transition-colors text-sm"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Loading overlay -->
+    <div v-if="loading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white p-6 rounded-lg shadow-lg">
+        <div class="flex items-center space-x-3">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          <span class="text-gray-700">Procesando...</span>
         </div>
       </div>
     </div>
@@ -644,5 +1144,20 @@ const obtenerLabelCombustible = (combustible) => {
 .carros-index {
   min-height: 100vh;
   background-color: #f9fafb;
+}
+
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+  transform: scale(0.97);
+}
+.modal-enter-to,
+.modal-leave-from {
+  opacity: 1;
+  transform: scale(1);
 }
 </style>

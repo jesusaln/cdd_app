@@ -66,14 +66,34 @@
                         <label class="block text-sm font-medium text-gray-700 mb-2">
                             Color <span class="text-red-500">*</span>
                         </label>
-                        <input
+                        <select
                             v-model="form.color"
-                            type="text"
                             class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200"
                             :class="{ 'border-red-500': errors.color }"
-                            placeholder="Ej: Blanco, Negro, Rojo"
                             required
                         >
+                            <option value="">Seleccionar Color</option>
+                            <option value="Blanco">Blanco</option>
+                            <option value="Negro">Negro</option>
+                            <option value="Gris">Gris</option>
+                            <option value="Gris Plata">Gris Plata</option>
+                            <option value="Rojo">Rojo</option>
+                            <option value="Azul">Azul</option>
+                            <option value="Azul Marino">Azul Marino</option>
+                            <option value="Verde">Verde</option>
+                            <option value="Amarillo">Amarillo</option>
+                            <option value="Naranja">Naranja</option>
+                            <option value="Morado">Morado</option>
+                            <option value="Rosa">Rosa</option>
+                            <option value="Marrón">Marrón</option>
+                            <option value="Beige">Beige</option>
+                            <option value="Dorado">Dorado</option>
+                            <option value="Plateado">Plateado</option>
+                            <option value="Bronce">Bronce</option>
+                            <option value="Cobre">Cobre</option>
+                            <option value="Perla">Perla</option>
+                            <option value="Otro">Otro</option>
+                        </select>
                         <p v-if="errors.color" class="text-red-500 text-sm mt-1">{{ errors.color }}</p>
                     </div>
 
@@ -163,6 +183,20 @@
                             maxlength="8"
                         >
                         <p v-if="errors.placa" class="text-red-500 text-sm mt-1">{{ errors.placa }}</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Estado</label>
+                        <select
+                            v-model="form.activo"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200"
+                        >
+                            <option :value="true">Activo</option>
+                            <option :value="false">Inactivo</option>
+                        </select>
+                        <p v-if="errors.activo" class="text-red-500 text-sm mt-1">{{ errors.activo }}</p>
                     </div>
                 </div>
 
@@ -308,6 +342,7 @@ const form = reactive({
     kilometraje: props.carro.kilometraje || 0,
     placa: props.carro.placa || '',
     foto: null,
+    activo: props.carro.activo !== undefined ? props.carro.activo : true,
 });
 
 const previewImage = ref(null);
@@ -355,7 +390,7 @@ const removeImage = () => {
 
 // Función para regresar
 const goBack = () => {
-    router.visit(route('carros.index'));
+    router.visit('/carros');
 };
 
 // Función para enviar el formulario
@@ -372,6 +407,8 @@ const submit = async () => {
         Object.keys(form).forEach(key => {
             if (key === 'foto' && form[key]) {
                 formData.append(key, form[key]);
+            } else if (key === 'activo') {
+                formData.append(key, form[key] ? '1' : '0');
             } else if (key !== 'foto') {
                 formData.append(key, form[key] || '');
             }
@@ -380,7 +417,7 @@ const submit = async () => {
         // Agregar método PUT para Laravel
         formData.append('_method', 'PUT');
 
-        await router.post(route('carros.update', props.carro.id), formData, {
+        await router.post(`/carros/${props.carro.id}`, formData, {
             forceFormData: true,
             onSuccess: (page) => {
                 notyf.success('¡El carro ha sido actualizado exitosamente!');

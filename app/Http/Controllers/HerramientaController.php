@@ -134,8 +134,15 @@ class HerramientaController extends Controller
 
     public function edit(Herramienta $herramienta)
     {
+        $herramientaData = $herramienta->only([
+            'id','nombre','numero_serie','estado','descripcion','foto','categoria_id',
+            'vida_util_meses','costo_reemplazo','dias_para_mantenimiento','requiere_mantenimiento'
+        ]);
+
+        \Log::info('🔧 Herramienta Edit - Datos enviados al frontend:', $herramientaData);
+
         return Inertia::render('Herramientas/Edit', [
-            'herramienta' => $herramienta->only(['id','nombre','numero_serie','estado','descripcion','foto','categoria_id']),
+            'herramienta' => $herramientaData,
             'categorias' => CategoriaHerramienta::orderBy('nombre')->get(),
         ]);
     }

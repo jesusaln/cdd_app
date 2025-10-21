@@ -1,34 +1,87 @@
  <script setup>
-import { Head, Link, useForm } from '@inertiajs/vue3'
-import { ref, watch } from 'vue'
-import axios from 'axios'
-import AppLayout from '@/Layouts/AppLayout.vue'
-import CategoriaHerramientaModal from '@/Components/Modals/CategoriaHerramientaModal.vue'
-
-defineOptions({ layout: AppLayout })
-
-const props = defineProps({
-  herramienta: { type: Object, required: true },
-  categorias: { type: Array, default: () => [] },
-})
-
-const form = useForm({
-  nombre: props.herramienta.nombre || '',
-  numero_serie: props.herramienta.numero_serie || '',
-  estado: props.herramienta.estado || 'disponible',
-  descripcion: props.herramienta.descripcion || '',
-  foto: null,
-  categoria_id: props.herramienta.categoria_id || '',
-  vida_util_meses: props.herramienta.vida_util_meses || '',
-  costo_reemplazo: props.herramienta.costo_reemplazo || '',
-  dias_para_mantenimiento: props.herramienta.dias_para_mantenimiento || '',
-  requiere_mantenimiento: props.herramienta.requiere_mantenimiento || false,
-})
-
-const fotoPreview = ref(props.herramienta.foto ? `/storage/${props.herramienta.foto}` : null)
-const categoriasList = ref([...(props.categorias || [])])
-const showCategoriaModal = ref(false)
-const categoriaToEdit = ref(null)
+  import { Head, Link, useForm } from '@inertiajs/vue3'
+  import { ref, watch, onMounted, nextTick } from 'vue'
+  import axios from 'axios'
+  import AppLayout from '@/Layouts/AppLayout.vue'
+  import CategoriaHerramientaModal from '@/Components/Modals/CategoriaHerramientaModal.vue'
+ 
+  defineOptions({ layout: AppLayout })
+ 
+  const props = defineProps({
+    herramienta: { type: Object, required: true },
+    categorias: { type: Array, default: () => [] },
+  })
+ 
+  // Estado reactivo para controlar la inicialización
+  const isDataReady = ref(false)
+  const formInitialized = ref(false)
+ 
+  const form = useForm({
+    nombre: '',
+    numero_serie: '',
+    estado: 'disponible',
+    descripcion: '',
+    foto: null,
+    categoria_id: '',
+    vida_util_meses: null,
+    costo_reemplazo: null,
+    dias_para_mantenimiento: null,
+    requiere_mantenimiento: false,
+  })
+ 
+  const fotoPreview = ref('')
+  const categoriasList = ref([...(props.categorias || [])])
+  const showCategoriaModal = ref(false)
+  const categoriaToEdit = ref(null)
+ 
+  // Función para inicializar el formulario con los datos de la herramienta
+  const initializeForm = () => {
+    console.log('🔧 Inicializando formulario con datos:', props.herramienta)
+ 
+    if (props.herramienta && props.herramienta.id) {
+      form.nombre = props.herramienta.nombre || ''
+      form.numero_serie = props.herramienta.numero_serie || ''
+      form.estado = props.herramienta.estado || 'disponible'
+      form.descripcion = props.herramienta.descripcion || ''
+      form.categoria_id = props.herramienta.categoria_id || ''
+      form.vida_util_meses = props.herramienta.vida_util_meses || null
+      form.costo_reemplazo = props.herramienta.costo_reemplazo || null
+      form.dias_para_mantenimiento = props.herramienta.dias_para_mantenimiento || null
+      form.requiere_mantenimiento = Boolean(props.herramienta.requiere_mantenimiento)
+ 
+      // Inicializar preview de foto
+      fotoPreview.value = props.herramienta.foto ? `/storage/${props.herramienta.foto}` : ''
+ 
+      console.log('✅ Formulario inicializado correctamente:', {
+        nombre: form.nombre,
+        numero_serie: form.numero_serie,
+        estado: form.estado,
+        categoria_id: form.categoria_id
+      })
+ 
+      formInitialized.value = true
+      isDataReady.value = true
+    }
+  }
+ 
+  // Watcher para detectar cambios en las props
+  watch(() => props.herramienta, (newHerramienta) => {
+    if (newHerramienta && newHerramienta.id && !formInitialized.value) {
+      nextTick(() => {
+        initializeForm()
+      })
+    }
+  }, { immediate: true })
+ 
+  // Inicializar cuando el componente se monte
+  onMounted(() => {
+    console.log('🚀 Edit Herramienta - Componente montado')
+ 
+    // Pequeño delay para asegurar que las props estén completamente cargadas
+    setTimeout(() => {
+      initializeForm()
+    }, 100)
+  })
 
 const handleFile = (e) => {
   const file = e.target.files?.[0]
@@ -57,8 +110,32 @@ const removeImage = () => {
   fotoPreview.value = props.herramienta.foto ? `/storage/${props.herramienta.foto}` : null
 }
 
+const validateNombre = () => {
+  if (!form.nombre || form.nombre.trim() === '') {
+    form.errors.nombre = 'El nombre de la herramienta es requerido'
+    return false
+  }
+  delete form.errors.nombre
+  return true
+}
+
 const submit = () => {
-  form.put(route('herramientas.update', props.herramienta.id), { forceFormData: true })
+  console.log('🚀 Intentando enviar formulario...')
+
+  // Validar que el nombre no esté vacío antes de enviar
+  if (!validateNombre()) {
+    console.log('❌ Validación fallida - nombre requerido')
+    return
+  }
+
+  console.log('✅ Validación pasada, enviando formulario:', {
+    nombre: form.nombre,
+    numero_serie: form.numero_serie,
+    estado: form.estado,
+    categoria_id: form.categoria_id
+  })
+
+  form.transform((data) => ({ ...data, _method: 'PUT' })).post(route('herramientas.update', props.herramienta.id), { forceFormData: true })
 }
 
 const openCategoriaModal = (categoria = null) => {
@@ -96,7 +173,13 @@ const handleCategoriaUpdated = (categoria) => {
     <Link class="text-blue-600 hover:underline" :href="route('herramientas.index')">Volver</Link>
   </div>
 
-  <form @submit.prevent="submit" class="bg-white shadow-lg rounded-lg p-8 space-y-8 max-w-4xl">
+  <!-- Indicador de carga mientras se inicializa el formulario -->
+  <div v-if="!isDataReady" class="bg-white shadow rounded p-6 text-center">
+    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+    <p class="mt-2 text-gray-600">Cargando formulario...</p>
+  </div>
+
+  <form v-if="isDataReady" @submit.prevent="submit" class="bg-white shadow-lg rounded-lg p-8 space-y-8 max-w-4xl">
     <!-- Información básica -->
     <div class="border-b border-gray-200 pb-6">
       <h2 class="text-lg font-semibold text-gray-900 mb-4">Información Básica</h2>
@@ -108,11 +191,18 @@ const handleCategoriaUpdated = (categoria) => {
           <input
             v-model="form.nombre"
             type="text"
-            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+            :class="[
+              'w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200',
+              form.nombre && form.nombre.trim() !== '' ? 'border-gray-300' : 'border-red-300'
+            ]"
             placeholder="Ej: Taladro inalámbrico, Multímetro digital..."
             required
+            @blur="validateNombre"
           />
           <div v-if="form.errors.nombre" class="mt-1 text-sm text-red-600">{{ form.errors.nombre }}</div>
+          <div v-if="!form.nombre || form.nombre.trim() === ''" class="mt-1 text-sm text-red-600">
+            El nombre de la herramienta es requerido
+          </div>
         </div>
 
         <div>
@@ -301,6 +391,7 @@ const handleCategoriaUpdated = (categoria) => {
 
   <!-- Modal de gestión de categorías -->
   <CategoriaHerramientaModal
+    v-if="isDataReady"
     :show="showCategoriaModal"
     :categorias="categoriasList"
     @close="closeCategoriaModal"

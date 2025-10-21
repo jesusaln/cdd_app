@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <system.webServer>
+        <rewrite>
+            <rules>
+                <rule name="Laravel" stopProcessing="true">
+                    <match url="^(.*)$" />
+                    <conditions logicalGrouping="MatchAll">
+                        <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" />
+                        <add input="{REQUEST_FILENAME}" matchType="IsDirectory" negate="true" />
+                    </conditions>
+                    <action type="Rewrite" url="public/index.php/{R:1}" />
+                </rule>
+            </rules>
+        </rewrite>
+
+        <handlers>
+            <add name="PHP" path="*.php" verb="*" modules="FastCgiModule" scriptProcessor="C:\php\php-cgi.exe" resourceType="Either" />
+        </handlers>
+
+        <security>
+            <requestFiltering>
+                <fileExtensions allowUnlisted="false">
+                    <add fileExtension=".php" allowed="true" />
+                </fileExtensions>
+            </requestFiltering>
+        </security>
+
+    </system.webServer>
+</configuration>

@@ -21,6 +21,11 @@ class Carro extends Model
         'kilometraje',    // Kilometraje actual del carro
         'placa',          // Placa del carro
         'foto',           // Ruta de la foto del carro
+        'activo',         // Estado del vehículo (activo/inactivo)
+    ];
+
+    protected $casts = [
+        'activo' => 'boolean',
     ];
 
 
