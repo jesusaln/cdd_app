@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ProductoPrecioHistorial extends Model
 {
+    protected $table = 'producto_precio_historial';
+
     protected $fillable = [
         'producto_id',
         'precio_compra_anterior',

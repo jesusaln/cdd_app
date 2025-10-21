@@ -320,27 +320,20 @@
                             <!-- Unidad de Medida -->
                             <div>
                                 <label for="unidad_medida" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Unidad de Medida
+                                    Unidad de Medida <span class="text-red-500">*</span>
                                 </label>
                                 <select
                                     v-model="form.unidad_medida"
                                     id="unidad_medida"
                                     class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
+                                    required
                                 >
                                     <option value="">Selecciona una unidad</option>
-                                    <option value="unidad">Unidad</option>
-                                    <option value="pieza">Pieza</option>
-                                    <option value="kg">Kilogramo</option>
-                                    <option value="g">Gramo</option>
-                                    <option value="litro">Litro</option>
-                                    <option value="ml">Mililitro</option>
-                                    <option value="metro">Metro</option>
-                                    <option value="cm">Centímetro</option>
-                                    <option value="caja">Caja</option>
-                                    <option value="paquete">Paquete</option>
-                                    <option value="docena">Docena</option>
-                                    <option value="par">Par</option>
+                                    <option v-for="unidad in unidadesMedida" :key="unidad.id" :value="unidad.nombre">
+                                        {{ unidad.nombre }}
+                                    </option>
                                 </select>
+                                <button type="button" class="mt-2 text-sm text-blue-600 hover:underline" @click="showUnidadMedidaModal = true">+ Gestionar unidades</button>
                                 <div v-if="form.errors.unidad_medida" class="mt-1 text-sm text-red-600">
                                     {{ form.errors.unidad_medida }}
                                 </div>
@@ -584,12 +577,23 @@
           </div>
         </div>
 
-</template>
+        <!-- Modal de gestión de unidades de medida -->
+        <UnidadMedidaModal
+            :show="showUnidadMedidaModal"
+            :unidades="unidadesMedida"
+            @close="showUnidadMedidaModal = false"
+            @unidad-created="handleUnidadCreated"
+            @unidad-updated="handleUnidadUpdated"
+            @unidad-deleted="handleUnidadDeleted"
+        />
+
+ </template>
 
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3';
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue';
+import UnidadMedidaModal from '@/Components/Modals/UnidadMedidaModal.vue';
 
 // Define el layout del dashboard
 defineOptions({ layout: AppLayout });
@@ -601,12 +605,19 @@ const props = defineProps({
     marcas: { type: Array, default: () => [] },
     proveedores: { type: Array, default: () => [] },
     almacenes: { type: Array, default: () => [] },
+    unidadesMedida: { type: Array, default: () => [] },
 });
 
 // Crear referencias reactivas para poder actualizar las listas
 const categorias = ref([...props.categorias]);
 const marcas = ref([...props.marcas]);
 const almacenes = ref([...props.almacenes]);
+
+// Lista de unidades de medida
+const unidadesMedida = ref([...props.unidadesMedida]);
+
+// Modal de unidades de medida
+const showUnidadMedidaModal = ref(false);
 
 // Inicializa el formulario con los datos del producto
 const form = useForm({
@@ -624,12 +635,23 @@ const form = useForm({
     precio_compra: props.producto?.precio_compra || '',
     precio_venta: props.producto?.precio_venta || '',
     tipo_producto: props.producto?.tipo_producto || '',
-    unidad_medida: props.producto?.unidad_medida || '',
+    unidad_medida: props.producto?.unidad_medida || 'Pieza',
     descuento_maximo: props.producto?.descuento_maximo || '',
     peso: props.producto?.peso || '',
     dimensiones: props.producto?.dimensiones || '',
     estado: props.producto?.estado || '',
 });
+
+watch(
+    () => form.unidad_medida,
+    (v) => {
+        if (v && typeof form.clearErrors === 'function') {
+            form.clearErrors('unidad_medida');
+        } else if (v) {
+            form.errors.unidad_medida = null;
+        }
+    }
+);
 
 // Función para calcular el margen de ganancia
 const calcularMargen = () => {
@@ -644,6 +666,14 @@ const calcularMargen = () => {
 
 // Función para enviar el formulario de actualización de producto
 const submit = () => {
+    if (!form.unidad_medida || String(form.unidad_medida).trim() === '') {
+        if (typeof form.setError === 'function') {
+            form.setError('unidad_medida', 'Selecciona una unidad de medida.');
+        } else {
+            form.errors.unidad_medida = 'Selecciona una unidad de medida.';
+        }
+        return;
+    }
     form.put(route('productos.update', props.producto.id), {
         onSuccess: () => {
             // Producto actualizado correctamente
@@ -760,6 +790,28 @@ const crearCategoriaRapida = async () => {
     savingQuick.value = false;
   }
 }
+
+// Funciones para manejar eventos del modal de unidades
+const handleUnidadCreated = (unidad) => {
+    // Agregar la nueva unidad a la lista
+    unidadesMedida.value.push(unidad);
+    console.log('Nueva unidad creada:', unidad);
+};
+
+const handleUnidadUpdated = (unidad) => {
+    // Actualizar la unidad en la lista
+    const index = unidadesMedida.value.findIndex(u => u.id === unidad.id);
+    if (index !== -1) {
+        unidadesMedida.value[index] = unidad;
+    }
+    console.log('Unidad actualizada:', unidad);
+};
+
+const handleUnidadDeleted = (unidad) => {
+    // Remover la unidad de la lista
+    unidadesMedida.value = unidadesMedida.value.filter(u => u.id !== unidad.id);
+    console.log('Unidad eliminada:', unidad);
+};
 const crearMarcaRapida = async () => {
   if (!quickMarca.value.nombre?.trim()) return;
   savingQuick.value = true;

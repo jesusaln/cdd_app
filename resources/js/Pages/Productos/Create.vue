@@ -288,10 +288,11 @@
                             </label>
                             <select v-model="form.unidad_medida" id="unidad_medida" class="input-field" required>
                                 <option value="">Seleccione una unidad</option>
-                                <option v-for="unidad in unidadesMedida" :key="unidad" :value="unidad">
-                                    {{ unidad }}
+                                <option v-for="unidad in unidadesMedida" :key="unidad.id" :value="unidad.nombre">
+                                    {{ unidad.nombre }}
                                 </option>
                             </select>
+                            <button type="button" class="mt-2 text-sm text-blue-600 hover:underline" @click="showUnidadMedidaModal = true">+ Gestionar unidades</button>
                             <div v-if="form.errors.unidad_medida" class="error-message">{{ form.errors.unidad_medida }}</div>
                         </div>
 
@@ -460,12 +461,23 @@
           </div>
         </div>
 
-</template>
+        <!-- Modal de gestión de unidades de medida -->
+        <UnidadMedidaModal
+            :show="showUnidadMedidaModal"
+            :unidades="unidadesMedida"
+            @close="showUnidadMedidaModal = false"
+            @unidad-created="handleUnidadCreated"
+            @unidad-updated="handleUnidadUpdated"
+            @unidad-deleted="handleUnidadDeleted"
+        />
+
+ </template>
 
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import UnidadMedidaModal from '@/Components/Modals/UnidadMedidaModal.vue';
 
 // Define el layout del dashboard
 defineOptions({ layout: AppLayout });
@@ -493,18 +505,9 @@ const imagePreview = ref(null);
 const siguienteCodigo = ref('');
 const cargandoCodigo = ref(false);
 
-// Lista de unidades de medida
-const unidadesMedida = [
-    "Kilogramos",
-    "Gramos",
-    "Litros",
-    "Mililitros",
-    "Piezas",
-    "Metros",
-    "Centímetros",
-    "Milímetros",
-    "Unidades"
-];
+// Lista de unidades de medida (se cargarán dinámicamente)
+const unidadesMedida = ref([]);
+const cargandoUnidades = ref(false);
 
 // Formulario para crear un producto
 const form = useForm({
@@ -524,11 +527,25 @@ const form = useForm({
     imagen: null,
     estado: 'activo',
     comision_vendedor: '',
+    // Importante: declarar unidad_medida para que Inertia la envíe en el POST
+    unidad_medida: 'Pieza',
 });
+
+watch(
+    () => form.unidad_medida,
+    (v) => {
+        if (v && typeof form.clearErrors === 'function') {
+            form.clearErrors('unidad_medida');
+        } else if (v) {
+            form.errors.unidad_medida = null;
+        }
+    }
+);
 
 // Inicializar componente
 onMounted(() => {
     obtenerSiguienteCodigo();
+    cargarUnidadesMedida();
 });
 
 // Obtener el siguiente código disponible
@@ -564,6 +581,14 @@ const obtenerSiguienteCodigo = async () => {
 
 // Enviar formulario
 const submit = () => {
+    if (!form.unidad_medida || String(form.unidad_medida).trim() === '') {
+        if (typeof form.setError === 'function') {
+            form.setError('unidad_medida', 'Selecciona una unidad de medida.');
+        } else {
+            form.errors.unidad_medida = 'Selecciona una unidad de medida.';
+        }
+        return;
+    }
     form.post(route('productos.store'), {
         onSuccess: () => {
             form.reset();
@@ -593,6 +618,7 @@ const handleImageUpload = (event) => {
 const showCategoriaModal = ref(false)
 const showMarcaModal = ref(false)
 const showAlmacenModal = ref(false)
+const showUnidadMedidaModal = ref(false)
 const savingQuick = ref(false)
 
 const quickCategoria = ref({ nombre: '', descripcion: '' })
@@ -794,6 +820,70 @@ const crearAlmacenRapido = async () => {
     savingQuick.value = false;
   }
 }
+
+// Cargar unidades de medida
+const cargarUnidadesMedida = async () => {
+   cargandoUnidades.value = true;
+   try {
+       const apiUrl = `${window.location.origin}/api/unidades-medida/activas`;
+       console.log('Cargando unidades de medida desde:', apiUrl);
+
+       const response = await fetch(apiUrl, {
+           method: 'GET',
+           headers: {
+               'X-Requested-With': 'XMLHttpRequest',
+               'Accept': 'application/json'
+           }
+       });
+
+       if (!response.ok) {
+           throw new Error(`Error HTTP ${response.status}: ${response.statusText}`);
+       }
+
+       const data = await response.json();
+       unidadesMedida.value = data.data || [];
+       console.log('Unidades de medida cargadas:', unidadesMedida.value.length);
+
+   } catch (error) {
+       console.error('Error cargando unidades de medida:', error);
+       // Fallback a unidades básicas si falla la carga
+       unidadesMedida.value = [
+           { id: 1, nombre: 'Pieza', abreviatura: 'pz' },
+           { id: 2, nombre: 'Kilogramos', abreviatura: 'kg' },
+           { id: 3, nombre: 'Gramos', abreviatura: 'g' },
+           { id: 4, nombre: 'Litros', abreviatura: 'l' },
+           { id: 5, nombre: 'Mililitros', abreviatura: 'ml' },
+           { id: 6, nombre: 'Metros', abreviatura: 'm' },
+           { id: 7, nombre: 'Centímetros', abreviatura: 'cm' },
+           { id: 8, nombre: 'Milímetros', abreviatura: 'mm' },
+           { id: 9, nombre: 'Unidad', abreviatura: 'u' },
+       ];
+   } finally {
+       cargandoUnidades.value = false;
+   }
+};
+
+// Funciones para manejar eventos del modal de unidades
+const handleUnidadCreated = (unidad) => {
+   // Agregar la nueva unidad a la lista
+   unidadesMedida.value.push(unidad);
+   console.log('Nueva unidad creada:', unidad);
+};
+
+const handleUnidadUpdated = (unidad) => {
+   // Actualizar la unidad en la lista
+   const index = unidadesMedida.value.findIndex(u => u.id === unidad.id);
+   if (index !== -1) {
+       unidadesMedida.value[index] = unidad;
+   }
+   console.log('Unidad actualizada:', unidad);
+};
+
+const handleUnidadDeleted = (unidad) => {
+   // Remover la unidad de la lista
+   unidadesMedida.value = unidadesMedida.value.filter(u => u.id !== unidad.id);
+   console.log('Unidad eliminada:', unidad);
+};
 </script>
 
 <style scoped>

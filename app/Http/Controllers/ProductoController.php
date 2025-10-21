@@ -111,14 +111,13 @@ class ProductoController extends Controller
             'descripcion'       => 'nullable|string',
             'codigo'            => 'nullable|string|unique:productos,codigo',
             'codigo_barras'     => 'required|string|unique:productos,codigo_barras',
-                        'categoria_id'      => 'required|exists:categorias,id',
+            'categoria_id'      => 'required|exists:categorias,id',
             'marca_id'          => 'required|exists:marcas,id',
             'proveedor_id'      => 'nullable|exists:proveedores,id',
             'almacen_id'        => 'nullable|exists:almacenes,id',
             'stock_minimo'      => 'required|integer|min:0',
             'expires'       => 'boolean',
             'requiere_serie'=> 'boolean',
-            'requiere_serie'    => 'boolean',
             'precio_compra'     => 'required|numeric|min:0',
             'precio_venta'      => 'required|numeric|min:0',
             'impuesto'          => 'required|numeric|min:0',
@@ -144,8 +143,12 @@ class ProductoController extends Controller
 
         // Set default values for missing fillable fields
         $validated['reservado'] = $validated['reservado'] ?? 0;
+        $validated['stock'] = $validated['stock'] ?? 0;
+        $validated['stock_minimo'] = $validated['stock_minimo'] ?? 0;
         $validated['expires'] = $validated['expires'] ?? false;
+        $validated['requiere_serie'] = $validated['requiere_serie'] ?? false;
         $validated['margen_ganancia'] = $validated['margen_ganancia'] ?? 0;
+        $validated['comision_vendedor'] = $validated['comision_vendedor'] ?? 0;
 
         $producto = Producto::create($validated);
 
@@ -174,6 +177,7 @@ class ProductoController extends Controller
         $marcas      = Marca::all(['id', 'nombre']);
         $proveedores = Proveedor::all(['id', 'nombre_razon_social']);
         $almacenes   = Almacen::all(['id', 'nombre']);
+        $unidadesMedida = \App\Models\UnidadMedida::activas()->select('id', 'nombre', 'abreviatura')->get();
 
         return Inertia::render('Productos/Edit', [
             'producto'    => $producto,
@@ -181,6 +185,7 @@ class ProductoController extends Controller
             'marcas'      => $marcas,
             'proveedores' => $proveedores,
             'almacenes'   => $almacenes,
+            'unidadesMedida' => $unidadesMedida,
         ]);
     }
 
@@ -200,16 +205,14 @@ class ProductoController extends Controller
             // Validaciones para editar (permitir mismos códigos del propio producto)
             'codigo'        => 'nullable|string|unique:productos,codigo,' . $producto->id,
             'codigo_barras' => 'nullable|string|unique:productos,codigo_barras,' . $producto->id,
-
-                        'marca_id'      => 'required|exists:marcas,id',
+            'marca_id'      => 'required|exists:marcas,id',
             'almacen_id'    => 'nullable|exists:almacenes,id',
             'stock_minimo'  => 'nullable|integer|min:0',
             'expires'       => 'boolean',
             'requiere_serie'=> 'boolean',
-            'requiere_serie'    => 'boolean',
             'precio_compra' => 'nullable|numeric|min:0',
             'impuesto'      => 'nullable|numeric|min:0',
-            'unidad_medida' => 'nullable|string',
+            'unidad_medida' => 'required|string',
             'fecha_vencimiento' => 'nullable|date',
             'tipo_producto' => 'nullable|in:fisico,digital',
             'estado'        => 'nullable|in:activo,inactivo',
@@ -229,6 +232,14 @@ class ProductoController extends Controller
         // Stock is managed through purchases, so don't update it from the form
         // Keep the existing stock value
         unset($validated['stock']);
+
+        // Set default values for missing fillable fields in update
+        $validated['reservado'] = $validated['reservado'] ?? 0;
+        $validated['stock_minimo'] = $validated['stock_minimo'] ?? 0;
+        $validated['expires'] = $validated['expires'] ?? false;
+        $validated['requiere_serie'] = $validated['requiere_serie'] ?? false;
+        $validated['margen_ganancia'] = $validated['margen_ganancia'] ?? 0;
+        $validated['comision_vendedor'] = $validated['comision_vendedor'] ?? 0;
 
         // Check for price changes before updating
         $precioCompraChanged = isset($validated['precio_compra']) && $validated['precio_compra'] != $producto->precio_compra;

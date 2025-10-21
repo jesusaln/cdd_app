@@ -11,6 +11,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             // 1) Catálogos base
             RolesAndPermissionsSeeder::class,
+            UnidadMedidaSeeder::class,
             //AlmacenSeeder::class,
             //MarcaSeeder::class,
             //CategoriaSeeder::class,

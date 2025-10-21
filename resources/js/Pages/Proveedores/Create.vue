@@ -441,16 +441,54 @@
 
 <script setup>
 import { useForm } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import { Notyf } from 'notyf';
+import 'notyf/notyf.min.css';
 
 defineOptions({ layout: AppLayout });
+
+// Configuración de Notyf
+const notyf = new Notyf({
+  duration: 4000,
+  position: {
+    x: 'right',
+    y: 'top',
+  },
+  types: [
+    {
+      type: 'success',
+      background: '#10b981',
+      icon: false
+    },
+    {
+      type: 'error',
+      background: '#ef4444',
+      icon: false
+    }
+  ]
+});
 
 // Estados reactivos
 const showPreview = ref(false);
 const rfcValid = ref(false);
 const emailValid = ref(false);
 const telefonoValid = ref(false);
+
+// Manejo de mensajes flash del servidor
+const page = usePage();
+const flash = computed(() => page.props.flash || {});
+
+// Mostrar mensajes flash cuando cambien
+watch(flash, (newFlash) => {
+  if (newFlash.success) {
+    notyf.success(newFlash.success);
+  }
+  if (newFlash.error) {
+    notyf.error(newFlash.error);
+  }
+}, { deep: true });
 
 // Listas predefinidas mejoradas
 const regimenesFiscales = {
@@ -587,11 +625,17 @@ const submit = () => {
     onSuccess: () => {
       form.reset();
       resetValidationStates();
-      // Mostrar mensaje de éxito (puedes personalizar esto)
-      alert('Proveedor creado exitosamente');
+      // Mostrar mensaje de éxito usando Notyf
+      notyf.success('Proveedor creado exitosamente');
     },
     onError: (errors) => {
       console.error('Error al crear proveedor:', errors);
+      // Mostrar errores usando Notyf si los hay
+      if (errors && Object.keys(errors).length > 0) {
+        Object.values(errors).forEach(error => {
+          notyf.error(error);
+        });
+      }
     },
   });
 };

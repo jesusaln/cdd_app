@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\VentaController;
 use App\Http\Controllers\Api\CitaController;
 use App\Http\Controllers\Api\TecnicoController;
 use App\Http\Controllers\Api\ServicioController;
+use App\Http\Controllers\Api\UnidadMedidaController;
 use App\Http\Controllers\WhatsAppWebhookController;
 use App\Http\Controllers\EmpresaWhatsAppController;
 // Eliminado: API de herramientas
@@ -120,6 +121,16 @@ Route::apiResource('ventas', VentaController::class)->names('api.ventas');
 Route::apiResource('citas', CitaController::class)->names('api.citas');
 Route::apiResource('tecnicos', TecnicoController::class)->names('api.tecnicos');
 Route::apiResource('servicios', ServicioController::class)->names('api.servicios');
+
+// Unidades de medida
+Route::prefix('unidades-medida')->name('api.unidades-medida.')->group(function () {
+    Route::get('/', [UnidadMedidaController::class, 'index'])->name('index');
+    Route::post('/', [UnidadMedidaController::class, 'store'])->name('store');
+    Route::get('/activas', [UnidadMedidaController::class, 'getActiveUnits'])->name('activas');
+    Route::get('/{unidadMedida}', [UnidadMedidaController::class, 'show'])->name('show');
+    Route::put('/{unidadMedida}', [UnidadMedidaController::class, 'update'])->name('update');
+    Route::delete('/{unidadMedida}', [UnidadMedidaController::class, 'destroy'])->name('destroy');
+});
 
 // Eliminado: rutas API de herramientas, asignaciones y alertas relacionadas
 

@@ -62,7 +62,6 @@ class ProductoController extends Controller
                 'fecha_vencimiento' => 'nullable|date',
                 'tipo_producto' => 'required|in:fisico,digital',
                 'requiere_serie' => 'boolean',
-                'requiere_serie' => 'boolean',
                 'imagen' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
                 'estado' => 'required|in:activo,inactivo',
             ]);
@@ -131,7 +130,6 @@ class ProductoController extends Controller
                 'unidad_medida' => 'required|string',
                 'fecha_vencimiento' => 'nullable|date',
                 'tipo_producto' => 'required|in:fisico,digital',
-                'requiere_serie' => 'boolean',
                 'requiere_serie' => 'boolean',
                 'imagen' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
                 'estado' => 'required|in:activo,inactivo',

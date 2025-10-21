@@ -13,6 +13,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Si la tabla ya existe (producción con datos), no intentar recrearla
+        if (Schema::hasTable('clientes')) {
+            return;
+        }
+
         $driver = Schema::getConnection()->getDriverName();
 
         Schema::create('clientes', function (Blueprint $table) use ($driver) {

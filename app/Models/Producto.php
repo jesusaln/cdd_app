@@ -51,7 +51,10 @@ class Producto extends Model
     protected $attributes = [
         'descripcion' => 'Sin descripción disponible',
         'reservado' => 0,
+        'stock' => 0,
+        'stock_minimo' => 0,
         'expires' => false,
+        'requiere_serie' => false,
         'margen_ganancia' => 0,
         'comision_vendedor' => 0,
     ];

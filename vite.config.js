@@ -30,10 +30,7 @@ export default defineConfig({
     port: 5173,
     cors: true,
     strictPort: true, // Forzar el uso del puerto exacto
-    hmr: {
-      host: 'localhost',
-      port: 5173,
-    },
+    hmr: false, // Deshabilitar HMR para evitar errores de canal de mensajes
   },
   base: process.env.NODE_ENV === 'production' ? '/build/' : '/',
   optimizeDeps: {
