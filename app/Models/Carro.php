@@ -26,6 +26,9 @@ class Carro extends Model
 
     protected $casts = [
         'activo' => 'boolean',
+        'precio' => 'decimal:2',
+        'anio' => 'integer',
+        'kilometraje' => 'integer',
     ];
 
 

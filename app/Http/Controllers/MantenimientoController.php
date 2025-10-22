@@ -258,6 +258,7 @@ class MantenimientoController extends Controller
         try {
             $mantenimiento->load(['carro']);
             $carros = \App\Models\Carro::select('id', 'marca', 'modelo', 'placa', 'kilometraje')
+                ->where('activo', true)
                 ->orderBy('marca')
                 ->orderBy('modelo')
                 ->get();
@@ -373,7 +374,8 @@ class MantenimientoController extends Controller
     public function create(): Response
     {
         try {
-            $carros = \App\Models\Carro::select('id', 'marca', 'modelo', 'placa', 'kilometraje', 'taller_preferido')
+            $carros = \App\Models\Carro::select('id', 'marca', 'modelo', 'placa', 'kilometraje')
+                ->where('activo', true)
                 ->orderBy('marca')
                 ->orderBy('modelo')
                 ->get();
@@ -462,8 +464,11 @@ class MantenimientoController extends Controller
                 'proximos_vencer' => $this->getMantenimientosProximosAVencer(30)->count(),
             ];
 
-            // Obtener carros para el filtro
-            $carros = \App\Models\Carro::orderBy('marca', 'asc')->orderBy('modelo', 'asc')->get();
+            // Obtener carros activos para el filtro
+            $carros = \App\Models\Carro::where('activo', true)
+                ->orderBy('marca', 'asc')
+                ->orderBy('modelo', 'asc')
+                ->get();
 
             return Inertia::render('Mantenimientos/Index', [
                 'mantenimientos' => $mantenimientos,

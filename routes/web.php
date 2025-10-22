@@ -170,6 +170,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::post('ordenescompra/{id}/cambiar-estado', [OrdenCompraController::class, 'cambiarEstado'])->name('ordenescompra.cambiar-estado');
     Route::get('ordenescompra/{id}/estado', [OrdenCompraController::class, 'getEstado'])->name('ordenescompra.get-estado');
     Route::post('ordenescompra/{id}/enviar-email', [OrdenCompraController::class, 'enviarEmail'])->name('ordenescompra.enviar-email');
+    Route::post('ordenescompra/{ordenId}/productos/{productoId}/editar-precio', [OrdenCompraController::class, 'editarPrecioProducto'])->name('ordenescompra.editar-precio-producto');
+    Route::get('productos/{productoId}/historial-precios', [OrdenCompraController::class, 'obtenerHistorialPrecios'])->name('productos.historial-precios');
+    Route::get('reportes/historial-precios/{productoId}', [OrdenCompraController::class, 'mostrarHistorialPrecios'])->name('reportes.historial-precios');
 
     Route::resource('clientes', ClienteController::class)->names('clientes');
     Route::resource('prestamos', PrestamoController::class)->names('prestamos');

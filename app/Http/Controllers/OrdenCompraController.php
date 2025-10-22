@@ -1563,6 +1563,284 @@ class OrdenCompraController extends Controller
    }
 
     /**
+     * Edita el precio de un producto específico en una orden de compra
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $ordenId
+     * @param  int  $productoId
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function editarPrecioProducto(Request $request, $ordenId, $productoId)
+    {
+        DB::beginTransaction();
+        try {
+            $ordenCompra = OrdenCompra::findOrFail($ordenId);
+            $producto = Producto::findOrFail($productoId);
+
+            // Validar que el producto esté en la orden de compra
+            $ordenProducto = $ordenCompra->productos()->where('producto_id', $productoId)->first();
+            if (!$ordenProducto) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El producto no está asociado a esta orden de compra'
+                ], 404);
+            }
+
+            $request->validate([
+                'precio' => 'required|numeric|min:0',
+                'notas' => 'nullable|string|max:500'
+            ]);
+
+            $nuevoPrecio = (float) $request->precio;
+            $precioAnterior = (float) $ordenProducto->pivot->precio;
+
+            // Si el precio cambió, actualizar tanto en el pivot como en el producto
+            if ($precioAnterior != $nuevoPrecio) {
+                // Actualizar precio en el pivot de la orden de compra
+                $ordenCompra->productos()->updateExistingPivot($productoId, [
+                    'precio' => $nuevoPrecio
+                ]);
+
+                // Actualizar precio en el producto si es diferente
+                if ($producto->precio_compra != $nuevoPrecio) {
+                    $precioCompraAnterior = $producto->precio_compra;
+
+                    $producto->update(['precio_compra' => $nuevoPrecio]);
+
+                    // Registrar en el historial de precios
+                    ProductoPrecioHistorial::create([
+                        'producto_id' => $producto->id,
+                        'precio_compra_anterior' => $precioCompraAnterior,
+                        'precio_compra_nuevo' => $nuevoPrecio,
+                        'precio_venta_anterior' => $producto->precio_venta,
+                        'precio_venta_nuevo' => $producto->precio_venta,
+                        'tipo_cambio' => 'edicion_orden_compra',
+                        'notas' => $request->notas ?: "Precio actualizado en orden de compra #{$ordenCompra->numero_orden}",
+                        'user_id' => Auth::id(),
+                    ]);
+
+                    Log::info("Precio de producto actualizado desde orden de compra", [
+                        'orden_id' => $ordenCompra->id,
+                        'producto_id' => $producto->id,
+                        'precio_anterior' => $precioCompraAnterior,
+                        'precio_nuevo' => $nuevoPrecio,
+                        'user_id' => Auth::id()
+                    ]);
+                }
+
+                // Recalcular totales de la orden de compra
+                $this->recalcularTotalesOrdenCompra($ordenCompra);
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Precio actualizado exitosamente',
+                    'data' => [
+                        'precio_anterior' => $precioAnterior,
+                        'precio_nuevo' => $nuevoPrecio,
+                        'orden_actualizada' => [
+                            'id' => $ordenCompra->id,
+                            'subtotal' => $ordenCompra->fresh()->subtotal,
+                            'total' => $ordenCompra->fresh()->total,
+                        ]
+                    ]
+                ]);
+            } else {
+                DB::rollBack();
+                return response()->json([
+                    'success' => true,
+                    'message' => 'El precio no cambió',
+                    'data' => [
+                        'precio_anterior' => $precioAnterior,
+                        'precio_nuevo' => $nuevoPrecio
+                    ]
+                ]);
+            }
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error de validación',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al editar precio de producto en orden de compra: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar el precio: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Recalcula los totales de una orden de compra basados en sus productos actuales
+     *
+     * @param OrdenCompra $ordenCompra
+     * @return void
+     */
+    private function recalcularTotalesOrdenCompra(OrdenCompra $ordenCompra)
+    {
+        $productos = $ordenCompra->productos;
+
+        $subtotal = 0;
+        $descuentoItems = 0;
+
+        foreach ($productos as $producto) {
+            $cantidad = (float) $producto->pivot->cantidad;
+            $precio = (float) $producto->pivot->precio;
+            $descuento = (float) $producto->pivot->descuento ?? 0;
+
+            $subtotalProducto = $cantidad * $precio;
+            $descuentoProducto = ($subtotalProducto * $descuento) / 100;
+
+            $subtotal += $subtotalProducto;
+            $descuentoItems += $descuentoProducto;
+        }
+
+        // Aplicar descuento general
+        $descuentoGeneral = (float) $ordenCompra->descuento_general ?? 0;
+        $subtotalDespuesDescuentos = $subtotal - $descuentoItems - $descuentoGeneral;
+
+        // Calcular IVA (16%)
+        $iva = $subtotalDespuesDescuentos * 0.16;
+
+        // Total final
+        $total = $subtotalDespuesDescuentos + $iva;
+
+        // Actualizar la orden de compra
+        $ordenCompra->update([
+            'subtotal' => round($subtotal, 2),
+            'descuento_items' => round($descuentoItems, 2),
+            'iva' => round($iva, 2),
+            'total' => round($total, 2),
+        ]);
+    }
+
+    /**
+     * Obtiene el historial de precios de un producto
+     *
+     * @param  int  $productoId
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function obtenerHistorialPrecios($productoId)
+    {
+        try {
+            $producto = Producto::findOrFail($productoId);
+
+            $historial = ProductoPrecioHistorial::where('producto_id', $productoId)
+                ->with('user:id,name')
+                ->orderBy('created_at', 'desc')
+                ->take(50) // Últimos 50 cambios
+                ->get()
+                ->map(function ($registro) {
+                    return [
+                        'id' => $registro->id,
+                        'fecha' => $registro->created_at->format('d/m/Y H:i:s'),
+                        'precio_compra_anterior' => (float) $registro->precio_compra_anterior,
+                        'precio_compra_nuevo' => (float) $registro->precio_compra_nuevo,
+                        'precio_venta_anterior' => $registro->precio_venta_anterior ? (float) $registro->precio_venta_anterior : null,
+                        'precio_venta_nuevo' => $registro->precio_venta_nuevo ? (float) $registro->precio_venta_nuevo : null,
+                        'tipo_cambio' => $registro->tipo_cambio,
+                        'notas' => $registro->notas,
+                        'usuario' => $registro->user?->name,
+                        'cambio_compra' => (float) $registro->precio_compra_nuevo - (float) $registro->precio_compra_anterior,
+                        'cambio_venta' => $registro->precio_venta_nuevo && $registro->precio_venta_anterior
+                            ? (float) $registro->precio_venta_nuevo - (float) $registro->precio_venta_anterior
+                            : null,
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'producto' => [
+                    'id' => $producto->id,
+                    'nombre' => $producto->nombre,
+                    'precio_compra_actual' => (float) $producto->precio_compra,
+                    'precio_venta_actual' => (float) $producto->precio_venta,
+                ],
+                'historial' => $historial,
+                'total_registros' => $historial->count()
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error al obtener historial de precios: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener el historial de precios'
+            ], 500);
+        }
+    }
+
+    /**
+     * Muestra la página de reporte de historial de precios de un producto
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $productoId
+     * @return \Illuminate\Http\Response
+     */
+    public function mostrarHistorialPrecios(Request $request, $productoId)
+    {
+        try {
+            $producto = Producto::findOrFail($productoId);
+
+            // Construir consulta base
+            $query = ProductoPrecioHistorial::where('producto_id', $productoId)
+                ->with('user:id,name')
+                ->orderBy('created_at', 'desc');
+
+            // Aplicar filtros
+            if ($tipoCambio = $request->get('tipo_cambio')) {
+                $query->where('tipo_cambio', $tipoCambio);
+            }
+
+            if ($fechaDesde = $request->get('fecha_desde')) {
+                $query->whereDate('created_at', '>=', $fechaDesde);
+            }
+
+            if ($fechaHasta = $request->get('fecha_hasta')) {
+                $query->whereDate('created_at', '<=', $fechaHasta);
+            }
+
+            $historial = $query->get()->map(function ($registro) {
+                return [
+                    'id' => $registro->id,
+                    'fecha' => $registro->created_at->format('d/m/Y H:i:s'),
+                    'precio_compra_anterior' => (float) $registro->precio_compra_anterior,
+                    'precio_compra_nuevo' => (float) $registro->precio_compra_nuevo,
+                    'precio_venta_anterior' => $registro->precio_venta_anterior ? (float) $registro->precio_venta_anterior : null,
+                    'precio_venta_nuevo' => $registro->precio_venta_nuevo ? (float) $registro->precio_venta_nuevo : null,
+                    'tipo_cambio' => $registro->tipo_cambio,
+                    'notas' => $registro->notas,
+                    'usuario' => $registro->user?->name,
+                    'cambio_compra' => (float) $registro->precio_compra_nuevo - (float) $registro->precio_compra_anterior,
+                    'cambio_venta' => $registro->precio_venta_nuevo && $registro->precio_venta_anterior
+                        ? (float) $registro->precio_venta_nuevo - (float) $registro->precio_venta_anterior
+                        : null,
+                ];
+            });
+
+            return Inertia::render('Reportes/HistorialPrecios', [
+                'producto' => [
+                    'id' => $producto->id,
+                    'nombre' => $producto->nombre,
+                    'descripcion' => $producto->descripcion,
+                    'precio_compra_actual' => (float) $producto->precio_compra,
+                    'precio_venta_actual' => (float) $producto->precio_venta,
+                ],
+                'historial' => $historial,
+                'filtros' => $request->only(['tipo_cambio', 'fecha_desde', 'fecha_hasta'])
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error al mostrar historial de precios: ' . $e->getMessage());
+            return redirect()->route('productos.index')->with('error', 'Error al cargar el historial de precios.');
+        }
+    }
+
+    /**
      * Calcula los totales basados en los items actuales
      *
      * @param \Illuminate\Support\Collection $items

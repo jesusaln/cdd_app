@@ -289,6 +289,8 @@
               @eliminar-producto="eliminarProducto"
               @update-quantity="updateQuantity"
               @update-discount="updateDiscount"
+              @update-price="updatePrice"
+              @ver-historial-precios="verHistorialPrecios"
             />
           </div>
         </div>
@@ -985,8 +987,25 @@ const inicializarProveedor = () => {
   }
 };
 
+// Función para actualizar precio
+const updatePrice = (key, price) => {
+  prices.value[key] = price;
+  calcularTotal();
+};
+
+// Función para ver historial de precios
+const verHistorialPrecios = (entry) => {
+  // Navegar a la página completa de historial de precios
+  window.open(route('reportes.historial-precios', entry.id), '_blank');
+};
+
 // Lifecycle hooks
 onMounted(() => {
+  // Establecer el ID de la orden de compra para el componente hijo
+  if (props.ordenCompra?.id) {
+    window.ordenCompraId = props.ordenCompra.id;
+  }
+
   // Inicializar datos en orden correcto
   inicializarFormulario();
   inicializarProveedor();

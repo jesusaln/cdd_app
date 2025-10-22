@@ -111,21 +111,38 @@
                 </div>
               </div>
 
-              <!-- Precio (solo lectura) -->
+              <!-- Precio (editable) -->
               <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Precio Unit.</label>
                 <div class="relative">
                   <input
-                    type="text"
-                    :value="'$' + (prices[`${entry.tipo}-${entry.id}`] || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })"
-                    readonly
-                    class="w-full px-3 py-2 text-sm bg-gray-100 border border-gray-300 rounded-lg text-gray-600 cursor-not-allowed"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    :value="prices[`${entry.tipo}-${entry.id}`] || 0"
+                    @input="updatePrice(entry, $event.target.value)"
+                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="0.00"
                   />
                   <div class="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
-                    <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                    </svg>
+                    <span class="text-gray-400 text-xs">$</span>
                   </div>
+                </div>
+                <div class="mt-1 flex items-center gap-2">
+                  <button
+                    @click="openEditPriceModal(entry)"
+                    class="text-xs text-blue-600 hover:text-blue-800 underline"
+                    title="Editar precio con historial"
+                  >
+                    Editar precio
+                  </button>
+                  <button
+                    @click="verHistorial(entry)"
+                    class="text-xs text-green-600 hover:text-green-800 underline"
+                    title="Ver historial de precios"
+                  >
+                    Historial
+                  </button>
                 </div>
               </div>
 
@@ -176,6 +193,122 @@
       <p class="text-gray-500 text-lg font-medium">No hay productos seleccionados</p>
       <p class="text-gray-400 text-sm mt-1">Busca y agrega productos para comenzar</p>
     </div>
+
+    <!-- Modal para editar precio con historial -->
+    <div v-if="showEditPriceModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <!-- Header del modal -->
+        <div class="flex items-center justify-between p-6 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">
+            Editar Precio - {{ productoSeleccionado?.nombre }}
+          </h3>
+          <button @click="closeEditPriceModal" class="text-gray-400 hover:text-gray-600 transition-colors">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="p-6">
+          <div v-if="loadingHistorial" class="text-center py-8">
+            <svg class="w-8 h-8 animate-spin mx-auto text-blue-500" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="mt-2 text-sm text-gray-600">Cargando historial...</p>
+          </div>
+
+          <div v-else>
+            <!-- Información del producto actual -->
+            <div class="mb-6 p-4 bg-gray-50 rounded-lg">
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700">Precio Actual</label>
+                  <p class="text-lg font-semibold text-gray-900">${{ productoSeleccionado?.precio_compra?.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700">Precio en Orden</label>
+                  <p class="text-lg font-semibold text-blue-600">${{ precioActualOrden?.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00' }}</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Formulario de nuevo precio -->
+            <div class="mb-6">
+              <label for="nuevo_precio" class="block text-sm font-medium text-gray-700 mb-2">
+                Nuevo Precio de Compra
+              </label>
+              <input
+                id="nuevo_precio"
+                v-model="nuevoPrecio"
+                type="number"
+                step="0.01"
+                min="0"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Ingresa el nuevo precio"
+              />
+              <p class="mt-1 text-sm text-gray-500">
+                Este precio se aplicará tanto a la orden de compra como al producto en el catálogo
+              </p>
+            </div>
+
+            <!-- Notas del cambio -->
+            <div class="mb-6">
+              <label for="notas_cambio" class="block text-sm font-medium text-gray-700 mb-2">
+                Notas del Cambio (opcional)
+              </label>
+              <textarea
+                id="notas_cambio"
+                v-model="notasCambio"
+                rows="3"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Describe el motivo del cambio de precio..."
+              ></textarea>
+            </div>
+
+            <!-- Historial de precios (últimos 5 cambios) -->
+            <div v-if="historialPrecios.length > 0" class="mb-6">
+              <h4 class="text-md font-medium text-gray-900 mb-3">Historial de Precios</h4>
+              <div class="space-y-2 max-h-40 overflow-y-auto">
+                <div v-for="registro in historialPrecios.slice(0, 5)" :key="registro.id" class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <div class="text-sm font-medium text-gray-900">
+                      ${{ registro.precio_compra_anterior?.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} →
+                      ${{ registro.precio_compra_nuevo?.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                    </div>
+                    <div class="text-xs text-gray-500">{{ registro.fecha }}</div>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-sm font-medium" :class="registro.cambio_compra >= 0 ? 'text-green-600' : 'text-red-600'">
+                      {{ registro.cambio_compra >= 0 ? '+' : '' }}${{ registro.cambio_compra?.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                    </div>
+                    <div class="text-xs text-gray-500">{{ registro.tipo_cambio }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer del modal -->
+        <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+          <button @click="closeEditPriceModal" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+            Cancelar
+          </button>
+          <button
+            @click="guardarNuevoPrecio"
+            :disabled="!nuevoPrecio || loadingGuardar"
+            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <svg v-if="loadingGuardar" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            {{ loadingGuardar ? 'Guardando...' : 'Guardar Precio' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -209,7 +342,10 @@ const emit = defineEmits([
   'eliminar-producto',
   'update-quantity',
   'update-discount',
-  'calcular-total'
+  'update-price',
+  'calcular-total',
+  'editar-precio-producto',
+  'ver-historial-precios'
 ]);
 
 // Función para obtener información del item
@@ -359,6 +495,125 @@ const updateDiscount = (entry, value) => {
   const key = `${entry.tipo}-${entry.id}`;
   const discount = Math.min(100, Math.max(0, Number.parseFloat(value) || 0));
   emit('update-discount', key, discount);
+};
+
+// Función para actualizar precio
+const updatePrice = (entry, value) => {
+  const key = `${entry.tipo}-${entry.id}`;
+  const price = Math.max(0, Number.parseFloat(value) || 0);
+  emit('update-price', key, price);
+};
+
+// Variables para el modal de edición de precios
+const showEditPriceModal = ref(false);
+const productoSeleccionado = ref(null);
+const precioActualOrden = ref(0);
+const nuevoPrecio = ref('');
+const notasCambio = ref('');
+const historialPrecios = ref([]);
+const loadingHistorial = ref(false);
+const loadingGuardar = ref(false);
+
+// Función para abrir modal de edición de precio
+const openEditPriceModal = (entry) => {
+  productoSeleccionado.value = getItemInfo(entry);
+  precioActualOrden.value = prices.value[`${entry.tipo}-${entry.id}`] || 0;
+  nuevoPrecio.value = precioActualOrden.value.toString();
+  notasCambio.value = '';
+  showEditPriceModal.value = true;
+
+  // Cargar historial de precios
+  cargarHistorialPrecios(entry.id);
+};
+
+// Función para cerrar modal
+const closeEditPriceModal = () => {
+  showEditPriceModal.value = false;
+  productoSeleccionado.value = null;
+  precioActualOrden.value = 0;
+  nuevoPrecio.value = '';
+  notasCambio.value = '';
+  historialPrecios.value = [];
+};
+
+// Función para cargar historial de precios
+const cargarHistorialPrecios = async (productoId) => {
+  loadingHistorial.value = true;
+  try {
+    const response = await fetch(route('productos.historial-precios', productoId));
+    const data = await response.json();
+
+    if (data.success) {
+      historialPrecios.value = data.historial;
+    } else {
+      console.error('Error al cargar historial:', data.message);
+    }
+  } catch (error) {
+    console.error('Error de red:', error);
+  } finally {
+    loadingHistorial.value = false;
+  }
+};
+
+// Función para guardar nuevo precio
+const guardarNuevoPrecio = async () => {
+  if (!nuevoPrecio.value || !productoSeleccionado.value) return;
+
+  loadingGuardar.value = true;
+  try {
+    // Aquí necesitarías obtener el ID de la orden de compra actual
+    // Por ahora, asumiré que viene de las props o contexto
+    const ordenCompraId = window.ordenCompraId || null; // Necesitarás pasar este valor
+
+    if (!ordenCompraId) {
+      throw new Error('ID de orden de compra no disponible');
+    }
+
+    const response = await fetch(route('ordenescompra.editar-precio-producto', {
+      ordenId: ordenCompraId,
+      productoId: productoSeleccionado.value.id
+    }), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+      },
+      body: JSON.stringify({
+        precio: parseFloat(nuevoPrecio.value),
+        notas: notasCambio.value
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      // Actualizar el precio en el componente padre
+      const key = `producto-${productoSeleccionado.value.id}`;
+      emit('update-price', key, parseFloat(nuevoPrecio.value));
+
+      closeEditPriceModal();
+
+      // Mostrar notificación de éxito
+      if (window.notyf) {
+        window.notyf.success(data.message || 'Precio actualizado exitosamente');
+      }
+    } else {
+      throw new Error(data.message || 'Error al actualizar precio');
+    }
+  } catch (error) {
+    console.error('Error al guardar precio:', error);
+    if (window.notyf) {
+      window.notyf.error('Error al actualizar el precio: ' + error.message);
+    }
+  } finally {
+    loadingGuardar.value = false;
+  }
+};
+
+// Función para ver historial completo
+const verHistorial = (entry) => {
+  // Navegar a la página completa de historial de precios
+  window.open(route('reportes.historial-precios', entry.id), '_blank');
 };
 </script>
 

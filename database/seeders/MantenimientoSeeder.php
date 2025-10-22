@@ -68,7 +68,6 @@ class MantenimientoSeeder extends Seeder
                 Mantenimiento::create([
                     'carro_id' => $carro->id,
                     'tipo' => $tipo,
-                    'otro_servicio' => ($tipo === 'Otro servicio') ? 'Servicio personalizado de prueba' : null,
                     'fecha' => $fechaServicio->format('Y-m-d'),
                     'proximo_mantenimiento' => $proximoMantenimiento->format('Y-m-d'),
                     'descripcion' => "Mantenimiento de prueba - {$tipo}",
