@@ -194,7 +194,7 @@
                   </button>
 
                   <button
-                    v-if="doc.estado !== 'cancelado'"
+                    v-if="doc.estado !== 'cancelado' && doc.estado !== 'enviado_pedido'"
                     @click="onEditar(doc.id)"
                     class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 hover:text-amber-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-1"
                     title="Editar"

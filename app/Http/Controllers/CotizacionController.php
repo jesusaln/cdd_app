@@ -1115,10 +1115,28 @@ class CotizacionController extends Controller
                 ]);
             }
 
+            Log::info("Iniciando envío de cotización por email", [
+                'cotizacion_id' => $cotizacion->id,
+                'numero_cotizacion' => $cotizacion->numero_cotizacion,
+                'cliente_id' => $cotizacion->cliente->id,
+                'cliente_email' => $emailDestino,
+                'cliente_nombre' => $cotizacion->cliente->nombre_razon_social,
+            ]);
+
             // Obtener configuración de empresa para el PDF
             $configuracion = \App\Models\EmpresaConfiguracion::getConfig();
 
+            Log::info("Configuración SMTP obtenida", [
+                'smtp_host' => $configuracion->smtp_host,
+                'smtp_port' => $configuracion->smtp_port,
+                'smtp_username' => $configuracion->smtp_username ? substr($configuracion->smtp_username, 0, 10) . '...' : 'no configurado',
+                'smtp_encryption' => $configuracion->smtp_encryption,
+                'email_from_address' => $configuracion->email_from_address,
+                'email_from_name' => $configuracion->email_from_name,
+            ]);
+
             // Generar PDF de la cotización
+            Log::info("Generando PDF de cotización");
             $pdf = Pdf::loadView('cotizacion_pdf', [
                 'cotizacion' => $cotizacion,
                 'configuracion' => $configuracion,
@@ -1132,22 +1150,41 @@ class CotizacionController extends Controller
                 'isPhpEnabled' => true,
             ]);
 
+            Log::info("PDF generado exitosamente", [
+                'pdf_size' => strlen($pdf->output()) . ' bytes'
+            ]);
+
             // Preparar datos del email
             $datosEmail = [
                 'cotizacion' => $cotizacion,
                 'cliente' => $cotizacion->cliente,
                 'configuracion' => $configuracion,
+                'fecha_envio' => now()->format('d/m/Y H:i:s'),
+                'numero_cotizacion_formateado' => $cotizacion->numero_cotizacion,
             ];
 
-            // Configurar SMTP con datos de la base de datos
+            // Configurar SMTP con datos de la base de datos - FORZAR configuración
             config([
+                'mail.default' => 'smtp',
+                'mail.mailers.smtp.transport' => 'smtp',
                 'mail.mailers.smtp.host' => $configuracion->smtp_host,
                 'mail.mailers.smtp.port' => $configuracion->smtp_port,
                 'mail.mailers.smtp.username' => $configuracion->smtp_username,
                 'mail.mailers.smtp.password' => $configuracion->smtp_password,
                 'mail.mailers.smtp.encryption' => $configuracion->smtp_encryption,
+                'mail.mailers.smtp.timeout' => 30,
                 'mail.from.address' => $configuracion->email_from_address,
                 'mail.from.name' => $configuracion->email_from_name,
+            ]);
+
+            // Limpiar cualquier configuración previa de mail
+            \Illuminate\Support\Facades\Mail::purge('smtp');
+
+            Log::info("Configuración SMTP aplicada y forzada", [
+                'config_aplicada' => config('mail.mailers.smtp'),
+                'config_default' => config('mail.default'),
+                'from_address' => config('mail.from.address'),
+                'from_name' => config('mail.from.name'),
             ]);
 
             // Enviar email con PDF adjunto
@@ -1162,9 +1199,22 @@ class CotizacionController extends Controller
                 if ($configuracion->email_reply_to) {
                     $message->replyTo($configuracion->email_reply_to);
                 }
+
+                // Agregar BCC para seguimiento interno
+                if ($configuracion->email_from_address) {
+                    $message->bcc($configuracion->email_from_address);
+                }
+
+                Log::info("Email preparado para envío", [
+                    'to' => $emailDestino,
+                    'bcc' => $configuracion->email_from_address,
+                    'subject' => "Cotización #{$cotizacion->numero_cotizacion} - {$configuracion->nombre_empresa}",
+                    'attachment_name' => "cotizacion-{$cotizacion->numero_cotizacion}.pdf",
+                    'reply_to' => $configuracion->email_reply_to ?? 'no configurado',
+                ]);
             });
 
-            Log::info("PDF de cotización enviado por email", [
+            Log::info("Email enviado exitosamente via Mail::send DESDE INTERFAZ WEB", [
                 'cotizacion_id' => $cotizacion->id,
                 'cliente_email' => $emailDestino,
                 'numero_cotizacion' => $cotizacion->numero_cotizacion,
@@ -1172,7 +1222,12 @@ class CotizacionController extends Controller
                     'host' => $configuracion->smtp_host,
                     'port' => $configuracion->smtp_port,
                     'encryption' => $configuracion->smtp_encryption,
-                ]
+                ],
+                'bcc_enviado' => $configuracion->email_from_address,
+                'timestamp' => now()->toISOString(),
+                'contexto' => 'web_interface',
+                'user_agent' => $request->userAgent(),
+                'ip' => $request->ip(),
             ]);
 
             // Registrar el envío en la cotización para mostrar en el frontend
@@ -1182,11 +1237,18 @@ class CotizacionController extends Controller
                 'email_enviado_por' => Auth::id(),
             ]);
 
+            Log::info("Cotización actualizada con envío de email registrado", [
+                'cotizacion_id' => $cotizacion->id,
+                'email_enviado' => true,
+                'email_enviado_fecha' => now()->format('Y-m-d H:i:s'),
+                'email_enviado_por' => Auth::id(),
+            ]);
+
             // Si es una petición AJAX, devolver JSON; de lo contrario, redirect
             if ($request->expectsJson() || $request->is('api/*')) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Cotización enviada por email correctamente',
+                    'message' => 'Cotización enviada por email correctamente. Si no llega, revisa la carpeta de spam.',
                     'cotizacion' => [
                         'id' => $cotizacion->id,
                         'email_enviado' => true,
@@ -1196,7 +1258,7 @@ class CotizacionController extends Controller
                 ]);
             }
 
-            return redirect()->back()->with('success', 'Cotización enviada por email correctamente');
+            return redirect()->back()->with('success', 'Cotización enviada por email correctamente. Si no llega, revisa la carpeta de spam.');
         } catch (\Exception $e) {
             Log::error("Error al enviar PDF de cotización por email", [
                 'cotizacion_id' => $id,

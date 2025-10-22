@@ -648,6 +648,7 @@ const crearNuevaCotizacion = () => {
           @ver-detalles="verDetalles"
           @editar="editarCotizacion"
           @eliminar="confirmarEliminacion"
+          @imprimir="imprimirCotizacion"
           @enviar-pedido="enviarAPedido"
           @enviar-email="enviarCotizacionPorEmail"
           @sort="updateSort"

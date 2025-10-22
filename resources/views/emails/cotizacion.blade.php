@@ -151,6 +151,9 @@ Ubicación: resources/views/emails/cotizacion.blade.php
             Se ha adjuntado el PDF detallado de la cotización #{{ $cotizacion->numero_cotizacion }}.
             El documento incluye todos los productos/servicios, cantidades, precios y totales.
         </p>
+        <p style="margin: 10px 0 0 0; color: #666; font-size: 12px;">
+            <strong>Enviado el:</strong> {{ $fecha_envio ?? now()->format('d/m/Y H:i:s') }}
+        </p>
     </div>
 
     <div style="margin: 20px 0;">
@@ -186,7 +189,10 @@ Ubicación: resources/views/emails/cotizacion.blade.php
             Este es un mensaje automático enviado desde {{ $configuracion->nombre_empresa }}.
         </p>
         <p style="margin: 10px 0 0 0; color: #999; font-size: 12px;">
-            Sistema de Gestión CDD - {{ $configuracion->nombre_empresa }} - Cotización #{{ $cotizacion->numero_cotizacion }}
+            Sistema de Gestión CDD - {{ $configuracion->nombre_empresa }} - Cotización #{{ $numero_cotizacion_formateado ?? $cotizacion->numero_cotizacion }}
+        </p>
+        <p style="margin: 5px 0 0 0; color: #999; font-size: 11px;">
+            Si no visualiza correctamente este email, revise su carpeta de spam o contacte a soporte.
         </p>
     </div>
     </div>
