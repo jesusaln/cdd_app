@@ -193,9 +193,6 @@ class CitaController extends Controller
             ],
             'prioridad' => 'nullable|string|in:baja,media,alta,urgente',
             'descripcion' => 'nullable|string|max:1000',
-            'tipo_equipo' => 'required|string|max:255',
-            'marca_equipo' => 'required|string|max:255',
-            'modelo_equipo' => 'required|string|max:255',
             'problema_reportado' => 'nullable|string|max:1000',
             'estado' => 'required|string|in:pendiente,en_proceso,completado,cancelado',
             'evidencias' => 'nullable|string|max:2000',
@@ -266,6 +263,33 @@ class CitaController extends Controller
                             'cantidad' => $cantidad,
                             'precio_venta' => $precio,
                             'subtotal' => $subtotal,
+                        ]);
+                    }
+                }
+            }
+
+            // Adjuntar productos utilizados
+            $productosUtilizados = $request->input('productos_utilizados');
+            if (is_string($productosUtilizados)) {
+                $decoded = json_decode($productosUtilizados, true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $productosUtilizados = $decoded;
+                }
+            }
+            if (is_array($productosUtilizados)) {
+                foreach ($productosUtilizados as $item) {
+                    $productoId = (int) ($item['id'] ?? 0);
+                    $cantidad = max(1, (int) ($item['cantidad'] ?? 1));
+                    $precioUnitario = (float) ($item['precio_unitario'] ?? 0);
+                    $tipoUso = $item['tipo_uso'] ?? 'repuesto';
+                    $notas = $item['notas'] ?? null;
+
+                    if ($productoId > 0 && $cantidad > 0) {
+                        $cita->productosUtilizados()->attach($productoId, [
+                            'cantidad' => $cantidad,
+                            'precio_unitario' => $precioUnitario,
+                            'tipo_uso' => $tipoUso,
+                            'notas' => $notas,
                         ]);
                     }
                 }
@@ -357,15 +381,17 @@ class CitaController extends Controller
             ],
             'prioridad' => 'nullable|string|in:baja,media,alta,urgente',
             'descripcion' => 'nullable|string|max:1000',
-            'tipo_equipo' => 'sometimes|required|string|max:255',
-            'marca_equipo' => 'sometimes|required|string|max:255',
-            'modelo_equipo' => 'sometimes|required|string|max:255',
             'problema_reportado' => 'nullable|string|max:1000',
             'estado' => 'sometimes|required|string|in:pendiente,en_proceso,completado,cancelado',
             'evidencias' => 'nullable|string|max:2000',
             'foto_equipo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
             'foto_hoja_servicio' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
             'foto_identificacion' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+            'productos_utilizados' => 'nullable|array',
+            'productos_vendidos' => 'nullable|array',
+            'servicios_realizados' => 'nullable|array',
+            'monto_productos_vendidos' => 'nullable|numeric|min:0',
+            'requiere_venta' => 'nullable|boolean',
         ]);
 
         try {
@@ -409,7 +435,99 @@ class CitaController extends Controller
             ]);
 
             // Actualizar la cita con los datos validados y las rutas de los archivos
-            $cita->update(array_merge($validated, $filePaths));
+            $cita->update(array_merge(collect($validated)->except([
+                'productos_utilizados',
+                'productos_vendidos',
+                'servicios_realizados',
+                'monto_productos_vendidos',
+                'requiere_venta',
+            ])->toArray(), $filePaths));
+
+            // Limpiar relaciones existentes si se proporcionaron nuevos datos
+            if ($request->has('productos_utilizados')) {
+                $cita->productosUtilizados()->detach();
+            }
+            if ($request->has('productos_vendidos')) {
+                $cita->productosVendidos()->detach();
+            }
+            if ($request->has('servicios_realizados')) {
+                $cita->serviciosRealizados()->detach();
+            }
+
+            // Adjuntar productos utilizados
+            $productosUtilizados = $request->input('productos_utilizados');
+            if (is_string($productosUtilizados)) {
+                $decoded = json_decode($productosUtilizados, true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $productosUtilizados = $decoded;
+                }
+            }
+            if (is_array($productosUtilizados)) {
+                foreach ($productosUtilizados as $item) {
+                    $productoId = (int) ($item['id'] ?? 0);
+                    $cantidad = max(1, (int) ($item['cantidad'] ?? 1));
+                    $precioUnitario = (float) ($item['precio_unitario'] ?? 0);
+                    $tipoUso = $item['tipo_uso'] ?? 'repuesto';
+                    $notas = $item['notas'] ?? null;
+
+                    if ($productoId > 0 && $cantidad > 0) {
+                        $cita->productosUtilizados()->attach($productoId, [
+                            'cantidad' => $cantidad,
+                            'precio_unitario' => $precioUnitario,
+                            'tipo_uso' => $tipoUso,
+                            'notas' => $notas,
+                        ]);
+                    }
+                }
+            }
+
+            // Adjuntar productos vendidos
+            $productosVendidos = $request->input('productos_vendidos');
+            if (is_string($productosVendidos)) {
+                $decoded = json_decode($productosVendidos, true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $productosVendidos = $decoded;
+                }
+            }
+            if (is_array($productosVendidos)) {
+                foreach ($productosVendidos as $item) {
+                    $productoId = (int) ($item['id'] ?? 0);
+                    $cantidad = max(1, (int) ($item['cantidad'] ?? 1));
+                    $precio = (float) ($item['precio'] ?? 0);
+                    if ($productoId > 0 && $cantidad > 0) {
+                        $subtotal = $cantidad * $precio;
+                        $cita->productosVendidos()->attach($productoId, [
+                            'cantidad' => $cantidad,
+                            'precio_venta' => $precio,
+                            'subtotal' => $subtotal,
+                        ]);
+                    }
+                }
+            }
+
+            // Adjuntar servicios realizados
+            $serviciosRealizados = $request->input('servicios_realizados');
+            if (is_string($serviciosRealizados)) {
+                $decoded = json_decode($serviciosRealizados, true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $serviciosRealizados = $decoded;
+                }
+            }
+            if (is_array($serviciosRealizados)) {
+                foreach ($serviciosRealizados as $item) {
+                    $servicioId = (int) ($item['id'] ?? 0);
+                    $cantidad = max(1, (int) ($item['cantidad'] ?? 1));
+                    $precio = (float) ($item['precio'] ?? 0);
+                    if ($servicioId > 0 && $cantidad > 0) {
+                        $subtotal = $cantidad * $precio;
+                        $cita->serviciosRealizados()->attach($servicioId, [
+                            'cantidad' => $cantidad,
+                            'precio' => $precio,
+                            'subtotal' => $subtotal,
+                        ]);
+                    }
+                }
+            }
 
             // Si la cita se marcó como completada, convertir a venta con verificación de inventario
             if (($validated['estado'] ?? $cita->estado) === Cita::ESTADO_COMPLETADO && $estadoAnterior !== Cita::ESTADO_COMPLETADO) {
@@ -438,7 +556,7 @@ class CitaController extends Controller
     private function convertirCitaAVenta(Cita $cita, $user = null): void
     {
         // Cargar relaciones necesarias
-        $cita->load(['cliente', 'tecnico', 'productosVendidos', 'serviciosRealizados']);
+        $cita->load(['cliente', 'tecnico', 'productosVendidos', 'productosUtilizados', 'serviciosRealizados']);
 
         // Recolectar ítems
         $items = [];
@@ -649,7 +767,7 @@ class CitaController extends Controller
      */
     public function show(Cita $cita)
     {
-        $cita->load(['cliente', 'tecnico']);
+        $cita->load(['cliente', 'tecnico', 'productosUtilizados', 'productosVendidos', 'serviciosRealizados']);
 
         return Inertia::render('Citas/Show', [
             'cita' => $cita,
@@ -734,9 +852,9 @@ class CitaController extends Controller
                         $cita->fecha_hora?->format('d/m/Y H:i:s'),
                         $cita->estado,
                         $cita->prioridad ?? 'N/A',
-                        $cita->tipo_equipo,
-                        $cita->marca_equipo,
-                        $cita->modelo_equipo,
+                        'N/A',
+                        'N/A',
+                        'N/A',
                         $cita->created_at?->format('d/m/Y H:i:s')
                     ]);
                 }

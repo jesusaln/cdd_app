@@ -29,9 +29,6 @@ class Cita extends Model
         'tipo_servicio',
         'fecha_hora',
         'descripcion',
-        'tipo_equipo',
-        'marca_equipo',
-        'modelo_equipo',
         'problema_reportado',
         'prioridad',
         'estado',
@@ -156,7 +153,7 @@ class Cita extends Model
     public function productosUtilizados()
     {
         return $this->belongsToMany(Producto::class, 'cita_productos_utilizados')
-            ->withPivot('cantidad', 'precio_unitario', 'tipo_uso')
+            ->withPivot('cantidad', 'precio_unitario', 'tipo_uso', 'notas')
             ->withTimestamps();
     }
 

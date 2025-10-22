@@ -79,18 +79,8 @@
 
                 <!-- Sección: Detalles del Servicio -->
                 <div class="border-b border-gray-200 pb-6">
-                    <h2 class="text-lg font-medium text-gray-900 mb-4">Detalles del Servicio</h2>
+                    <h2 class="text-lg font-medium text-gray-900 mb-4">Detalles del Servicios</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Buscador de Servicios Mejorado -->
-                        <div class="md:col-span-2">
-                            <BuscarServicios
-                                ref="buscarServiciosRef"
-                                :servicios="servicios"
-                                @servicio-seleccionado="onServicioSeleccionado"
-                            />
-                            <p v-if="form.errors.tipo_servicio" class="mt-1 text-sm text-red-600">{{ form.errors.tipo_servicio }}</p>
-                        </div>
-
                         <FormField
                             v-model="form.fecha_hora"
                             label="Fecha y Hora"
@@ -134,86 +124,7 @@
                     </div>
                 </div>
 
-                <!-- Sección: Información del Equipo -->
-                <div class="border-b border-gray-200 pb-6">
-                    <h2 class="text-lg font-medium text-gray-900 mb-4">Información del Equipo</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <FormField
-                            v-model="form.tipo_equipo"
-                            label="Tipo de Equipo"
-                            type="select"
-                            id="tipo_equipo"
-                            :options="tipoEquipoOptions"
-                            :error="form.errors.tipo_equipo"
-                            required
-                        />
-
-                        <FormField
-                            v-model="form.marca_equipo"
-                            label="Marca del Equipo"
-                            type="text"
-                            id="marca_equipo"
-                            :error="form.errors.marca_equipo"
-                            placeholder="Ej: Samsung, LG, Whirlpool..."
-                            @blur="convertirAMayusculas('marca_equipo')"
-                            required
-                            :datalist="marcasComunes"
-                        />
-
-                        <FormField
-                            v-model="form.modelo_equipo"
-                            label="Modelo del Equipo"
-                            type="text"
-                            id="modelo_equipo"
-                            :error="form.errors.modelo_equipo"
-                            placeholder="Número de modelo..."
-                            @blur="convertirAMayusculas('modelo_equipo')"
-                            required
-                        />
-
-                        <FormField
-                            v-model="form.numero_serie"
-                            label="Número de Serie"
-                            type="text"
-                            id="numero_serie"
-                            :error="form.errors.numero_serie"
-                            placeholder="Número de serie del equipo..."
-                            @blur="convertirAMayusculas('numero_serie')"
-                        />
-
-                        <FormField
-                            v-model="form.garantia"
-                            label="¿Tiene Garantía?"
-                            type="select"
-                            id="garantia"
-                            :options="garantiaOptions"
-                            :error="form.errors.garantia"
-                        />
-
-                        <FormField
-                            v-model="form.fecha_compra"
-                            label="Fecha de Compra"
-                            type="date"
-                            id="fecha_compra"
-                            :error="form.errors.fecha_compra"
-                            :max="todayDate"
-                        />
-
-                        <div class="lg:col-span-3">
-                            <FormField
-                                v-model="form.problema_reportado"
-                                label="Problema Reportado"
-                                type="textarea"
-                                id="problema_reportado"
-                                :error="form.errors.problema_reportado"
-                                placeholder="Describa detalladamente el problema reportado por el cliente..."
-                                :rows="3"
-                                required
-                            />
-                        </div>
-                    </div>
-                </div>
-
+               
                 <!-- Sección: Información Adicional -->
                 <div class="border-b border-gray-200 pb-6">
                     <h2 class="text-lg font-medium text-gray-900 mb-4">Información Adicional</h2>
@@ -238,39 +149,23 @@
                             :rows="2"
                         />
 
-                        <FormField
-                            v-model="form.costo_estimado"
-                            label="Costo Estimado"
-                            type="number"
-                            id="costo_estimado"
-                            :error="form.errors.costo_estimado"
-                            placeholder="0.00"
-                            step="0.01"
-                            min="0"
-                        />
-
-                        <FormField
-                            v-model="form.tiempo_estimado"
-                            label="Tiempo Estimado (horas)"
-                            type="number"
-                            id="tiempo_estimado"
-                            :error="form.errors.tiempo_estimado"
-                            placeholder="0.5"
-                            step="0.5"
-                            min="0.5"
-                        />
                     </div>
                 </div>
 
-                <!-- Sección: Productos/Servicios de la Cita -->
+                <!-- Sección: Productos de la Cita -->
                 <div class="border-b border-gray-200 pb-6">
-                    <h2 class="text-lg font-medium text-gray-900 mb-4">Productos/Servicios de la Cita</h2>
+                    <h2 class="text-lg font-medium text-gray-900 mb-4">Productos de la Cita</h2>
                     <div class="space-y-4">
                         <BuscarProducto
                             ref="buscarProductoRef"
                             :productos="productos || []"
                             :servicios="servicios || []"
                             :validar-stock="true"
+                            label="Buscar Productos y Servicios para Venta"
+                            placeholder="Buscar productos y servicios por nombre, código, categoría o descripción..."
+                            texto-todos="Todos"
+                            texto-productos="Productos"
+                            texto-servicios="Servicios"
                             @agregar-producto="onAgregarItem"
                         />
 
@@ -278,8 +173,7 @@
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
-                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
-                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</th>
                                         <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Cantidad</th>
                                         <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Precio</th>
                                         <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Subtotal</th>
@@ -287,24 +181,21 @@
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-200">
-                                    <tr v-for="row in selectedItems" :key="`${row.tipo}-${row.id}`">
-                                        <td class="px-3 py-2 text-sm text-gray-600">
-                                            <span :class="row.tipo === 'producto' ? 'text-blue-700' : 'text-purple-700'">{{ row.tipo }}</span>
-                                        </td>
-                                        <td class="px-3 py-2 text-sm text-gray-900">{{ getItemName(row) }}</td>
+                                    <tr v-for="producto in selectedItems" :key="`producto-${producto.id}`">
+                                        <td class="px-3 py-2 text-sm text-gray-900">{{ getItemName(producto) }}</td>
                                         <td class="px-3 py-2 text-sm text-gray-900 text-right">
                                             <input type="number" min="1" class="w-24 text-right border rounded px-2 py-1"
-                                                   v-model.number="quantities[`${row.tipo}-${row.id}`]" />
+                                                   v-model.number="quantities[`producto-${producto.id}`]" />
                                         </td>
                                         <td class="px-3 py-2 text-sm text-gray-900 text-right">
                                             <input type="number" min="0" step="0.01" class="w-28 text-right border rounded px-2 py-1"
-                                                   v-model.number="prices[`${row.tipo}-${row.id}`]" />
+                                                   v-model.number="prices[`producto-${producto.id}`]" />
                                         </td>
                                         <td class="px-3 py-2 text-sm text-gray-900 text-right">
-                                            {{ ((quantities[`${row.tipo}-${row.id}`] || 0) * (prices[`${row.tipo}-${row.id}`] || 0)).toFixed(2) }}
+                                            {{ ((quantities[`producto-${producto.id}`] || 0) * (prices[`producto-${producto.id}`] || 0)).toFixed(2) }}
                                         </td>
                                         <td class="px-3 py-2 text-right">
-                                            <button type="button" class="text-red-600 hover:underline" @click="removeItem(row)">Quitar</button>
+                                            <button type="button" class="text-red-600 hover:underline" @click="removeItem(producto)">Quitar</button>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -312,6 +203,7 @@
                         </div>
                     </div>
                 </div>
+
 
                 <!-- Botones de acción -->
                 <div class="flex justify-between items-center pt-6 border-t border-gray-200">
@@ -371,7 +263,6 @@ import { computed, onMounted, onUnmounted, ref, nextTick } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import FormField from '@/Components/FormField.vue';
 import BuscarCliente from '@/Components/CreateComponents/BuscarCliente.vue';
-import BuscarServicios from '@/Components/CreateComponents/BuscarServicios.vue';
 import BuscarProducto from '@/Components/CreateComponents/BuscarProducto.vue';
 
 defineOptions({ layout: AppLayout });
@@ -389,16 +280,15 @@ const showSuccessMessage = ref(false);
 
 // Referencias a los componentes
 const buscarClienteRef = ref(null);
-const buscarServiciosRef = ref(null);
 const buscarProductoRef = ref(null);
 
 // Items seleccionados para venta
 const selectedItems = ref([]); // [{id, tipo, nombre?}]
-const quantities = ref({}); // key: `${tipo}-${id}` => cantidad
+const quantities = ref({});     // key: `${tipo}-${id}` => cantidad
 const prices = ref({});     // key: `${tipo}-${id}` => precio
 
-const productosSeleccionados = computed(() => selectedItems.value.filter(it => it.tipo === 'producto'));
-const serviciosSeleccionados = computed(() => selectedItems.value.filter(it => it.tipo === 'servicio'));
+
+const productosSeleccionados = computed(() => selectedItems.value);
 
 // Opciones de selección mejoradas
 const tecnicosOptions = computed(() => [
@@ -410,17 +300,6 @@ const tecnicosOptions = computed(() => [
     }))
 ]);
 
-const tipoServicioOptions = [
-    { value: '', text: 'Selecciona el tipo de servicio', disabled: true },
-    { value: 'instalacion', text: 'Instalación' },
-    { value: 'mantenimiento', text: 'Mantenimiento' },
-    { value: 'diagnostico', text: 'Diagnóstico' },
-    { value: 'reparacion', text: 'Reparación' },
-    { value: 'mantenimiento', text: 'Mantenimiento' },
-    { value: 'garantia', text: 'Garantía' },
-    { value: 'revision', text: 'Revisión' },
-    { value: 'otro_servicio', text: 'Otro Servicio' }
-];
 
 const estadoOptions = [
     { value: '', text: 'Selecciona el estado', disabled: true },
@@ -496,59 +375,51 @@ const onCrearNuevoCliente = (nombreBuscado) => {
     window.open(route('clientes.create'), '_blank');
 };
 
-// Función para manejo del componente BuscarServicios
-const onServicioSeleccionado = (servicio) => {
-    if (servicio) {
-        // Auto-llenar campos relacionados con el servicio seleccionado
-        form.tipo_servicio = servicio.nombre;
-        form.descripcion = servicio.descripcion || '';
 
-        // Si el servicio tiene precio, establecerlo como costo estimado
-        if (servicio.precio) {
-            form.costo_estimado = servicio.precio;
-        }
-
-        showTemporaryMessage(`Servicio seleccionado: ${servicio.nombre}`, 'success');
-    }
-};
-
-// Agregar producto/servicio a la lista
+// Agregar producto o servicio a la lista
 const onAgregarItem = (item) => {
-    if (!item || typeof item.id === 'undefined' || !item.tipo) return;
-    const key = `${item.tipo}-${item.id}`;
-    const exists = selectedItems.value.some(e => e.id === item.id && e.tipo === item.tipo);
+    if (!item || typeof item.id === 'undefined') return;
+    const tipo = item.tipo || 'producto'; // 'producto' o 'servicio'
+    const key = `${tipo}-${item.id}`;
+    const exists = selectedItems.value.some(p => p.id === item.id && p.tipo === tipo);
     if (!exists) {
-        selectedItems.value.push({ id: item.id, tipo: item.tipo, nombre: item.nombre });
+        selectedItems.value.push({ id: item.id, tipo: tipo, nombre: item.nombre });
         quantities.value[key] = 1;
-        let precio = 0;
-        if (item.tipo === 'producto') precio = typeof item.precio_venta === 'number' ? item.precio_venta : 0;
-        else precio = typeof item.precio === 'number' ? item.precio : 0;
-        prices.value[key] = precio;
+        const precio = typeof item.precio === 'number' ? item.precio : (tipo === 'producto' ? item.precio_venta : item.precio);
+        prices.value[key] = precio || 0;
     }
 };
 
-const getItemName = (row) => {
-    if (row?.nombre) return row.nombre;
-    const src = row.tipo === 'producto' ? (props.productos || []) : (props.servicios || []);
-    const found = src.find(x => x.id === row.id);
-    return found?.nombre || `${row.tipo} #${row.id}`;
+const getItemName = (item) => {
+    if (item?.nombre) return item.nombre;
+
+    // Buscar en productos o servicios según el tipo
+    const tipo = item?.tipo || 'producto';
+    const lista = tipo === 'producto' ? (props.productos || []) : (props.servicios || []);
+    const found = lista.find(p => p.id === item.id);
+    return found?.nombre || `${tipo === 'producto' ? 'Producto' : 'Servicio'} #${item.id}`;
 };
 
-const removeItem = (row) => {
-    const idx = selectedItems.value.findIndex(r => r.id === row.id && r.tipo === row.tipo);
+const removeItem = (item) => {
+    const tipo = item?.tipo || 'producto';
+    const key = `${tipo}-${item.id}`;
+
+    // Eliminar del array de items seleccionados
+    const idx = selectedItems.value.findIndex(p => p.id === item.id && p.tipo === tipo);
     if (idx >= 0) selectedItems.value.splice(idx, 1);
+
+    // Limpiar cantidades y precios
+    delete quantities.value[key];
+    delete prices.value[key];
 };
+
 
 // Formulario usando useForm de Inertia con campos adicionales
 const form = useForm({
     tecnico_id: '',
     cliente_id: '',
-    tipo_servicio: '',
     fecha_hora: '',
     descripcion: '',
-    tipo_equipo: '',
-    marca_equipo: '',
-    modelo_equipo: '',
     numero_serie: '',
     problema_reportado: '',
     estado: 'pendiente',
@@ -557,8 +428,6 @@ const form = useForm({
     fecha_compra: '',
     direccion_servicio: '',
     observaciones: '',
-    costo_estimado: '',
-    tiempo_estimado: '',
     evidencias: '',
     foto_equipo: null,
     foto_hoja_servicio: null,
@@ -587,6 +456,9 @@ const saveDraft = () => {
     const draftData = {
         ...form.data(),
         selectedCliente: selectedCliente.value,
+        selectedItems: selectedItems.value,
+        quantities: quantities.value,
+        prices: prices.value,
         timestamp: new Date().toISOString()
     };
 
@@ -613,7 +485,7 @@ const loadDraft = () => {
             if (hoursDiff < 24) {
                 // Cargar datos del formulario
                 Object.keys(form.data()).forEach(key => {
-                    if (parsed[key] !== undefined && key !== 'foto_equipo' && key !== 'foto_hoja_servicio' && key !== 'foto_identificacion') {
+                    if (parsed[key] !== undefined && key !== 'tipo_equipo' && key !== 'marca_equipo' && key !== 'modelo_equipo' && key !== 'foto_equipo' && key !== 'foto_hoja_servicio' && key !== 'foto_identificacion') {
                         form[key] = parsed[key];
                     }
                 });
@@ -622,6 +494,18 @@ const loadDraft = () => {
                 if (parsed.selectedCliente) {
                     selectedCliente.value = parsed.selectedCliente;
                     // El componente BuscarCliente se actualizará automáticamente con el cliente seleccionado
+                }
+
+
+                // Cargar productos/servicios seleccionados
+                if (parsed.selectedItems) {
+                    selectedItems.value = parsed.selectedItems;
+                }
+                if (parsed.quantities) {
+                    Object.assign(quantities.value, parsed.quantities);
+                }
+                if (parsed.prices) {
+                    Object.assign(prices.value, parsed.prices);
                 }
 
                 showTemporaryMessage('Borrador cargado correctamente', 'info');
@@ -666,13 +550,22 @@ const resetForm = () => {
     // Limpiar selección de cliente
     clearClienteSelection();
 
+
+    // Limpiar productos/servicios seleccionados
+    selectedItems.value.forEach(item => {
+        const tipo = item?.tipo || 'producto';
+        const key = `${tipo}-${item.id}`;
+        delete quantities.value[key];
+        delete prices.value[key];
+    });
+    selectedItems.value = [];
+
     // Limpiar los componentes de búsqueda
     if (buscarClienteRef.value) {
         buscarClienteRef.value.limpiarBusqueda();
     }
-    if (buscarServiciosRef.value) {
-        // El componente BuscarServicios no tiene método limpiarBusqueda, pero podemos resetear la búsqueda
-        // buscarServiciosRef.value.busqueda = '';
+    if (buscarProductoRef.value) {
+        buscarProductoRef.value.limpiarBusqueda();
     }
 
     // Restablecer fecha y hora actual
@@ -698,24 +591,9 @@ const validateForm = () => {
         errors.push('Debe seleccionar un técnico');
     }
 
-    if (!form.tipo_servicio || form.tipo_servicio.trim() === '') {
-        errors.push('Debe seleccionar o especificar el tipo de servicio');
-    }
 
     if (!form.fecha_hora) {
         errors.push('Debe especificar la fecha y hora');
-    }
-
-    if (!form.tipo_equipo) {
-        errors.push('Debe seleccionar el tipo de equipo');
-    }
-
-    if (!form.marca_equipo) {
-        errors.push('Debe especificar la marca del equipo');
-    }
-
-    if (!form.modelo_equipo) {
-        errors.push('Debe especificar el modelo del equipo');
     }
 
     if (!form.problema_reportado) {
@@ -747,6 +625,10 @@ const submit = () => {
 
     // Agregar todos los campos del formulario
     for (const key in form.data()) {
+        if (key === 'tipo_equipo' || key === 'marca_equipo' || key === 'modelo_equipo') {
+            // No enviar estos campos
+            continue;
+        }
         if (key === 'foto_equipo' || key === 'foto_hoja_servicio' || key === 'foto_identificacion') {
             // Solo agregar archivos si están seleccionados
             if (form[key]) {
@@ -757,19 +639,15 @@ const submit = () => {
         }
     }
 
-    // Adjuntar arrays de venta (productos/servicios) como JSON
+    // Adjuntar productos y servicios como JSON
     const productosVendidos = productosSeleccionados.value.map(p => ({
         id: p.id,
-        cantidad: quantities.value[`producto-${p.id}`] || 1,
-        precio: prices.value[`producto-${p.id}`] || 0,
-    }));
-    const serviciosRealizados = serviciosSeleccionados.value.map(s => ({
-        id: s.id,
-        cantidad: quantities.value[`servicio-${s.id}`] || 1,
-        precio: prices.value[`servicio-${s.id}`] || 0,
+        tipo: p.tipo,
+        cantidad: quantities.value[`${p.tipo}-${p.id}`] || 1,
+        precio: prices.value[`${p.tipo}-${p.id}`] || 0,
     }));
     formData.append('productos_vendidos', JSON.stringify(productosVendidos));
-    formData.append('servicios_realizados', JSON.stringify(serviciosRealizados));
+
 
     form.post(route('citas.store'), {
         data: formData,

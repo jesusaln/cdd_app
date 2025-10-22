@@ -3,7 +3,7 @@
     <!-- Campo de búsqueda -->
     <div class="mb-6">
       <label class="block text-sm font-medium text-gray-700 mb-2">
-        Buscar Productos y Servicios
+        {{ label }}
       </label>
       <div class="relative">
         <input
@@ -12,7 +12,7 @@
           v-model="busqueda"
           @input="filtrarItems"
           @focus="mostrarLista = true"
-          placeholder="Buscar por nombre, código, categoría o descripción..."
+          :placeholder="placeholder"
           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
         />
         <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
@@ -33,7 +33,7 @@
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border-gray-300'
           ]"
         >
-          Todos ({{ itemsFiltrados.length }})
+          {{ textoTodos }} ({{ itemsFiltrados.length }})
         </button>
         <button
           type="button"
@@ -45,9 +45,10 @@
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border-gray-300'
           ]"
         >
-          Productos ({{ productosCount }})
+          {{ textoProductos }} ({{ productosCount }})
         </button>
         <button
+          v-if="!soloProductos"
           type="button"
           @click="filtroActivo = 'servicios'"
           :class="[
@@ -57,7 +58,7 @@
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border-gray-300'
           ]"
         >
-          Servicios ({{ serviciosCount }})
+          {{ textoServicios }} ({{ serviciosCount }})
         </button>
       </div>
     </div>
@@ -260,6 +261,30 @@ const props = defineProps({
     type: Boolean,
     default: true,
   },
+  label: {
+    type: String,
+    default: 'Buscar Productos y Servicios',
+  },
+  placeholder: {
+    type: String,
+    default: 'Buscar por nombre, código, categoría o descripción...',
+  },
+  textoTodos: {
+    type: String,
+    default: 'Todos',
+  },
+  textoProductos: {
+    type: String,
+    default: 'Productos',
+  },
+  textoServicios: {
+    type: String,
+    default: 'Servicios',
+  },
+  soloProductos: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits(['agregar-producto']);
@@ -267,7 +292,7 @@ const emit = defineEmits(['agregar-producto']);
 // Variables reactivas
 const busqueda = ref('');
 const mostrarLista = ref(false);
-const filtroActivo = ref('todos');
+const filtroActivo = ref(props.soloProductos ? 'productos' : 'todos');
 const productosRecientes = ref([]);
 const inputBusqueda = ref(null);
 const inputWidth = ref(0);
@@ -288,7 +313,7 @@ const todosLosItems = computed(() => {
     ...producto,
     tipo: 'producto'
   }));
-  const serviciosConTipo = (props.servicios || []).map(servicio => ({
+  const serviciosConTipo = props.soloProductos ? [] : (props.servicios || []).map(servicio => ({
     ...servicio,
     tipo: 'servicio'
   }));

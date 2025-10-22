@@ -26,11 +26,12 @@ export default defineConfig({
     },
   },
   server: {
-    host: '0.0.0.0', // Escuchar en todas las interfaces (IPv4 e IPv6)
+    host: 'cdd.local', // Usar el mismo dominio que Laravel
     port: 5173,
     cors: true,
     strictPort: true, // Forzar el uso del puerto exacto
     hmr: false, // Deshabilitar HMR para evitar errores de canal de mensajes
+    https: true, // Habilitar HTTPS para desarrollo local para coincidir con Laravel
   },
   base: process.env.NODE_ENV === 'production' ? '/build/' : '/',
   optimizeDeps: {

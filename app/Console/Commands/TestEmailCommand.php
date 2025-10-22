@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Helpers\EnvironmentHelper;
 use App\Mail\OrdenCompraEnviada;
 use App\Models\OrdenCompra;
 use App\Models\Proveedor;
@@ -30,6 +31,9 @@ class TestEmailCommand extends Command
      */
     public function handle()
     {
+        // Prevenir ejecución en producción
+        EnvironmentHelper::preventDevelopmentAction('el comando de prueba de email');
+
         $email = $this->option('email') ?: config('mail.test_email', 'test@example.com');
         $ordenId = $this->option('orden');
 

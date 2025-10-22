@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Helpers\EnvironmentHelper;
 use Illuminate\Console\Command;
 use App\Models\User;
 use App\Models\Notification;
@@ -28,6 +29,9 @@ class TestNotification extends Command
      */
     public function handle()
     {
+        // Prevenir ejecución en producción
+        EnvironmentHelper::preventDevelopmentAction('el comando de prueba de notificaciones');
+
         $type = $this->option('type') ?: 'test';
 
         $this->info('=== Verificando Sistema de Notificaciones ===');

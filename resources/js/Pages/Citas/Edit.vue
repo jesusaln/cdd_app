@@ -169,72 +169,6 @@
           </div>
         </section>
 
-        <!-- Información del Equipo -->
-        <section>
-          <h3 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">
-            Información del Equipo
-          </h3>
-
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2" for="tipo_equipo">
-                Tipo de Equipo *
-              </label>
-              <select
-                v-model="form.tipo_equipo"
-                id="tipo_equipo"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                :class="{ 'border-red-500 focus:ring-red-500 focus:border-red-500': errors.tipo_equipo }"
-                required
-              >
-                <option value="">Seleccionar equipo</option>
-                <option value="minisplit">❄️ Minisplit</option>
-                <option value="boiler">🔥 Boiler</option>
-                <option value="refrigerador">🧊 Refrigerador</option>
-                <option value="lavadora">🧺 Lavadora</option>
-                <option value="secadora">🌀 Secadora</option>
-                <option value="estufa">🍳 Estufa</option>
-                <option value="campana">💨 Campana</option>
-                <option value="horno_de_microondas">📡 Horno de Microondas</option>
-                <option value="licuadora">🥤 Licuadora</option>
-                <option value="otro_equipo">⚙️ Otro Equipo</option>
-              </select>
-              <p v-if="errors.tipo_equipo" class="text-red-500 text-sm mt-1">{{ errors.tipo_equipo }}</p>
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2" for="marca_equipo">
-                Marca del Equipo *
-              </label>
-              <input
-                v-model="form.marca_equipo"
-                type="text"
-                id="marca_equipo"
-                placeholder="Ej: Samsung, LG, Whirlpool"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                :class="{ 'border-red-500 focus:ring-red-500 focus:border-red-500': errors.marca_equipo }"
-                required
-              >
-              <p v-if="errors.marca_equipo" class="text-red-500 text-sm mt-1">{{ errors.marca_equipo }}</p>
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2" for="modelo_equipo">
-                Modelo del Equipo *
-              </label>
-              <input
-                v-model="form.modelo_equipo"
-                type="text"
-                id="modelo_equipo"
-                placeholder="Ej: ABC123"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                :class="{ 'border-red-500 focus:ring-red-500 focus:border-red-500': errors.modelo_equipo }"
-                required
-              >
-              <p v-if="errors.modelo_equipo" class="text-red-500 text-sm mt-1">{{ errors.modelo_equipo }}</p>
-            </div>
-          </div>
-        </section>
 
         <!-- Descripciones -->
         <section>
@@ -494,9 +428,6 @@ const form = reactive({
   tipo_servicio: props.cita?.tipo_servicio || '',
   fecha_hora: formatDateTimeLocal(props.cita?.fecha_hora),
   descripcion: props.cita?.descripcion || '',
-  tipo_equipo: props.cita?.tipo_equipo || '',
-  marca_equipo: props.cita?.marca_equipo || '',
-  modelo_equipo: props.cita?.modelo_equipo || '',
   problema_reportado: props.cita?.problema_reportado || '',
   estado: props.cita?.estado || 'pendiente',
   evidencias: props.cita?.evidencias || '',
@@ -581,9 +512,6 @@ const REQUIRED_FIELDS = [
   { key: 'tecnico_id', label: 'Técnico' },
   { key: 'tipo_servicio', label: 'Tipo de Servicio' },
   { key: 'fecha_hora', label: 'Fecha y Hora' },
-  { key: 'tipo_equipo', label: 'Tipo de Equipo' },
-  { key: 'marca_equipo', label: 'Marca del Equipo' },
-  { key: 'modelo_equipo', label: 'Modelo del Equipo' },
   { key: 'estado', label: 'Estado' }
 ];
 
@@ -786,6 +714,10 @@ const submit = async () => {
 
     // Agregar campos de texto
     Object.entries(form).forEach(([key, value]) => {
+      if (key === 'tipo_equipo' || key === 'marca_equipo' || key === 'modelo_equipo') {
+        // No enviar estos campos
+        return;
+      }
       if (!key.endsWith('_url') && value !== null && value !== undefined) {
         if (value instanceof File) {
           formData.append(key, value);

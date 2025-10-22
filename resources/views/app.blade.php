@@ -85,10 +85,9 @@
 
     <!-- Scripts -->
     @routes
-    {{-- Usar archivos compilados directamente desde public/build para desarrollo --}}
-    @if(config('app.env') === 'local')
-        <link rel="stylesheet" href="{{ asset('build/assets/app-Dhb_l2SK.css') }}">
-        <script type="module" src="{{ asset('build/assets/app-DybKXaup.js') }}"></script>
+    {{-- Usar archivos compilados para producción, servidor de desarrollo para local --}}
+    @if(config('app.env') === 'production')
+        @vite(['resources/js/app.js'])
     @else
         @vite(['resources/js/app.js', "resources/js/Pages/{$page['component']}.vue"])
     @endif

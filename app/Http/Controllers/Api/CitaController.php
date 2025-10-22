@@ -95,9 +95,6 @@ class CitaController extends Controller
                 }
             ],
             'descripcion' => 'nullable|string|max:1000',
-            'tipo_equipo' => 'required|string|max:255',
-            'marca_equipo' => 'required|string|max:255',
-            'modelo_equipo' => 'required|string|max:255',
             'problema_reportado' => 'nullable|string|max:1000',
             'prioridad' => 'nullable|string|in:baja,media,alta,urgente',
             'estado' => 'required|string|in:pendiente,en_proceso,completado,cancelado',
@@ -204,9 +201,6 @@ class CitaController extends Controller
                 }
             ],
             'descripcion' => 'nullable|string|max:1000',
-            'tipo_equipo' => 'sometimes|required|string|max:255',
-            'marca_equipo' => 'sometimes|required|string|max:255',
-            'modelo_equipo' => 'sometimes|required|string|max:255',
             'problema_reportado' => 'nullable|string|max:1000',
             'prioridad' => 'nullable|string|in:baja,media,alta,urgente',
             'estado' => 'sometimes|required|string|in:pendiente,en_proceso,completado,cancelado',
