@@ -200,7 +200,11 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::resource('movimientos-inventario', MovimientoInventarioController::class)->names('movimientos-inventario');
     Route::resource('ajustes-inventario', AjusteInventarioController::class)->names('ajustes-inventario');
     Route::resource('movimientos-manuales', MovimientoManualController::class)->names('movimientos-manuales');
-    Route::resource('cotizaciones', CotizacionController::class)->names('cotizaciones');
+
+    // Rutas específicas de cotizaciones antes del resource para evitar conflictos
+    Route::get('/cotizaciones/siguiente-numero', [CotizacionController::class, 'obtenerSiguienteNumero'])->name('cotizaciones.siguiente-numero');
+
+    Route::resource('cotizaciones', CotizacionController::class)->names('cotizaciones')->where(['cotizaciones' => '[0-9]+']);
     Route::resource('pedidos', PedidoController::class)->names('pedidos');
     Route::resource('ventas', VentaController::class)->names('ventas');
     Route::resource('servicios', ServicioController::class)->names('servicios');

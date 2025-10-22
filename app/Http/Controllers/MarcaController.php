@@ -197,7 +197,6 @@ class MarcaController extends Controller
 
             $callback = function () use ($marcas) {
                 $file = fopen('php://output', 'w');
-                fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF)); // UTF-8 BOM
 
                 fputcsv($file, [
                     'ID',

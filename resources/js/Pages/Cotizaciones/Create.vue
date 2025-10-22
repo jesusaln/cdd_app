@@ -39,10 +39,10 @@
               <div class="relative">
                 <input
                   id="numero_cotizacion"
-                  v-model="form.numero_cotizacion"
+                  v-model="numeroCotizacionActual"
                   type="text"
                   class="w-full bg-gray-50 text-gray-500 cursor-not-allowed border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="COT0001"
+                  :placeholder="numeroCotizacionActual"
                   readonly
                   required
                 />
@@ -53,7 +53,7 @@
                 </div>
               </div>
               <p class="mt-1 text-xs text-gray-500">
-                Este número es fijo para todas las cotizaciones
+                Este número se genera automáticamente
               </p>
             </div>
 
@@ -294,8 +294,16 @@ const catalogs = computed(() => props.catalogs);
 // Copia reactiva de clientes activos para evitar mutación de props
 const clientesList = ref([]);
 
-// Número de cotización fijo
-const numeroCotizacionFijo = 'COT0001';
+// Obtener el siguiente número de cotización disponible
+const getSiguienteNumeroCotizacion = async () => {
+  try {
+    const response = await axios.get('/cotizaciones/siguiente-numero');
+    return response.data.siguiente_numero;
+  } catch (error) {
+    console.error('Error al obtener siguiente número:', error);
+    return '1'; // fallback
+  }
+};
 
 // Obtener fecha actual en formato YYYY-MM-DD (zona horaria local)
 const getCurrentDate = () => {
@@ -306,9 +314,12 @@ const getCurrentDate = () => {
   return `${year}-${month}-${day}`;
 };
 
+// Estado para el número de cotización
+const numeroCotizacionActual = ref('1');
+
 // Formulario
 const form = useForm({
-  numero_cotizacion: numeroCotizacionFijo,
+  numero_cotizacion: null, // Se generará automáticamente
   fecha_cotizacion: getCurrentDate(),
   cliente_id: '',
   subtotal: 0,
@@ -432,9 +443,14 @@ const limpiarFormulario = () => {
   // Limpiar notas
   form.notas = '';
 
-  // Restablecer número y fecha fijos
-  form.numero_cotizacion = numeroCotizacionFijo;
+  // Restablecer número y fecha
+  form.numero_cotizacion = null;
   form.fecha_cotizacion = getCurrentDate();
+
+  // Actualizar el número mostrado
+  getSiguienteNumeroCotizacion().then(num => {
+    numeroCotizacionActual.value = num;
+  });
 
   // Limpiar localStorage si es necesario
   localStorage.removeItem(`cotizacion_edit_${props.cotizacion?.id}`);
@@ -624,6 +640,9 @@ const crearCotizacion = () => {
     // ⭐ ASIGNA EL ESTADO AQUÍ ⭐
   form.estado = 'borrador'; // o 'pendiente'
 
+  // Permitir que el modelo genere el número automáticamente
+  form.numero_cotizacion = null;
+
   // Enviar formulario
   form.post(route('cotizaciones.store'), {
     onSuccess: (page) => {
@@ -668,7 +687,7 @@ const handleBeforeUnload = (event) => {
 // Guardar estado automáticamente
 const saveState = () => {
   const stateToSave = {
-    numero_cotizacion: numeroCotizacionFijo,
+    numero_cotizacion: numeroCotizacionActual.value,
     fecha_cotizacion: form.fecha_cotizacion,
     cliente_id: form.cliente_id,
     cliente: clienteSeleccionado.value,
@@ -688,19 +707,33 @@ const asegurarFechaActual = () => {
   }
 };
 
+// Cargar el siguiente número de cotización
+const cargarSiguienteNumero = async () => {
+  try {
+    numeroCotizacionActual.value = await getSiguienteNumeroCotizacion();
+  } catch (error) {
+    console.error('Error al cargar número de cotización:', error);
+    numeroCotizacionActual.value = '1';
+  }
+};
+
 // Lifecycle hooks
-onMounted(() => {
+onMounted(async () => {
   // Inicializar la lista de clientes activos
   clientesList.value = [...clientesActivos.value];
 
-  // Mostrar información sobre el número de cotización fijo
-  showNotification(`Número de cotización fijo: ${numeroCotizacionFijo}`, 'info');
+  // Cargar el siguiente número de cotización
+  await cargarSiguienteNumero();
 
   const savedData = loadFromLocalStorage('cotizacionEnProgreso');
   if (savedData && typeof savedData === 'object') {
     try {
-      // Siempre usar número y fecha fijos
-      form.numero_cotizacion = numeroCotizacionFijo;
+      // Usar el número guardado o cargar uno nuevo
+      if (savedData.numero_cotizacion) {
+        numeroCotizacionActual.value = savedData.numero_cotizacion;
+      } else {
+        numeroCotizacionActual.value = await getSiguienteNumeroCotizacion();
+      }
       form.fecha_cotizacion = getCurrentDate(); // Siempre usar fecha actual
 
       // Verificar que el cliente guardado siga activo
@@ -755,6 +788,9 @@ const ajustarPreciosAutomaticamente = async () => {
   try {
     // Agregar el flag de ajuste automático al formulario
     form.ajustar_margen = true;
+
+    // Permitir que el modelo genere el número automáticamente
+    form.numero_cotizacion = null;
 
     // Reenviar el formulario con el flag de ajuste
     form.post(route('cotizaciones.store'), {

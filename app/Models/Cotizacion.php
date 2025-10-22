@@ -177,7 +177,15 @@ class Cotizacion extends Model
         if (preg_match('/C(\d+)$/', $ultimaCotizacion->numero_cotizacion, $matches)) {
             $ultimoNumero = (int) $matches[1];
             $siguienteNumero = $ultimoNumero + 1;
-            return 'C' . str_pad($siguienteNumero, 3, '0', STR_PAD_LEFT);
+            $nuevoNumero = 'C' . str_pad($siguienteNumero, 3, '0', STR_PAD_LEFT);
+
+            // Verificar que no exista ya (evitar colisiones)
+            while (static::where('numero_cotizacion', $nuevoNumero)->exists()) {
+                $siguienteNumero++;
+                $nuevoNumero = 'C' . str_pad($siguienteNumero, 3, '0', STR_PAD_LEFT);
+            }
+
+            return $nuevoNumero;
         }
 
         // Si no se puede extraer el número, empezar desde C001

@@ -283,7 +283,8 @@ class CotizacionController extends Controller
             ]);
 
             // Si hay productos con margen insuficiente, verificar si el usuario aceptÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³ el ajuste
-            if ($request->has('ajustar_margen') && $request->ajustar_margen === 'true') {
+            // Aceptar bandera booleana para ajustar margen (true/"true"/1)
+            if ($request->boolean('ajustar_margen')) {
                 Log::info('Usuario aceptÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³ ajuste automÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡tico de mÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡rgenes');
                 // Ajustar precios automÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ticamente
                 foreach ($validated['productos'] as &$item) {
@@ -627,7 +628,8 @@ class CotizacionController extends Controller
             ]);
 
             // Si hay productos con margen insuficiente, verificar si el usuario aceptÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³ el ajuste
-            if ($request->has('ajustar_margen') && $request->ajustar_margen === 'true') {
+            // Aceptar bandera booleana para ajustar margen (true/"true"/1)
+            if ($request->boolean('ajustar_margen')) {
                 Log::info('Usuario aceptÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³ ajuste automÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡tico de mÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡rgenes en actualizaciÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³n', ['cotizacion_id' => $id]);
                 // Ajustar precios automÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ticamente
                 foreach ($validated['productos'] as &$item) {
@@ -1213,6 +1215,15 @@ class CotizacionController extends Controller
                 'email' => $mensaje . ' | Detalle: ' . $errorMessage,
             ]);
         }
+    }
+
+    /**
+     * Obtener el siguiente número de cotización disponible
+     */
+    public function obtenerSiguienteNumero()
+    {
+        $siguienteNumero = $this->generarNumeroCotizacionUnico();
+        return response()->json(['siguiente_numero' => $siguienteNumero]);
     }
 
     /**

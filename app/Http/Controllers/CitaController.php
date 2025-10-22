@@ -827,7 +827,6 @@ class CitaController extends Controller
 
             $callback = function () use ($citas) {
                 $file = fopen('php://output', 'w');
-                fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
                 fputcsv($file, [
                     'ID',

@@ -294,7 +294,6 @@ class GestionHerramientasController extends Controller
 
             $callback = function () use ($tecnico, $herramientas) {
                 $file = fopen('php://output', 'w');
-                fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
                 // Encabezado del reporte
                 fputcsv($file, ['REPORTE DE HERRAMIENTAS ASIGNADAS']);
@@ -353,4 +352,3 @@ class GestionHerramientasController extends Controller
         }
     }
 }
-

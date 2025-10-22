@@ -228,7 +228,6 @@ class CarroController extends Controller
 
             $callback = function () use ($carros) {
                 $file = fopen('php://output', 'w');
-                fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF)); // UTF-8 BOM
 
                 fputcsv($file, [
                     'ID',
