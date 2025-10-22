@@ -119,7 +119,7 @@ class OrdenCompraTest extends TestCase
             'subtotal' => 500.00,
             'descuento_items' => 0.00,
             'descuento_general' => 0.00,
-            'iva' => 80.00,
+            'iva' => 80.00, // Nota: Calculado dinámicamente en producción
             'total' => 580.00,
             'observaciones' => 'Orden de prueba',
             'items' => [
@@ -429,7 +429,7 @@ class OrdenCompraTest extends TestCase
             'subtotal' => 100.00,
             'descuento_items' => 0.00,
             'descuento_general' => 0.00,
-            'iva' => 16.00,
+            'iva' => 16.00, // Nota: Calculado dinámicamente en producción
             'total' => 116.00,
             'items' => [
                 [
@@ -460,7 +460,7 @@ class OrdenCompraTest extends TestCase
             'subtotal' => 100.00,
             'descuento_items' => 0.00,
             'descuento_general' => 0.00,
-            'iva' => 16.00,
+            'iva' => 16.00, // Nota: Calculado dinámicamente en producción
             'total' => 116.00,
             'items' => [
                 [

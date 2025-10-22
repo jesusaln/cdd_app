@@ -102,7 +102,8 @@ class OrdenCompraSeeder extends Seeder
                 // Calcular totales finales
                 $descuentoGeneral = $ordenData['descuento_general'] ?? 0;
                 $subtotalDespuesDescuentoGeneral = $subtotal - $descuentoItems - $descuentoGeneral;
-                $iva = $subtotalDespuesDescuentoGeneral * 0.16;
+                $ivaRate = \App\Services\EmpresaConfiguracionService::getIvaPorcentaje() / 100;
+                $iva = $subtotalDespuesDescuentoGeneral * $ivaRate;
                 $total = $subtotalDespuesDescuentoGeneral + $iva;
 
                 // Actualizar orden con totales calculados
@@ -144,7 +145,8 @@ class OrdenCompraSeeder extends Seeder
                 }
 
                 $descuentoGeneral = $faker->randomFloat(2, 0, $subtotal * 0.05);
-                $iva = ($subtotal - $descuentoGeneral) * 0.16;
+                $ivaRate = \App\Services\EmpresaConfiguracionService::getIvaPorcentaje() / 100;
+                $iva = ($subtotal - $descuentoGeneral) * $ivaRate;
                 $total = $subtotal - $descuentoGeneral + $iva;
 
                 $orden = OrdenCompra::create([

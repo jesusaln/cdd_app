@@ -259,27 +259,6 @@
                             <div v-if="form.errors.precio_venta" class="error-message">{{ form.errors.precio_venta }}</div>
                         </div>
 
-                        <!-- Impuesto -->
-                        <div>
-                            <label for="impuesto" class="block text-sm font-medium text-gray-700 mb-2">
-                                Impuesto (%) <span class="text-red-500">*</span>
-                            </label>
-                            <div class="relative">
-                                <input
-                                    v-model="form.impuesto"
-                                    type="number"
-                                    step="0.01"
-                                    id="impuesto"
-                                    placeholder="16.00"
-                                    class="input-field pr-8"
-                                    min="0"
-                                    max="100"
-                                    required
-                                />
-                                <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">%</span>
-                            </div>
-                            <div v-if="form.errors.impuesto" class="error-message">{{ form.errors.impuesto }}</div>
-                        </div>
 
                         <!-- Unidad de Medida -->
                         <div>
@@ -340,7 +319,7 @@
                             <div>
                                 <span class="text-gray-600">Precio Final:</span>
                                 <span class="font-medium text-gray-900 ml-2">
-                                    ${{ (parseFloat(form.precio_venta) * (1 + parseFloat(form.impuesto || 0) / 100)).toFixed(2) }}
+                                    ${{ (parseFloat(form.precio_venta) * (1 + 0.16)).toFixed(2) }} (IVA incluido)
                                 </span>
                             </div>
                         </div>
@@ -521,7 +500,6 @@ const form = useForm({
     stock_minimo: '',
     precio_compra: '',
     precio_venta: '',
-    impuesto: '16',
     tipo_producto: 'fisico',
     requiere_serie: false,
     imagen: null,

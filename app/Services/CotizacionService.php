@@ -184,7 +184,7 @@ class CotizacionService
     {
         $subtotal = 0;
         $descuentoItems = 0;
-        $ivaRate = 0.16;
+        $ivaRate = \App\Services\EmpresaConfiguracionService::getIvaPorcentaje() / 100;
 
         foreach ($items as $item) {
             $this->validateItem($item);

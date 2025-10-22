@@ -321,7 +321,8 @@ class PedidoController extends Controller
 
         $descuentoGeneralMonto = ($subtotal - $descuentoItems) * ($request->descuento_general / 100);
         $subtotalFinal = ($subtotal - $descuentoItems) - $descuentoGeneralMonto;
-        $iva = $subtotalFinal * 0.16;
+        $ivaRate = \App\Services\EmpresaConfiguracionService::getIvaPorcentaje() / 100;
+        $iva = $subtotalFinal * $ivaRate;
         $total = $subtotalFinal + $iva;
 
         $numero_pedido = $this->generarNumeroPedido();
@@ -532,7 +533,8 @@ class PedidoController extends Controller
 
         $descuentoGeneralMonto = ($subtotal - $descuentoItems) * ($request->descuento_general / 100);
         $subtotalFinal = ($subtotal - $descuentoItems) - $descuentoGeneralMonto;
-        $iva = $subtotalFinal * 0.16;
+        $ivaRate = \App\Services\EmpresaConfiguracionService::getIvaPorcentaje() / 100;
+        $iva = $subtotalFinal * $ivaRate;
         $total = $subtotalFinal + $iva;
 
         // Guarda el estado ANTES de actualizar (clave del fix)

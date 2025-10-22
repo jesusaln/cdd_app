@@ -372,7 +372,7 @@ class CompraTest extends TestCase
         $this->assertEquals(200.00, $compra->subtotal);
         $this->assertEquals(20.00, $compra->descuento_items);
         $this->assertEquals(50.00, $compra->descuento_general);
-        $this->assertEquals(20.80, $compra->iva);
+        $this->assertEquals(20.80, $compra->iva); // Nota: Calculado dinámicamente en producción
         $this->assertEquals(150.80, $compra->total);
     }
 }

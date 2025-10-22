@@ -45,7 +45,7 @@ class CrearCuentaPruebaSeeder extends Seeder
             [
                 'cliente_id' => $cliente->id,
                 'subtotal' => 1000.00,
-                'iva' => 160.00,
+                'iva' => 160.00, // Nota: Esto se calcula dinámicamente en producción
                 'total' => 1160.00,
                 'fecha' => Carbon::now()->subDays(35), // 35 días atrás
                 'estado' => 'aprobada',

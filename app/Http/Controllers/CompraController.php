@@ -354,8 +354,9 @@ class CompraController extends Controller
             // Aplicar descuento general
             $subtotalDespuesDescuentoGeneral = $subtotal - $descuentoItems - $descuentoGeneral;
 
-            // Calcular IVA (16%)
-            $iva = $subtotalDespuesDescuentoGeneral * 0.16;
+            // Calcular IVA configurable
+            $ivaRate = \App\Services\EmpresaConfiguracionService::getIvaPorcentaje() / 100;
+            $iva = $subtotalDespuesDescuentoGeneral * $ivaRate;
 
             // Total final
             $total = $subtotalDespuesDescuentoGeneral + $iva;
@@ -667,8 +668,9 @@ class CompraController extends Controller
             // Aplicar descuento general
             $subtotalDespuesDescuentoGeneral = $subtotal - $descuentoItems - $descuentoGeneral;
 
-            // Calcular IVA (16%)
-            $iva = $subtotalDespuesDescuentoGeneral * 0.16;
+            // Calcular IVA configurable
+            $ivaRate = \App\Services\EmpresaConfiguracionService::getIvaPorcentaje() / 100;
+            $iva = $subtotalDespuesDescuentoGeneral * $ivaRate;
 
             // Total final
             $total = $subtotalDespuesDescuentoGeneral + $iva;

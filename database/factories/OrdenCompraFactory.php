@@ -30,11 +30,13 @@ class OrdenCompraFactory extends Factory
             'descuento_general' => $this->faker->randomFloat(2, 0, 200),
             'iva' => function (array $attributes) {
                 $subtotal = $attributes['subtotal'] - $attributes['descuento_items'] - $attributes['descuento_general'];
-                return round($subtotal * 0.16, 2);
+                $ivaRate = \App\Services\EmpresaConfiguracionService::getIvaPorcentaje() / 100;
+                return round($subtotal * $ivaRate, 2);
             },
             'total' => function (array $attributes) {
                 $subtotal = $attributes['subtotal'] - $attributes['descuento_items'] - $attributes['descuento_general'];
-                $iva = round($subtotal * 0.16, 2);
+                $ivaRate = \App\Services\EmpresaConfiguracionService::getIvaPorcentaje() / 100;
+                $iva = round($subtotal * $ivaRate, 2);
                 return $subtotal + $iva;
             },
             'observaciones' => $this->faker->optional()->paragraph(),

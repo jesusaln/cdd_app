@@ -40,7 +40,6 @@ class Producto extends Model
         'precio_venta',
         'margen_ganancia',
         'comision_vendedor',
-        'impuesto',
         'unidad_medida',
         'fecha_vencimiento',
         'tipo_producto',

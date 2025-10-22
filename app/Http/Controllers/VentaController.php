@@ -302,7 +302,8 @@ class VentaController extends Controller
             }
 
             $subtotalFinal = $subtotalDespuesGeneral - $descuentoItems;
-            $iva = $subtotalFinal * 0.16;
+            $ivaRate = \App\Services\EmpresaConfiguracionService::getIvaPorcentaje() / 100;
+            $iva = $subtotalFinal * $ivaRate;
             $total = $subtotalFinal + $iva;
 
             $numero_venta = $this->generarNumeroVenta();
@@ -648,7 +649,8 @@ class VentaController extends Controller
         }
 
         $subtotalFinal = $subtotalDespuesGeneral - $descuentoItems;
-        $iva = $subtotalFinal * 0.16;
+        $ivaRate = \App\Services\EmpresaConfiguracionService::getIvaPorcentaje() / 100;
+        $iva = $subtotalFinal * $ivaRate;
         $total = $subtotalFinal + $iva;
 
         // Guarda el estado ANTES de actualizar (clave para mensaje)

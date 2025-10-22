@@ -503,7 +503,7 @@
                     </tr>
                 @endif
                 <tr>
-                    <td class="k">IVA:</td>
+                    <td class="k">IVA ({{ $configuracion->iva_porcentaje }}%):</td>
                     <td class="v">${{ $money($cotizacion->iva) }}</td>
                 </tr>
             </table>

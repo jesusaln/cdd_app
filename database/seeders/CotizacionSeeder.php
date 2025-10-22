@@ -64,7 +64,8 @@ class CotizacionSeeder extends Seeder
                 // Recalcular totales de la cotización
                 $cotizacion->subtotal = $cotizacion->items->sum('subtotal');
                 $cotizacion->descuento_general = $cotizacion->items->sum('descuento_monto');
-                $cotizacion->iva = ($cotizacion->subtotal - $cotizacion->descuento_general) * 0.16;
+                $ivaRate = \App\Services\EmpresaConfiguracionService::getIvaPorcentaje() / 100;
+                $cotizacion->iva = ($cotizacion->subtotal - $cotizacion->descuento_general) * $ivaRate;
                 $cotizacion->total = $cotizacion->subtotal - $cotizacion->descuento_general + $cotizacion->iva;
                 $cotizacion->save();
             }

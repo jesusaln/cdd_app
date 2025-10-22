@@ -334,7 +334,8 @@ class CotizacionController extends Controller
         $descuentoGeneralPorc = (float) ($request->descuento_general ?? 0);
         $descuentoGeneralMonto = ($subtotal - $descuentoItems) * ($descuentoGeneralPorc / 100);
         $subtotalFinal = ($subtotal - $descuentoItems) - $descuentoGeneralMonto;
-        $iva = $subtotalFinal * 0.16;
+        $ivaRate = \App\Services\EmpresaConfiguracionService::getIvaPorcentaje() / 100;
+        $iva = $subtotalFinal * $ivaRate;
         $total = $subtotalFinal + $iva;
 
         try {
@@ -672,7 +673,8 @@ class CotizacionController extends Controller
         $descuentoGeneralMonto = ($subtotal - $descuentoItems) * ($descuentoGeneralPorc / 100);
 
         $subtotalFinal = ($subtotal - $descuentoItems) - $descuentoGeneralMonto;
-        $iva           = $subtotalFinal * 0.16; // ajusta si tienes IVA configurable
+        $ivaRate = \App\Services\EmpresaConfiguracionService::getIvaPorcentaje() / 100;
+        $iva           = $subtotalFinal * $ivaRate;
         $total         = $subtotalFinal + $iva;
 
         // Redondeo final

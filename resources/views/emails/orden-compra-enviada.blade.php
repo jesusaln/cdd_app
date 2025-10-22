@@ -118,7 +118,7 @@
             <p><strong>Subtotal:</strong> ${{ number_format($ordenCompra->subtotal, 2) }}</p>
             <p><strong>Descuento en Items:</strong> ${{ number_format($ordenCompra->descuento_items, 2) }}</p>
             <p><strong>Descuento General:</strong> ${{ number_format($ordenCompra->descuento_general, 2) }}</p>
-            <p><strong>IVA (16%):</strong> ${{ number_format($ordenCompra->iva, 2) }}</p>
+            <p><strong>IVA ({{ $configuracion->iva_porcentaje }}%):</strong> ${{ number_format($ordenCompra->iva, 2) }}</p>
             <p><strong><span style="font-size: 18px; color: #4F46E5;">Total:</span></strong> <span style="font-size: 18px; color: #4F46E5; font-weight: bold;">${{ number_format($ordenCompra->total, 2) }}</span></p>
         </div>
 

@@ -825,8 +825,9 @@ class OrdenCompraController extends Controller
             // Aplicar descuento general
             $subtotalDespuesDescuentoGeneral = $subtotal - $descuentoItems - $descuentoGeneral;
 
-            // Calcular IVA (16%)
-            $iva = $subtotalDespuesDescuentoGeneral * 0.16;
+            // Calcular IVA configurable
+            $ivaRate = \App\Services\EmpresaConfiguracionService::getIvaPorcentaje() / 100;
+            $iva = $subtotalDespuesDescuentoGeneral * $ivaRate;
 
             // Total final
             $total = $subtotalDespuesDescuentoGeneral + $iva;
@@ -1286,8 +1287,9 @@ class OrdenCompraController extends Controller
             // Aplicar descuento general
             $subtotalDespuesDescuentoGeneral = $subtotal - $descuentoItems - $descuentoGeneral;
 
-            // Calcular IVA (16%)
-            $iva = $subtotalDespuesDescuentoGeneral * 0.16;
+            // Calcular IVA configurable
+            $ivaRate = \App\Services\EmpresaConfiguracionService::getIvaPorcentaje() / 100;
+            $iva = $subtotalDespuesDescuentoGeneral * $ivaRate;
 
             // Total final
             $total = $subtotalDespuesDescuentoGeneral + $iva;
@@ -1704,8 +1706,9 @@ class OrdenCompraController extends Controller
         $descuentoGeneral = (float) $ordenCompra->descuento_general ?? 0;
         $subtotalDespuesDescuentos = $subtotal - $descuentoItems - $descuentoGeneral;
 
-        // Calcular IVA (16%)
-        $iva = $subtotalDespuesDescuentos * 0.16;
+        // Calcular IVA configurable
+        $ivaRate = \App\Services\EmpresaConfiguracionService::getIvaPorcentaje() / 100;
+        $iva = $subtotalDespuesDescuentos * $ivaRate;
 
         // Total final
         $total = $subtotalDespuesDescuentos + $iva;
@@ -1869,8 +1872,9 @@ class OrdenCompraController extends Controller
         // Aplicar descuento general
         $subtotalDespuesDescuentoGeneral = $subtotal - $descuentoItems - $descuentoGeneral;
 
-        // Calcular IVA (16%)
-        $iva = $subtotalDespuesDescuentoGeneral * 0.16;
+        // Calcular IVA configurable
+        $ivaRate = \App\Services\EmpresaConfiguracionService::getIvaPorcentaje() / 100;
+        $iva = $subtotalDespuesDescuentoGeneral * $ivaRate;
 
         // Total final
         $total = $subtotalDespuesDescuentoGeneral + $iva;
