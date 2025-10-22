@@ -6,6 +6,20 @@
             <div class="border-b border-gray-200 px-6 py-4">
                 <h1 class="text-2xl font-semibold text-gray-900">Crear Producto</h1>
                 <p class="text-sm text-gray-600 mt-1">Complete la información del producto</p>
+                <div class="mt-3 bg-blue-50 border border-blue-200 rounded-md p-3">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm text-blue-700">
+                                <strong>Nota:</strong> El IVA se calcula automáticamente según la configuración de la empresa. Ingrese los precios SIN IVA.
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Navigation Tabs -->
@@ -222,7 +236,7 @@
                         <!-- Precio de Compra -->
                         <div>
                             <label for="precio_compra" class="block text-sm font-medium text-gray-700 mb-2">
-                                Precio de Compra <span class="text-red-500">*</span>
+                                Precio de Compra (SIN IVA) <span class="text-red-500">*</span>
                             </label>
                             <div class="relative">
     <input
@@ -230,7 +244,7 @@
         type="number"
         step="0.01"
         id="precio_compra"
-        placeholder="$ 0.00"
+        placeholder="Precio sin IVA (ej: 80.00)"
         class="input-field"
         min="0"
         required
@@ -242,7 +256,7 @@
                         <!-- Precio de Venta -->
                         <div>
                             <label for="precio_venta" class="block text-sm font-medium text-gray-700 mb-2">
-                                Precio de Venta <span class="text-red-500">*</span>
+                                Precio de Venta (SIN IVA) <span class="text-red-500">*</span>
                             </label>
                             <div class="relative">
     <input
@@ -250,12 +264,15 @@
         type="number"
         step="0.01"
         id="precio_venta"
-        placeholder="$ 0.00"
+        placeholder="Precio sin IVA (ej: 100.00)"
         class="input-field"
         min="0"
         required
     />
 </div>
+                            <p class="text-xs text-gray-500 mt-1">
+                                El IVA se calculará automáticamente según la configuración de la empresa
+                            </p>
                             <div v-if="form.errors.precio_venta" class="error-message">{{ form.errors.precio_venta }}</div>
                         </div>
 
@@ -317,9 +334,9 @@
                                 </span>
                             </div>
                             <div>
-                                <span class="text-gray-600">Precio Final:</span>
+                                <span class="text-gray-600">Precio Final (CON IVA):</span>
                                 <span class="font-medium text-gray-900 ml-2">
-                                    ${{ (parseFloat(form.precio_venta) * (1 + 0.16)).toFixed(2) }} (IVA incluido)
+                                    ${{ (parseFloat(form.precio_venta) * (1 + 0.16)).toFixed(2) }}
                                 </span>
                             </div>
                         </div>
@@ -866,15 +883,41 @@ const handleUnidadDeleted = (unidad) => {
 
 <style scoped>
 .input-field {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900;
+    width: 100%;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-width: 1px;
+    border-style: solid;
+    border-color: #D1D5DB; /* gray-300 */
+    border-radius: 0.375rem; /* rounded-md */
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* shadow-sm approximation */
+    color: #111827; /* text-gray-900 */
+    outline: none;
+    background-color: #fff;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.input-field::placeholder {
+    color: #9CA3AF; /* placeholder-gray-400 */
+}
+
+.input-field:focus {
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12); /* subtle ring approximation */
+    border-color: #3B82F6; /* focus:border-blue-500 */
 }
 
 .input-field option {
-    @apply text-gray-900 bg-white;
+    color: #111827; /* text-gray-900 */
+    background-color: #ffffff;
 }
 
 .error-message {
-    @apply mt-1 text-sm text-red-600;
+    margin-top: 0.25rem; /* mt-1 */
+    font-size: 0.875rem; /* text-sm */
+    color: #DC2626; /* text-red-600 */
 }
 </style>
 

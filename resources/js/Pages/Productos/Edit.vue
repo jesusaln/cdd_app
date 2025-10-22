@@ -5,7 +5,23 @@
         <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg">
             <div class="p-6 sm:p-8">
                 <div class="flex items-center justify-between mb-6">
-                    <h1 class="text-3xl font-bold text-gray-900">Editar Producto</h1>
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-900">Editar Producto</h1>
+                        <div class="mt-3 bg-blue-50 border border-blue-200 rounded-md p-3">
+                            <div class="flex">
+                                <div class="flex-shrink-0">
+                                    <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                                    </svg>
+                                </div>
+                                <div class="ml-3">
+                                    <p class="text-sm text-blue-700">
+                                        <strong>Nota:</strong> El IVA se calcula automáticamente según la configuración de la empresa. Ingrese los precios SIN IVA.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <div class="flex space-x-3">
                         <button @click="$inertia.visit(route('productos.index'))"
                                 class="inline-flex items-center px-4 py-2 bg-gray-500 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-600 active:bg-gray-700 focus:outline-none focus:border-gray-700 focus:ring focus:ring-gray-200 disabled:opacity-25 transition">
@@ -342,7 +358,7 @@
                             <!-- Precio de Compra -->
                             <div>
                                 <label for="precio_compra" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Precio de Compra *
+                                    Precio de Compra (SIN IVA) <span class="text-red-500">*</span>
                                 </label>
                                 <div class="relative">
                                     <span class="absolute left-3 top-2 text-gray-500">$</span>
@@ -352,7 +368,7 @@
                                         step="0.01"
                                         min="0"
                                         id="precio_compra"
-                                        placeholder="0.00"
+                                        placeholder="Precio sin IVA (ej: 80.00)"
                                         class="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
                                         required
                                     />
@@ -365,7 +381,7 @@
                             <!-- Precio de Venta -->
                             <div>
                                 <label for="precio_venta" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Precio de Venta *
+                                    Precio de Venta (SIN IVA) <span class="text-red-500">*</span>
                                 </label>
                                 <div class="relative">
                                     <span class="absolute left-3 top-2 text-gray-500">$</span>
@@ -375,11 +391,14 @@
                                         step="0.01"
                                         min="0"
                                         id="precio_venta"
-                                        placeholder="0.00"
+                                        placeholder="Precio sin IVA (ej: 100.00)"
                                         class="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
                                         required
                                     />
                                 </div>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    El IVA se calculará automáticamente según la configuración de la empresa
+                                </p>
                                 <div v-if="form.errors.precio_venta" class="mt-1 text-sm text-red-600">
                                     {{ form.errors.precio_venta }}
                                 </div>

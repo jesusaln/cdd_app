@@ -5,15 +5,31 @@
     <div class="ordenes-compra-edit min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
     <div class="max-w-6xl mx-auto">
       <!-- Header -->
-      <Header
-        title="Editar Orden de Compra"
-        description="Modifica los detalles de la orden de compra existente"
-        :can-preview="proveedorSeleccionado && selectedProducts.length > 0"
-        :back-url="route('ordenescompra.index')"
-        :show-shortcuts="mostrarAtajos"
-        @preview="handlePreview"
-        @close-shortcuts="mostrarAtajos = false"
-      />
+      <div class="mb-6">
+        <Header
+          title="Editar Orden de Compra"
+          description="Modifica los detalles de la orden de compra existente"
+          :can-preview="proveedorSeleccionado && selectedProducts.length > 0"
+          :back-url="route('ordenescompra.index')"
+          :show-shortcuts="mostrarAtajos"
+          @preview="handlePreview"
+          @close-shortcuts="mostrarAtajos = false"
+        />
+        <div class="mt-4 bg-blue-50 border border-blue-200 rounded-md p-3">
+          <div class="flex">
+            <div class="flex-shrink-0">
+              <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+              </svg>
+            </div>
+            <div class="ml-3">
+              <p class="text-sm text-blue-700">
+                <strong>Nota:</strong> El IVA se calcula automáticamente según la configuración de la empresa. Ingrese los precios SIN IVA.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <form @submit.prevent="updatePurchaseOrder" class="space-y-8">
         <!-- Información General -->
@@ -818,7 +834,8 @@ const totales = computed(() => {
   const descuentoGeneral = parseFloat(form.descuento_general) || 0;
   const subtotalConDescuentos = Math.max(0, subtotal - descuentoItems);
   const subtotalConDescuentoGeneral = Math.max(0, subtotalConDescuentos - descuentoGeneral);
-  const iva = subtotalConDescuentoGeneral * 0.16;
+  const ivaRate = 0.16; // Usar IVA configurable de la empresa
+  const iva = subtotalConDescuentoGeneral * ivaRate;
   const total = subtotalConDescuentoGeneral + iva;
 
   return {
