@@ -11,7 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('cfdis', function (Blueprint $table) {
+        if (!Schema::hasTable('cfdis')) {
+            Schema::create('cfdis', function (Blueprint $table) {
             $table->id();
 
             // Relaciones
@@ -98,7 +99,8 @@ return new class extends Migration
             $table->index(['uuid']);
             $table->index(['fecha_emision']);
             $table->index(['tipo_comprobante']);
-        });
+            });
+        }
     }
 
     /**

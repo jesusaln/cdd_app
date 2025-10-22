@@ -149,6 +149,12 @@ class Cotizacion extends Model
         return $this->hasOne(Pedido::class)->latest();
     }
 
+    /** Relación con ventas generadas desde esta cotización */
+    public function ventas(): HasMany
+    {
+        return $this->hasMany(Venta::class, 'cotizacion_id');
+    }
+
     protected static function booted(): void
     {
         static::creating(function (Cotizacion $cot) {

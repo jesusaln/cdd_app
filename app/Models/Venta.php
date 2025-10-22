@@ -12,6 +12,7 @@ class Venta extends Model
 
     protected $fillable = [
         'cliente_id',
+        'cotizacion_id',
         'numero_venta',
         'fecha',
         'estado',
@@ -39,6 +40,11 @@ class Venta extends Model
     public function cliente()
     {
         return $this->belongsTo(Cliente::class);
+    }
+
+    public function cotizacion()
+    {
+        return $this->belongsTo(Cotizacion::class);
     }
 
     public function pagadoPor()

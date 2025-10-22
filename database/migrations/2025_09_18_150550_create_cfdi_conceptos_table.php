@@ -11,6 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('cfdi_conceptos')) {
+            return;
+        }
         Schema::create('cfdi_conceptos', function (Blueprint $table) {
             $table->id();
             $table->foreignId('cfdi_id')->constrained('cfdis')->onDelete('cascade');

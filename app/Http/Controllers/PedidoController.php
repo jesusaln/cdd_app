@@ -1188,17 +1188,18 @@ class PedidoController extends Controller
     public function enviarEmail(Request $request, $id)
     {
         $data = $request->validate([
-            'email_destino' => ['required','email'],
+            'email_destino' => ['nullable','email'],
         ]);
 
         try {
             // Obtener el pedido con todas las relaciones necesarias
             $pedido = Pedido::with(['cliente', 'items.pedible'])->findOrFail($id);
 
-            // Verificar que el cliente tenga email
-            if (!$pedido->cliente->email) {
+            // Verificar que el cliente tenga email o que se proporcione email_destino
+            $emailDestino = $data['email_destino'] ?? $pedido->cliente->email;
+            if (!$emailDestino) {
                 throw ValidationException::withMessages([
-                    'email' => 'El cliente no tiene email configurado',
+                    'email' => 'El cliente no tiene email configurado y no se proporcionó un email de destino',
                 ]);
             }
 
@@ -1238,8 +1239,8 @@ class PedidoController extends Controller
             ]);
 
             // Enviar email con PDF adjunto
-            Mail::send('emails.pedido', $datosEmail, function ($message) use ($pedido, $pdf, $configuracion) {
-                $message->to($pedido->cliente->email)
+            Mail::send('emails.pedido', $datosEmail, function ($message) use ($pedido, $pdf, $configuracion, $emailDestino) {
+                $message->to($emailDestino)
                         ->subject("Pedido #{$pedido->numero_pedido} - {$configuracion->nombre_empresa}")
                         ->attachData($pdf->output(), "pedido-{$pedido->numero_pedido}.pdf", [
                             'mime' => 'application/pdf',
@@ -1253,7 +1254,7 @@ class PedidoController extends Controller
 
             Log::info("PDF de pedido enviado por email", [
                 'pedido_id' => $pedido->id,
-                'cliente_email' => $pedido->cliente->email,
+                'cliente_email' => $emailDestino,
                 'numero_pedido' => $pedido->numero_pedido,
                 'configuracion_smtp' => [
                     'host' => $configuracion->smtp_host,
@@ -1288,7 +1289,7 @@ class PedidoController extends Controller
         } catch (\Exception $e) {
             Log::error("Error al enviar PDF de pedido por email", [
                 'pedido_id' => $id,
-                'cliente_email' => $pedido->cliente->email ?? 'no disponible',
+                'cliente_email' => $emailDestino ?? 'no disponible',
                 'error' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),

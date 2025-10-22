@@ -12,8 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('citas', function (Blueprint $table) {
-            // Agregar soft deletes
-            $table->softDeletes();
+            // Agregar soft deletes solo si no existe
+            if (!Schema::hasColumn('citas', 'deleted_at')) {
+                $table->softDeletes();
+            }
 
             // Agregar índices para mejorar rendimiento
             $table->index(['tecnico_id', 'fecha_hora']);
@@ -21,7 +23,9 @@ return new class extends Migration
             $table->index('estado');
             $table->index('fecha_hora');
             $table->index('prioridad');
-            $table->index('deleted_at');
+            if (Schema::hasColumn('citas', 'deleted_at')) {
+                $table->index('deleted_at');
+            }
         });
     }
 
@@ -37,10 +41,14 @@ return new class extends Migration
             $table->dropIndex(['estado']);
             $table->dropIndex(['fecha_hora']);
             $table->dropIndex(['prioridad']);
-            $table->dropIndex(['deleted_at']);
+            if (Schema::hasColumn('citas', 'deleted_at')) {
+                $table->dropIndex(['deleted_at']);
+            }
 
-            // Eliminar soft deletes
-            $table->dropSoftDeletes();
+            // Eliminar soft deletes solo si existe
+            if (Schema::hasColumn('citas', 'deleted_at')) {
+                $table->dropSoftDeletes();
+            }
         });
     }
 };

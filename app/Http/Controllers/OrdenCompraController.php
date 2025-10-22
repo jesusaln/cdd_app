@@ -1418,16 +1418,19 @@ class OrdenCompraController extends Controller
      */
    public function enviarEmail(Request $request, $id)
    {
-       // No necesitamos validar email_destino ya que usamos el del proveedor
+       $data = $request->validate([
+           'email_destino' => ['nullable', 'email'],
+       ]);
 
        try {
            // Obtener la orden de compra con todas las relaciones necesarias
            $ordenCompra = OrdenCompra::with(['proveedor', 'productos'])->findOrFail($id);
 
-           // Verificar que el proveedor tenga email
-           if (!$ordenCompra->proveedor->email) {
+           // Verificar que el proveedor tenga email o que se proporcione email_destino
+           $emailDestino = $data['email_destino'] ?? $ordenCompra->proveedor->email;
+           if (!$emailDestino) {
                throw ValidationException::withMessages([
-                   'email' => 'El proveedor no tiene email configurado',
+                   'email' => 'El proveedor no tiene email configurado y no se proporcionó un email de destino',
                ]);
            }
 
@@ -1488,8 +1491,8 @@ class OrdenCompraController extends Controller
            ]);
 
            // Enviar email con PDF adjunto
-           Mail::send('emails.orden_compra', $datosEmail, function ($message) use ($ordenCompra, $pdf, $configuracion) {
-               $message->to($ordenCompra->proveedor->email)
+           Mail::send('emails.orden_compra', $datosEmail, function ($message) use ($ordenCompra, $pdf, $configuracion, $emailDestino) {
+               $message->to($emailDestino)
                    ->subject("Orden de Compra #{$ordenCompra->numero_orden} - {$configuracion->nombre_empresa}")
                    ->attachData($pdf->output(), "orden-compra-{$ordenCompra->numero_orden}.pdf", [
                        'mime' => 'application/pdf',
@@ -1503,7 +1506,7 @@ class OrdenCompraController extends Controller
 
            Log::info("PDF de orden de compra enviado por email", [
                'orden_compra_id' => $ordenCompra->id,
-               'proveedor_email' => $ordenCompra->proveedor->email,
+               'proveedor_email' => $emailDestino,
                'numero_orden' => $ordenCompra->numero_orden,
                'configuracion_smtp' => [
                    'host' => $smtp_host,
@@ -1537,7 +1540,7 @@ class OrdenCompraController extends Controller
        } catch (\Exception $e) {
            Log::error("Error al enviar PDF de orden de compra por email", [
                'orden_compra_id' => $id,
-               'proveedor_email' => $ordenCompra->proveedor->email ?? 'no disponible',
+               'proveedor_email' => $emailDestino ?? 'no disponible',
                'error' => $e->getMessage(),
                'file' => $e->getFile(),
                'line' => $e->getLine(),

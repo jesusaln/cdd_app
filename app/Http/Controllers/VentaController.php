@@ -1087,17 +1087,18 @@ class VentaController extends Controller
     public function enviarEmail(Request $request, $id)
     {
         $data = $request->validate([
-            'email_destino' => ['required', 'email'],
+            'email_destino' => ['nullable', 'email'],
         ]);
 
         try {
             // Obtener la venta con todas las relaciones necesarias
             $venta = Venta::with(['cliente', 'items.ventable'])->findOrFail($id);
 
-            // Verificar que el cliente tenga email
-            if (!$venta->cliente->email) {
+            // Verificar que el cliente tenga email o que se proporcione email_destino
+            $emailDestino = $data['email_destino'] ?? $venta->cliente->email;
+            if (!$emailDestino) {
                 throw ValidationException::withMessages([
-                    'email' => 'El cliente no tiene email configurado',
+                    'email' => 'El cliente no tiene email configurado y no se proporcionó un email de destino',
                 ]);
             }
 
@@ -1139,8 +1140,8 @@ class VentaController extends Controller
             ]);
 
             // Enviar email con PDF adjunto
-            Mail::send('emails.recordatorio_pago', $datosEmail, function ($message) use ($venta, $pdf, $configuracion) {
-                $message->to($venta->cliente->email)
+            Mail::send('emails.recordatorio_pago', $datosEmail, function ($message) use ($venta, $pdf, $configuracion, $emailDestino) {
+                $message->to($emailDestino)
                     ->subject("💰 Recordatorio de Pago - Factura #{$venta->numero_venta} - {$configuracion->nombre_empresa}")
                     ->attachData($pdf->output(), "factura-{$venta->numero_venta}.pdf", [
                         'mime' => 'application/pdf',
@@ -1154,7 +1155,7 @@ class VentaController extends Controller
 
             Log::info("Recordatorio de pago enviado por email", [
                 'venta_id' => $venta->id,
-                'cliente_email' => $venta->cliente->email,
+                'cliente_email' => $emailDestino,
                 'numero_venta' => $venta->numero_venta,
                 'tipo' => 'recordatorio_pago',
                 'configuracion_smtp' => [
@@ -1180,7 +1181,7 @@ class VentaController extends Controller
         } catch (\Exception $e) {
             Log::error("Error al enviar recordatorio de pago por email", [
                 'venta_id' => $id,
-                'cliente_email' => $venta->cliente->email ?? 'no disponible',
+                'cliente_email' => $emailDestino ?? 'no disponible',
                 'error' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),

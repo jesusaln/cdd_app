@@ -7,10 +7,11 @@ use Illuminate\Validation\Rule;
 
 use App\Models\Pedido;
 use App\Models\Venta;
-use App\Enums\EstadoPedido;
 use App\Models\Cliente;
 use App\Models\Producto;
 use App\Enums\EstadoCotizacion;
+use App\Enums\EstadoVenta;
+use App\Enums\EstadoPedido;
 use App\Models\CotizacionItem;
 use App\Models\Servicio;
 use App\Models\SatEstado;
@@ -51,6 +52,8 @@ class CotizacionController extends Controller
             'createdBy:id,name',
             'updatedBy:id,name',
             'emailEnviadoPor:id,name',
+            'pedidos:id,cotizacion_id,estado',
+            'ventas:id,cotizacion_id,estado',
         ])
             ->orderBy('created_at', 'desc')
             ->get()
@@ -74,6 +77,11 @@ class CotizacionController extends Controller
 
                 $createdAtIso = optional($cotizacion->created_at)->toIso8601String();
                 $updatedAtIso = optional($cotizacion->updated_at)->toIso8601String();
+
+                // Verificar si la cotización ha sido convertida a pedido o venta
+                $tienePedido = $cotizacion->pedidos->where('estado', '!=', EstadoPedido::Cancelado)->isNotEmpty();
+                $tieneVenta = $cotizacion->ventas->where('estado', '!=', EstadoVenta::Cancelada)->isNotEmpty();
+                $haSidoConvertida = $tienePedido || $tieneVenta;
 
                 return [
                     'id'                => $cotizacion->id,
@@ -111,8 +119,8 @@ class CotizacionController extends Controller
                     'estado' => is_object($cotizacion->estado) ? $cotizacion->estado->value : $cotizacion->estado,
 
                     // Permisos
-                    'canEdit' => in_array($cotizacion->estado, [EstadoCotizacion::Borrador, EstadoCotizacion::Pendiente], true),
-                    'canDelete' => in_array($cotizacion->estado, [EstadoCotizacion::Borrador, EstadoCotizacion::Pendiente, EstadoCotizacion::Aprobada], true),
+                    'canEdit' => in_array($cotizacion->estado, [EstadoCotizacion::Borrador, EstadoCotizacion::Pendiente], true) && !$haSidoConvertida,
+                    'canDelete' => in_array($cotizacion->estado, [EstadoCotizacion::Borrador, EstadoCotizacion::Pendiente, EstadoCotizacion::Aprobada], true) && !$haSidoConvertida,
 
                     // AuditorÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­a (para tu modal y vistas)
                     'creado_por_nombre'      => $cotizacion->createdBy?->name,
@@ -803,6 +811,7 @@ class CotizacionController extends Controller
             // Import ya declarado arriba: use App\Models\Venta;
             $venta = Venta::create([
                 'cliente_id' => $cotizacion->cliente_id,
+                'cotizacion_id' => $cotizacion->id,
                 'total' => $cotizacion->total,
             ]);
 
@@ -1091,17 +1100,18 @@ class CotizacionController extends Controller
     public function enviarEmail(Request $request, $id)
     {
         $data = $request->validate([
-            'email_destino' => ['required', 'email'],
+            'email_destino' => ['nullable', 'email'],
         ]);
 
         try {
             // Obtener la cotización con todas las relaciones necesarias
             $cotizacion = Cotizacion::with(['cliente', 'items.cotizable'])->findOrFail($id);
 
-            // Verificar que el cliente tenga email
-            if (!$cotizacion->cliente->email) {
+            // Verificar que el cliente tenga email o que se proporcione email_destino
+            $emailDestino = $data['email_destino'] ?? $cotizacion->cliente->email;
+            if (!$emailDestino) {
                 throw ValidationException::withMessages([
-                    'email' => 'El cliente no tiene email configurado',
+                    'email' => 'El cliente no tiene email configurado y no se proporcionó un email de destino',
                 ]);
             }
 
@@ -1141,8 +1151,8 @@ class CotizacionController extends Controller
             ]);
 
             // Enviar email con PDF adjunto
-            Mail::send('emails.cotizacion', $datosEmail, function ($message) use ($cotizacion, $pdf, $configuracion) {
-                $message->to($cotizacion->cliente->email)
+            Mail::send('emails.cotizacion', $datosEmail, function ($message) use ($cotizacion, $pdf, $configuracion, $emailDestino) {
+                $message->to($emailDestino)
                     ->subject("Cotización #{$cotizacion->numero_cotizacion} - {$configuracion->nombre_empresa}")
                     ->attachData($pdf->output(), "cotizacion-{$cotizacion->numero_cotizacion}.pdf", [
                         'mime' => 'application/pdf',
@@ -1156,7 +1166,7 @@ class CotizacionController extends Controller
 
             Log::info("PDF de cotización enviado por email", [
                 'cotizacion_id' => $cotizacion->id,
-                'cliente_email' => $cotizacion->cliente->email,
+                'cliente_email' => $emailDestino,
                 'numero_cotizacion' => $cotizacion->numero_cotizacion,
                 'configuracion_smtp' => [
                     'host' => $configuracion->smtp_host,
@@ -1190,7 +1200,7 @@ class CotizacionController extends Controller
         } catch (\Exception $e) {
             Log::error("Error al enviar PDF de cotización por email", [
                 'cotizacion_id' => $id,
-                'cliente_email' => $cotizacion->cliente->email ?? 'no disponible',
+                'cliente_email' => $emailDestino ?? 'no disponible',
                 'error' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
