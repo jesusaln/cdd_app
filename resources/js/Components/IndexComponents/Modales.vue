@@ -426,7 +426,34 @@
                 </p>
               </div>
 
-              <!-- Otros (cotizaciones, pedidos, ventas, etc.) -->
+              <!-- Cotizaciones -->
+              <div v-else-if="isCotizaciones">
+                <p class="text-sm text-gray-600">
+                  <strong>Cliente:</strong> {{ selected.cliente?.nombre || 'Sin cliente' }}
+                </p>
+                <p v-if="selected.cliente?.email" class="text-sm text-gray-600">
+                  <strong>Email:</strong> {{ selected.cliente.email }}
+                </p>
+                <p class="text-sm text-gray-600">
+                  <strong>Fecha:</strong>
+                  {{ formatearFecha(selected.fecha_cotizacion || selected.created_at || selected.fecha) }}
+                </p>
+                <p class="text-sm text-gray-600">
+                  <strong>Estado:</strong>
+                  <span
+                    :class="obtenerClasesEstado(selected.estado)"
+                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                  >
+                    <span class="w-1.5 h-1.5 rounded-full mr-1.5" :class="obtenerColorPuntoEstado(selected.estado)"></span>
+                    {{ obtenerLabelEstado(selected.estado) }}
+                  </span>
+                </p>
+                <p v-if="isNumber(selected.total)" class="text-sm text-gray-600">
+                  <strong>Total:</strong> ${{ formatearMoneda(selected.total) }}
+                </p>
+              </div>
+
+              <!-- Otros (pedidos, ventas, etc.) -->
               <div v-else>
                 <p class="text-sm text-gray-600">
                   <strong>Cliente:</strong> {{ selected.cliente?.nombre || 'Sin cliente' }}
@@ -495,7 +522,7 @@
 
             <!-- Tabla de productos (no aplica a equipos ni clientes) -->
             <div v-if="!isEquipos && !isClientes && selected.productos?.length" class="mt-4">
-              <h4 class="text-sm font-medium text-gray-900 mb-2">Productos</h4>
+              <h4 class="text-sm font-medium text-gray-900 mb-2">Productos y Servicios</h4>
               <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                   <thead class="bg-gray-50">
@@ -535,7 +562,7 @@
                       <td class="px-4 py-2 text-sm text-gray-900">
                         {{ producto.nombre || 'Sin nombre' }}
                       </td>
-                      <td class="px-4 py-2 text-sm text-gray-600">
+                      <td class="px-4 py-2 text-sm text-gray-600 capitalize">
                         {{ producto.tipo || 'N/A' }}
                       </td>
                       <td class="px-4 py-2 text-sm text-gray-600">
@@ -545,7 +572,7 @@
                         ${{ formatearMoneda(producto.precio) }}
                       </td>
                       <td class="px-4 py-2 text-sm text-gray-600">
-                        ${{ formatearMoneda(producto.descuento || 0) }}
+                        {{ producto.descuento || 0 }}%
                       </td>
                       <td class="px-4 py-2 text-sm text-gray-600">
                         ${{ formatearMoneda(producto.subtotal || ((producto.cantidad || 0) * (producto.precio || 0) * (1 - (producto.descuento || 0) / 100))) }}
@@ -585,6 +612,33 @@
               </div>
             </div>
             <p v-else-if="!isEquipos && !isClientes && !isOrdenesCompra" class="text-sm text-gray-600">No hay productos asociados.</p>
+
+            <!-- Totales para cotizaciones -->
+            <div v-if="isCotizaciones && selected.productos?.length" class="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <h4 class="text-sm font-medium text-gray-900 mb-3">Resumen de Cotización</h4>
+              <div class="space-y-2 text-sm">
+                <div class="flex justify-between">
+                  <span class="text-gray-600">Subtotal:</span>
+                  <span class="font-medium">${{ formatearMoneda(calcularSubtotalCotizacion()) }}</span>
+                </div>
+                <div v-if="calcularDescuentosItems() > 0" class="flex justify-between">
+                  <span class="text-gray-600">Descuentos por Items:</span>
+                  <span class="font-medium text-red-600">-${{ formatearMoneda(calcularDescuentosItems()) }}</span>
+                </div>
+                <div v-if="(selected.descuento_general || 0) > 0" class="flex justify-between">
+                  <span class="text-gray-600">Descuento General:</span>
+                  <span class="font-medium text-red-600">-${{ formatearMoneda(selected.descuento_general || 0) }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-gray-600">IVA (16%):</span>
+                  <span class="font-medium">${{ formatearMoneda(calcularIVACotizacion()) }}</span>
+                </div>
+                <div class="flex justify-between border-t border-gray-300 pt-2">
+                  <span class="text-gray-900 font-semibold">Total:</span>
+                  <span class="text-gray-900 font-bold">${{ formatearMoneda(calcularTotalCotizacion()) }}</span>
+                </div>
+              </div>
+            </div>
 
             <!-- Totales para órdenes de compra -->
             <div v-if="isOrdenesCompra && selected.productos?.length" class="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
@@ -1161,6 +1215,43 @@ const formatearMoneda = (num) => {
   const value = parseFloat(num)
   const safe = Number.isFinite(value) ? value : 0
   return new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(safe)
+}
+
+// Funciones de cálculo para cotizaciones
+const calcularSubtotalCotizacion = () => {
+  if (!props.selected?.productos) return 0
+  return props.selected.productos.reduce((sum, item) => {
+    const cantidad = parseFloat(item.cantidad || 0)
+    const precio = parseFloat(item.precio || 0)
+    return sum + (cantidad * precio)
+  }, 0)
+}
+
+const calcularDescuentosItems = () => {
+  if (!props.selected?.productos) return 0
+  return props.selected.productos.reduce((sum, item) => {
+    const cantidad = parseFloat(item.cantidad || 0)
+    const precio = parseFloat(item.precio || 0)
+    const descuento = parseFloat(item.descuento || 0)
+    return sum + (cantidad * precio * descuento / 100)
+  }, 0)
+}
+
+const calcularIVACotizacion = () => {
+  const subtotal = calcularSubtotalCotizacion()
+  const descuentosItems = calcularDescuentosItems()
+  const descuentoGeneral = parseFloat(props.selected?.descuento_general || 0)
+  const subtotalConDescuentos = subtotal - descuentosItems - descuentoGeneral
+  return subtotalConDescuentos * 0.16
+}
+
+const calcularTotalCotizacion = () => {
+  const subtotal = calcularSubtotalCotizacion()
+  const descuentosItems = calcularDescuentosItems()
+  const descuentoGeneral = parseFloat(props.selected?.descuento_general || 0)
+  const subtotalConDescuentos = subtotal - descuentosItems - descuentoGeneral
+  const iva = subtotalConDescuentos * 0.16
+  return subtotalConDescuentos + iva
 }
 
 // Visual estados

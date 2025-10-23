@@ -24,11 +24,24 @@ defineProps({
     }
 });
 
-// Totales
-const subtotal = computed(() => cotizacion.subtotal || 0);
+// Totales calculados desde los items
+const subtotal = computed(() => {
+    return items.value.reduce((sum, item) => sum + (item.cantidad * item.precio), 0);
+});
+
+const descuentoItems = computed(() => {
+    return items.value.reduce((sum, item) => sum + (item.cantidad * item.precio * item.descuento / 100), 0);
+});
+
 const descuentoGeneral = computed(() => cotizacion.descuento_general || 0);
-const iva = computed(() => cotizacion.iva || 0);
-const total = computed(() => cotizacion.total || 0);
+
+const subtotalConDescuentos = computed(() => {
+    return subtotal.value - descuentoItems.value - descuentoGeneral.value;
+});
+
+const iva = computed(() => subtotalConDescuentos.value * 0.16);
+
+const total = computed(() => subtotalConDescuentos.value + iva.value);
 
 // Items
 const items = computed(() => {
@@ -54,22 +67,31 @@ const mostrarVistaPrevia = ref(false);
                 <!-- Encabezado -->
                 <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-6">
                     <div class="px-6 py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white">
-                        <h1 class="text-xl font-bold">Cotización #{{ cotizacion.id }}</h1>
+                        <h1 class="text-xl font-bold">Cotización #{{ cotizacion.numero_cotizacion || cotizacion.id }}</h1>
+                        <p class="text-sm opacity-90 mt-1">{{ cotizacion.fecha_cotizacion ? new Date(cotizacion.fecha_cotizacion).toLocaleDateString('es-MX') : '' }}</p>
                     </div>
                     <div class="p-6">
-                        <p><strong>Cliente:</strong> {{ cotizacion.cliente.nombre_razon_social }}</p>
-                        <p>
-                            <strong>Estado:</strong>
-                            <span class="ml-2 px-3 py-1 rounded-full text-sm font-medium"
-                                  :class="{
-                                      'bg-green-100 text-green-800': cotizacion.estado === 'aprobada',
-                                      'bg-yellow-100 text-yellow-800': cotizacion.estado === 'pendiente',
-                                      'bg-red-100 text-red-800': cotizacion.estado === 'rechazada',
-                                      'bg-gray-100 text-gray-800': cotizacion.estado === 'borrador'
-                                  }">
-                                {{ cotizacion.estado }}
-                            </span>
-                        </p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <p><strong>Cliente:</strong> {{ cotizacion.cliente.nombre_razon_social }}</p>
+                                <p v-if="cotizacion.cliente.email"><strong>Email:</strong> {{ cotizacion.cliente.email }}</p>
+                            </div>
+                            <div>
+                                <p>
+                                    <strong>Estado:</strong>
+                                    <span class="ml-2 px-3 py-1 rounded-full text-sm font-medium"
+                                          :class="{
+                                              'bg-green-100 text-green-800': cotizacion.estado === 'aprobada',
+                                              'bg-yellow-100 text-yellow-800': cotizacion.estado === 'pendiente',
+                                              'bg-red-100 text-red-800': cotizacion.estado === 'rechazada',
+                                              'bg-gray-100 text-gray-800': cotizacion.estado === 'borrador'
+                                          }">
+                                        {{ cotizacion.estado }}
+                                    </span>
+                                </p>
+                                <p><strong>Total:</strong> ${{ total.toFixed(2) }}</p>
+                            </div>
+                        </div>
                         <p v-if="cotizacion.notas" class="mt-2">
                             <strong>Notas:</strong> {{ cotizacion.notas }}
                         </p>
@@ -84,6 +106,7 @@ const mostrarVistaPrevia = ref(false);
                             <thead>
                                 <tr>
                                     <th class="px-4 py-2 text-left text-sm font-medium text-gray-500">Nombre</th>
+                                    <th class="px-4 py-2 text-left text-sm font-medium text-gray-500">Tipo</th>
                                     <th class="px-4 py-2 text-right text-sm font-medium text-gray-500">Cantidad</th>
                                     <th class="px-4 py-2 text-right text-sm font-medium text-gray-500">Precio</th>
                                     <th class="px-4 py-2 text-right text-sm font-medium text-gray-500">Descuento</th>
@@ -93,6 +116,7 @@ const mostrarVistaPrevia = ref(false);
                             <tbody class="divide-y divide-gray-200">
                                 <tr v-for="item in items" :key="item.id">
                                     <td class="px-4 py-3 text-sm">{{ item.nombre }}</td>
+                                    <td class="px-4 py-3 text-sm capitalize">{{ item.tipo }}</td>
                                     <td class="px-4 py-3 text-sm text-right">{{ item.cantidad }}</td>
                                     <td class="px-4 py-3 text-sm text-right">${{ item.precio.toFixed(2) }}</td>
                                     <td class="px-4 py-3 text-sm text-right">{{ item.descuento }}%</td>
@@ -110,8 +134,10 @@ const mostrarVistaPrevia = ref(false);
                     <div class="p-6">
                         <div class="space-y-2 text-right">
                             <p><strong>Subtotal:</strong> ${{ subtotal.toFixed(2) }}</p>
-                            <p v-if="descuentoGeneral > 0"><strong>Descuento:</strong> ${{ descuentoGeneral.toFixed(2) }}</p>
-                            <p><strong>IVA:</strong> ${{ iva.toFixed(2) }}</p>
+                            <p v-if="descuentoItems > 0"><strong>Descuentos por ítem:</strong> ${{ descuentoItems.toFixed(2) }}</p>
+                            <p v-if="descuentoGeneral > 0"><strong>Descuento general:</strong> ${{ descuentoGeneral.toFixed(2) }}</p>
+                            <p><strong>Subtotal con descuentos:</strong> ${{ subtotalConDescuentos.toFixed(2) }}</p>
+                            <p><strong>IVA (16%):</strong> ${{ iva.toFixed(2) }}</p>
                             <p class="text-xl"><strong>Total:</strong> ${{ total.toFixed(2) }}</p>
                         </div>
                     </div>
@@ -164,10 +190,12 @@ const mostrarVistaPrevia = ref(false);
             :cliente="cotizacion.cliente"
             :items="items"
             :totals="{
-                subtotal,
-                descuentoGeneral,
-                iva,
-                total
+                subtotal: subtotal,
+                descuentoItems: descuentoItems,
+                descuentoGeneral: descuentoGeneral,
+                subtotalConDescuentos: subtotalConDescuentos,
+                iva: iva,
+                total: total
             }"
             :descuento-general="descuentoGeneral"
             :notas="cotizacion.notas"

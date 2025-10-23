@@ -476,6 +476,8 @@ class CotizacionController extends Controller
         return Inertia::render('Cotizaciones/Show', [
             'cotizacion' => [
                 'id' => $cotizacion->id,
+                'numero_cotizacion' => $cotizacion->numero_cotizacion,
+                'fecha_cotizacion' => $cotizacion->fecha_cotizacion?->format('Y-m-d'),
                 'cliente' => $cotizacion->cliente,
                 'productos' => $items,
                 'subtotal' => $cotizacion->subtotal,

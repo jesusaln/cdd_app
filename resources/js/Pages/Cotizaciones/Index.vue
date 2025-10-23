@@ -225,15 +225,13 @@ watch(totalPages, (newTotal) => {
   }
 })
 
-// Estadísticas calculadas - Fácil de modificar
+// Estadísticas calculadas - Solo estados relevantes
 const estadisticas = computed(() => {
   const cotizaciones = cotizacionesOriginales.value
 
   return {
     total: cotizaciones.length,
-    aprobadas: cotizaciones.filter(c => ['aprobado', 'aprobada'].includes(String(c.estado || '').toLowerCase())).length,
     pendientes: cotizaciones.filter(c => c.estado === 'pendiente').length,
-    borrador: cotizaciones.filter(c => c.estado === 'borrador').length,
     enviado_pedido: cotizaciones.filter(c => c.estado === 'enviado_pedido').length,
     cancelado: cotizaciones.filter(c => c.estado === 'cancelado').length,
   }
@@ -624,9 +622,7 @@ const crearNuevaCotizacion = () => {
       <!-- Header específico de cotizaciones -->
       <CotizacionesHeader
         :total="estadisticas.total"
-        :aprobadas="estadisticas.aprobadas"
         :pendientes="estadisticas.pendientes"
-        :borrador="estadisticas.borrador"
         :enviado_pedido="estadisticas.enviado_pedido"
         :cancelado="estadisticas.cancelado"
         v-model:search-term="searchTerm"
