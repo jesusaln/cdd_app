@@ -50,7 +50,15 @@ class PedidoController extends Controller
              $perPage = 10;
          }
 
-         $baseQuery = Pedido::with(['cliente', 'items.pedible', 'createdBy', 'updatedBy', 'deletedBy', 'emailEnviadoPor']);
+         $baseQuery = Pedido::with([
+             'cliente',
+             // Filtrar ítems a tipos conocidos para evitar fallos por tipos inválidos
+             'items' => function ($q) {
+                 $q->whereIn('pedible_type', [Producto::class, Servicio::class]);
+             },
+             'items.pedible',
+             'createdBy', 'updatedBy', 'deletedBy', 'emailEnviadoPor'
+         ]);
 
          // Aplicar filtros
          if ($search = trim($request->get('search', ''))) {
@@ -108,7 +116,7 @@ class PedidoController extends Controller
                     return [
                         'id' => $pedible->id,
                         'nombre' => $pedible->nombre ?? 'Sin nombre',
-                        'tipo' => $item->pedible_type === Producto::class ? 'producto' : 'servicio',
+                        'tipo' => ($item->pedible_type === Producto::class || $item->pedible_type === 'producto') ? 'producto' : 'servicio',
                         'cantidad' => $item->cantidad,
                         'precio' => $item->precio,
                         'descuento' => $item->descuento ?? 0,
@@ -372,14 +380,18 @@ class PedidoController extends Controller
      */
     public function show($id)
     {
-        $pedido = Pedido::with(['cliente', 'items.pedible'])->findOrFail($id);
+        $pedido = Pedido::with([
+            'cliente',
+            'items' => function ($q) { $q->whereIn('pedible_type', [Producto::class, Servicio::class]); },
+            'items.pedible'
+        ])->findOrFail($id);
 
         $items = $pedido->items->map(function ($item) {
             $pedible = $item->pedible;
             return [
                 'id' => $pedible->id,
                 'nombre' => $pedible->nombre ?? $pedible->descripcion,
-                'tipo' => $item->pedible_type === Producto::class ? 'producto' : 'servicio',
+                'tipo' => ($item->pedible_type === Producto::class || $item->pedible_type === 'producto') ? 'producto' : 'servicio',
                 'pivot' => [
                     'cantidad' => $item->cantidad,
                     'precio' => $item->precio,
@@ -426,7 +438,7 @@ class PedidoController extends Controller
             return [
                 'id' => $pedible->id,
                 'nombre' => $pedible->nombre ?? $pedible->descripcion,
-                'tipo' => $item->pedible_type === Producto::class ? 'producto' : 'servicio',
+                'tipo' => ($item->pedible_type === Producto::class || $item->pedible_type === 'producto') ? 'producto' : 'servicio',
                 'pivot' => [
                     'cantidad' => $item->cantidad,
                     'precio' => $item->precio,
@@ -616,7 +628,7 @@ class PedidoController extends Controller
         try {
             // Validar y reservar inventario para productos
             foreach ($pedido->items as $item) {
-                if ($item->pedible_type === Producto::class) {
+                if ($item->pedible_type === Producto::class || $item->pedible_type === 'producto') {
                     $producto = Producto::with('inventarios')->find($item->pedible_id);
                     if (!$producto) {
                         return response()->json([
@@ -701,7 +713,7 @@ class PedidoController extends Controller
             // Liberar reservas si el pedido estaba confirmado
             if (in_array($pedido->estado, [EstadoPedido::Confirmado, EstadoPedido::EnPreparacion, EstadoPedido::ListoEntrega])) {
                 foreach ($pedido->items as $item) {
-                    if ($item->pedible_type === Producto::class) {
+                    if ($item->pedible_type === Producto::class || $item->pedible_type === 'producto') {
                         $producto = Producto::find($item->pedible_id);
                         if ($producto && $producto->reservado >= $item->cantidad) {
                             // Nota: Las reservas necesitan extensión del InventarioService para trazabilidad completa
@@ -986,7 +998,7 @@ class PedidoController extends Controller
 
             // ✅ VALIDAR STOCK DISPONIBLE ANTES DE CREAR VENTA (considerando reservas)
             foreach ($pedido->items as $item) {
-                if ($item->pedible_type === Producto::class) {
+                if ($item->pedible_type === Producto::class || $item->pedible_type === 'producto') {
                     $producto = Producto::with('inventarios')->find($item->pedible_id);
                     if (!$producto) {
                         return response()->json([
@@ -1052,8 +1064,8 @@ class PedidoController extends Controller
                     'subtotal' => $item->subtotal,
                 ]);
 
-                // ✅ DESCONTAR INVENTARIO SOLO PARA PRODUCTOS (consumir reservas)
-                if ($item->pedible_type === Producto::class) {
+                // 6o. DESCONTAR INVENTARIO SOLO PARA PRODUCTOS (consumir reservas)
+                if ($item->pedible_type === Producto::class || $item->pedible_type === 'producto') {
                     $producto = Producto::find($item->pedible_id);
                     if ($producto) {
                         $cantidadRestante = $item->cantidad;
@@ -1192,8 +1204,12 @@ class PedidoController extends Controller
         ]);
 
         try {
-            // Obtener el pedido con todas las relaciones necesarias
-            $pedido = Pedido::with(['cliente', 'items.pedible'])->findOrFail($id);
+            // Obtener el pedido con relaciones necesarias y filtrando tipos válidos
+            $pedido = Pedido::with([
+                'cliente',
+                'items' => function ($q) { $q->whereIn('pedible_type', [Producto::class, Servicio::class]); },
+                'items.pedible'
+            ])->findOrFail($id);
 
             // Verificar que el cliente tenga email o que se proporcione email_destino
             $emailDestino = $data['email_destino'] ?? $pedido->cliente->email;
@@ -1365,3 +1381,5 @@ class PedidoController extends Controller
         }
     }
 }
+
+

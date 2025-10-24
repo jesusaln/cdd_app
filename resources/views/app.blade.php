@@ -86,9 +86,11 @@
     <!-- Scripts -->
     @routes
     {{-- Usar archivos compilados para producción, servidor de desarrollo para local --}}
-    @if(config('app.env') === 'production')
+    @php $manifest = public_path('build/manifest.json'); @endphp
+    @if (file_exists($manifest))
         @vite(['resources/js/app.js'])
     @else
+        {{-- Vite manifest missing: skipping asset include to avoid crash. Build assets with npm run build. --}}
         @vite(['resources/js/app.js', "resources/js/Pages/{$page['component']}.vue"])
     @endif
     @inertiaHead
@@ -121,3 +123,4 @@
 </body>
 
 </html>
+

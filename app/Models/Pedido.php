@@ -53,7 +53,7 @@ class Pedido extends Model
             'pedido_id',
             'pedible_id'
         )->withPivot('cantidad', 'precio', 'descuento', 'subtotal', 'descuento_monto')
-        ->wherePivot('pedible_type', Producto::class)
+        ->wherePivotIn('pedible_type', [Producto::class, 'producto'])
         ->whereHasMorph('pedible', Producto::class, function ($query) {
             $query->active();
         });
@@ -68,7 +68,7 @@ class Pedido extends Model
             'pedido_id',
             'pedible_id'
         )->withPivot('cantidad', 'precio', 'descuento', 'subtotal', 'descuento_monto')
-        ->wherePivot('pedible_type', Servicio::class)
+        ->wherePivotIn('pedible_type', [Servicio::class, 'servicio'])
         ->whereHasMorph('pedible', Servicio::class, function ($query) {
             $query->active();
         });

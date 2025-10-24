@@ -648,7 +648,8 @@ const icons = {
   import: 'M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10',
   loading: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15',
   identification: 'M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2',
-  'status-online': 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z'
+  'status-online': 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
+  'exchange-alt': 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4'
 }
 
 const colorClasses = {
@@ -1324,7 +1325,17 @@ const validarEstado = (estado) => {
                           Email: {{ doc.proveedor?.email || 'no' }} | Estado: {{ doc.estado }} | Show: {{ !!(doc.proveedor && doc.proveedor.email && doc.proveedor.email.trim() !== '') }}
                         </span>
 
-                        <!-- 4. Enviar a Compra (solo pendiente) -->
+                        <!-- 4. Convertir Directo (solo pendiente) -->
+                        <button
+                          v-if="doc.estado === 'pendiente'"
+                          @click="convertirDirecto(doc)"
+                          class="group/btn relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 hover:text-purple-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:ring-offset-1"
+                          title="Convertir directamente a compra"
+                        >
+                          <font-awesome-icon icon="exchange-alt" class="w-3.5 h-3.5 transition-transform duration-200 group-hover/btn:scale-110" />
+                        </button>
+
+                        <!-- 5. Enviar a Compra (solo pendiente) -->
                         <button
                           v-if="doc.estado === 'pendiente'"
                           @click="enviarOrden(doc)"
@@ -1334,7 +1345,7 @@ const validarEstado = (estado) => {
                           <font-awesome-icon icon="paper-plane" class="w-3.5 h-3.5 transition-transform duration-200 group-hover/btn:scale-110" />
                         </button>
 
-                        <!-- 5. Cancelar (pendiente y enviada a proveedor) -->
+                        <!-- 6. Cancelar (pendiente y enviada a proveedor) -->
                         <button
                           v-if="['pendiente', 'enviado_a_proveedor'].includes(doc.estado)"
                           @click="confirmarEliminacion(doc.id)"
@@ -1666,7 +1677,16 @@ const validarEstado = (estado) => {
                 {{ fila?.email_enviado ? '📨 Reenviar Email' : '📧 Enviar Email' }}
               </button>
 
-              <!-- 3. Enviar a Proveedor (solo pendiente) -->
+              <!-- 3. Convertir Directo (solo pendiente) -->
+              <button
+                v-if="fila?.estado === 'pendiente'"
+                @click="convertirDirecto(fila)"
+                class="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
+              >
+                🔄 Convertir a Compra
+              </button>
+
+              <!-- 4. Enviar a Proveedor (solo pendiente) -->
               <button
                 v-if="fila?.estado === 'pendiente'"
                 @click="enviarOrden(fila)"
@@ -1675,7 +1695,7 @@ const validarEstado = (estado) => {
                 🚀 Enviar a Proveedor
               </button>
 
-              <!-- 4. Cancelar (pendiente y enviada a proveedor) -->
+              <!-- 5. Cancelar (pendiente y enviada a proveedor) -->
               <button
                 v-if="['pendiente', 'enviado_a_proveedor'].includes(fila?.estado)"
                 @click="confirmarEliminacion(fila.id)"

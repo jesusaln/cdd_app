@@ -45,6 +45,7 @@ class OrdenCompraEnviada extends Mailable
                 'ordenCompra' => $this->ordenCompra,
                 'proveedor' => $this->ordenCompra->proveedor,
                 'productos' => $this->ordenCompra->productos,
+                'configuracion' => \App\Models\EmpresaConfiguracion::getConfig(),
             ],
         );
     }
