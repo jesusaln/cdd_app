@@ -350,6 +350,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
 
     // Rutas para control de herramientas por tÃƒÂ©cnico
     Route::resource('citas', CitaController::class)->names('citas');
+    Route::post('/citas/{id}/convertir-a-pedido', [CitaController::class, 'convertirAPedido'])->name('citas.convertir-a-pedido');
+    Route::post('/citas/{id}/convertir-a-venta', [CitaController::class, 'convertirAVenta'])->name('citas.convertir-a-venta');
     Route::resource('carros', CarroController::class)->names('carros');
     Route::resource('mantenimientos', MantenimientoController::class)->names('mantenimientos');
     Route::post('mantenimientos/{mantenimiento}/marcar-realizado-hoy', [MantenimientoController::class, 'marcarRealizadoHoy'])->name('mantenimientos.marcar-realizado-hoy');

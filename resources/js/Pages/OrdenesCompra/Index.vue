@@ -834,6 +834,11 @@ const configEstados = {
     classes: 'bg-yellow-100 text-yellow-700',
     color: 'bg-yellow-400'
   },
+  'aprobada': {
+    label: 'Aprobada',
+    classes: 'bg-blue-100 text-blue-700',
+    color: 'bg-blue-400'
+  },
   'enviado_a_proveedor': {
     label: 'Enviado a Proveedor',
     classes: 'bg-blue-100 text-blue-700',
@@ -1297,9 +1302,9 @@ const validarEstado = (estado) => {
                           <font-awesome-icon icon="eye" class="w-3.5 h-3.5 transition-transform duration-200 group-hover/btn:scale-110" />
                         </button>
 
-                        <!-- 2. Editar (solo borrador y pendiente) -->
+                        <!-- 2. Editar (borrador, pendiente y aprobada) -->
                         <button
-                          v-if="doc.estado === 'borrador' || doc.estado === 'pendiente'"
+                          v-if="doc.estado === 'borrador' || doc.estado === 'pendiente' || doc.estado === 'aprobada'"
                           @click="editarOrden(doc.id)"
                           class="group/btn relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 hover:text-amber-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-1"
                           title="Editar orden"
@@ -1335,9 +1340,9 @@ const validarEstado = (estado) => {
                           <font-awesome-icon icon="exchange-alt" class="w-3.5 h-3.5 transition-transform duration-200 group-hover/btn:scale-110" />
                         </button>
 
-                        <!-- 5. Enviar a Compra (solo pendiente) -->
+                        <!-- 5. Enviar a Compra (pendiente y aprobada) -->
                         <button
-                          v-if="doc.estado === 'pendiente'"
+                          v-if="doc.estado === 'pendiente' || doc.estado === 'aprobada'"
                           @click="enviarOrden(doc)"
                           class="group/btn relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-1"
                           title="Enviar orden al proveedor"
@@ -1345,9 +1350,9 @@ const validarEstado = (estado) => {
                           <font-awesome-icon icon="paper-plane" class="w-3.5 h-3.5 transition-transform duration-200 group-hover/btn:scale-110" />
                         </button>
 
-                        <!-- 6. Cancelar (pendiente y enviada a proveedor) -->
+                        <!-- 6. Cancelar (pendiente, aprobada y enviada a proveedor) -->
                         <button
-                          v-if="['pendiente', 'enviado_a_proveedor'].includes(doc.estado)"
+                          v-if="['pendiente', 'aprobada', 'enviado_a_proveedor'].includes(doc.estado)"
                           @click="confirmarEliminacion(doc.id)"
                           class="group/btn relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:ring-offset-1"
                           title="Cancelar orden"
@@ -1659,9 +1664,9 @@ const validarEstado = (estado) => {
 
             <!-- Botones de acción simplificados -->
             <div class="flex flex-wrap justify-end gap-2 mt-6">
-              <!-- 1. Editar (solo borrador y pendiente) -->
+              <!-- 1. Editar (borrador, pendiente y aprobada) -->
               <button
-                v-if="['borrador', 'pendiente'].includes(fila?.estado)"
+                v-if="['borrador', 'pendiente', 'aprobada'].includes(fila?.estado)"
                 @click="editarFila"
                 class="px-3 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm"
               >
@@ -1686,18 +1691,18 @@ const validarEstado = (estado) => {
                 🔄 Convertir a Compra
               </button>
 
-              <!-- 4. Enviar a Proveedor (solo pendiente) -->
+              <!-- 4. Enviar a Proveedor (pendiente y aprobada) -->
               <button
-                v-if="fila?.estado === 'pendiente'"
+                v-if="['pendiente', 'aprobada'].includes(fila?.estado)"
                 @click="enviarOrden(fila)"
                 class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
               >
                 🚀 Enviar a Proveedor
               </button>
 
-              <!-- 5. Cancelar (pendiente y enviada a proveedor) -->
+              <!-- 5. Cancelar (pendiente, aprobada y enviada a proveedor) -->
               <button
-                v-if="['pendiente', 'enviado_a_proveedor'].includes(fila?.estado)"
+                v-if="['pendiente', 'aprobada', 'enviado_a_proveedor'].includes(fila?.estado)"
                 @click="confirmarEliminacion(fila.id)"
                 class="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
               >

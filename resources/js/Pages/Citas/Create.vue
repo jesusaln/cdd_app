@@ -110,6 +110,16 @@
                             :error="form.errors.prioridad"
                         />
 
+                        <FormField
+                            v-model="form.tipo_servicio"
+                            label="Tipo de Servicio"
+                            type="select"
+                            id="tipo_servicio"
+                            :options="tipoServicioOptions"
+                            :error="form.errors.tipo_servicio"
+                            required
+                        />
+
                         <div class="md:col-span-2">
                             <FormField
                                 v-model="form.descripcion"
@@ -173,37 +183,86 @@
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
-                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto/Servicio</th>
                                         <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Cantidad</th>
                                         <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Precio</th>
+                                        <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Descuento (%)</th>
                                         <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Subtotal</th>
                                         <th class="px-3 py-2"></th>
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-200">
-                                    <tr v-for="producto in selectedItems" :key="`producto-${producto.id}`">
-                                        <td class="px-3 py-2 text-sm text-gray-900">{{ getItemName(producto) }}</td>
+                                    <tr v-for="item in selectedItems" :key="`${item.tipo}-${item.id}`">
+                                        <td class="px-3 py-2 text-sm text-gray-900">{{ getItemName(item) }}</td>
                                         <td class="px-3 py-2 text-sm text-gray-900 text-right">
-                                            <input type="number" min="1" class="w-24 text-right border rounded px-2 py-1"
-                                                   v-model.number="quantities[`producto-${producto.id}`]" />
+                                            <input type="number" min="1" class="w-20 text-right border rounded px-2 py-1"
+                                                   v-model.number="quantities[`${item.tipo}-${item.id}`]" @input="updateQuantity(`${item.tipo}-${item.id}`, quantities[`${item.tipo}-${item.id}`])" />
                                         </td>
                                         <td class="px-3 py-2 text-sm text-gray-900 text-right">
-                                            <input type="number" min="0" step="0.01" class="w-28 text-right border rounded px-2 py-1"
-                                                   v-model.number="prices[`producto-${producto.id}`]" />
+                                            <input type="number" min="0" step="0.01" class="w-24 text-right border rounded px-2 py-1"
+                                                   v-model.number="prices[`${item.tipo}-${item.id}`]" @input="updatePrice(`${item.tipo}-${item.id}`, prices[`${item.tipo}-${item.id}`])" />
                                         </td>
                                         <td class="px-3 py-2 text-sm text-gray-900 text-right">
-                                            {{ ((quantities[`producto-${producto.id}`] || 0) * (prices[`producto-${producto.id}`] || 0)).toFixed(2) }}
+                                            <input type="number" min="0" max="100" step="0.01" class="w-20 text-right border rounded px-2 py-1"
+                                                   v-model.number="discounts[`${item.tipo}-${item.id}`]" @input="updateDiscount(`${item.tipo}-${item.id}`, discounts[`${item.tipo}-${item.id}`])" />
+                                        </td>
+                                        <td class="px-3 py-2 text-sm text-gray-900 text-right">
+                                            {{ calculateSubtotal(item) }}
                                         </td>
                                         <td class="px-3 py-2 text-right">
-                                            <button type="button" class="text-red-600 hover:underline" @click="removeItem(producto)">Quitar</button>
+                                            <button type="button" class="text-red-600 hover:underline" @click="removeItem(item)">Quitar</button>
                                         </td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
+
+                        <!-- Totales -->
+                        <div v-if="selectedItems.length > 0" class="mt-6 bg-gray-50 p-4 rounded-lg">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                                <div class="flex justify-between">
+                                    <span class="font-medium">Subtotal:</span>
+                                    <span>${{ totales.subtotal.toFixed(2) }}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="font-medium">Descuento Items:</span>
+                                    <span>-${{ totales.descuentoItems.toFixed(2) }}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="font-medium">Subtotal con Descuentos:</span>
+                                    <span>${{ totales.subtotalConDescuentos.toFixed(2) }}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="font-medium">Descuento General:</span>
+                                    <input type="number" min="0" max="100" step="0.01" class="w-20 text-right border rounded px-2 py-1"
+                                           v-model.number="form.descuento_general" @input="updateDescuentoGeneral" />
+                                    <span>%</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="font-medium">IVA (16%):</span>
+                                    <span>${{ totales.iva.toFixed(2) }}</span>
+                                </div>
+                                <div class="flex justify-between font-bold text-lg">
+                                    <span>Total:</span>
+                                    <span>${{ totales.total.toFixed(2) }}</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
+                <!-- Sección: Notas -->
+                <div class="border-b border-gray-200 pb-6">
+                    <h2 class="text-lg font-medium text-gray-900 mb-4">Notas Adicionales</h2>
+                    <div>
+                        <textarea
+                            v-model="form.notas"
+                            class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical"
+                            rows="4"
+                            placeholder="Agrega notas adicionales, términos y condiciones, o información relevante para la cita..."
+                        ></textarea>
+                    </div>
+                </div>
 
                 <!-- Botones de acción -->
                 <div class="flex justify-between items-center pt-6 border-t border-gray-200">
@@ -285,10 +344,51 @@ const buscarProductoRef = ref(null);
 // Items seleccionados para venta
 const selectedItems = ref([]); // [{id, tipo, nombre?}]
 const quantities = ref({});     // key: `${tipo}-${id}` => cantidad
-const prices = ref({});     // key: `${tipo}-${id}` => precio
+const prices = ref({});         // key: `${tipo}-${id}` => precio
+const discounts = ref({});      // key: `${tipo}-${id}` => descuento
 
 
 const productosSeleccionados = computed(() => selectedItems.value);
+
+// Totales calculados
+const totales = computed(() => {
+    let subtotal = 0;
+    let descuentoItems = 0;
+
+    selectedItems.value.forEach(item => {
+        const key = `${item.tipo}-${item.id}`;
+        const cantidad = parseFloat(quantities.value[key]) || 0;
+        const precio = parseFloat(prices.value[key]) || 0;
+        const descuento = parseFloat(discounts.value[key]) || 0;
+
+        if (cantidad > 0 && precio >= 0) {
+            const subtotalItem = cantidad * precio;
+            descuentoItems += subtotalItem * (descuento / 100);
+            subtotal += subtotalItem;
+        }
+    });
+
+    const subtotalConDescuentos = Math.max(0, subtotal - descuentoItems);
+    const descuentoGeneralPorc = parseFloat(form.descuento_general) || 0;
+    const descuentoGeneralMonto = subtotalConDescuentos * (descuentoGeneralPorc / 100);
+    const subtotalFinal = subtotalConDescuentos - descuentoGeneralMonto;
+    const iva = subtotalFinal * 0.16;
+    const total = subtotalFinal + iva;
+
+    return {
+        subtotal: parseFloat(subtotal.toFixed(2)),
+        descuentoItems: parseFloat(descuentoItems.toFixed(2)),
+        subtotalConDescuentos: parseFloat(subtotalConDescuentos.toFixed(2)),
+        descuentoGeneral: parseFloat(descuentoGeneralMonto.toFixed(2)),
+        iva: parseFloat(iva.toFixed(2)),
+        total: parseFloat(total.toFixed(2)),
+    };
+});
+
+const updateDescuentoGeneral = () => {
+    // Forzar actualización de totales
+    form.descuento_general = parseFloat(form.descuento_general) || 0;
+};
 
 // Opciones de selección mejoradas
 const tecnicosOptions = computed(() => [
@@ -314,9 +414,18 @@ const estadoOptions = [
 const prioridadOptions = [
     { value: '', text: 'Selecciona la prioridad', disabled: true },
     { value: 'baja', text: 'Baja' },
-    { value: 'normal', text: 'Normal' },
+    { value: 'media', text: 'Media' },
     { value: 'alta', text: 'Alta' },
     { value: 'urgente', text: 'Urgente' }
+];
+
+const tipoServicioOptions = [
+    { value: '', text: 'Selecciona el tipo de servicio', disabled: true },
+    { value: 'instalacion', text: 'Instalación' },
+    { value: 'reparacion', text: 'Reparación' },
+    { value: 'mantenimiento', text: 'Mantenimiento' },
+    { value: 'diagnostico', text: 'Diagnóstico' },
+    { value: 'otro', text: 'Otro' }
 ];
 
 const tipoEquipoOptions = [
@@ -387,6 +496,7 @@ const onAgregarItem = (item) => {
         quantities.value[key] = 1;
         const precio = typeof item.precio === 'number' ? item.precio : (tipo === 'producto' ? item.precio_venta : item.precio);
         prices.value[key] = precio || 0;
+        discounts.value[key] = 0;
     }
 };
 
@@ -408,9 +518,48 @@ const removeItem = (item) => {
     const idx = selectedItems.value.findIndex(p => p.id === item.id && p.tipo === tipo);
     if (idx >= 0) selectedItems.value.splice(idx, 1);
 
-    // Limpiar cantidades y precios
+    // Limpiar cantidades, precios y descuentos
     delete quantities.value[key];
     delete prices.value[key];
+    delete discounts.value[key];
+};
+
+const updateQuantity = (key, quantity) => {
+    const numQuantity = parseFloat(quantity);
+    if (isNaN(numQuantity) || numQuantity < 0) {
+        return;
+    }
+    quantities.value[key] = numQuantity;
+};
+
+const updatePrice = (key, price) => {
+    const numPrice = parseFloat(price);
+    if (isNaN(numPrice) || numPrice < 0) {
+        return;
+    }
+    prices.value[key] = numPrice;
+};
+
+const updateDiscount = (key, discount) => {
+    const numDiscount = parseFloat(discount);
+    if (isNaN(numDiscount) || numDiscount < 0 || numDiscount > 100) {
+        return;
+    }
+    discounts.value[key] = numDiscount;
+};
+
+const calculateSubtotal = (item) => {
+    const key = `${item.tipo}-${item.id}`;
+    const cantidad = parseFloat(quantities.value[key]) || 0;
+    const precio = parseFloat(prices.value[key]) || 0;
+    const descuento = parseFloat(discounts.value[key]) || 0;
+
+    if (cantidad > 0 && precio >= 0) {
+        const subtotalItem = cantidad * precio;
+        const descuentoMonto = subtotalItem * (descuento / 100);
+        return (subtotalItem - descuentoMonto).toFixed(2);
+    }
+    return '0.00';
 };
 
 
@@ -421,9 +570,9 @@ const form = useForm({
     fecha_hora: '',
     descripcion: '',
     numero_serie: '',
-    problema_reportado: '',
+    tipo_servicio: '',
     estado: 'pendiente',
-    prioridad: 'normal',
+    prioridad: '',
     garantia: '',
     fecha_compra: '',
     direccion_servicio: '',
@@ -432,6 +581,12 @@ const form = useForm({
     foto_equipo: null,
     foto_hoja_servicio: null,
     foto_identificacion: null,
+    subtotal: 0,
+    descuento_general: 0,
+    descuento_items: 0,
+    iva: 0,
+    total: 0,
+    notas: '',
 });
 
 // Computed para errores globales
@@ -459,6 +614,7 @@ const saveDraft = () => {
         selectedItems: selectedItems.value,
         quantities: quantities.value,
         prices: prices.value,
+        discounts: discounts.value,
         timestamp: new Date().toISOString()
     };
 
@@ -507,6 +663,9 @@ const loadDraft = () => {
                 if (parsed.prices) {
                     Object.assign(prices.value, parsed.prices);
                 }
+                if (parsed.discounts) {
+                    Object.assign(discounts.value, parsed.discounts);
+                }
 
                 showTemporaryMessage('Borrador cargado correctamente', 'info');
             } else {
@@ -545,7 +704,7 @@ const showTemporaryMessage = (message, type) => {
 const resetForm = () => {
     form.reset();
     form.estado = 'pendiente';
-    form.prioridad = 'normal';
+    form.prioridad = '';
 
     // Limpiar selección de cliente
     clearClienteSelection();
@@ -557,8 +716,17 @@ const resetForm = () => {
         const key = `${tipo}-${item.id}`;
         delete quantities.value[key];
         delete prices.value[key];
+        delete discounts.value[key];
     });
     selectedItems.value = [];
+
+    // Limpiar totales
+    form.subtotal = 0;
+    form.descuento_general = 0;
+    form.descuento_items = 0;
+    form.iva = 0;
+    form.total = 0;
+    form.notas = '';
 
     // Limpiar los componentes de búsqueda
     if (buscarClienteRef.value) {
@@ -591,14 +759,15 @@ const validateForm = () => {
         errors.push('Debe seleccionar un técnico');
     }
 
+    if (!form.tipo_servicio) {
+        errors.push('Debe seleccionar el tipo de servicio');
+    }
 
     if (!form.fecha_hora) {
         errors.push('Debe especificar la fecha y hora');
     }
 
-    if (!form.problema_reportado) {
-        errors.push('Debe describir el problema reportado');
-    }
+    // Removido: validación de problema_reportado ya no es requerido
 
     // Validar fecha no sea en el pasado (excepto hoy)
     const selectedDate = new Date(form.fecha_hora);
@@ -639,14 +808,22 @@ const submit = () => {
         }
     }
 
-    // Adjuntar productos y servicios como JSON
-    const productosVendidos = productosSeleccionados.value.map(p => ({
-        id: p.id,
-        tipo: p.tipo,
-        cantidad: quantities.value[`${p.tipo}-${p.id}`] || 1,
-        precio: prices.value[`${p.tipo}-${p.id}`] || 0,
+    // Adjuntar items como JSON
+    const items = selectedItems.value.map(item => ({
+        id: item.id,
+        tipo: item.tipo,
+        cantidad: quantities.value[`${item.tipo}-${item.id}`] || 1,
+        precio: prices.value[`${item.tipo}-${item.id}`] || 0,
+        descuento: discounts.value[`${item.tipo}-${item.id}`] || 0,
+        notas: item.notas || null,
     }));
-    formData.append('productos_vendidos', JSON.stringify(productosVendidos));
+    formData.append('items', JSON.stringify(items));
+
+    // Actualizar totales en el formulario
+    form.subtotal = totales.value.subtotal;
+    form.descuento_items = totales.value.descuentoItems;
+    form.iva = totales.value.iva;
+    form.total = totales.value.total;
 
 
     form.post(route('citas.store'), {

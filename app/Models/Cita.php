@@ -29,7 +29,6 @@ class Cita extends Model
         'tipo_servicio',
         'fecha_hora',
         'descripcion',
-        'problema_reportado',
         'prioridad',
         'estado',
         'evidencias',
@@ -42,6 +41,12 @@ class Cita extends Model
         'requiere_venta',
         'venta_id',
         'activo',
+        'subtotal',
+        'descuento_general',
+        'descuento_items',
+        'iva',
+        'total',
+        'notas',
     ];
 
     protected $casts = [
@@ -53,6 +58,11 @@ class Cita extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
+        'subtotal' => 'decimal:2',
+        'descuento_general' => 'decimal:2',
+        'descuento_items' => 'decimal:2',
+        'iva' => 'decimal:2',
+        'total' => 'decimal:2',
     ];
 
     // Scopes útiles
@@ -183,6 +193,50 @@ class Cita extends Model
     public function venta()
     {
         return $this->belongsTo(Venta::class);
+    }
+
+    /**
+     * Ítems de la cita (productos y servicios)
+     */
+    public function items()
+    {
+        return $this->hasMany(CitaItem::class);
+    }
+
+    /**
+     * Productos en la cita (relación polimórfica a través de cita_items)
+     */
+    public function productos()
+    {
+        return $this->morphedByMany(
+            Producto::class,
+            'citable',
+            'cita_items',
+            'cita_id',
+            'citable_id'
+        )->withPivot('cantidad', 'precio', 'descuento', 'subtotal', 'descuento_monto', 'notas')
+        ->wherePivot('citable_type', Producto::class)
+        ->whereHasMorph('citable', Producto::class, function ($query) {
+            $query->active();
+        });
+    }
+
+    /**
+     * Servicios en la cita (relación polimórfica a través de cita_items)
+     */
+    public function servicios()
+    {
+        return $this->morphedByMany(
+            Servicio::class,
+            'citable',
+            'cita_items',
+            'cita_id',
+            'citable_id'
+        )->withPivot('cantidad', 'precio', 'descuento', 'subtotal', 'descuento_monto', 'notas')
+        ->wherePivot('citable_type', Servicio::class)
+        ->whereHasMorph('citable', Servicio::class, function ($query) {
+            $query->active();
+        });
     }
 
     /**

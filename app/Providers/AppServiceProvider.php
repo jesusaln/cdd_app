@@ -39,8 +39,8 @@ class AppServiceProvider extends ServiceProvider
             // Aliases preferidos
             'producto' => \App\Models\Producto::class,
             'servicio' => \App\Models\Servicio::class,
-            'user' => \App\Models\User::class,
-            'tecnico' => \App\Models\Tecnico::class,
+            // Nota: Para modelos de terceros como User/Tecnico usados por spatie/permission,
+            // no definimos alias cortos para no romper pivotes existentes
 
             // Compatibilidad por si existen tipos almacenados con FQCN
             'App\\Models\\Producto' => \App\Models\Producto::class,

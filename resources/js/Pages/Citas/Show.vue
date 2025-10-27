@@ -91,92 +91,71 @@
           <p v-else class="text-gray-500 italic">No hay foto de identificación disponible</p>
         </div>
 
-        <!-- Productos Utilizados -->
+        <!-- Items de la Cita -->
         <div class="mb-4">
-          <label class="block text-gray-700 text-sm font-bold mb-2">Productos Utilizados</label>
-          <div v-if="cita.productos_utilizados && cita.productos_utilizados.length > 0" class="bg-white p-4 rounded-md shadow-sm">
+          <label class="block text-gray-700 text-sm font-bold mb-2">Productos y Servicios</label>
+          <div v-if="cita.items && cita.items.length > 0" class="bg-white p-4 rounded-md shadow-sm">
             <div class="overflow-x-auto">
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
-                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</th>
-                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Cantidad</th>
-                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Precio Unitario</th>
-                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo de Uso</th>
-                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notas</th>
-                  </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                  <tr v-for="producto in cita.productos_utilizados" :key="producto.id">
-                    <td class="px-3 py-2 text-sm text-gray-900">{{ getProductoNombre(producto) }}</td>
-                    <td class="px-3 py-2 text-sm text-gray-900 text-right">{{ producto.pivot.cantidad }}</td>
-                    <td class="px-3 py-2 text-sm text-gray-900 text-right">${{ formatearPrecio(producto.pivot.precio_unitario) }}</td>
-                    <td class="px-3 py-2 text-sm text-gray-900">{{ formatearTipoUso(producto.pivot.tipo_uso) }}</td>
-                    <td class="px-3 py-2 text-sm text-gray-900">{{ producto.pivot.notas || '-' }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <p v-else class="text-gray-500 italic">No se utilizaron productos en esta cita</p>
-        </div>
-
-        <!-- Productos Vendidos -->
-        <div class="mb-4">
-          <label class="block text-gray-700 text-sm font-bold mb-2">Productos Vendidos</label>
-          <div v-if="cita.productos_vendidos && cita.productos_vendidos.length > 0" class="bg-white p-4 rounded-md shadow-sm">
-            <div class="overflow-x-auto">
-              <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</th>
-                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Cantidad</th>
-                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Precio Venta</th>
-                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Subtotal</th>
-                  </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                  <tr v-for="producto in cita.productos_vendidos" :key="producto.id">
-                    <td class="px-3 py-2 text-sm text-gray-900">{{ getProductoNombre(producto) }}</td>
-                    <td class="px-3 py-2 text-sm text-gray-900 text-right">{{ producto.pivot.cantidad }}</td>
-                    <td class="px-3 py-2 text-sm text-gray-900 text-right">${{ formatearPrecio(producto.pivot.precio_venta) }}</td>
-                    <td class="px-3 py-2 text-sm text-gray-900 text-right">${{ formatearPrecio(producto.pivot.subtotal) }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <p v-else class="text-gray-500 italic">No se vendieron productos en esta cita</p>
-        </div>
-
-        <!-- Servicios Realizados -->
-        <div class="mb-4">
-          <label class="block text-gray-700 text-sm font-bold mb-2">Servicios Realizados</label>
-          <div v-if="cita.servicios_realizados && cita.servicios_realizados.length > 0" class="bg-white p-4 rounded-md shadow-sm">
-            <div class="overflow-x-auto">
-              <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Servicio</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
                     <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Cantidad</th>
                     <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Precio</th>
+                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Descuento (%)</th>
                     <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Subtotal</th>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notas</th>
                   </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
-                  <tr v-for="servicio in cita.servicios_realizados" :key="servicio.id">
-                    <td class="px-3 py-2 text-sm text-gray-900">{{ servicio.nombre }}</td>
-                    <td class="px-3 py-2 text-sm text-gray-900 text-right">{{ servicio.pivot.cantidad }}</td>
-                    <td class="px-3 py-2 text-sm text-gray-900 text-right">${{ formatearPrecio(servicio.pivot.precio) }}</td>
-                    <td class="px-3 py-2 text-sm text-gray-900 text-right">${{ formatearPrecio(servicio.pivot.subtotal) }}</td>
-                    <td class="px-3 py-2 text-sm text-gray-900">{{ servicio.pivot.notas || '-' }}</td>
+                  <tr v-for="item in cita.items" :key="`${item.citable_type}-${item.citable_id}`">
+                    <td class="px-3 py-2 text-sm text-gray-900">{{ getItemNombre(item) }}</td>
+                    <td class="px-3 py-2 text-sm text-gray-900 text-right">{{ item.cantidad }}</td>
+                    <td class="px-3 py-2 text-sm text-gray-900 text-right">${{ formatearPrecio(item.precio) }}</td>
+                    <td class="px-3 py-2 text-sm text-gray-900 text-right">{{ item.descuento }}%</td>
+                    <td class="px-3 py-2 text-sm text-gray-900 text-right">${{ formatearPrecio(item.subtotal) }}</td>
+                    <td class="px-3 py-2 text-sm text-gray-900">{{ item.notas || '-' }}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
           </div>
-          <p v-else class="text-gray-500 italic">No se realizaron servicios adicionales en esta cita</p>
+          <p v-else class="text-gray-500 italic">No hay productos o servicios en esta cita</p>
+        </div>
+
+        <!-- Totales -->
+        <div v-if="cita.total" class="mb-4">
+          <label class="block text-gray-700 text-sm font-bold mb-2">Totales</label>
+          <div class="bg-white p-4 rounded-md shadow-sm">
+            <div class="grid grid-cols-2 gap-4 text-sm">
+              <div class="flex justify-between">
+                <span>Subtotal:</span>
+                <span>${{ formatearPrecio(cita.subtotal) }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Descuento Items:</span>
+                <span>-${{ formatearPrecio(cita.descuento_items) }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Descuento General:</span>
+                <span>-${{ formatearPrecio(cita.descuento_general) }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span>IVA:</span>
+                <span>${{ formatearPrecio(cita.iva) }}</span>
+              </div>
+              <div class="flex justify-between font-bold text-lg">
+                <span>Total:</span>
+                <span>${{ formatearPrecio(cita.total) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Notas -->
+        <div v-if="cita.notas" class="mb-4">
+          <label class="block text-gray-700 text-sm font-bold mb-2">Notas</label>
+          <p class="text-gray-700 bg-white p-4 rounded-md shadow-sm">{{ cita.notas }}</p>
         </div>
 
         <!-- Información de Venta -->
@@ -196,12 +175,34 @@
           <label class="block text-gray-700 text-sm font-bold mb-2">Monto de Productos Vendidos</label>
           <p class="text-gray-700">${{ formatearPrecio(cita.monto_productos_vendidos) }}</p>
         </div>
+
+        <!-- Botones de Acción -->
+        <div class="mt-6 flex justify-end space-x-4">
+          <Link
+            v-if="cita.items && cita.items.length > 0 && (cita.estado === 'completado' || cita.estado === 'en_proceso')"
+            :href="route('citas.convertir-a-pedido', cita.id)"
+            method="post"
+            as="button"
+            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          >
+            Convertir a Pedido
+          </Link>
+          <Link
+            v-if="cita.items && cita.items.length > 0 && cita.estado === 'completado'"
+            :href="route('citas.convertir-a-venta', cita.id)"
+            method="post"
+            as="button"
+            class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+          >
+            Convertir a Venta
+          </Link>
+        </div>
       </div>
     </div>
   </template>
 
   <script setup>
-  import { Head } from '@inertiajs/vue3';
+  import { Head, Link } from '@inertiajs/vue3';
   import { computed, onMounted } from 'vue'; // Corregido: onMounted desde vue
   import AppLayout from '@/Layouts/AppLayout.vue';
 
@@ -281,6 +282,10 @@
 
   const getProductoNombre = (producto) => {
     return producto.nombre || `Producto #${producto.id}`;
+  };
+
+  const getItemNombre = (item) => {
+    return item.citable?.nombre || `Item #${item.citable_id}`;
   };
 
   onMounted(() => {

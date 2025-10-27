@@ -47,6 +47,14 @@ class Servicio extends Model
             ->withTimestamps();
     }
 
+    // Relación con las citas
+    public function citas()
+    {
+        return $this->morphToMany(Cita::class, 'citable', 'cita_items')
+            ->withPivot(['cantidad', 'precio', 'descuento', 'subtotal', 'descuento_monto', 'notas'])
+            ->withTimestamps();
+    }
+
     public function pedidos()
     {
         return $this->morphToMany(Pedido::class, 'pedible', 'pedido_producto')

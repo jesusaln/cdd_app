@@ -173,12 +173,12 @@ class OrdenCompraController extends Controller
                 ],
                 // Permisos de acciones
                 'can' => [
-                    'edit' => in_array($orden->estado, ['borrador', 'pendiente']),
-                    'enviar' => $orden->estado === 'pendiente',
+                    'edit' => in_array($orden->estado, ['borrador', 'pendiente', 'aprobada']),
+                    'enviar' => in_array($orden->estado, ['pendiente', 'aprobada']),
                     'convertir_directo' => $orden->estado === 'pendiente',
                     'recibir' => $orden->estado === 'enviado_a_compra',
-                    'cancelar' => in_array($orden->estado, ['pendiente', 'enviado_a_compra', 'convertida']),
-                    'delete' => in_array($orden->estado, ['borrador', 'pendiente']),
+                    'cancelar' => in_array($orden->estado, ['pendiente', 'aprobada', 'enviado_a_compra', 'convertida']),
+                    'delete' => in_array($orden->estado, ['borrador', 'pendiente', 'aprobada']),
                 ],
             ];
         });
@@ -656,9 +656,9 @@ class OrdenCompraController extends Controller
         try {
             $ordenCompra = OrdenCompra::findOrFail($id);
 
-            // Solo se puede enviar si está pendiente
-            if ($ordenCompra->estado !== 'pendiente') {
-                return redirect()->back()->with('error', 'Solo se pueden enviar órdenes en estado pendiente.');
+            // Solo se puede enviar si está pendiente o aprobada
+            if (!in_array($ordenCompra->estado, ['pendiente', 'aprobada'])) {
+                return redirect()->back()->with('error', 'Solo se pueden enviar órdenes en estado pendiente o aprobada.');
             }
 
             $ordenCompra->update([
@@ -1134,7 +1134,7 @@ class OrdenCompraController extends Controller
             $ordenCompra = OrdenCompra::findOrFail($id);
 
             $request->validate([
-                'estado' => 'required|in:pendiente,enviado_a_compra,convertida,cancelada,borrador'
+                'estado' => 'required|in:pendiente,aprobada,enviado_a_compra,convertida,cancelada,borrador'
             ]);
 
             $estadoAnterior = $ordenCompra->estado;
@@ -1143,7 +1143,8 @@ class OrdenCompraController extends Controller
             // Validar transiciones de estado permitidas
             $transicionesPermitidas = [
                 'borrador' => ['pendiente', 'cancelada'],
-                'pendiente' => ['enviado_a_proveedor', 'convertida', 'cancelada'], // Puede enviarse al proveedor, convertirse directamente o cancelarse
+                'pendiente' => ['aprobada', 'enviado_a_proveedor', 'convertida', 'cancelada'], // Puede aprobarse, enviarse al proveedor, convertirse directamente o cancelarse
+                'aprobada' => ['enviado_a_proveedor', 'convertida', 'cancelada'], // Puede enviarse al proveedor, convertirse o cancelarse
                 'enviado_a_proveedor' => ['convertida', 'cancelada'], // Puede recibir mercancía o cancelarse
                 'convertida' => ['cancelada'], // Solo se puede cancelar una vez procesada (revertirá inventario)
                 'cancelada' => [] // Estado final

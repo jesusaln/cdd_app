@@ -204,6 +204,12 @@ class Producto extends Model
         return $this->morphMany(CotizacionItem::class, 'cotizable');
     }
 
+    /** Ítems en citas donde este producto fue usado. @return MorphMany<CitaItem> */
+    public function citaItems(): MorphMany
+    {
+        return $this->morphMany(CitaItem::class, 'citable');
+    }
+
     /** @return MorphToMany<Venta> */
     public function ventas()
     {
