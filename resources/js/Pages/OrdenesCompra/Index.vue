@@ -1302,9 +1302,9 @@ const validarEstado = (estado) => {
                           <font-awesome-icon icon="eye" class="w-3.5 h-3.5 transition-transform duration-200 group-hover/btn:scale-110" />
                         </button>
 
-                        <!-- 2. Editar (borrador, pendiente y aprobada) -->
+                        <!-- 2. Editar (borrador, pendiente, aprobada y enviado a proveedor) -->
                         <button
-                          v-if="doc.estado === 'borrador' || doc.estado === 'pendiente' || doc.estado === 'aprobada'"
+                          v-if="doc.estado === 'borrador' || doc.estado === 'pendiente' || doc.estado === 'aprobada' || doc.estado === 'enviado_a_proveedor'"
                           @click="editarOrden(doc.id)"
                           class="group/btn relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 hover:text-amber-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-1"
                           title="Editar orden"
@@ -1340,7 +1340,7 @@ const validarEstado = (estado) => {
                           <font-awesome-icon icon="exchange-alt" class="w-3.5 h-3.5 transition-transform duration-200 group-hover/btn:scale-110" />
                         </button>
 
-                        <!-- 5. Enviar a Compra (pendiente y aprobada) -->
+                        <!-- 5. Enviar a Proveedor (pendiente y aprobada) -->
                         <button
                           v-if="doc.estado === 'pendiente' || doc.estado === 'aprobada'"
                           @click="enviarOrden(doc)"
@@ -1348,6 +1348,16 @@ const validarEstado = (estado) => {
                           title="Enviar orden al proveedor"
                         >
                           <font-awesome-icon icon="paper-plane" class="w-3.5 h-3.5 transition-transform duration-200 group-hover/btn:scale-110" />
+                        </button>
+
+                        <!-- 6. Enviar a Compras (enviado a proveedor) -->
+                        <button
+                          v-if="doc.estado === 'enviado_a_proveedor'"
+                          @click="recibirOrden(doc)"
+                          class="group/btn relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:ring-offset-1"
+                          title="Enviar a compras"
+                        >
+                          <font-awesome-icon icon="shopping-cart" class="w-3.5 h-3.5 transition-transform duration-200 group-hover/btn:scale-110" />
                         </button>
 
                         <!-- 6. Cancelar (pendiente, aprobada y enviada a proveedor) -->
@@ -1664,9 +1674,9 @@ const validarEstado = (estado) => {
 
             <!-- Botones de acción simplificados -->
             <div class="flex flex-wrap justify-end gap-2 mt-6">
-              <!-- 1. Editar (borrador, pendiente y aprobada) -->
+              <!-- 1. Editar (borrador, pendiente, aprobada y enviado a proveedor) -->
               <button
-                v-if="['borrador', 'pendiente', 'aprobada'].includes(fila?.estado)"
+                v-if="['borrador', 'pendiente', 'aprobada', 'enviado_a_proveedor'].includes(fila?.estado)"
                 @click="editarFila"
                 class="px-3 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm"
               >
@@ -1698,6 +1708,15 @@ const validarEstado = (estado) => {
                 class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
               >
                 🚀 Enviar a Proveedor
+              </button>
+
+              <!-- 5. Enviar a Compras (enviado a proveedor) -->
+              <button
+                v-if="fila?.estado === 'enviado_a_proveedor'"
+                @click="recibirOrden(fila)"
+                class="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm"
+              >
+                🛒 Enviar a Compras
               </button>
 
               <!-- 5. Cancelar (pendiente, aprobada y enviada a proveedor) -->
@@ -1830,7 +1849,30 @@ const validarEstado = (estado) => {
 .custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
 
-.line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4; }
+.line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4; }
+
+/* Standard line-clamp property for compatibility */
+.line-clamp-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+}
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+.line-clamp-3 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
 
 @media (prefers-contrast: high) {
   .bg-gray-50 { background-color: #f9fafb; }
