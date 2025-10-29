@@ -43,6 +43,15 @@ const selectedId = ref(null)
 const showStockModal = ref(false)
 const stockDetalle = ref(null)
 const loadingStock = ref(false)
+// URL helpers para series (compatibles con subcarpetas y Ziggy opcional)
+const seriesUrl = (id) => {
+  try { const stockUrl = route('productos.stock-detalle', id); return stockUrl.replace('/stock-detalle', '/series') }
+  catch (e) { const base = typeof window !== 'undefined' ? window.location.origin : ''; return `${base}/productos/${id}/series` }
+}
+const seriesUpdateUrl = (productoId, serieId) => {
+  try { const stockUrl = route('productos.stock-detalle', productoId); return stockUrl.replace('/stock-detalle', `/series/${serieId}`) }
+  catch (e) { const base = typeof window !== 'undefined' ? window.location.origin : ''; return `${base}/productos/${productoId}/series/${serieId}` }
+}
 
 // Series: modal y conteos por producto
 const showSeriesModal = ref(false)
@@ -241,7 +250,21 @@ const verStockDetalle = async (producto) => {
 // Ver series del producto (en_stock y vendidas)
 const verSeries = async (producto) => {
   try {
-    const response = await fetch(route('productos.series', producto.id))
+    let url = ''
+    try {
+      url = route('productos.series', producto.id)
+    } catch (e) {
+      const base = typeof window !== 'undefined' ? window.location.origin : ''
+      url = `${base}/productos/${producto.id}/series`
+    }
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      credentials: 'same-origin'
+    })
     if (!response.ok) {
       notyf.error('Error al cargar las series del producto')
       return
@@ -263,7 +286,21 @@ const prefetchSeriesCounts = async () => {
     if (seriesCountMap.value[id] !== undefined || seriesLoadingMap.value[id]) continue
     seriesLoadingMap.value[id] = true
     try {
-      const res = await fetch(route('productos.series', id), { headers: { 'Accept': 'application/json' } })
+      let url = ''
+      try {
+        url = route('productos.series', id)
+      } catch (e) {
+        const base = typeof window !== 'undefined' ? window.location.origin : ''
+        url = `${base}/productos/${id}/series`
+      }
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin'
+      })
       if (res.ok) {
         const data = await res.json()
         const enStock = Number(data?.counts?.en_stock ?? 0)
@@ -323,9 +360,26 @@ const guardarSerie = async (productoId, s) => {
   const nuevo = (editSerie.value.value || '').trim()
   if (!nuevo) return
   try {
-    const res = await fetch(route('productos.series.update', { producto: productoId, serie: s.id }), {
+    let url = ''
+    try {
+      url = route('productos.series.update', productoId, s.id)
+    } catch (e) {
+      const base = typeof window !== 'undefined' ? window.location.origin : ''
+      url = `${base}/productos/${productoId}/series/${s.id}`
+    }
+
+    // Obtener el token CSRF
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+
+    const res = await fetch(url, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-CSRF-TOKEN': csrfToken,
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      credentials: 'same-origin',
       body: JSON.stringify({ numero_serie: nuevo })
     })
     if (!res.ok) {
@@ -412,11 +466,16 @@ const obtenerLabelEstado = (estado) => {
   return labels[estado] || 'Pendiente'
 }
 
-// Función para obtener el total de series de un producto
+// Funciones para obtener conteos de series (badges)
+const getSeriesCount = (productoId, tipo) => {
+  const counts = seriesCountMap.value[productoId]
+  if (!counts) return 0
+  return Number(counts[tipo] || 0)
+}
 const getSeriesTotal = (productoId) => {
   const counts = seriesCountMap.value[productoId]
   if (!counts) return 0
-  return (counts.en_stock || 0) + (counts.vendido || 0)
+  return Number(counts.en_stock || 0) + Number(counts.vendido || 0)
 }
 </script>
 
@@ -494,17 +553,17 @@ const getSeriesTotal = (productoId) => {
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                       </svg>
                     </button>
-                    <button v-if="producto.raw.requiere_serie"
+                    <button v-if="(getSeriesTotal(producto.id) > 0) || producto.raw.requiere_serie"
                             @click="verSeries(producto.raw)"
                             class="relative w-8 h-8 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors duration-150"
                             title="Series">
                       <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-7 4h8M5 8h14" />
                       </svg>
-                      <span class="absolute -top-1 -right-1 min-w-[18px] h-4 px-1 rounded-full text-[10px] font-semibold flex items-center justify-center"
+                      <span class="absolute -top-1 -right-1 min-w-[56px] h-5 px-2 rounded-full text-[10px] font-semibold flex items-center justify-center"
                             :class="(getSeriesTotal(producto.id)) > 0 ? 'bg-emerald-600 text-white' : 'bg-gray-300 text-gray-700'">
                         <template v-if="seriesLoadingMap[producto.id]">…</template>
-                        <template v-else>{{ getSeriesTotal(producto.id) }}</template>
+                        <template v-else>E:{{ getSeriesCount(producto.id, 'en_stock') }} | V:{{ getSeriesCount(producto.id, 'vendido') }}</template>
                       </span>
                     </button>
                     <button @click="editarProducto(producto.id)" class="w-8 h-8 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-colors duration-150" title="Editar">

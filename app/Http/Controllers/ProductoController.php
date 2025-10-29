@@ -14,6 +14,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Illuminate\Validation\Rule;
 
@@ -303,70 +304,111 @@ class ProductoController extends Controller
     /**
      * Devuelve las series del producto (en stock y vendidas) y sus conteos.
      */
-    public function obtenerSeries($id): JsonResponse
+    public function series(Producto $producto): JsonResponse
     {
-        $producto = Producto::findOrFail($id);
+        try {
+            // Obtener series en stock (estado = 'en_stock')
+            $seriesEnStock = DB::table('producto_series')
+                ->where('producto_id', $producto->id)
+                ->where('estado', 'en_stock')
+                ->orderBy('numero_serie')
+                ->get(['id', 'numero_serie', 'estado', 'created_at']);
 
-        $seriesQuery = \App\Models\ProductoSerie::where('producto_id', $producto->id);
+            // Obtener series vendidas (estado = 'vendido')
+            $seriesVendidas = DB::table('producto_series')
+                ->where('producto_id', $producto->id)
+                ->where('estado', 'vendido')
+                ->orderBy('numero_serie')
+                ->get(['id', 'numero_serie', 'estado', 'created_at']);
 
-        $seriesEnStock = (clone $seriesQuery)
-            ->where('estado', 'en_stock')
-            ->orderBy('numero_serie')
-            ->get(['id', 'numero_serie', 'almacen_id', 'estado']);
-
-        $seriesVendidas = (clone $seriesQuery)
-            ->where('estado', 'vendido')
-            ->orderBy('numero_serie')
-            ->get(['id', 'numero_serie', 'almacen_id', 'estado']);
-
-        return response()->json([
-            'producto' => [
-                'id' => $producto->id,
-                'nombre' => $producto->nombre,
-                'requiere_serie' => (bool) ($producto->requiere_serie ?? false),
-            ],
-            'counts' => [
-                'en_stock' => $seriesEnStock->count(),
-                'vendido' => $seriesVendidas->count(),
-            ],
-            'series' => [
-                'en_stock' => $seriesEnStock,
-                'vendido' => $seriesVendidas,
-            ],
-        ]);
+            return response()->json([
+                'producto' => [
+                    'id' => $producto->id,
+                    'nombre' => $producto->nombre,
+                    'codigo' => $producto->codigo,
+                    'requiere_serie' => (bool) ($producto->requiere_serie ?? false),
+                ],
+                'counts' => [
+                    'en_stock' => $seriesEnStock->count(),
+                    'vendido' => $seriesVendidas->count(),
+                ],
+                'series' => [
+                    'en_stock' => $seriesEnStock,
+                    'vendido' => $seriesVendidas,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error en ProductoController@series: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Error al cargar las series',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
      * Actualiza el número de serie (solo en_stock).
      */
-    public function actualizarSerie(Request $request, int $productoId, int $serieId): JsonResponse
+    public function updateSerie(Request $request, Producto $producto, $serieId): JsonResponse
     {
-        $producto = Producto::findOrFail($productoId);
-        $serie = \App\Models\ProductoSerie::where('id', $serieId)
-            ->where('producto_id', $producto->id)
-            ->firstOrFail();
+        try {
+            $request->validate([
+                'numero_serie' => 'required|string|max:255',
+            ]);
 
-        if ($serie->estado !== 'en_stock') {
+            $serie = DB::table('producto_series')
+                ->where('id', $serieId)
+                ->where('producto_id', $producto->id)
+                ->first();
+
+            if (!$serie) {
+                return response()->json([
+                    'error' => 'Serie no encontrada'
+                ], 404);
+            }
+
+            if ($serie->estado !== 'en_stock') {
+                return response()->json([
+                    'error' => 'Solo se pueden modificar series que estén en stock.'
+                ], 422);
+            }
+
+            // Verificar que el número de serie no exista para otro producto
+            $existe = DB::table('producto_series')
+                ->where('numero_serie', $request->numero_serie)
+                ->where('producto_id', $producto->id)
+                ->where('id', '!=', $serieId)
+                ->exists();
+
+            if ($existe) {
+                return response()->json([
+                    'error' => 'El número de serie ya existe para este producto'
+                ], 422);
+            }
+
+            DB::table('producto_series')
+                ->where('id', $serieId)
+                ->update([
+                    'numero_serie' => trim($request->numero_serie),
+                    'updated_at' => now(),
+                ]);
+
             return response()->json([
-                'message' => 'Solo se pueden modificar series que estén en stock.'
-            ], 422);
+                'success' => true,
+                'message' => 'Serie actualizada correctamente.',
+                'serie' => [
+                    'id' => $serieId,
+                    'numero_serie' => trim($request->numero_serie),
+                    'estado' => $serie->estado,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error en ProductoController@updateSerie: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Error al actualizar la serie',
+                'message' => $e->getMessage()
+            ], 500);
         }
-
-        $data = $request->validate([
-            'numero_serie' => [
-                'required', 'string', 'max:191',
-                Rule::unique('producto_series', 'numero_serie')->ignore($serie->id)
-            ],
-        ]);
-
-        $serie->update([
-            'numero_serie' => trim($data['numero_serie']),
-        ]);
-
-        return response()->json([
-            'message' => 'Serie actualizada correctamente.',
-            'serie' => $serie->only(['id', 'numero_serie', 'estado', 'almacen_id']),
-        ]);
     }
 
     /**

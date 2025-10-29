@@ -184,10 +184,24 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
         ->name('prestamos.enviar-recordatorio-whatsapp');
     Route::get('/prestamos/{prestamo}/pagos', [PagoPrestamoController::class, 'pagosPorPrestamo'])->name('prestamos.pagos');
     Route::resource('pagos', PagoPrestamoController::class)->names('pagos');
-    Route::resource('productos', ProductoController::class)->names('productos');
-    Route::get('productos/{id}/series', [ProductoController::class, 'obtenerSeries'])->name('productos.series');
-    Route::put('productos/{producto}/series/{serie}', [ProductoController::class, 'actualizarSerie'])
-        ->name('productos.series.update');
+    Route::prefix('productos')->name('productos.')->group(function () {
+        Route::get('/', [ProductoController::class, 'index'])->name('index');
+        Route::get('/create', [ProductoController::class, 'create'])->name('create');
+        Route::post('/', [ProductoController::class, 'store'])->name('store');
+        Route::get('/export', [ProductoController::class, 'export'])->name('export');
+
+        // Rutas de series - ANTES de las rutas con {producto}
+        Route::get('/{producto}/series', [ProductoController::class, 'series'])->name('series');
+        Route::put('/{producto}/series/{serie}', [ProductoController::class, 'updateSerie'])->name('series.update');
+        Route::get('/{producto}/stock-detalle', [ProductoController::class, 'getStockDetalle'])->name('stock-detalle');
+
+        // Rutas con parámetro {producto} - AL FINAL
+        Route::get('/{producto}', [ProductoController::class, 'show'])->name('show');
+        Route::get('/{producto}/edit', [ProductoController::class, 'edit'])->name('edit');
+        Route::put('/{producto}', [ProductoController::class, 'update'])->name('update');
+        Route::delete('/{producto}', [ProductoController::class, 'destroy'])->name('destroy');
+        Route::put('/{producto}/toggle', [ProductoController::class, 'toggle'])->name('toggle');
+    });
     Route::get('productos/{id}/stock-detalle', [ProductoController::class, 'getStockDetalle'])->name('productos.stock-detalle');
     Route::resource('proveedores', ProveedorController::class)->names('proveedores');
     Route::resource('categorias', CategoriaController::class)->names('categorias');
