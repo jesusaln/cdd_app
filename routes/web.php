@@ -185,6 +185,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::get('/prestamos/{prestamo}/pagos', [PagoPrestamoController::class, 'pagosPorPrestamo'])->name('prestamos.pagos');
     Route::resource('pagos', PagoPrestamoController::class)->names('pagos');
     Route::resource('productos', ProductoController::class)->names('productos');
+    Route::get('productos/{id}/series', [ProductoController::class, 'obtenerSeries'])->name('productos.series');
+    Route::put('productos/{producto}/series/{serie}', [ProductoController::class, 'actualizarSerie'])
+        ->name('productos.series.update');
     Route::get('productos/{id}/stock-detalle', [ProductoController::class, 'getStockDetalle'])->name('productos.stock-detalle');
     Route::resource('proveedores', ProveedorController::class)->names('proveedores');
     Route::resource('categorias', CategoriaController::class)->names('categorias');

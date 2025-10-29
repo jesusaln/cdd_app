@@ -1,6 +1,5 @@
 <template>
   <div class="productos-seleccionados">
-    <!-- Lista de productos seleccionados -->
     <div v-if="selectedProducts.length > 0" class="mt-6">
       <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
         <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -19,58 +18,29 @@
           class="bg-gradient-to-r from-gray-50 to-white border border-gray-200 rounded-xl p-6 hover:shadow-md transition-all duration-200"
         >
           <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <!-- Información del producto -->
             <div class="flex-1 min-w-0">
               <div class="flex items-start justify-between">
                 <div class="flex-1">
                   <div class="flex items-center mb-2">
-                    <span
-                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mr-3"
-                      :class="entry.tipo === 'producto'
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-purple-100 text-purple-800'"
-                    >
-                      <svg v-if="entry.tipo === 'producto'" class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-                      </svg>
-                      <svg v-else class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                      </svg>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mr-3"
+                          :class="entry.tipo === 'producto' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'">
                       {{ entry.tipo === 'producto' ? 'Producto' : 'Servicio' }}
                     </span>
                   </div>
 
-                  <h4 class="text-lg font-semibold text-gray-900 mb-1">
-                    {{ getItemInfo(entry).nombre }}
-                  </h4>
+                  <h4 class="text-lg font-semibold text-gray-900 mb-1">{{ getItemInfo(entry).nombre }}</h4>
+                  <p v-if="getItemInfo(entry).descripcion" class="text-sm text-gray-600 mb-2">{{ getItemInfo(entry).descripcion }}</p>
 
-                  <p v-if="getItemInfo(entry).descripcion" class="text-sm text-gray-600 mb-2">
-                    {{ getItemInfo(entry).descripcion }}
-                  </p>
-
-                 <div class="space-y-1">
-  <!-- Precio de venta -->
-  <div class="flex items-center text-sm text-gray-500">
-    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
-    </svg>
-    Precio unitario: ${{ getItemInfo(entry).precio.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
-  </div>
-
-  <!-- Precio de compra (solo para productos) -->
-  <div v-if="entry.tipo === 'producto' && getItemInfo(entry).precio_compra > 0" class="flex items-center text-sm text-gray-400">
-    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 2.5M7 13l2.5 2.5"/>
-    </svg>
-    Precio compra: ${{ getItemInfo(entry).precio_compra.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
-  </div>
-</div>
-
+                  <div class="space-y-1">
+                    <div class="flex items-center text-sm text-gray-500">
+                      <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
+                      </svg>
+                      Precio unitario: ${{ getItemInfo(entry).precio.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                    </div>
+                  </div>
                 </div>
 
-
-                <!-- Botón eliminar -->
                 <button
                   type="button"
                   @click="eliminarItem(entry)"
@@ -84,61 +54,33 @@
               </div>
             </div>
 
-            <!-- Controles de cantidad, descuento y totales -->
             <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 lg:w-96">
-              <!-- Cantidad -->
               <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Cantidad</label>
-                <div class="relative">
-                  <input
-  type="number"
-  :value="quantities[`${entry.tipo}-${entry.id}`] || 1"
-  @input="(event) => updateQuantity(entry, event.target.value)"
-  min="1"
-  step="1"
-                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
+                <input type="number"
+                       :value="quantities[`${entry.tipo}-${entry.id}`] || 1"
+                       min="1" step="1"
+                       @input="e => updateQuantity(entry, e.target.value)"
+                       class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"/>
               </div>
 
-              <!-- Descuento -->
               <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Descuento %</label>
-                <div class="relative">
-                  <input
-                    type="number"
-                    :value="discounts[`${entry.tipo}-${entry.id}`] || 0"
-                    @input="updateDiscount(entry, $event.target.value)"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                  />
-                  <div class="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
-                    <span class="text-gray-400 text-xs">%</span>
-                  </div>
-                </div>
+                <input type="number"
+                       :value="discounts[`${entry.tipo}-${entry.id}`] || 0"
+                       min="0" max="100" step="0.01"
+                       @input="e => updateDiscount(entry, e.target.value)"
+                       class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"/>
               </div>
 
-              <!-- Precio (solo lectura) -->
               <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Precio Unit.</label>
-                <div class="relative">
-                  <input
-                    type="text"
-                    :value="'$' + (prices[`${entry.tipo}-${entry.id}`] || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })"
-                    readonly
-                    class="w-full px-3 py-2 text-sm bg-gray-100 border border-gray-300 rounded-lg text-gray-600 cursor-not-allowed"
-                  />
-                  <div class="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
-                    <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                    </svg>
-                  </div>
-                </div>
+                <input type="text"
+                       :value="'$' + (prices[`${entry.tipo}-${entry.id}`] || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })"
+                       readonly
+                       class="w-full px-3 py-2 text-sm bg-gray-100 border border-gray-300 rounded-lg text-gray-600 cursor-not-allowed"/>
               </div>
 
-              <!-- Subtotal del item -->
               <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Subtotal</label>
                 <div class="px-3 py-2 text-sm font-semibold text-green-600 bg-green-50 border border-green-200 rounded-lg">
@@ -148,24 +90,24 @@
             </div>
           </div>
 
-          <!-- Información adicional del item (descuento aplicado) -->
-          <div v-if="(discounts[`${entry.tipo}-${entry.id}`] || 0) > 0" class="mt-4 pt-4 border-t border-gray-200">
-            <div class="grid grid-cols-2 gap-4 text-sm">
-              <div class="text-gray-600">
-                <span class="font-medium">Subtotal sin descuento:</span>
-                <span class="float-right">${{ calcularSubtotalSinDescuento(entry).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
-              </div>
-              <div class="text-orange-600">
-                <span class="font-medium">Descuento aplicado:</span>
-                <span class="float-right">-${{ calcularDescuentoItem(entry).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
-              </div>
-            </div>
+          <div v-if="entry.tipo === 'producto' && getItemInfo(entry)?.requiere_serie" class="mt-3">
+            <label class="block text-xs font-medium text-gray-700 mb-1">Series requeridas</label>
+            <textarea
+              :value="getSerialsString(entry)"
+              @input="updateSerials(entry, $event.target.value)"
+              :placeholder="`Pega series separadas por coma o por línea (deben ser ${quantities[`${entry.tipo}-${entry.id}`] || 1})`"
+              rows="2"
+              class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-y"
+            ></textarea>
+            <p class="mt-1 text-xs text-gray-500">
+              Debes ingresar exactamente {{ quantities[`${entry.tipo}-${entry.id}`] || 1 }} series únicas.
+            </p>
           </div>
+
         </div>
       </div>
     </div>
 
-    <!-- Mensaje cuando no hay productos -->
     <div v-else class="mt-6 p-8 border-2 border-dashed border-gray-300 rounded-xl text-center">
       <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
@@ -177,232 +119,79 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
-
 const props = defineProps({
-  selectedProducts: {
-    type: Array,
-    required: true,
-  },
-  productos: {
-    type: Array,
-    default: () => [],
-  },
-  servicios: {
-    type: Array,
-    default: () => [],
-  },
-  quantities: {
-    type: Object,
-    required: true,
-  },
-  prices: {
-    type: Object,
-    required: true,
-  },
-  discounts: {
-    type: Object,
-    required: true,
-  },
+  selectedProducts: { type: Array, required: true },
+  productos: { type: Array, default: () => [] },
+  servicios: { type: Array, default: () => [] },
+  quantities: { type: Object, required: true },
+  prices: { type: Object, required: true },
+  discounts: { type: Object, required: true },
+  serials: { type: Object, default: () => ({}) },
 });
 
-const emit = defineEmits([
-  'eliminar-producto',
-  'update-quantity',
-  'update-discount',
-  'calcular-total'
-]);
-
-// Función para obtener información del item
-// 1. Actualizar la función getItemInfo para incluir precio_compra:
+const emit = defineEmits(['eliminar-producto','update-quantity','update-discount','update-serials','calcular-total']);
 
 const getItemInfo = (entry) => {
   const items = entry.tipo === 'producto' ? props.productos : props.servicios;
   const item = items.find(i => i.id === entry.id);
-
-  if (!item) {
-    return {
-      nombre: 'Item no encontrado',
-      descripcion: '',
-      precio: 0,
-      precio_compra: 0
-    };
-  }
-
+  if (!item) return { nombre: 'Item no encontrado', descripcion: '', precio: 0, precio_compra: 0, requiere_serie: false };
   return {
     nombre: item.nombre,
     descripcion: item.descripcion || '',
     precio: entry.tipo === 'producto' ? (item.precio_venta || 0) : (item.precio || 0),
-    precio_compra: item.precio_compra || 0
+    precio_compra: item.precio_compra || 0,
+    requiere_serie: !!item.requiere_serie,
   };
 };
 
-// Función para calcular el subtotal sin descuento de un item
-const calcularSubtotalSinDescuento = (entry) => {
-  const key = `${entry.tipo}-${entry.id}`;
-  const cantidad = Number.parseFloat(props.quantities[key]) || 1;
-  const precio = Number.parseFloat(props.prices[key]) || 0;
+const eliminarItem = (entry) => emit('eliminar-producto', entry);
 
-  return cantidad * precio;
-};
-
-const handleQuantityInput = (entry, event) => {
-  console.log(`handleQuantityInput llamado:`, {
-    entry,
-    eventTarget: event.target,
-    value: event.target.value,
-    valueType: typeof event.target.value
-  });
-
-  const value = event.target.value;
-  updateQuantity(entry, value);
-};
-
-// Función para calcular el descuento de un item
-const calcularDescuentoItem = (entry) => {
-  const key = `${entry.tipo}-${entry.id}`;
-  const subtotalSinDescuento = calcularSubtotalSinDescuento(entry);
-  const descuento = Number.parseFloat(props.discounts[key]) || 0;
-
-  return subtotalSinDescuento * (descuento / 100);
-};
-
-// Función para calcular el subtotal final de un item (con descuento)
-const calcularSubtotalItem = (entry) => {
-  const subtotalSinDescuento = calcularSubtotalSinDescuento(entry);
-  const descuentoItem = calcularDescuentoItem(entry);
-
-  return subtotalSinDescuento - descuentoItem;
-};
-
-// Función para eliminar un item
-const eliminarItem = (entry) => {
-  emit('eliminar-producto', entry);
-};
-
-// Función para actualizar cantidad
 const updateQuantity = (entry, value) => {
-  console.log(`ProductosSeleccionados - updateQuantity:`, {
-    entry: entry?.tipo ? `${entry.tipo}-${entry.id}` : 'entry inválido',
-    value,
-    valueType: typeof value
-  });
-
-  // Validar que entry sea válido
-  if (!entry || !entry.tipo || !entry.id) {
-    console.error('Entry inválido:', entry);
-    return;
-  }
-
   const key = `${entry.tipo}-${entry.id}`;
-
-  // Manejar valores undefined, null o vacíos
-  if (value === undefined || value === null || value === '') {
-    console.warn(`Valor vacío para ${key}, usando 1 como default`);
-    value = '1';
-  }
-
-  // Convertir a número y asegurar que sea al menos 1
   const numericValue = Number.parseFloat(value);
   const quantity = isNaN(numericValue) ? 1 : Math.max(1, numericValue);
-
-  console.log(`ProductosSeleccionados - Emitiendo:`, { key, quantity });
-
   emit('update-quantity', key, quantity);
 };
 
-// Función para actualizar descuento
 const updateDiscount = (entry, value) => {
   const key = `${entry.tipo}-${entry.id}`;
   const discount = Math.min(100, Math.max(0, Number.parseFloat(value) || 0));
   emit('update-discount', key, discount);
 };
+
+const calcularSubtotalSinDescuento = (entry) => {
+  const key = `${entry.tipo}-${entry.id}`;
+  const cantidad = Number.parseFloat(props.quantities[key]) || 1;
+  const precio = Number.parseFloat(props.prices[key]) || 0;
+  return cantidad * precio;
+};
+
+const calcularDescuentoItem = (entry) => {
+  const key = `${entry.tipo}-${entry.id}`;
+  const subtotalSinDescuento = calcularSubtotalSinDescuento(entry);
+  const descuento = Number.parseFloat(props.discounts[key]) || 0;
+  return subtotalSinDescuento * (descuento / 100);
+};
+
+const calcularSubtotalItem = (entry) => {
+  const subtotalSinDescuento = calcularSubtotalSinDescuento(entry);
+  const descuentoItem = calcularDescuentoItem(entry);
+  return subtotalSinDescuento - descuentoItem;
+};
+
+const getSerialsString = (entry) => {
+  const key = `${entry.tipo}-${entry.id}`;
+  const serials = props.serials?.[key] || [];
+  return Array.isArray(serials) ? serials.join(', ') : '';
+};
+
+const updateSerials = (entry, value) => {
+  const key = `${entry.tipo}-${entry.id}`;
+  const serials = (value || '')
+    .split(/,|\r?\n/)
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
+  const uniqueSerials = [...new Set(serials)];
+  emit('update-serials', key, uniqueSerials);
+};
 </script>
-
-<style scoped>
-/* Animaciones para la entrada de productos */
-@keyframes slideInFromRight {
-  from {
-    opacity: 0;
-    transform: translateX(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.productos-seleccionados > div:not(:first-child) {
-  animation: slideInFromRight 0.3s ease-out;
-}
-
-/* Estilos para hover en productos */
-.hover-product {
-  transition: all 0.3s ease;
-}
-
-.hover-product:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-}
-
-/* Estilos para inputs focus */
-input:focus {
-  transform: scale(1.02);
-  transition: transform 0.2s ease;
-}
-
-/* Estilos para botones de eliminar */
-.delete-btn {
-  transition: all 0.2s ease;
-}
-
-.delete-btn:hover {
-  transform: scale(1.1);
-}
-
-/* Estilos responsivos */
-@media (max-width: 640px) {
-  .grid-cols-4 {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 480px) {
-  .grid-cols-4 {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* Estilos para indicadores de estado */
-.readonly-input {
-  background-image: repeating-linear-gradient(
-    45deg,
-    transparent,
-    transparent 2px,
-    rgba(0, 0, 0, 0.05) 2px,
-    rgba(0, 0, 0, 0.05) 4px
-  );
-}
-
-/* Efectos de loading */
-.loading {
-  opacity: 0.7;
-  pointer-events: none;
-}
-
-/* Animación para números que cambian */
-.number-change {
-  transition: all 0.3s ease;
-}
-
-.number-increase {
-  color: #10b981;
-  font-weight: bold;
-}
-
-.number-decrease {
-  color: #ef4444;
-  font-weight: bold;
-}
-</style>

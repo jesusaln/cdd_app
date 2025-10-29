@@ -274,6 +274,7 @@
          :quantities="quantities"
          :prices="prices"
          :discounts="discounts"
+         :serials="serialsMap"
          @open-serials="openSerials"
          @eliminar-producto="eliminarProducto"
          @update-quantity="updateQuantity"
@@ -753,6 +754,7 @@ const validarDatos = () => {
     const discount = parseFloat(discounts.value[key]) || 0;
     const quantity = parseFloat(quantities.value[key]) || 0;
     const price = parseFloat(prices.value[key]) || 0;
+    const producto = props.productos.find(p => p.id === entry.id);
 
     if (discount < 0 || discount > 100) {
       showNotification('Los descuentos deben estar entre 0% y 100%.', 'error');
@@ -767,6 +769,20 @@ const validarDatos = () => {
     if (price < 0) {
       showNotification('Los precios no pueden ser negativos', 'error');
       return false;
+    }
+
+    // Validación de series: si el producto requiere serie, debe capturar exactamente 'quantity' series únicas
+    if (producto && producto.requiere_serie) {
+      const serials = serialsMap.value[key] || [];
+      if (!Array.isArray(serials) || serials.length !== quantity) {
+        showNotification(`El producto "${producto.nombre}" requiere ${quantity} series.`, 'error');
+        return false;
+      }
+      const unique = new Set(serials.map(s => (s || '').trim()).filter(Boolean));
+      if (unique.size !== serials.length) {
+        showNotification(`Las series del producto "${producto.nombre}" deben ser únicas.`, 'error');
+        return false;
+      }
     }
   }
 

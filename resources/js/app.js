@@ -5,6 +5,7 @@ import { createInertiaApp } from '@inertiajs/vue3'
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers'
 // Importar route desde ziggy-js correctamente
 import { route } from 'ziggy-js'
+import { Ziggy } from './ziggy'
 // FontAwesome core + componente
 import { library } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
@@ -137,6 +138,7 @@ createInertiaApp({
 
     // Hacer route disponible globalmente (configuración correcta para ziggy-js)
     app.config.globalProperties.route = route
+    app.config.globalProperties.Ziggy = Ziggy
 
     app.mount(el)
   },

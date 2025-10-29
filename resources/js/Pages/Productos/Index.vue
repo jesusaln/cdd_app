@@ -1,11 +1,10 @@
-<!-- /resources/js/Pages/Productos/IndexNew.vue -->
+﻿<!-- /resources/js/Pages/Productos/IndexNew.vue -->
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { Head, router, usePage, Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { Notyf } from 'notyf'
 import 'notyf/notyf.min.css'
-
 import ProductosHeader from '@/Components/IndexComponents/ProductosHeader.vue'
 
 defineOptions({ layout: AppLayout })
@@ -45,6 +44,16 @@ const showStockModal = ref(false)
 const stockDetalle = ref(null)
 const loadingStock = ref(false)
 
+// Series: modal y conteos por producto
+const showSeriesModal = ref(false)
+const seriesDetalle = ref(null)
+const seriesCountMap = ref({}) // { [productoId]: { en_stock: number, vendido: number } }
+const seriesLoadingMap = ref({}) // { [productoId]: boolean }
+const seriesSearch = ref({ enStock: '', vendidas: '' })
+const seriesPage = ref({ enStock: 1, vendidas: 1 })
+const seriesPerPage = ref({ enStock: 10, vendidas: 10 })
+const editSerie = ref({ rowId: null, value: '' })
+
 // Filtros
 const searchTerm = ref(props.filters?.search ?? '')
 const sortBy = ref('nombre-asc')
@@ -77,7 +86,6 @@ const valorTotal = computed(() => {
       producto.stock &&
       parseFloat(producto.stock) > 0
     )
-
     if (productosConValor.length > 0) {
       const totalValor = productosConValor.reduce((sum, producto) =>
         sum + ((parseFloat(producto.precio_venta) || 0) * (parseFloat(producto.stock) || 0)), 0
@@ -85,7 +93,6 @@ const valorTotal = computed(() => {
       return totalValor
     }
   }
-
   // Si no hay productos con stock, el valor total es 0
   return 0
 })
@@ -231,6 +238,111 @@ const verStockDetalle = async (producto) => {
   }
 }
 
+// Ver series del producto (en_stock y vendidas)
+const verSeries = async (producto) => {
+  try {
+    const response = await fetch(route('productos.series', producto.id))
+    if (!response.ok) {
+      notyf.error('Error al cargar las series del producto')
+      return
+    }
+    seriesDetalle.value = await response.json()
+    showSeriesModal.value = true
+  } catch (error) {
+    console.error('Error al cargar series:', error)
+    notyf.error('Error al cargar las series del producto')
+  }
+}
+
+// Prefetch de conteos de series (en stock) para la página actual
+const prefetchSeriesCounts = async () => {
+  const items = productosData.value || []
+  for (const p of items) {
+    const prod = p.raw || p
+    const id = prod.id
+    if (seriesCountMap.value[id] !== undefined || seriesLoadingMap.value[id]) continue
+    seriesLoadingMap.value[id] = true
+    try {
+      const res = await fetch(route('productos.series', id), { headers: { 'Accept': 'application/json' } })
+      if (res.ok) {
+        const data = await res.json()
+        const enStock = Number(data?.counts?.en_stock ?? 0)
+        const vendido = Number(data?.counts?.vendido ?? 0)
+        seriesCountMap.value[id] = { en_stock: enStock, vendido }
+      } else {
+        seriesCountMap.value[id] = { en_stock: 0, vendido: 0 }
+      }
+    } catch (_) {
+      seriesCountMap.value[id] = { en_stock: 0, vendido: 0 }
+    } finally {
+      seriesLoadingMap.value[id] = false
+    }
+  }
+}
+
+onMounted(() => {
+  prefetchSeriesCounts()
+})
+
+// Re-prefetch al cambiar de página o filtro
+watch(productosData, () => {
+  prefetchSeriesCounts()
+})
+
+const filteredEnStock = computed(() => {
+  const q = (seriesSearch.value.enStock || '').toLowerCase()
+  const list = seriesDetalle.value?.series?.en_stock || []
+  return q ? list.filter(s => (s.numero_serie || '').toLowerCase().includes(q)) : list
+})
+
+const filteredVendidas = computed(() => {
+  const q = (seriesSearch.value.vendidas || '').toLowerCase()
+  const list = seriesDetalle.value?.series?.vendido || []
+  return q ? list.filter(s => (s.numero_serie || '').toLowerCase().includes(q)) : list
+})
+
+const pagedEnStock = computed(() => {
+  const start = (seriesPage.value.enStock - 1) * seriesPerPage.value.enStock
+  return filteredEnStock.value.slice(start, start + seriesPerPage.value.enStock)
+})
+
+const pagedVendidas = computed(() => {
+  const start = (seriesPage.value.vendidas - 1) * seriesPerPage.value.vendidas
+  return filteredVendidas.value.slice(start, start + seriesPerPage.value.vendidas)
+})
+
+const editarSerie = (s) => {
+  editSerie.value = { rowId: s.id, value: s.numero_serie }
+}
+
+const cancelarEdicion = () => {
+  editSerie.value = { rowId: null, value: '' }
+}
+
+const guardarSerie = async (productoId, s) => {
+  const nuevo = (editSerie.value.value || '').trim()
+  if (!nuevo) return
+  try {
+    const res = await fetch(route('productos.series.update', { producto: productoId, serie: s.id }), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ numero_serie: nuevo })
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      notyf.error(data?.message || 'No se pudo actualizar la serie')
+      return
+    }
+    // Actualizar lista localmente
+    const idx = (seriesDetalle.value?.series?.en_stock || []).findIndex(x => x.id === s.id)
+    if (idx >= 0) seriesDetalle.value.series.en_stock[idx].numero_serie = nuevo
+    notyf.success('Serie actualizada')
+    cancelarEdicion()
+  } catch (err) {
+    notyf.error('Error al actualizar la serie')
+  }
+}
+
 // Paginación
 const paginationData = computed(() => {
   const p = productosPaginator.value || {}
@@ -246,7 +358,6 @@ const paginationData = computed(() => {
     links:       p.links ?? []
   }
 })
-
 
 const handlePerPageChange = (newPerPage) => {
   perPage.value = newPerPage
@@ -300,10 +411,17 @@ const obtenerLabelEstado = (estado) => {
   }
   return labels[estado] || 'Pendiente'
 }
+
+// Función para obtener el total de series de un producto
+const getSeriesTotal = (productoId) => {
+  const counts = seriesCountMap.value[productoId]
+  if (!counts) return 0
+  return (counts.en_stock || 0) + (counts.vendido || 0)
+}
 </script>
 
 <template>
-  <div>
+<div>
     <Head title="Productos" />
     <div class="productos-index min-h-screen bg-gray-50">
     <div class="max-w-8xl mx-auto px-6 py-8">
@@ -375,6 +493,19 @@ const obtenerLabelEstado = (estado) => {
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                       </svg>
+                    </button>
+                    <button v-if="producto.raw.requiere_serie"
+                            @click="verSeries(producto.raw)"
+                            class="relative w-8 h-8 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors duration-150"
+                            title="Series">
+                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-7 4h8M5 8h14" />
+                      </svg>
+                      <span class="absolute -top-1 -right-1 min-w-[18px] h-4 px-1 rounded-full text-[10px] font-semibold flex items-center justify-center"
+                            :class="(getSeriesTotal(producto.id)) > 0 ? 'bg-emerald-600 text-white' : 'bg-gray-300 text-gray-700'">
+                        <template v-if="seriesLoadingMap[producto.id]">…</template>
+                        <template v-else>{{ getSeriesTotal(producto.id) }}</template>
+                      </span>
                     </button>
                     <button @click="editarProducto(producto.id)" class="w-8 h-8 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-colors duration-150" title="Editar">
                       <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -551,6 +682,29 @@ const obtenerLabelEstado = (estado) => {
             </div>
           </div>
 
+          <div class="mt-6">
+            <h4 class="text-sm font-medium text-gray-700 mb-2">Listado de series vendidas</h4>
+            <div class="max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">#</th>
+                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">Número de serie</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                  <tr v-for="(s, idx) in pagedVendidas" :key="s.id">
+                    <td class="px-4 py-2 text-sm text-gray-700">{{ (seriesPage.vendidas - 1) * seriesPerPage.vendidas + idx + 1 }}</td>
+                    <td class="px-4 py-2 text-sm font-medium text-gray-900">{{ s.numero_serie }}</td>
+                  </tr>
+                  <tr v-if="filteredVendidas.length === 0">
+                    <td colspan="2" class="px-4 py-6 text-center text-sm text-gray-500">Sin series vendidas</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           <!-- Footer del modal -->
           <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
             <button @click="showModal = false" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
@@ -666,35 +820,112 @@ const obtenerLabelEstado = (estado) => {
                     <tr v-if="stockDetalle.stock_por_almacen.length === 0">
                       <td colspan="4" class="px-6 py-8 text-center">
                         <div class="flex flex-col items-center space-y-2">
-                          <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-5v2m0 0v2m0-2h2m-2 0h-2"/>
-                          </svg>
-                          <p class="text-gray-500 text-sm">No hay stock disponible en ningún almacén</p>
-                        </div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
+                         <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m8-5v2m0 0v2m0-2h2m-2 0h-2"/>
+                         </svg>
+                       </div>
+                     </td>
+                   </tr>
+                 </tbody>
+               </table>
+             </div>
+           </div>
+         </div>
 
-          <!-- Footer del modal -->
-          <div class="flex justify-end px-6 py-4 border-t border-gray-200 bg-gray-50">
-            <button @click="showStockModal = false" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
-              Cerrar
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  </div>
+         <!-- Footer del modal -->
+         <div class="flex justify-end px-6 py-4 border-t border-gray-200 bg-gray-50">
+           <button @click="showStockModal = false" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+             Cerrar
+           </button>
+         </div>
+       </div>
+     </div>
+   </div>
+ </div>
+
+ <!-- Modal Series -->
+ <div v-if="showSeriesModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="showSeriesModal = false">
+   <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl">
+     <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+       <h3 class="text-lg font-semibold text-gray-900">Series del Producto: {{ seriesDetalle?.producto?.nombre || '' }}</h3>
+       <button @click="showSeriesModal = false" class="text-gray-400 hover:text-gray-600 transition-colors">
+         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+       </button>
+     </div>
+     <div class="p-6">
+       <div v-if="!seriesDetalle"><p class="text-sm text-gray-500">Cargando...</p></div>
+       <div v-else>
+         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+           <div>
+             <label class="block text-xs font-medium text-gray-700 mb-1">Buscar en stock</label>
+             <input v-model.trim="seriesSearch.enStock" type="text" placeholder="Buscar número de serie" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+           </div>
+           <div>
+             <label class="block text-xs font-medium text-gray-700 mb-1">Buscar vendidas</label>
+             <input v-model.trim="seriesSearch.vendidas" type="text" placeholder="Buscar número de serie" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500" />
+           </div>
+         </div>
+         <div class="grid grid-cols-2 gap-4 mb-4">
+           <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+             <div class="text-xs text-emerald-700">Series en stock</div>
+             <div class="text-2xl font-semibold text-emerald-800">{{ seriesDetalle.counts.en_stock }}</div>
+           </div>
+           <div class="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+             <div class="text-xs text-gray-700">Series vendidas</div>
+             <div class="text-2xl font-semibold text-gray-800">{{ seriesDetalle.counts.vendido }}</div>
+           </div>
+         </div>
+         <div>
+           <h4 class="text-sm font-medium text-gray-700 mb-2">Listado de series en stock</h4>
+           <div class="max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
+             <table class="min-w-full divide-y divide-gray-200">
+               <thead class="bg-gray-50">
+                 <tr>
+                   <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">#</th>
+                   <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">Número de serie</th>
+                 </tr>
+               </thead>
+               <tbody class="bg-white divide-y divide-gray-200">
+                 <tr v-for="(s, idx) in pagedEnStock" :key="s.id">
+                   <td class="px-4 py-2 text-sm text-gray-700">{{ (seriesPage.enStock - 1) * seriesPerPage.enStock + idx + 1 }}</td>
+                   <td class="px-4 py-2 text-sm font-medium text-gray-900">
+                     <template v-if="editSerie.rowId === s.id">
+                       <input v-model.trim="editSerie.value" type="text" class="w-full border border-emerald-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                     </template>
+                     <template v-else>
+                       {{ s.numero_serie }}
+                     </template>
+                   </td>
+                   <td class="px-4 py-2 text-right text-sm">
+                     <template v-if="editSerie.rowId === s.id">
+                       <button @click="guardarSerie(seriesDetalle.producto.id, s)" class="px-2 py-1 bg-emerald-600 text-white rounded text-xs mr-2">Guardar</button>
+                       <button @click="cancelarEdicion()" class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs">Cancelar</button>
+                     </template>
+                     <template v-else>
+                       <button @click="editarSerie(s)" class="px-2 py-1 bg-emerald-50 text-emerald-700 rounded text-xs border border-emerald-200">Editar</button>
+                     </template>
+                   </td>
+                 </tr>
+                 <tr v-if="filteredEnStock.length === 0">
+                   <td colspan="2" class="px-4 py-6 text-center text-sm text-gray-500">Sin series en stock</td>
+                 </tr>
+               </tbody>
+             </table>
+           </div>
+         </div>
+       </div>
+     </div>
+     <div class="px-6 py-4 border-t bg-gray-50 border-gray-200 text-right">
+       <button @click="showSeriesModal = false" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">Cerrar</button>
+     </div>
+   </div>
+ </div>
+</div>
 </template>
 
 <style scoped>
 .productos-index {
-  min-height: 100vh;
-  background-color: #f9fafb;
+ min-height: 100vh;
+ background-color: #f9fafb;
 }
 </style>

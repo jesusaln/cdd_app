@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
+use Illuminate\Validation\Rule;
 
 class ProductoController extends Controller
 {
@@ -300,6 +301,75 @@ class ProductoController extends Controller
     }
 
     /**
+     * Devuelve las series del producto (en stock y vendidas) y sus conteos.
+     */
+    public function obtenerSeries($id): JsonResponse
+    {
+        $producto = Producto::findOrFail($id);
+
+        $seriesQuery = \App\Models\ProductoSerie::where('producto_id', $producto->id);
+
+        $seriesEnStock = (clone $seriesQuery)
+            ->where('estado', 'en_stock')
+            ->orderBy('numero_serie')
+            ->get(['id', 'numero_serie', 'almacen_id', 'estado']);
+
+        $seriesVendidas = (clone $seriesQuery)
+            ->where('estado', 'vendido')
+            ->orderBy('numero_serie')
+            ->get(['id', 'numero_serie', 'almacen_id', 'estado']);
+
+        return response()->json([
+            'producto' => [
+                'id' => $producto->id,
+                'nombre' => $producto->nombre,
+                'requiere_serie' => (bool) ($producto->requiere_serie ?? false),
+            ],
+            'counts' => [
+                'en_stock' => $seriesEnStock->count(),
+                'vendido' => $seriesVendidas->count(),
+            ],
+            'series' => [
+                'en_stock' => $seriesEnStock,
+                'vendido' => $seriesVendidas,
+            ],
+        ]);
+    }
+
+    /**
+     * Actualiza el número de serie (solo en_stock).
+     */
+    public function actualizarSerie(Request $request, int $productoId, int $serieId): JsonResponse
+    {
+        $producto = Producto::findOrFail($productoId);
+        $serie = \App\Models\ProductoSerie::where('id', $serieId)
+            ->where('producto_id', $producto->id)
+            ->firstOrFail();
+
+        if ($serie->estado !== 'en_stock') {
+            return response()->json([
+                'message' => 'Solo se pueden modificar series que estén en stock.'
+            ], 422);
+        }
+
+        $data = $request->validate([
+            'numero_serie' => [
+                'required', 'string', 'max:191',
+                Rule::unique('producto_series', 'numero_serie')->ignore($serie->id)
+            ],
+        ]);
+
+        $serie->update([
+            'numero_serie' => trim($data['numero_serie']),
+        ]);
+
+        return response()->json([
+            'message' => 'Serie actualizada correctamente.',
+            'serie' => $serie->only(['id', 'numero_serie', 'estado', 'almacen_id']),
+        ]);
+    }
+
+    /**
      * Vista de inventario del producto.
      */
     public function showInventario($id)
@@ -568,4 +638,3 @@ class ProductoController extends Controller
         return "{$scheme}://{$host}{$portString}/storage/{$path}";
     }
 }
-

@@ -174,6 +174,7 @@ class VentaController extends Controller
                 'stock_total' => (int) $producto->stock,
                 'stock_por_almacen' => $stockPorAlmacen,
                 'expires' => (bool) $producto->expires,
+                'requiere_serie' => (bool) ($producto->requiere_serie ?? false),
                 'unidad_medida' => $producto->unidad_medida,
                 'tipo_producto' => $producto->tipo_producto,
                 'estado' => $producto->estado,
@@ -226,19 +227,33 @@ class VentaController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
+        // Validación dinámica para series en ventas
+        $rules = [
             'cliente_id' => 'required|exists:clientes,id',
             'vendedor_type' => 'nullable|in:App\\Models\\User,App\\Models\\Tecnico',
             'vendedor_id' => 'nullable|integer',
             'productos' => 'required|array',
-            'productos.*.id' => 'required|integer',
+            'productos.*.id' => 'required|integer|exists:productos,id',
             'productos.*.tipo' => 'required|in:producto,servicio',
             'productos.*.cantidad' => 'required|integer|min:1',
             'productos.*.precio' => 'required|numeric|min:0',
             'productos.*.descuento' => 'required|numeric|min:0|max:100',
             'descuento_general' => 'nullable|numeric|min:0|max:100',
             'notas' => 'nullable|string',
-        ]);
+        ];
+
+        foreach (($request->productos ?? []) as $index => $p) {
+            if (($p['tipo'] ?? '') === 'producto') {
+                $productoModel = Producto::find($p['id'] ?? null);
+                if ($productoModel && ($productoModel->requiere_serie ?? false)) {
+                    $requiredSize = isset($p['cantidad']) ? max(1, (int) $p['cantidad']) : 1;
+                    $rules["productos.{$index}.seriales"] = ['required', 'array', 'size:' . $requiredSize];
+                    $rules["productos.{$index}.seriales.*"] = 'required|string|max:191|distinct';
+                }
+            }
+        }
+
+        $validated = $request->validate($rules);
 
         DB::beginTransaction();
         try {
@@ -369,8 +384,22 @@ class VentaController extends Controller
                     'costo_unitario' => $costoUnitario,
                 ]);
 
-                // Reducir inventario solo para productos (priorizar reservas)
+                // Reducir inventario y marcar series para productos (priorizar reservas)
                 if ($item['tipo'] === 'producto') {
+                    // Si requiere serie, validar existencia y marcar como vendidas
+                    if (($modelo->requiere_serie ?? false)) {
+                        $seriales = $item['seriales'] ?? [];
+                        $seriesEnStock = \App\Models\ProductoSerie::where('producto_id', $modelo->id)
+                            ->whereIn('numero_serie', array_map('strval', $seriales))
+                            ->where('estado', 'en_stock')
+                            ->pluck('id');
+
+                        if (count($seriales) !== $seriesEnStock->count()) {
+                            throw new \Exception("Algunas series no existen o no están en stock para el producto '{$modelo->nombre}'.");
+                        }
+
+                        \App\Models\ProductoSerie::whereIn('id', $seriesEnStock->all())->update(['estado' => 'vendido']);
+                    }
                     $cantidadRestante = $item['cantidad'];
 
                     // Primero consumir reservas si existen
@@ -549,6 +578,7 @@ class VentaController extends Controller
                 'stock_total' => (int) $producto->stock,
                 'stock_por_almacen' => $stockPorAlmacen,
                 'expires' => (bool) $producto->expires,
+                'requiere_serie' => (bool) ($producto->requiere_serie ?? false),
                 'unidad_medida' => $producto->unidad_medida,
                 'tipo_producto' => $producto->tipo_producto,
                 'estado' => $producto->estado,

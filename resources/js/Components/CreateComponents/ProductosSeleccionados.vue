@@ -148,16 +148,32 @@
 
                             <!-- Series (si el producto requiere) -->
               <div v-if="getItemInfo(entry)?.requiere_serie" class="sm:col-span-2">
-                <label class="block text-xs font-medium text-gray-700 mb-1">Series (separadas por coma)</label>
-                <input
-                  type="text"
+                <label class="block text-xs font-medium text-gray-700 mb-1">Series requeridas</label>
+
+                <div class="flex items-center gap-3 mb-2">
+                  <button
+                    type="button"
+                    @click="emit('open-serials', entry)"
+                    class="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                    title="Capturar series una por una"
+                  >
+                    Capturar series ({{ serialCount(entry) }}/{{ quantities[`${entry.tipo}-${entry.id}`] || 1 }})
+                  </button>
+                  <span class="text-xs text-gray-500 truncate">
+                    {{ getSerialsString(entry) || 'Sin series capturadas' }}
+                  </span>
+                </div>
+
+                <textarea
                   :value="getSerialsString(entry)"
                   @input="updateSerials(entry, $event.target.value)"
-                  :placeholder="`Ingresa ${quantities[`${entry.tipo}-${entry.id}`] || 1} series separadas por coma`"
-                  class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                />
+                  :placeholder="`Pega series separadas por coma o por línea (deben ser ${quantities[`${entry.tipo}-${entry.id}`] || 1})`"
+                  rows="2"
+                  class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-y"
+                ></textarea>
+
                 <p class="mt-1 text-xs text-gray-500">
-                  Debes ingresar exactamente {{ quantities[`${entry.tipo}-${entry.id}`] || 1 }} series
+                  Puedes usar el botón “Capturar series” o pegar valores separados por coma o por línea. Debes ingresar exactamente {{ quantities[`${entry.tipo}-${entry.id}`] || 1 }} series únicas.
                 </p>
               </div>
               <!-- Subtotal del item -->
@@ -338,6 +354,11 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  // Mapa de series actuales por item key ("tipo-id")
+  serials: {
+    type: Object,
+    default: () => ({}),
+  },
 });
 
 const emit = defineEmits([
@@ -346,6 +367,7 @@ const emit = defineEmits([
   'update-discount',
   'update-price',
   'update-serials',
+  'open-serials',
   'calcular-total',
   'editar-precio-producto',
   'ver-historial-precios'
@@ -627,31 +649,25 @@ const verHistorial = (entry) => {
 // Función para contar series capturadas
 const serialCount = (entry) => {
   const key = `${entry.tipo}-${entry.id}`;
-  const serials = serialsMap.value[key] || [];
-  return serials.length;
+  const serials = props.serials?.[key] || [];
+  return Array.isArray(serials) ? serials.length : 0;
 };
 
 // Función para obtener las series como string separado por comas
 const getSerialsString = (entry) => {
   const key = `${entry.tipo}-${entry.id}`;
-  const serials = serialsMap.value[key] || [];
-  return serials.join(', ');
+  const serials = props.serials?.[key] || [];
+  return Array.isArray(serials) ? serials.join(', ') : '';
 };
 
 // Función para actualizar las series desde el input de texto
 const updateSerials = (entry, value) => {
   const key = `${entry.tipo}-${entry.id}`;
-  const serials = value.split(',')
+  const serials = (value || '')
+    .split(/,|\r?\n/)
     .map(s => s.trim())
     .filter(s => s.length > 0);
-
-  // Validar que no haya series duplicadas
   const uniqueSerials = [...new Set(serials)];
-
-  // Actualizar el mapa de series
-  serialsMap.value[key] = uniqueSerials;
-
-  // Emitir el cambio para que el componente padre lo maneje
   emit('update-serials', key, uniqueSerials);
 };
 </script>
@@ -743,8 +759,4 @@ input:focus {
   font-weight: bold;
 }
 </style>
-
-
-
-
 

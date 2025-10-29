@@ -136,9 +136,11 @@
               :quantities="quantities"
               :prices="prices"
               :discounts="discounts"
+              :serials="serialsMap"
               @eliminar-producto="eliminarProducto"
               @update-quantity="updateQuantity"
               @update-discount="updateDiscount"
+              @update-serials="updateSerials"
             />
           </div>
         </div>
@@ -333,6 +335,7 @@ const selectedProducts = ref([]);
 const quantities = ref({});
 const prices = ref({});
 const discounts = ref({});
+const serialsMap = ref({});
 const clienteSeleccionado = ref(null);
 const mostrarVistaPrevia = ref(false);
 const mostrarAtajos = ref(true);
@@ -377,6 +380,11 @@ const handlePreview = () => {
   } else {
     showNotification('Selecciona un cliente y al menos un producto', 'error');
   }
+};
+
+// Actualizar series desde el componente hijo
+const updateSerials = (key, serials) => {
+  serialsMap.value[key] = serials;
 };
 
 const closeShortcuts = () => {
@@ -574,6 +582,7 @@ const validarDatos = () => {
     const discount = parseFloat(discounts.value[key]) || 0;
     const quantity = parseFloat(quantities.value[key]) || 0;
     const price = parseFloat(prices.value[key]) || 0;
+    const producto = productos.find(p => p.id === entry.id);
 
     if (discount < 0 || discount > 100) {
       showNotification('Los descuentos deben estar entre 0% y 100%.', 'error');
@@ -588,6 +597,19 @@ const validarDatos = () => {
     if (price < 0) {
       showNotification('Los precios no pueden ser negativos', 'error');
       return false;
+    }
+
+    if (entry.tipo === 'producto' && producto && producto.requiere_serie) {
+      const serials = serialsMap.value[key] || [];
+      if (!Array.isArray(serials) || serials.length !== quantity) {
+        showNotification(`El producto "${producto.nombre}" requiere ${quantity} series.`, 'error');
+        return false;
+      }
+      const unique = new Set(serials.map(s => (s || '').trim()).filter(Boolean));
+      if (unique.size !== serials.length) {
+        showNotification(`Las series del producto "${producto.nombre}" deben ser únicas.`, 'error');
+        return false;
+      }
     }
   }
 
@@ -618,13 +640,18 @@ const crearVenta = () => {
   // Asignar productos al formulario
   form.productos = selectedProducts.value.map((entry) => {
     const key = `${entry.tipo}-${entry.id}`;
-    return {
+    const item = {
       id: entry.id,
       tipo: entry.tipo,
       cantidad: parseFloat(quantities.value[key]) || 1,
       precio: parseFloat(prices.value[key]) || 0,
       descuento: parseFloat(discounts.value[key]) || 0,
     };
+    const seriales = serialsMap.value[key];
+    if (seriales && Array.isArray(seriales) && seriales.length > 0) {
+      item.seriales = seriales;
+    }
+    return item;
   });
 
   // Calcular totales
@@ -638,6 +665,7 @@ const crearVenta = () => {
       quantities.value = {};
       prices.value = {};
       discounts.value = {};
+      serialsMap.value = {};
       clienteSeleccionado.value = null;
       form.reset();
       requiereConfirmacionMargen.value = false;
@@ -683,6 +711,7 @@ const saveState = () => {
     quantities: quantities.value,
     prices: prices.value,
     discounts: discounts.value,
+    serials: serialsMap.value,
   };
   saveToLocalStorage('ventaEnProgreso', stateToSave);
 };
@@ -713,6 +742,7 @@ onMounted(() => {
       quantities.value = savedData.quantities || {};
       prices.value = savedData.prices || {};
       discounts.value = savedData.discounts || {};
+      serialsMap.value = savedData.serials || {};
       calcularTotal();
     } catch (error) {
       console.warn('Error al cargar datos guardados:', error);

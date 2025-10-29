@@ -276,6 +276,7 @@ class CompraController extends Controller
                 'stock_total' => (int) $producto->stock,
                 'stock_por_almacen' => $stockPorAlmacen,
                 'expires' => (bool) $producto->expires,
+                'requiere_serie' => (bool) ($producto->requiere_serie ?? false),
                 'unidad_medida' => $producto->unidad_medida,
                 'tipo_producto' => $producto->tipo_producto,
                 'estado' => $producto->estado,
@@ -329,7 +330,8 @@ class CompraController extends Controller
                 $rules["productos.{$index}.costo_unitario"] = 'nullable|numeric|min:0';
             }
             if ($productoModel && ($productoModel->requiere_serie ?? false)) {
-                $rules["productos.{$index}.seriales"] = 'required|array|min:1';
+                $requiredSize = isset($producto['cantidad']) ? max(1, (int) $producto['cantidad']) : 1;
+                $rules["productos.{$index}.seriales"] = ['required', 'array', 'size:' . $requiredSize];
                 $rules["productos.{$index}.seriales.*"] = 'required|string|max:191|distinct';
             }
         }
@@ -467,13 +469,20 @@ class CompraController extends Controller
                 // Registrar series si el producto lo requiere
                 if (($producto->requiere_serie ?? false) && !empty($productoData['seriales']) && is_array($productoData['seriales'])) {
                     foreach ($productoData['seriales'] as $serie) {
-                        \App\Models\ProductoSerie::create([
-                            'producto_id' => $producto->id,
-                            'compra_id' => $compra->id,
-                            'almacen_id' => $validatedData['almacen_id'],
-                            'numero_serie' => trim((string) $serie),
-                            'estado' => 'en_stock',
-                        ]);
+                        // Verificar si la serie ya existe para este producto
+                        $serieExistente = \App\Models\ProductoSerie::where('numero_serie', trim((string) $serie))
+                            ->where('producto_id', $producto->id)
+                            ->first();
+
+                        if (!$serieExistente) {
+                            \App\Models\ProductoSerie::create([
+                                'producto_id' => $producto->id,
+                                'compra_id' => $compra->id,
+                                'almacen_id' => $validatedData['almacen_id'],
+                                'numero_serie' => trim((string) $serie),
+                                'estado' => 'en_stock',
+                            ]);
+                        }
                     }
                 }
             }
@@ -625,6 +634,7 @@ class CompraController extends Controller
                 'stock_total' => (int) $producto->stock,
                 'stock_por_almacen' => $stockPorAlmacen,
                 'expires' => (bool) $producto->expires,
+                'requiere_serie' => (bool) ($producto->requiere_serie ?? false),
                 'unidad_medida' => $producto->unidad_medida,
                 'tipo_producto' => $producto->tipo_producto,
                 'estado' => $producto->estado,
