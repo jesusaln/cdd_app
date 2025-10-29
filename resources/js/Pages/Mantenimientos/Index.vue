@@ -1245,7 +1245,7 @@ const obtenerTextoUrgencia = (mantenimiento) => {
                 <td class="px-6 py-4">
                   <div class="text-sm text-gray-700">{{ formatearFecha(mantenimiento.raw.proximo_mantenimiento) }}</div>
                   <div v-if="mantenimiento.raw.dias_restantes !== null && mantenimiento.raw.dias_restantes !== undefined" class="text-xs mt-1" :class="mantenimiento.raw.dias_restantes <= 0 ? 'text-red-600 font-medium' : 'text-gray-500'">
-                    {{ mantenimiento.raw.dias_restantes <= 0 ? `${Math.abs(mantenimiento.raw.dias_restantes)} días vencido` : `${mantenimiento.raw.dias_restantes} días restantes` }}
+                    {{ mantenimiento.raw.dias_restantes <= 0 ? `${Math.round(Math.abs(mantenimiento.raw.dias_restantes))} días vencido` : `${Math.round(mantenimiento.raw.dias_restantes)} días restantes` }}
                   </div>
                   <div v-else class="text-xs mt-1 text-gray-400">
                     Sin fecha de próximo mantenimiento
@@ -1290,7 +1290,7 @@ const obtenerTextoUrgencia = (mantenimiento) => {
                     </div>
                     <!-- Indicador de días restantes -->
                     <div v-if="mantenimiento.raw.dias_restantes !== null" class="text-xs" :class="mantenimiento.raw.dias_restantes <= 0 ? 'text-red-600 font-medium' : 'text-gray-500'">
-                      {{ mantenimiento.raw.dias_restantes <= 0 ? `${Math.abs(mantenimiento.raw.dias_restantes)} días vencido` : `${mantenimiento.raw.dias_restantes} días restantes` }}
+                      {{ mantenimiento.raw.dias_restantes <= 0 ? `${Math.round(Math.abs(mantenimiento.raw.dias_restantes))} días vencido` : `${Math.round(mantenimiento.raw.dias_restantes)} días restantes` }}
                     </div>
                   </div>
                 </td>
