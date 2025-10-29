@@ -148,15 +148,17 @@
 
                             <!-- Series (si el producto requiere) -->
               <div v-if="getItemInfo(entry)?.requiere_serie" class="sm:col-span-2">
-                <label class="block text-xs font-medium text-gray-700 mb-1">Series por unidad</label>
-                <div class="flex items-center space-x-2">
-                  <button type="button" @click="emit('open-serials', entry)" class="px-3 py-2 text-xs font-medium bg-indigo-600 text-white rounded hover:bg-indigo-700">
-                    Capturar series
-                  </button>
-                  <span class="text-xs text-gray-600">
-                    {{ serialCount(entry) }} capturadas
-                  </span>
-                </div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Series (separadas por coma)</label>
+                <input
+                  type="text"
+                  :value="getSerialsString(entry)"
+                  @input="updateSerials(entry, $event.target.value)"
+                  :placeholder="`Ingresa ${quantities[`${entry.tipo}-${entry.id}`] || 1} series separadas por coma`"
+                  class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                />
+                <p class="mt-1 text-xs text-gray-500">
+                  Debes ingresar exactamente {{ quantities[`${entry.tipo}-${entry.id}`] || 1 }} series
+                </p>
               </div>
               <!-- Subtotal del item -->
               <div>
@@ -343,6 +345,7 @@ const emit = defineEmits([
   'update-quantity',
   'update-discount',
   'update-price',
+  'update-serials',
   'calcular-total',
   'editar-precio-producto',
   'ver-historial-precios'
@@ -362,7 +365,8 @@ const getItemInfo = (entry) => {
       nombre: 'Entrada inválida',
       descripcion: '',
       precio: 0,
-      precio_compra: 0
+      precio_compra: 0,
+      requiere_serie: false
     };
   }
 
@@ -373,7 +377,8 @@ const getItemInfo = (entry) => {
       nombre: 'Tipo no soportado',
       descripcion: '',
       precio: 0,
-      precio_compra: 0
+      precio_compra: 0,
+      requiere_serie: false
     };
   }
 
@@ -390,7 +395,8 @@ const getItemInfo = (entry) => {
       descripcion: entry.descripcion || '',
       precio: entry.precio || 0,
       precio_compra: entry.precio_compra || 0,
-      precio_venta: entry.precio_venta || entry.precio || 0
+      precio_venta: entry.precio_venta || entry.precio || 0,
+      requiere_serie: entry.requiere_serie || false
     };
   }
 
@@ -401,7 +407,8 @@ const getItemInfo = (entry) => {
       nombre: 'Producto no encontrado',
       descripcion: '',
       precio: 0,
-      precio_compra: 0
+      precio_compra: 0,
+      requiere_serie: false
     };
   }
 
@@ -409,7 +416,8 @@ const getItemInfo = (entry) => {
     nombre: item.nombre || 'Sin nombre',
     descripcion: item.descripcion || '',
     precio: item.precio_venta || item.precio || 0,
-    precio_compra: item.precio_compra || 0
+    precio_compra: item.precio_compra || 0,
+    requiere_serie: item.requiere_serie || false
   };
 
   console.log('Información del producto retornada:', result);
@@ -614,6 +622,37 @@ const guardarNuevoPrecio = async () => {
 const verHistorial = (entry) => {
   // Navegar a la página completa de historial de precios
   window.open(route('reportes.historial-precios', entry.id), '_blank');
+};
+
+// Función para contar series capturadas
+const serialCount = (entry) => {
+  const key = `${entry.tipo}-${entry.id}`;
+  const serials = serialsMap.value[key] || [];
+  return serials.length;
+};
+
+// Función para obtener las series como string separado por comas
+const getSerialsString = (entry) => {
+  const key = `${entry.tipo}-${entry.id}`;
+  const serials = serialsMap.value[key] || [];
+  return serials.join(', ');
+};
+
+// Función para actualizar las series desde el input de texto
+const updateSerials = (entry, value) => {
+  const key = `${entry.tipo}-${entry.id}`;
+  const serials = value.split(',')
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
+
+  // Validar que no haya series duplicadas
+  const uniqueSerials = [...new Set(serials)];
+
+  // Actualizar el mapa de series
+  serialsMap.value[key] = uniqueSerials;
+
+  // Emitir el cambio para que el componente padre lo maneje
+  emit('update-serials', key, uniqueSerials);
 };
 </script>
 

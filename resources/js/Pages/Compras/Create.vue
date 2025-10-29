@@ -267,18 +267,71 @@
             </div>
 
             <!-- Productos seleccionados -->
-  <ProductosSeleccionados
-    :selected-products="selectedProducts"
-    :productos="props.productos"
-    :servicios="props.servicios"
-    :quantities="quantities"
-    :prices="prices"
-    :discounts="discounts"
-    @open-serials="openSerials"
-    @eliminar-producto="eliminarProducto"
-    @update-quantity="updateQuantity"
-    @update-discount="updateDiscount"
-  />
+       <ProductosSeleccionados
+         :selected-products="selectedProducts"
+         :productos="props.productos"
+         :servicios="props.servicios"
+         :quantities="quantities"
+         :prices="prices"
+         :discounts="discounts"
+         @open-serials="openSerials"
+         @eliminar-producto="eliminarProducto"
+         @update-quantity="updateQuantity"
+         @update-discount="updateDiscount"
+         @update-serials="updateSerials"
+       />
+    
+       <!-- Modal para capturar series -->
+       <div v-if="showSerialsModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+         <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+           <div class="p-6">
+             <h3 class="text-lg font-semibold text-gray-900 mb-4">
+               Capturar Series - {{ currentSerialProduct?.nombre }}
+             </h3>
+    
+             <div class="mb-4">
+               <p class="text-sm text-gray-600">
+                 Cantidad: {{ currentSerialQty }} unidades
+               </p>
+               <p class="text-xs text-gray-500 mt-1">
+                 Debe capturar exactamente {{ currentSerialQty }} series únicas
+               </p>
+             </div>
+    
+             <div class="space-y-2 max-h-60 overflow-y-auto">
+               <div
+                 v-for="(serie, index) in serialsForEntry"
+                 :key="index"
+                 class="flex items-center space-x-2"
+               >
+                 <span class="text-sm font-medium text-gray-500 w-6">{{ index + 1 }}.</span>
+                 <input
+                   v-model="serialsForEntry[index]"
+                   type="text"
+                   :placeholder="`Serie ${index + 1}`"
+                   class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                   required
+                 />
+               </div>
+             </div>
+    
+             <div class="flex justify-end space-x-3 mt-6">
+               <button
+                 @click="cancelSerials"
+                 class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200"
+               >
+                 Cancelar
+               </button>
+               <button
+                 @click="saveSerials"
+                 class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700"
+               >
+                 Guardar Series
+               </button>
+             </div>
+           </div>
+         </div>
+       </div>
           </div>
         </div>
 
@@ -466,6 +519,7 @@ const showSerialsModal = ref(false);
 const serialsForEntry = ref([]);
 const currentSerialKey = ref('');
 const currentSerialQty = ref(1);
+const currentSerialProduct = ref(null);
 const mostrarVistaPrevia = ref(false);
 const mostrarAtajos = ref(true);
 const productoSeleccionado = ref(null);
@@ -633,6 +687,11 @@ const updateDiscount = (key, discount) => {
   saveState();
 };
 
+const updateSerials = (key, serials) => {
+  serialsMap.value[key] = serials;
+  saveState();
+};
+
 const totales = computed(() => {
   let subtotal = 0;
   let descuentoItems = 0;
@@ -721,14 +780,21 @@ const crearCompra = () => {
 
   form.productos = selectedProducts.value.map((entry) => {
     const key = `${entry.tipo}-${entry.id}`;
-    return {
+    const seriales = serialsMap.value[key];
+    const productoData = {
       id: entry.id,
       tipo: entry.tipo,
       cantidad: parseFloat(quantities.value[key]) || 1,
       precio: parseFloat(prices.value[key]) || 0,
       descuento: parseFloat(discounts.value[key]) || 0,
-      seriales: serialsMap.value[key] || undefined,
     };
+
+    // Solo incluir seriales si existen y no están vacíos
+    if (seriales && Array.isArray(seriales) && seriales.length > 0) {
+      productoData.seriales = seriales;
+    }
+
+    return productoData;
   });
 
   calcularTotal();
@@ -761,6 +827,11 @@ const openSerials = (entry) => {
   const key = `${entry.tipo}-${entry.id}`;
   currentSerialKey.value = key;
   currentSerialQty.value = Number(quantities.value[key]) || 1;
+
+  // Encontrar el producto para mostrar su nombre
+  const producto = props.productos.find(p => p.id === entry.id);
+  currentSerialProduct.value = producto || null;
+
   const existentes = serialsMap.value[key] || [];
   serialsForEntry.value = Array.from({ length: currentSerialQty.value }, (_, i) => existentes[i] || '');
   showSerialsModal.value = true;
@@ -769,15 +840,24 @@ const openSerials = (entry) => {
 const saveSerials = () => {
   const serials = serialsForEntry.value.map(s => (s || '').trim()).filter(Boolean);
   if (serials.length !== currentSerialQty.value) {
-    alert(`Debes capturar ${currentSerialQty.value} series.`);
+    showNotification(`Debes capturar exactamente ${currentSerialQty.value} series.`, 'error');
     return;
   }
   if ((new Set(serials)).size !== serials.length) {
-    alert('Las series deben ser únicas.');
+    showNotification('Las series deben ser únicas.', 'error');
     return;
   }
   serialsMap.value[currentSerialKey.value] = serials;
   showSerialsModal.value = false;
+  showNotification(`Series capturadas correctamente para ${currentSerialProduct.value?.nombre || 'el producto'}`, 'success');
+};
+
+const cancelSerials = () => {
+  showSerialsModal.value = false;
+  currentSerialProduct.value = null;
+  serialsForEntry.value = [];
+  currentSerialKey.value = '';
+  currentSerialQty.value = 1;
 };
 
 const limpiarFormulario = () => {
@@ -790,6 +870,7 @@ const limpiarFormulario = () => {
   quantities.value = {};
   prices.value = {};
   discounts.value = {};
+  serialsMap.value = {};
   form.notas = '';
   removeFromLocalStorage('compraEnProgreso');
   showNotification('Formulario limpiado correctamente');
