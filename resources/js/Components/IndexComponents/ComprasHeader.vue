@@ -126,6 +126,17 @@
             <option value="cancelada">Canceladas</option>
           </select>
 
+          <!-- Origen -->
+          <select
+            v-model="filtroOrigen"
+            @change="onFiltroOrigenChange"
+            class="block w-48 pl-3 pr-10 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white"
+          >
+            <option value="">Todos los Orígenes</option>
+            <option value="directa">Compras Directas</option>
+            <option value="orden_compra">De Orden de Compra</option>
+          </select>
+
           <!-- Ordenamiento -->
           <select
             v-model="sortBy"
@@ -168,13 +179,14 @@ const props = defineProps({
 })
 
 const emit = defineEmits([
-  'crear-nueva', 'search-change', 'filtro-estado-change', 'sort-change', 'limpiar-filtros'
+  'crear-nueva', 'search-change', 'filtro-estado-change', 'filtro-origen-change', 'sort-change', 'limpiar-filtros'
 ])
 
 // Estados locales para filtros
 const searchTerm = defineModel('searchTerm', { type: String, default: '' })
 const sortBy = defineModel('sortBy', { type: String, default: 'created_at-desc' })
 const filtroEstado = defineModel('filtroEstado', { type: String, default: '' })
+const filtroOrigen = defineModel('filtroOrigen', { type: String, default: '' })
 
 // Función para formatear moneda
 const formatearMoneda = (num) => {
@@ -190,11 +202,12 @@ const formatearMoneda = (num) => {
 const onCrearNueva = () => emit('crear-nueva')
 const onSearchChange = () => emit('search-change', searchTerm.value)
 const onFiltroEstadoChange = () => emit('filtro-estado-change', filtroEstado.value)
+const onFiltroOrigenChange = () => emit('filtro-origen-change', filtroOrigen.value)
 const onSortChange = () => emit('sort-change', sortBy.value)
 const onLimpiarFiltros = () => emit('limpiar-filtros')
 
 // Watch para limpiar filtros automáticamente
-watch([searchTerm, sortBy, filtroEstado], () => {
+watch([searchTerm, sortBy, filtroEstado, filtroOrigen], () => {
   // Emitir cambios automáticamente
 }, { immediate: true })
 </script>

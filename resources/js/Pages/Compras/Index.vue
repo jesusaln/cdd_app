@@ -9,7 +9,7 @@ import 'notyf/notyf.min.css'
 import { generarPDF } from '@/Utils/pdfGenerator'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import ComprasHeader from '@/Components/IndexComponents/ComprasHeader.vue'
-import DocumentosTable from '@/Components/IndexComponents/DocumentosTable.vue'
+import ComprasTable from '@/Components/IndexComponents/ComprasTable.vue'
 import Modal from '@/Components/IndexComponents/Modales.vue'
 
 defineOptions({ layout: AppLayout })
@@ -90,6 +90,7 @@ const closeModal = () => {
 const searchTerm = ref(props.filters.search || '')
 const sortBy = ref(`${props.sorting.sort_by}-${props.sorting.sort_direction}`)
 const filtroEstado = ref(props.filters.estado || '')
+const filtroOrigen = ref(props.filters.origen || '')
 const comprasOriginales = ref([...(props.compras?.data || [])])
 
 /* =========================
@@ -179,6 +180,7 @@ const updateFilters = (newFilters = {}) => {
   const params = {
     search: searchTerm.value,
     estado: filtroEstado.value,
+    origen: filtroOrigen.value,
     sort_by: sortBy.value.split('-')[0],
     sort_direction: sortBy.value.split('-')[1],
     page: 1,
@@ -200,7 +202,7 @@ watch(() => props.compras, (newVal) => {
 }, { deep: true, immediate: true })
 
 // Aplicar filtros al cambiar valores
-watch([searchTerm, filtroEstado, sortBy], () => {
+watch([searchTerm, filtroEstado, filtroOrigen, sortBy], () => {
   updateFilters()
 })
 
@@ -227,6 +229,7 @@ const handleLimpiarFiltros = () => {
   searchTerm.value = ''
   sortBy.value = 'created_at-desc'
   filtroEstado.value = ''
+  filtroOrigen.value = ''
   updateFilters({ page: 1 })
   notyf.success('Filtros limpiados correctamente')
 }
@@ -415,9 +418,11 @@ const crearNuevaCompra = () => {
         v-model:search-term="searchTerm"
         v-model:sort-by="sortBy"
         v-model:filtro-estado="filtroEstado"
+        v-model:filtro-origen="filtroOrigen"
         @crear-nueva="crearNuevaCompra"
         @search-change="updateFilters"
         @filtro-estado-change="updateFilters"
+        @filtro-origen-change="updateFilters"
         @sort-change="updateSort"
         @limpiar-filtros="handleLimpiarFiltros"
       />
@@ -444,14 +449,14 @@ const crearNuevaCompra = () => {
         </div>
       </div>
 
-      <!-- Tabla de documentos -->
+      <!-- Tabla de compras -->
       <div class="mt-6">
-        <DocumentosTable
+        <ComprasTable
           :documentos="paginatedCompras"
-          tipo="compras"
           :search-term="searchTerm"
           :sort-by="sortBy"
           :filtro-estado="filtroEstado"
+          :filtro-origen="filtroOrigen"
           @ver-detalles="verDetalles"
           @editar="editarCompra"
           @imprimir="imprimirCompra"

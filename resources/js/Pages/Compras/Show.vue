@@ -52,6 +52,22 @@
                                         <div>
                                             <div class="font-medium">{{ item.nombre }}</div>
                                             <div v-if="item.descripcion" class="text-xs text-gray-500 mt-1">{{ item.descripcion }}</div>
+                                            <div v-if="item.codigo" class="text-xs text-blue-600 mt-1">Código: {{ item.codigo }}</div>
+                                            <div v-if="item.categoria" class="text-xs text-green-600 mt-1">Categoría: {{ item.categoria.nombre }}</div>
+                                            <div v-if="item.marca" class="text-xs text-purple-600 mt-1">Marca: {{ item.marca.nombre }}</div>
+                                            <div v-if="item.unidad_medida" class="text-xs text-orange-600 mt-1">Unidad: {{ item.unidad_medida }}</div>
+                                            <div v-if="item.requiere_serie" class="text-xs text-red-600 mt-1">
+                                                <svg class="w-3 h-3 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+                                                </svg>
+                                                Requiere serie
+                                            </div>
+                                            <div v-if="item.expires" class="text-xs text-yellow-600 mt-1">
+                                                <svg class="w-3 h-3 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+                                                </svg>
+                                                Producto perecedero
+                                            </div>
                                         </div>
                                     </td>
                                     <td class="px-4 py-3 text-sm text-right">{{ item.cantidad }}</td>

@@ -137,6 +137,14 @@
               </div>
             </th>
 
+            <!-- Origen (solo para compras) -->
+            <th
+              v-if="props.tipo === 'compras'"
+              class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider"
+            >
+              Origen
+            </th>
+
 
 
             <!-- Total -->
@@ -234,6 +242,25 @@
                 <div class="text-sm font-mono font-medium text-gray-700 bg-gray-100/60 px-2 py-1 rounded-md inline-block">
                   {{ doc[config.campoExtra.key] || 'N/A' }}
                 </div>
+              </td>
+
+              <!-- Origen (solo para compras) -->
+              <td v-if="props.tipo === 'compras'" class="px-6 py-4">
+                <span
+                  :class="doc.origen === 'orden_compra' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'"
+                  class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                >
+                  <svg
+                    :class="doc.origen === 'orden_compra' ? 'text-blue-500' : 'text-green-500'"
+                    class="w-3 h-3 mr-1"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path v-if="doc.origen === 'orden_compra'" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                    <path v-else fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+                  </svg>
+                  {{ doc.origen === 'orden_compra' ? 'Orden de Compra' : 'Compra Directa' }}
+                </span>
               </td>
 
 
@@ -404,6 +431,16 @@
                     <font-awesome-icon icon="times-circle" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
                   </button>
 
+                  <!-- Eliminar Definitivo (solo compras canceladas y administradores) -->
+                  <button
+                    v-if="tipo === 'compras' && doc.estado === 'cancelada' && props.esAdmin"
+                    @click="onEliminarDefinitivo(doc.id)"
+                    class="group/btn relative inline-flex items-center justify-center w-9 h-9 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 hover:shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:ring-offset-1"
+                    title="Eliminar definitivamente (solo administradores)"
+                  >
+                    <font-awesome-icon icon="ban" class="w-4 h-4 transition-transform duration-200 group-hover/btn:scale-110" />
+                  </button>
+
                   <button
                      v-if="config.acciones.eliminar && doc.estado !== 'cancelado' && doc.estado !== 'cancelada'"
                      @click="onEliminar(doc.id)"
@@ -451,6 +488,7 @@ const props = defineProps({
     required: true,
     validator: (value) => ['cotizaciones', 'pedidos', 'ventas', 'compras', 'ordenescompra'].includes(value)
   },
+  esAdmin: { type: Boolean, default: false },
   searchTerm: { type: String, default: '' },
   sortBy: { type: String, default: 'fecha-desc' },
   filtroEstado: { type: String, default: '' },
@@ -466,7 +504,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits([
-  'ver-detalles','editar','eliminar','duplicar','imprimir','sort','enviar-venta','enviar-pedido','marcar-pagado','enviar-compra','recibir-orden','cancelar-orden'
+  'ver-detalles','editar','eliminar','eliminar-definitivo','duplicar','imprimir','sort','enviar-venta','enviar-pedido','marcar-pagado','enviar-compra','recibir-orden','cancelar-orden'
 ]);
 
 // Flags
@@ -627,6 +665,7 @@ const config = computed(() => {
   configCache.set(props.tipo, result);
   return result;
 });
+
 
 // Cache de formatos
 const formatCache = new Map();
@@ -822,6 +861,7 @@ const total = computed(() => props.documentos?.length || 0);
 const onVerDetalles = (doc) => emit('ver-detalles', doc);
 const onEditar = (id) => emit('editar', id);
 const onEliminar = (id) => emit('eliminar', id);
+const onEliminarDefinitivo = (id) => emit('eliminar-definitivo', id);
 const onDuplicar = (doc) => emit('duplicar', doc);
 const onImprimir = (doc) => emit('imprimir', doc);
 const onEnviarVenta = (doc) => emit('enviar-venta', doc);
@@ -844,9 +884,10 @@ const getColspan = () => {
    if (config.value.mostrarCampoExtra) count++;
    if (config.value.mostrarTotal !== false) count++; // Total
    if (config.value.mostrarProductos !== false) count++;
+   if (props.tipo === 'compras') count++; // Origen
 
    return count;
- };
+  };
 
 </script>
 

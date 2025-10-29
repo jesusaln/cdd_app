@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+
 use App\Enums\EstadoCompra;
 use App\Models\Compra;
 use App\Models\CompraItem;
@@ -29,7 +30,7 @@ class CompraController extends Controller
         $perPage = (int) ($request->integer('per_page') ?: 10);
         $page    = max(1, (int) $request->get('page', 1));
 
-        // Validar elementos por página
+        // Validar elementos por p�gina
         $validPerPages = [10, 15, 25, 50, 100];
         if (!in_array($perPage, $validPerPages)) {
             $perPage = 10;
@@ -39,6 +40,7 @@ class CompraController extends Controller
             'proveedor',
             'productos',
             'almacen',
+            'ordenCompra',
         ]);
 
         // Aplicar filtros
@@ -69,6 +71,14 @@ class CompraController extends Controller
             $baseQuery->where('almacen_id', $request->almacen_id);
         }
 
+        if ($request->filled('origen')) {
+            if ($request->origen === 'directa') {
+                $baseQuery->whereNull('orden_compra_id');
+            } elseif ($request->origen === 'orden_compra') {
+                $baseQuery->whereNotNull('orden_compra_id');
+            }
+        }
+
         if ($request->filled('fecha_desde')) {
             $baseQuery->whereDate('created_at', '>=', $request->fecha_desde);
         }
@@ -95,17 +105,17 @@ class CompraController extends Controller
         $transformed = $compras->map(function ($compra) {
             $compra->load('productos');
             $compra->productos = $compra->productos->map(function ($p) use ($compra) {
-                // Calcular información de stock para cada producto
+                // Calcular informaci�n de stock para cada producto
                 $stockActual = $p->stock ?? 0;
                 $cantidadComprada = $p->pivot->cantidad ?? 0;
 
                 // Calcular stock antes de la compra
                 $stockAntes = 0;
                 if ($compra->estado === EstadoCompra::Cancelada) {
-                    // Si está cancelada, el stock actual es menor que la cantidad comprada
+                    // Si est� cancelada, el stock actual es menor que la cantidad comprada
                     $stockAntes = $stockActual + $cantidadComprada;
                 } else {
-                    // Si está procesada, el stock actual incluye la cantidad comprada
+                    // Si est� procesada, el stock actual incluye la cantidad comprada
                     $stockAntes = $stockActual - $cantidadComprada;
                 }
 
@@ -148,6 +158,12 @@ class CompraController extends Controller
                 'iva' => (float) ($compra->iva ?? 0),
                 'total' => (float) ($compra->total ?? 0),
                 'estado' => $compra->estado ?? 'procesada',
+                'origen' => $compra->orden_compra_id ? 'orden_compra' : 'directa',
+                'orden_compra' => $compra->ordenCompra ? [
+                    'id' => $compra->ordenCompra->id,
+                    'numero_orden' => $compra->ordenCompra->numero_orden,
+                    'estado' => $compra->ordenCompra->estado,
+                ] : null,
                 'created_at' => optional($compra->created_at)->format('Y-m-d H:i:s'),
                 'fecha' => optional($compra->created_at)->format('Y-m-d'),
             ];
@@ -161,7 +177,7 @@ class CompraController extends Controller
             ['path' => $request->url(), 'pageName' => 'page']
         );
 
-        // Estadísticas para el dashboard
+        // Estad�sticas para el dashboard
         $stats = [
             'total' => Compra::count(),
             'procesadas' => Compra::where('estado', EstadoCompra::Procesada)->count(),
@@ -201,7 +217,7 @@ class CompraController extends Controller
             'compras' => $paginator,
             'stats' => $stats,
             'filterOptions' => $filterOptions,
-            'filters' => $request->only(['search', 'estado', 'proveedor_id', 'almacen_id', 'fecha_desde', 'fecha_hasta']),
+            'filters' => $request->only(['search', 'estado', 'origen', 'proveedor_id', 'almacen_id', 'fecha_desde', 'fecha_hasta']),
             'sorting' => [
                 'sort_by' => $sortBy,
                 'sort_direction' => $sortDirection,
@@ -215,6 +231,7 @@ class CompraController extends Controller
                 'from' => $paginator->firstItem(),
                 'to' => $paginator->lastItem(),
             ],
+            'is_admin' => auth()->check() && auth()->user()->hasRole('admin'),
         ]);
     }
 
@@ -222,12 +239,12 @@ class CompraController extends Controller
     {
         $proveedores = Proveedor::all();
 
-        // Obtener productos con información de stock por almacén
+        // Obtener productos con informaci�n de stock por almac�n
         $productosBase = Producto::where('estado', 'activo')->get();
         $almacenes = Almacen::where('estado', 'activo')->get();
 
         $productos = $productosBase->map(function ($producto) use ($almacenes) {
-            // Obtener stock disponible en cada almacén
+            // Obtener stock disponible en cada almac�n
             $stockPorAlmacen = [];
             foreach ($almacenes as $almacen) {
                 $inventario = \App\Models\Inventario::where('producto_id', $producto->id)
@@ -265,16 +282,16 @@ class CompraController extends Controller
             ];
         });
 
-        // Obtener almacén principal para establecer como predeterminado
+        // Obtener almac�n principal para establecer como predeterminado
         $almacenPrincipal = Almacen::where('estado', 'activo')
             ->where(function ($query) {
-                $query->where('nombre', 'Almacén Principal')
+                $query->where('nombre', 'Almac�n Principal')
                       ->orWhere('nombre', 'LIKE', '%Principal%');
             })
             ->orderBy('id', 'asc')
             ->first();
 
-        // Si no encuentra almacén principal, usar el primero activo
+        // Si no encuentra almac�n principal, usar el primero activo
         if (!$almacenPrincipal) {
             $almacenPrincipal = Almacen::where('estado', 'activo')
                 ->orderBy('id', 'asc')
@@ -286,7 +303,7 @@ class CompraController extends Controller
             'productos' => $productos,
             'almacenes' => $almacenes,
             'almacen_predeterminado' => $almacenPrincipal ? $almacenPrincipal->id : null,
-            'recordatorio_almacen' => $almacenPrincipal ? "Almacén Principal - {$almacenPrincipal->ubicacion}" : null
+            'recordatorio_almacen' => $almacenPrincipal ? "Almac�n Principal - {$almacenPrincipal->ubicacion}" : null
         ]);
     }
 
@@ -303,7 +320,7 @@ class CompraController extends Controller
             'productos.*.descuento' => 'nullable|numeric|min:0|max:100',
         ];
 
-        // Agregar validación de lotes para productos que vencen y series por unidad
+        // Agregar validaci�n de lotes para productos que vencen y series por unidad
         foreach ($request->productos ?? [] as $index => $producto) {
             $productoModel = Producto::find($producto['id']);
             if ($productoModel && $productoModel->expires) {
@@ -324,7 +341,7 @@ class CompraController extends Controller
     {
         $validatedData = $this->validateCompraRequest($request);
 
-        // Asignar almacén principal si no se especificó
+        // Asignar almac�n principal si no se especific�
         if (!isset($validatedData['almacen_id']) || $validatedData['almacen_id'] === null) {
             $almacen = Almacen::where('estado', 'activo')->orderBy('id')->first();
             if ($almacen) {
@@ -361,7 +378,7 @@ class CompraController extends Controller
             // Total final
             $total = $subtotalDespuesDescuentoGeneral + $iva;
 
-            // Crear compra (automáticamente se marca como procesada en el modelo)
+            // Crear compra (autom�ticamente se marca como procesada en el modelo)
             $compra = Compra::create([
                 'proveedor_id' => $validatedData['proveedor_id'],
                 'almacen_id' => $validatedData['almacen_id'],
@@ -372,15 +389,15 @@ class CompraController extends Controller
                 'total' => $total,
             ]);
 
-            // Crear cuenta por pagar automáticamente
+            // Crear cuenta por pagar autom�ticamente
             CuentasPorPagar::create([
                 'compra_id' => $compra->id,
                 'monto_total' => $total,
                 'monto_pagado' => 0,
                 'monto_pendiente' => $total,
-                'fecha_vencimiento' => now()->addDays(30), // 30 días por defecto
+                'fecha_vencimiento' => now()->addDays(30), // 30 d�as por defecto
                 'estado' => 'pendiente',
-                'notas' => 'Cuenta generada automáticamente por compra',
+                'notas' => 'Cuenta generada autom�ticamente por compra',
             ]);
 
             // Procesar productos y aumentar inventario
@@ -406,7 +423,7 @@ class CompraController extends Controller
                         'precio_venta_anterior' => null,
                         'precio_venta_nuevo' => $producto->precio_venta,
                         'tipo_cambio' => 'compra',
-                        'notas' => "Actualización por compra #{$compra->id}",
+                        'notas' => "Actualizaci�n por compra #{$compra->id}",
                         'user_id' => Auth::id(),
                     ]);
                 }
@@ -415,7 +432,7 @@ class CompraController extends Controller
                 $contexto = [
                     'motivo' => 'Compra procesada',
                     'almacen_id' => $validatedData['almacen_id'],
-                    'user_id' => Auth::id(), // ← Usuario que realiza la compra
+                    'user_id' => Auth::id(), // ? Usuario que realiza la compra
                     'referencia_type' => 'App\Models\Compra',
                     'referencia_id' => $compra->id,
                     'detalles' => [
@@ -426,14 +443,14 @@ class CompraController extends Controller
                     ],
                 ];
 
-                // Agregar información de lote si el producto vence
+                // Agregar informaci�n de lote si el producto vence
                 if ($producto->expires) {
                     $contexto['numero_lote'] = $productoData['numero_lote'];
                     $contexto['fecha_caducidad'] = $productoData['fecha_caducidad'] ?? null;
                     $contexto['costo_unitario'] = $productoData['costo_unitario'] ?? $precio;
                 }
 
-                // Aumentar stock automáticamente al crear la compra
+                // Aumentar stock autom�ticamente al crear la compra
                 $this->inventarioService->entrada($producto, $cantidad, $contexto);
 
                 CompraItem::create([
@@ -469,9 +486,10 @@ class CompraController extends Controller
     {
         $compra = Compra::with('proveedor', 'almacen', 'cuentasPorPagar')->findOrFail($id);
 
-        // Obtener los items de la compra con información del stock
+        // Obtener los items de la compra con informaci�n del stock
         $compraItems = CompraItem::where('compra_id', $id)->with('comprable')->get();
 
+        // Mapeo est�ndar desde compra_items
         $productos = $compraItems->map(function ($item) use ($compra) {
             $producto = $item->comprable;
             $stockActual = $producto ? $producto->stock : 0;
@@ -480,10 +498,10 @@ class CompraController extends Controller
             // Calcular stock antes de la compra
             $stockAntes = 0;
             if ($compra->estado === EstadoCompra::Cancelada) {
-                // Si está cancelada, el stock actual es menor que la cantidad comprada
+                // Si est� cancelada, el stock actual es menor que la cantidad comprada
                 $stockAntes = $stockActual + $cantidadComprada;
             } else {
-                // Si está procesada, el stock actual incluye la cantidad comprada
+                // Si est� procesada, el stock actual incluye la cantidad comprada
                 $stockAntes = $stockActual - $cantidadComprada;
             }
 
@@ -502,16 +520,53 @@ class CompraController extends Controller
             ];
         });
 
+        // Asegurar que se env�e como arreglo JSON nativo (no Collection)
+        $productos = $productos->values()->toArray();
+
+        // Fallback: si por alguna raz�n no existen registros en compra_items,
+        // intenta reconstruir los productos desde la relaci�n morfol�gica `productos`
+        if (empty($productos)) {
+            $compra->loadMissing('productos');
+            $productos = $compra->productos->map(function ($p) use ($compra) {
+                $stockActual = $p->stock ?? 0;
+                $cantidadComprada = (int) ($p->pivot->cantidad ?? 0);
+                $stockAntes = $compra->estado === EstadoCompra::Cancelada
+                    ? $stockActual + $cantidadComprada
+                    : $stockActual - $cantidadComprada;
+
+                return [
+                    'id' => $p->id,
+                    'nombre' => $p->nombre ?? 'Producto',
+                    'descripcion' => $p->descripcion ?? '',
+                    'cantidad' => (int) ($p->pivot->cantidad ?? 0),
+                    'precio' => (float) ($p->pivot->precio ?? 0),
+                    'descuento' => (float) ($p->pivot->descuento ?? 0),
+                    'subtotal' => (float) ($p->pivot->subtotal ?? (($p->pivot->cantidad ?? 0) * ($p->pivot->precio ?? 0))),
+                    'descuento_monto' => (float) ($p->pivot->descuento_monto ?? 0),
+                    'stock_antes' => max(0, (int) $stockAntes),
+                    'stock_despues' => (int) $stockActual,
+                    'diferencia_stock' => (int) ($stockActual - $stockAntes),
+                ];
+            })->values()->toArray();
+        }
+
         $compra->productos = $productos;
 
-        // Asegurar que los valores numéricos sean float
+        // Asegurar que los valores num�ricos sean float
         $compra->subtotal = (float) $compra->subtotal;
         $compra->descuento_items = (float) $compra->descuento_items;
         $compra->descuento_general = (float) $compra->descuento_general;
         $compra->iva = (float) $compra->iva;
         $compra->total = (float) $compra->total;
 
-        return Inertia::render('Compras/Show', ['compra' => $compra]);
+        // Permisos: solo mostrar eliminar si es admin y la compra est� cancelada
+        $isAdmin = auth()->check() && auth()->user()->hasRole('admin');
+        $canDelete = $isAdmin && ($compra->estado === EstadoCompra::Cancelada);
+
+        return Inertia::render('Compras/Show', [
+            'compra' => $compra,
+            'canDelete' => $canDelete,
+        ]);
     }
 
     public function edit($id)
@@ -533,12 +588,12 @@ class CompraController extends Controller
 
         $proveedores = Proveedor::all();
 
-        // Obtener productos con información de stock por almacén (igual que en create)
+        // Obtener productos con informaci�n de stock por almac�n (igual que en create)
         $productosBase = Producto::where('estado', 'activo')->get();
         $almacenes = Almacen::where('estado', 'activo')->get();
 
         $productos = $productosBase->map(function ($producto) use ($almacenes) {
-            // Obtener stock disponible en cada almacén
+            // Obtener stock disponible en cada almac�n
             $stockPorAlmacen = [];
             foreach ($almacenes as $almacen) {
                 $inventario = \App\Models\Inventario::where('producto_id', $producto->id)
@@ -576,23 +631,23 @@ class CompraController extends Controller
             ];
         });
 
-        // Obtener almacén principal para establecer como predeterminado
+        // Obtener almac�n principal para establecer como predeterminado
         $almacenPrincipal = Almacen::where('estado', 'activo')
             ->where(function ($query) {
-                $query->where('nombre', 'Almacén Principal')
+                $query->where('nombre', 'Almac�n Principal')
                       ->orWhere('nombre', 'LIKE', '%Principal%');
             })
             ->orderBy('id', 'asc')
             ->first();
 
-        // Si no encuentra almacén principal, usar el primero activo
+        // Si no encuentra almac�n principal, usar el primero activo
         if (!$almacenPrincipal) {
             $almacenPrincipal = Almacen::where('estado', 'activo')
                 ->orderBy('id', 'asc')
                 ->first();
         }
 
-        // Crear el array de compra con toda la información necesaria
+        // Crear el array de compra con toda la informaci�n necesaria
         $compraData = array_merge($compra->toArray(), [
             'almacen_id' => $compra->almacen_id,
             'almacen' => $compra->almacen ? [
@@ -608,9 +663,9 @@ class CompraController extends Controller
             'productos' => $productos,
             'almacenes' => $almacenes,
             'almacen_predeterminado' => $compra->almacen_id ?? ($almacenPrincipal ? $almacenPrincipal->id : null),
-            'recordatorio_almacen' => $compra->almacen ? "Almacén Actual: {$compra->almacen->nombre}" .
+            'recordatorio_almacen' => $compra->almacen ? "Almac�n Actual: {$compra->almacen->nombre}" .
                 (isset($compra->almacen->ubicacion) ? " - {$compra->almacen->ubicacion}" : "") :
-                ($almacenPrincipal ? "Almacén Principal - {$almacenPrincipal->ubicacion}" : null)
+                ($almacenPrincipal ? "Almac�n Principal - {$almacenPrincipal->ubicacion}" : null)
         ]);
     }
 
@@ -637,9 +692,9 @@ class CompraController extends Controller
                 }
 
                 $this->inventarioService->salida($producto, $item->cantidad, [
-                    'motivo' => 'Edición de compra: reversa de stock previo',
+                    'motivo' => 'Edici�n de compra: reversa de stock previo',
                     'almacen_id' => $compra->almacen_id,
-                    'user_id' => Auth::id(), // ← Usuario que edita la compra
+                    'user_id' => Auth::id(), // ? Usuario que edita la compra
                     'referencia_type' => 'App\Models\Compra',
                     'referencia_id' => $compra->id,
                     'detalles' => [
@@ -713,15 +768,15 @@ class CompraController extends Controller
                         'precio_venta_anterior' => null,
                         'precio_venta_nuevo' => $producto->precio_venta,
                         'tipo_cambio' => 'compra',
-                        'notas' => "Actualización por edición de compra #{$compra->id}",
+                        'notas' => "Actualizaci�n por edici�n de compra #{$compra->id}",
                         'user_id' => Auth::id(),
                     ]);
                 }
 
                 $this->inventarioService->entrada($producto, $cantidad, [
-                    'motivo' => 'Edición de compra: stock actualizado',
+                    'motivo' => 'Edici�n de compra: stock actualizado',
                     'almacen_id' => $validatedData['almacen_id'],
-                    'user_id' => Auth::id(), // ← Usuario que edita la compra
+                    'user_id' => Auth::id(), // ? Usuario que edita la compra
                     'referencia_type' => 'App\Models\Compra',
                     'referencia_id' => $compra->id,
                     'detalles' => [
@@ -755,7 +810,7 @@ class CompraController extends Controller
     {
         $compra = Compra::findOrFail($id);
 
-        // Solo se puede cancelar si está procesada
+        // Solo se puede cancelar si est� procesada
         if ($compra->estado !== EstadoCompra::Procesada) {
             return Redirect::back()->with('error', 'Solo se pueden cancelar compras procesadas');
         }
@@ -783,7 +838,7 @@ class CompraController extends Controller
                 }
             }
 
-            // Si hay productos vendidos, no permitir la cancelación
+            // Si hay productos vendidos, no permitir la cancelaci�n
             if (!empty($productosVendidos)) {
                 throw new \Exception(
                     'No se puede cancelar la compra porque los siguientes productos ya han sido vendidos: ' .
@@ -796,9 +851,9 @@ class CompraController extends Controller
                 $producto = Producto::find($item->comprable_id);
                 if ($producto) {
                     $this->inventarioService->salida($producto, $item->cantidad, [
-                        'motivo' => 'Cancelación de compra',
+                        'motivo' => 'Cancelaci�n de compra',
                         'almacen_id' => $compra->almacen_id,
-                        'user_id' => Auth::id(), // ← Usuario que cancela la compra
+                        'user_id' => Auth::id(), // ? Usuario que cancela la compra
                         'referencia_type' => 'App\Models\Compra',
                         'referencia_id' => $compra->id,
                         'detalles' => [
@@ -839,12 +894,42 @@ class CompraController extends Controller
     {
         $compra = Compra::findOrFail($id);
 
-        // Si ya está cancelada, no hacer nada
+        // Si esta cancelada, permitir eliminar solo a administradores (soft delete)
         if ($compra->estado === EstadoCompra::Cancelada) {
-            return redirect()->route('compras.index')->with('error', 'La compra ya está cancelada.');
+            if (!auth()->check() || !auth()->user()->hasRole('admin')) {
+                return redirect()->back()->with('error', 'Solo un usuario administrador puede eliminar compras canceladas.');
+            }
+
+            $compra->delete();
+            return redirect()->route('compras.index')->with('success', 'Compra eliminada correctamente.');
         }
 
-        // Usar el método cancel para mantener consistencia
+        // Si no esta cancelada, usar cancelacion para mantener consistencia
         return $this->cancel($id);
+    }
+
+    /**
+     * Eliminación definitiva (hard delete) solo para administradores y compras canceladas.
+     */
+    public function forceDestroy($id)
+    {
+        $compra = Compra::withTrashed()->findOrFail($id);
+
+        if (!auth()->check() || !auth()->user()->hasRole('admin')) {
+            return redirect()->back()->with('error', 'Solo un usuario administrador puede eliminar definitivamente compras.');
+        }
+
+        // Por integridad, solo permitir hard delete si está cancelada
+        if ($compra->estado !== EstadoCompra::Cancelada) {
+            return redirect()->back()->with('error', 'Solo se pueden eliminar definitivamente compras canceladas.');
+        }
+
+        if (is_null($compra->deleted_at)) {
+            $compra->delete();
+        }
+
+        $compra->forceDelete();
+
+        return redirect()->route('compras.index')->with('success', 'Compra eliminada definitivamente de la base de datos.');
     }
 }

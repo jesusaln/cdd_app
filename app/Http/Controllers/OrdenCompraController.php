@@ -805,6 +805,12 @@ class OrdenCompraController extends Controller
                 }
             }
 
+            // Evitar crear compras vacías
+            if (empty($productosParaCompra)) {
+                DB::rollBack();
+                return redirect()->back()->with('error', 'La orden no tiene ítems válidos para generar la compra (cantidad/precio inválidos).');
+            }
+
             // Calcular totales basados en los productos de la orden de compra
             $subtotal = 0;
             $descuentoItems = 0;
@@ -1266,6 +1272,12 @@ class OrdenCompraController extends Controller
                 } else {
                     Log::warning('Producto no encontrado para incrementar stock en orden de compra ID: ' . $ordenCompra->id . ', Producto ID: ' . $producto->id);
                 }
+            }
+
+            // Evitar crear compras vacías
+            if (empty($productosParaCompra)) {
+                DB::rollBack();
+                return redirect()->back()->with('error', 'La orden no tiene ítems válidos para generar la compra (cantidad/precio inválidos).');
             }
 
             // Calcular totales basados en los productos de la orden de compra
