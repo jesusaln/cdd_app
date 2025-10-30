@@ -647,7 +647,7 @@ const validateForm = () => {
 
     // Solo advertir para citas pendientes con fechas pasadas
     if (selectedDate < now && form.estado === 'pendiente') {
-      notyf.warning('⚠️ La fecha seleccionada es anterior a la fecha actual');
+      notyf.open({ type: 'warning', message: '⚠️ La fecha seleccionada es anterior a la fecha actual' });
     }
   }
 

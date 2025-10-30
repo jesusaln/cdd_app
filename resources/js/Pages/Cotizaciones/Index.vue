@@ -533,7 +533,7 @@ const enviarAPedido = async (cotizacionData, { redirectTo = 'index' } = {}) => {
 
 
 const enviarAVenta = () => {
-  notyf.warning('Esta acción no está disponible desde Cotizaciones.')
+  notyf.open({ type: 'warning', message: 'Esta acción no está disponible desde Cotizaciones.' })
 }
 
 // Función para enviar cotización por email

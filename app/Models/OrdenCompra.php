@@ -83,6 +83,13 @@ class OrdenCompra extends Model
                 $orden->numero_orden = self::getProximoNumero();
             }
         });
+
+        static::created(function (OrdenCompra $orden) {
+            // Si no se asignó numero_orden en el creating, intentar asignarlo aquí
+            if (empty($orden->numero_orden)) {
+                $orden->update(['numero_orden' => self::getProximoNumero()]);
+            }
+        });
     }
 
     public static function getProximoNumero()

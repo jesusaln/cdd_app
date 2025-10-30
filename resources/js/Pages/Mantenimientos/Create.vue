@@ -862,7 +862,7 @@ const handleServiceChange = () => {
 // Calcular próximo mantenimiento
 const calcularProximoMantenimiento = (meses) => {
     if (!form.fecha) {
-        notyf.warning('Primero selecciona la fecha del servicio');
+        notyf.open({ type: 'warning', message: 'Primero selecciona la fecha del servicio' });
         return;
     }
 

@@ -335,6 +335,7 @@ class OrdenCompraController extends Controller
 
             // Crea la nueva orden de compra en la tabla 'orden_compras'
             $ordenCompra = OrdenCompra::create([
+                'numero_orden' => $validatedData['numero_orden'] ?: null,
                 'fecha_orden' => $validatedData['fecha_orden'],
                 'fecha_entrega_esperada' => $validatedData['fecha_entrega_esperada'],
                 'prioridad' => $validatedData['prioridad'],
@@ -869,6 +870,17 @@ class OrdenCompraController extends Controller
                 'estado' => EstadoCompra::Procesada,
             ]);
 
+            // Vincular series creadas a la compra (si hubo series)
+            if (!empty($seriesCreadas ?? [])) {
+                foreach ($seriesCreadas as $pid => $arrSeries) {
+                    if (!empty($arrSeries)) {
+                        \App\Models\ProductoSerie::where('producto_id', $pid)
+                            ->whereIn('numero_serie', $arrSeries)
+                            ->update(['compra_id' => $compra->id]);
+                    }
+                }
+            }
+
             // Crear cuenta por pagar automáticamente (igual que en CompraController)
             CuentasPorPagar::create([
                 'compra_id' => $compra->id,
@@ -1193,6 +1205,63 @@ class OrdenCompraController extends Controller
      */
     public function convertirDirecto(Request $request, $id)
     {
+        // Si se envían series, procesar la conversión con series
+        if ($request->has('series')) {
+            return $this->convertirDirectoConSeries($request, $id);
+        }
+
+        // Verificación inicial sin series
+        $ordenCompra = OrdenCompra::with([
+            'proveedor',
+            'productos' => function ($q) {
+                $q->withPivot(['cantidad', 'precio', 'descuento']);
+            }
+        ])->findOrFail($id);
+
+        // Solo se puede convertir directamente si está pendiente
+        if ($ordenCompra->estado !== 'pendiente') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Solo se pueden convertir directamente órdenes en estado pendiente.'
+            ], 400);
+        }
+
+        // Verificar si hay productos que requieren serie
+        $productosConSerie = [];
+        foreach ($ordenCompra->productos as $producto) {
+            if ($producto->requiere_serie) {
+                $productosConSerie[] = [
+                    'id' => $producto->id,
+                    'nombre' => $producto->nombre,
+                    'cantidad' => $producto->pivot->cantidad,
+                    'requiere_serie' => true,
+                ];
+            }
+        }
+
+        // Si hay productos que requieren serie, devolver datos para mostrar modal
+        if (!empty($productosConSerie)) {
+            return response()->json([
+                'success' => false,
+                'requiere_series' => true,
+                'productos_con_serie' => $productosConSerie,
+                'message' => 'Esta orden contiene productos que requieren series. Por favor, ingrese las series antes de convertir.',
+            ]);
+        }
+
+        // Si no hay productos con serie, proceder normalmente
+        return $this->convertirDirectoConSeries($request, $id);
+    }
+
+    /**
+     * Convierte una orden de compra directamente a compra con manejo de series
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    private function convertirDirectoConSeries(Request $request, $id)
+    {
         DB::beginTransaction();
         try {
             $ordenCompra = OrdenCompra::with([
@@ -1207,7 +1276,10 @@ class OrdenCompraController extends Controller
                 return redirect()->back()->with('error', 'Solo se pueden convertir directamente órdenes en estado pendiente.');
             }
 
+            // Validar series si se enviaron
+            $seriesData = $request->get('series', []);
             $productosParaCompra = [];
+            $seriesCreadas = [];
 
             foreach ($ordenCompra->productos as $producto) {
                 // Validar que los datos esenciales del pivot estén presentes
@@ -1233,6 +1305,51 @@ class OrdenCompraController extends Controller
                     $precioUnitario = (float) $producto->pivot->precio;
                     // Obtener unidad de medida del pivot o del modelo producto
                     $unidadMedida = $producto->pivot->unidad_medida ?? $prodModel->unidad_medida ?? '';
+
+                    // Si el producto requiere serie, validar que se hayan enviado las series
+                    if ($prodModel->requiere_serie) {
+                        if (!isset($seriesData[$producto->id]) || !is_array($seriesData[$producto->id]) || count($seriesData[$producto->id]) != $cantidadRecibida) {
+                            DB::rollBack();
+                            return response()->json([
+                                'success' => false,
+                                'message' => "El producto '{$prodModel->nombre}' requiere {$cantidadRecibida} series, pero se enviaron " . (isset($seriesData[$producto->id]) ? count($seriesData[$producto->id]) : 0) . "."
+                            ], 400);
+                        }
+
+                        // Crear las series en la base de datos
+                        foreach ($seriesData[$producto->id] as $serie) {
+                            if (empty(trim($serie))) {
+                                DB::rollBack();
+                                return response()->json([
+                                    'success' => false,
+                                    'message' => "Una de las series para el producto '{$prodModel->nombre}' está vacía."
+                                ], 400);
+                            }
+
+                            // Verificar que la serie no exista ya
+                            $serieExistente = \App\Models\ProductoSerie::where('numero_serie', trim((string) $serie))
+                                ->where('producto_id', $producto->id)
+                                ->first();
+
+                            if ($serieExistente) {
+                                DB::rollBack();
+                                return response()->json([
+                                    'success' => false,
+                                    'message' => "La serie '{$serie}' ya existe para el producto '{$prodModel->nombre}'."
+                                ], 400);
+                            }
+
+                            \App\Models\ProductoSerie::create([
+                                'producto_id' => $producto->id,
+                                'almacen_id' => $ordenCompra->almacen_id,
+                                'numero_serie' => trim((string) $serie),
+                                'estado' => 'en_stock',
+                                'fecha_ingreso' => now(),
+                                'notas' => "Ingresado por conversión directa de orden de compra #{$ordenCompra->id}",
+                            ]);
+                            $seriesCreadas[$producto->id][] = trim((string) $serie);
+                        }
+                    }
 
                     // Update product price if different
                     if ($prodModel->precio_compra != $precioUnitario) {
@@ -1394,10 +1511,19 @@ class OrdenCompraController extends Controller
                 'fecha_recepcion' => now(),
                 'observaciones' => ($ordenCompra->observaciones ? $ordenCompra->observaciones . "\n\n" : '') .
                     '*** CONVERSIÓN DIRECTA A COMPRA #' . $compra->id . ' *** ' . now()->format('d/m/Y H:i') .
-                    ' - Stock actualizado automáticamente (sin envío a proveedor)'
+                    ' - Stock actualizado automáticamente (sin envío a proveedor)' .
+                    (!empty($seriesData) ? ' - Series registradas' : '')
             ]);
 
             DB::commit();
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Orden convertida directamente a compra exitosamente. Compra #' . $compra->id . ' creada y stock actualizado.',
+                    'compra_id' => $compra->id
+                ]);
+            }
 
             if ($request->expectsJson()) {
                 return response()->json([

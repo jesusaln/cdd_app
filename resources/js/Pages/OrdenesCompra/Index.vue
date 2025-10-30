@@ -52,6 +52,84 @@ const modalMode = ref('details')
 const selectedId = ref(null)
 const loading = ref(false)
 
+// Captura de series para conversión directa
+const showSeriesModal = ref(false)
+const seriesProductos = ref([]) // [{ id, nombre, cantidad }]
+const seriesInputs = ref({}) // { [productoId]: ["", "", ...] }
+const seriesOrder = ref(null) // Orden en proceso de conversión
+
+const openSeriesModal = (productos, orden) => {
+  seriesProductos.value = Array.isArray(productos) ? productos : []
+  seriesOrder.value = orden
+  const inputs = {}
+  for (const p of seriesProductos.value) {
+    const cantidad = Number(p.cantidad) || 0
+    inputs[p.id] = Array.from({ length: cantidad }, () => '')
+  }
+  seriesInputs.value = inputs
+  showSeriesModal.value = true
+}
+
+const closeSeriesModal = () => {
+  showSeriesModal.value = false
+  seriesProductos.value = []
+  seriesInputs.value = {}
+  seriesOrder.value = null
+}
+
+const submitSeriesConversion = async () => {
+  if (!seriesOrder.value) {
+    closeSeriesModal()
+    return
+  }
+
+  // Validación básica de entradas
+  const payload = {}
+  for (const p of seriesProductos.value) {
+    const arr = (seriesInputs.value[p.id] || []).map(s => String(s || '').trim()).filter(Boolean)
+    if (arr.length !== (Number(p.cantidad) || 0)) {
+      notyf.error(`Debes capturar ${p.cantidad} series para "${p.nombre}"`)
+      return
+    }
+    payload[p.id] = arr
+  }
+
+  try {
+    loading.value = true
+    const { data } = await axios.post(
+      `/ordenescompra/${seriesOrder.value.id}/convertir-directo`,
+      { series: payload },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json'
+        }
+      }
+    )
+
+    if (!data?.success) {
+      notyf.error(data?.error || data?.message || 'No se pudo convertir la orden')
+      return
+    }
+
+    // Actualiza estado local
+    const i = ordenesOriginales.value.findIndex(o => o.id === seriesOrder.value.id)
+    if (i !== -1) ordenesOriginales.value[i] = { ...ordenesOriginales.value[i], estado: 'procesada' }
+
+    closeSeriesModal()
+    showModal.value = false
+    notyf.success(data.message || 'Orden convertida a compra exitosamente')
+
+    setTimeout(() => { router.visit('/compras') }, 1200)
+  } catch (err) {
+    console.error(err)
+    notyf.error(err?.response?.data?.error || err?.response?.data?.message || err?.message || 'Error al convertir orden')
+  } finally {
+    loading.value = false
+  }
+}
+
 // Variables para UniversalHeader
 const searchInput = ref(null)
 const isSearchFocused = ref(false)
@@ -517,9 +595,31 @@ const convertirDirecto = async (ordenData) => {
     // Pequeña pausa para mostrar el mensaje antes de proceder
     await new Promise(resolve => setTimeout(resolve, 1000))
 
-    const { data } = await axios.post(`/ordenescompra/${doc.id}/convertir-directo`)
+    const { data } = await axios.post(
+      `/ordenescompra/${doc.id}/convertir-directo`,
+      {},
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json'
+        }
+      }
+    )
 
-    if (!data?.success) throw new Error(data?.error || 'No se pudo convertir la orden')
+    // Manejo explícito cuando el backend indica que se requieren series
+    if (data?.requiere_series) {
+      notyf.open({ type: 'warning', message: data?.message || 'Esta orden requiere captura de series antes de convertir.' })
+      openSeriesModal(data?.productos_con_serie || [], doc)
+      loading.value = false
+      return
+    }
+
+    if (!data?.success) {
+      notyf.error(data?.error || data?.message || 'No se pudo convertir la orden')
+      loading.value = false
+      return
+    }
 
     // Actualiza estado local
     const i = ordenesOriginales.value.findIndex(o => o.id === doc.id)
@@ -1799,6 +1899,59 @@ const validarEstado = (estado) => {
               </svg>
             </div>
             <p class="text-sm text-gray-500">Sin productos registrados</p>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Modal de Captura de Series -->
+    <Teleport to="body">
+      <div v-if="showSeriesModal" class="fixed inset-0 z-[100] flex items-center justify-center">
+        <div class="absolute inset-0 bg-black/50" @click="closeSeriesModal" />
+        <div class="relative bg-white w-full max-w-3xl mx-4 rounded-xl shadow-xl p-6 modal-enter-active">
+          <div class="flex items-start justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-900">Captura de series</h3>
+            <button @click="closeSeriesModal" class="text-gray-400 hover:text-gray-600">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <p class="text-sm text-gray-600 mb-4">
+            Algunos productos requieren registrar números de serie antes de convertir la orden. Ingresa exactamente la cantidad requerida.
+          </p>
+
+          <div class="space-y-6 max-h-[60vh] overflow-y-auto pr-1 custom-scrollbar">
+            <div v-for="p in seriesProductos" :key="p.id" class="border border-gray-200 rounded-lg p-4">
+              <div class="flex items-center justify-between mb-3">
+                <div>
+                  <p class="font-medium text-gray-900">{{ p.nombre }}</p>
+                  <p class="text-xs text-gray-500">Series requeridas: {{ p.cantidad }}</p>
+                </div>
+                <button
+                  class="text-xs text-blue-600 hover:underline"
+                  @click="seriesInputs[p.id] = Array.from({ length: Number(p.cantidad) || 0 }, () => '')"
+                >
+                  Limpiar
+                </button>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <input
+                  v-for="(val, idx) in (seriesInputs[p.id] || [])"
+                  :key="idx"
+                  v-model="seriesInputs[p.id][idx]"
+                  type="text"
+                  class="w-full border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  :placeholder="`Serie #${idx + 1}`"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-6 flex items-center justify-end space-x-3">
+            <button @click="closeSeriesModal" class="px-4 py-2 text-sm rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50">Cancelar</button>
+            <button @click="submitSeriesConversion" class="px-4 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700">Convertir con series</button>
           </div>
         </div>
       </div>

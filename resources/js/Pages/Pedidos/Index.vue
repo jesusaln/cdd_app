@@ -499,7 +499,7 @@ const enviarAVenta = async (pedidoData) => {
 };
 
 const enviarACotizacion = () => {
-  notyf.warning('Esta acción no está disponible desde Pedidos.')
+  notyf.open({ type: 'warning', message: 'Esta acción no está disponible desde Pedidos.' })
 }
 
 // Función para enviar pedido por email
