@@ -74,6 +74,12 @@
 
       <!-- Botones de acción -->
       <div v-if="venta" class="mt-6 flex flex-wrap gap-2">
+        <Link :href="route('ventas.pdf', venta.id)" target="_blank" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600">
+          📄 PDF
+        </Link>
+        <Link :href="route('ventas.ticket', venta.id)" target="_blank" class="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600">
+          🖨️ Ticket
+        </Link>
         <Link :href="route('ventas.edit', venta.id)" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
           Editar
         </Link>

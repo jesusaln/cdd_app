@@ -45,6 +45,9 @@ class HandleInertiaRequests extends Middleware
 
         // Agregar información del usuario si está autenticado
         if ($user) {
+            // Asegurar que los roles estén cargados para que estén disponibles en Inertia
+            $user->loadMissing('roles');
+
             $shared['auth'] = [
                 'user' => array_merge($user->toArray(), [
                     'is_admin' => $user->hasRole('admin'),

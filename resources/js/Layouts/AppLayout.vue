@@ -339,8 +339,10 @@ onMounted(() => {
   // Check mobile state and set initial sidebar state
   checkMobile();
   window.addEventListener('resize', checkMobile);
-  // Cargar configuración de empresa
-  cargarConfiguracionEmpresa();
+  // Cargar configuración de empresa solo para administradores
+  if (usuario.value?.is_admin) {
+    cargarConfiguracionEmpresa();
+  }
 });
 
 onBeforeUnmount(() => {
@@ -386,4 +388,3 @@ onBeforeUnmount(() => {
     }
 }
 </style>
-

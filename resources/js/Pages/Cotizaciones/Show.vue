@@ -172,6 +172,22 @@ const mostrarVistaPrevia = ref(false);
                             Eliminar
                         </Link>
 
+                        <Link
+                            :href="route('cotizaciones.pdf', cotizacion.id)"
+                            target="_blank"
+                            class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                        >
+                            📄 PDF
+                        </Link>
+
+                        <Link
+                            :href="route('cotizaciones.ticket', cotizacion.id)"
+                            target="_blank"
+                            class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                        >
+                            🖨️ Ticket
+                        </Link>
+
                         <button
                             @click="mostrarVistaPrevia = true"
                             class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"

@@ -1339,4 +1339,48 @@ class CotizacionController extends Controller
             return redirect()->back()->with('error', 'Error al generar el PDF de la cotización');
         }
     }
+
+    /**
+     * Generar ticket térmico de cotización (80mm)
+     */
+    public function generarTicket($id)
+    {
+        try {
+            // Obtener la cotización con todas las relaciones necesarias
+            $cotizacion = Cotizacion::with(['cliente', 'items.cotizable'])->findOrFail($id);
+
+            // Obtener configuración de empresa
+            $configuracion = \App\Models\EmpresaConfiguracion::getConfig();
+
+            // Generar PDF usando la plantilla de ticket térmico
+            $pdf = Pdf::loadView('cotizacion_ticket', [
+                'cotizacion' => $cotizacion,
+                'configuracion' => $configuracion,
+            ]);
+
+            // Configurar opciones del PDF para ticket térmico (80mm)
+            $pdf->setPaper([0, 0, 226.77, 1000], 'portrait'); // 80mm = 226.77 puntos
+            $pdf->setOptions([
+                'defaultFont' => 'monospace',
+                'isHtml5ParserEnabled' => true,
+                'isPhpEnabled' => true,
+                'margin-top' => 5,
+                'margin-right' => 5,
+                'margin-bottom' => 5,
+                'margin-left' => 5,
+            ]);
+
+            // Retornar PDF para impresión térmica
+            return $pdf->download("ticket-cotizacion-{$cotizacion->numero_cotizacion}.pdf");
+        } catch (\Exception $e) {
+            Log::error("Error al generar ticket térmico de cotización", [
+                'cotizacion_id' => $id,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return redirect()->back()->with('error', 'Error al generar el ticket térmico de la cotización');
+        }
+    }
 }

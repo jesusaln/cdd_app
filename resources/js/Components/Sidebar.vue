@@ -47,8 +47,8 @@
     <!-- Navegación -->
     <nav class="flex-1 overflow-y-auto pt-4">
       <div class="px-2 pb-4">
-        <!-- Dashboard (solo para admin y user) -->
-        <div v-if="!isVentasRole" class="mb-4">
+        <!-- Dashboard visible para todos los roles -->
+        <div class="mb-4">
           <h3
             v-show="!props.isSidebarCollapsed"
             class="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2"
@@ -110,6 +110,32 @@
             <NavLink href="/ventas" icon="dollar-sign" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Ventas Realizadas' : null">
               Ventas Realizadas
             </NavLink>
+          </div>
+        </div>
+
+        <!-- Cobranza (solo admin) -->
+        <div v-if="isAdmin" class="mb-4">
+          <div
+            @click="toggleAccordion('cobranza')"
+            class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
+          >
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>Cobranza</span>
+            </div>
+            <svg
+              :class="accordionStates.cobranza ? 'rotate-90' : ''"
+              class="w-3 h-3 transition-transform duration-200"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+          <div v-show="accordionStates.cobranza" class="mt-2 space-y-1">
             <NavLink href="/cuentas-por-cobrar" icon="file-invoice-dollar" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Cuentas por Cobrar' : null">
               Cuentas por Cobrar
             </NavLink>
@@ -521,9 +547,22 @@ const props = defineProps({
   }
 });
 
-// Computed para determinar si el usuario tiene rol de ventas
+// Computed para determinar si el usuario tiene rol de ventas (y no es admin)
 const isVentasRole = computed(() => {
-  return props.usuario.roles && props.usuario.roles.some(role => role.name === 'ventas');
+  if (!props.usuario.roles) return false;
+  const hasAdmin = props.usuario.roles.some(role => role.name === 'admin');
+  const hasVentas = props.usuario.roles.some(role => role.name === 'ventas');
+  return hasVentas && !hasAdmin; // Solo ventas si tiene ventas pero no admin
+});
+
+// Computed para saber si es admin
+const isAdmin = computed(() => {
+  if (!props.usuario) return false;
+  if (props.usuario.is_admin) return true;
+  if (props.usuario.roles) {
+    return props.usuario.roles.some(role => role.name === 'admin');
+  }
+  return false;
 });
 
 // Emits
@@ -542,7 +581,8 @@ const accordionStates = ref({
   reportes: false,
   rentas: false,
   taller: false,
-  gestion_herramientas: false
+  gestion_herramientas: false,
+  cobranza: false
 });
 
 // FunciÃƒÆ’Ã‚Â³n para alternar acordeÃƒÆ’Ã‚Â³n
@@ -569,8 +609,10 @@ const getCurrentSection = () => {
     return 'prestamos';
   } else if (path.includes('/clientes') || path.includes('/citas')) {
     return 'ventas'; // Clientes y citas ahora están en Ventas
-  } else if (path.includes('/cotizaciones') || path.includes('/pedidos') || path.includes('/ventas') || path.includes('/cuentas-por-cobrar') || path.includes('/entregas-dinero')) {
+  } else if (path.includes('/cotizaciones') || path.includes('/pedidos') || path.includes('/ventas')) {
     return 'ventas';
+  } else if (path.includes('/cuentas-por-cobrar') || path.includes('/entregas-dinero')) {
+    return 'cobranza';
   } else if (path.includes('/compras') || path.includes('/ordenescompra') || path.includes('/proveedores') || path.includes('/cuentas-por-pagar')) {
     return 'compras';
   } else if (path.includes('/servicios') || path.includes('/categorias') || path.includes('/marcas') || path.includes('/almacenes')) {
@@ -675,10 +717,6 @@ aside::-webkit-scrollbar-thumb:hover { background: rgba(156, 163, 175, 0.7); }
   }
 }
 </style>
-
-
-
-
 
 
 

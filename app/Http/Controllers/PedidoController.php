@@ -1380,6 +1380,50 @@ class PedidoController extends Controller
             return redirect()->back()->with('error', 'Error al generar el PDF del pedido');
         }
     }
+
+    /**
+     * Generar ticket térmico de pedido (80mm)
+     */
+    public function generarTicket($id)
+    {
+        try {
+            // Obtener el pedido con todas las relaciones necesarias
+            $pedido = Pedido::with(['cliente', 'items.pedible'])->findOrFail($id);
+
+            // Obtener configuración de empresa
+            $configuracion = \App\Models\EmpresaConfiguracion::getConfig();
+
+            // Generar PDF usando la plantilla de ticket térmico
+            $pdf = Pdf::loadView('pedido_ticket', [
+                'pedido' => $pedido,
+                'configuracion' => $configuracion,
+            ]);
+
+            // Configurar opciones del PDF para ticket térmico (80mm)
+            $pdf->setPaper([0, 0, 226.77, 1000], 'portrait'); // 80mm = 226.77 puntos
+            $pdf->setOptions([
+                'defaultFont' => 'monospace',
+                'isHtml5ParserEnabled' => true,
+                'isPhpEnabled' => true,
+                'margin-top' => 5,
+                'margin-right' => 5,
+                'margin-bottom' => 5,
+                'margin-left' => 5,
+            ]);
+
+            // Retornar PDF para impresión térmica
+            return $pdf->download("ticket-pedido-{$pedido->numero_pedido}.pdf");
+        } catch (\Exception $e) {
+            Log::error("Error al generar ticket térmico de pedido", [
+                'pedido_id' => $id,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return redirect()->back()->with('error', 'Error al generar el ticket térmico del pedido');
+        }
+    }
 }
 
 

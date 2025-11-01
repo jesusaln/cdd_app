@@ -70,7 +70,7 @@ Route::pattern('herramienta', '[0-9]+');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/clientes/export', [ClienteController::class, 'export'])
-        ->name('clientes.export');
+        ->name('clientes.export')->middleware('role:ventas|admin');
     Route::get('/productos/export', [ProductoController::class, 'export'])
         ->name('productos.export');
     Route::get('/servicios/export', [ServicioController::class, 'export'])
@@ -152,7 +152,7 @@ Route::resource('inventario', InventarioController::class);
 Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified'])->group(function () {
 
     // Dashboard y Panel
-    Route::get('/panel', [PanelController::class, 'index'])->name('panel');
+    Route::get('/panel', [PanelController::class, 'index'])->name('panel')->middleware('role:admin|ventas');
     Route::get('/dashboard', function () {
         return redirect()->route('panel');
     })->name('dashboard');
@@ -160,21 +160,21 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // =====================================================
     // RECURSOS PRINCIPALES
     // =====================================================
-    Route::resource('ordenescompra', OrdenCompraController::class);
-    Route::post('ordenescompra/{id}/enviar-compra', [OrdenCompraController::class, 'enviarACompra'])->name('ordenescompra.enviar-compra');
-    Route::post('ordenescompra/{id}/recibir-mercancia', [OrdenCompraController::class, 'recibirMercancia'])->name('ordenescompra.recibir-mercancia');
-    Route::post('ordenescompra/{id}/convertir-directo', [OrdenCompraController::class, 'convertirDirecto'])->name('ordenescompra.convertir-directo');
-    Route::post('ordenescompra/{id}/duplicate', [OrdenCompraController::class, 'duplicate'])->name('ordenescompra.duplicate');
-    Route::post('ordenescompra/{id}/urgente', [OrdenCompraController::class, 'marcarUrgente'])->name('ordenescompra.urgente');
-    Route::post('ordenescompra/{id}/cancelar', [OrdenCompraController::class, 'cancelar'])->name('ordenescompra.cancelar');
-    Route::post('ordenescompra/{id}/cambiar-estado', [OrdenCompraController::class, 'cambiarEstado'])->name('ordenescompra.cambiar-estado');
-    Route::get('ordenescompra/{id}/estado', [OrdenCompraController::class, 'getEstado'])->name('ordenescompra.get-estado');
-    Route::post('ordenescompra/{id}/enviar-email', [OrdenCompraController::class, 'enviarEmail'])->name('ordenescompra.enviar-email');
-    Route::post('ordenescompra/{ordenId}/productos/{productoId}/editar-precio', [OrdenCompraController::class, 'editarPrecioProducto'])->name('ordenescompra.editar-precio-producto');
+    Route::resource('ordenescompra', OrdenCompraController::class)->middleware('role:admin|editor');
+    Route::post('ordenescompra/{id}/enviar-compra', [OrdenCompraController::class, 'enviarACompra'])->name('ordenescompra.enviar-compra')->middleware('role:admin|editor');
+    Route::post('ordenescompra/{id}/recibir-mercancia', [OrdenCompraController::class, 'recibirMercancia'])->name('ordenescompra.recibir-mercancia')->middleware('role:admin|editor');
+    Route::post('ordenescompra/{id}/convertir-directo', [OrdenCompraController::class, 'convertirDirecto'])->name('ordenescompra.convertir-directo')->middleware('role:admin|editor');
+    Route::post('ordenescompra/{id}/duplicate', [OrdenCompraController::class, 'duplicate'])->name('ordenescompra.duplicate')->middleware('role:admin|editor');
+    Route::post('ordenescompra/{id}/urgente', [OrdenCompraController::class, 'marcarUrgente'])->name('ordenescompra.urgente')->middleware('role:admin|editor');
+    Route::post('ordenescompra/{id}/cancelar', [OrdenCompraController::class, 'cancelar'])->name('ordenescompra.cancelar')->middleware('role:admin|editor');
+    Route::post('ordenescompra/{id}/cambiar-estado', [OrdenCompraController::class, 'cambiarEstado'])->name('ordenescompra.cambiar-estado')->middleware('role:admin|editor');
+    Route::get('ordenescompra/{id}/estado', [OrdenCompraController::class, 'getEstado'])->name('ordenescompra.get-estado')->middleware('role:admin|editor');
+    Route::post('ordenescompra/{id}/enviar-email', [OrdenCompraController::class, 'enviarEmail'])->name('ordenescompra.enviar-email')->middleware('role:admin|editor');
+    Route::post('ordenescompra/{ordenId}/productos/{productoId}/editar-precio', [OrdenCompraController::class, 'editarPrecioProducto'])->name('ordenescompra.editar-precio-producto')->middleware('role:admin|editor');
     Route::get('productos/{productoId}/historial-precios', [OrdenCompraController::class, 'obtenerHistorialPrecios'])->name('productos.historial-precios');
     Route::get('reportes/historial-precios/{productoId}', [OrdenCompraController::class, 'mostrarHistorialPrecios'])->name('reportes.historial-precios');
 
-    Route::resource('clientes', ClienteController::class)->names('clientes');
+    Route::resource('clientes', ClienteController::class)->names('clientes')->middleware('role:ventas|admin');
     Route::resource('prestamos', PrestamoController::class)->names('prestamos');
     Route::post('/prestamos/calcular-pagos', [PrestamoController::class, 'calcularPagos'])->name('prestamos.calcular-pagos');
     Route::patch('/prestamos/{prestamo}/cambiar-estado', [PrestamoController::class, 'cambiarEstado'])->name('prestamos.cambiar-estado');
@@ -184,7 +184,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
         ->name('prestamos.enviar-recordatorio-whatsapp');
     Route::get('/prestamos/{prestamo}/pagos', [PagoPrestamoController::class, 'pagosPorPrestamo'])->name('prestamos.pagos');
     Route::resource('pagos', PagoPrestamoController::class)->names('pagos');
-    Route::prefix('productos')->name('productos.')->group(function () {
+    Route::prefix('productos')->name('productos.')->middleware('role:admin|editor')->group(function () {
         Route::get('/', [ProductoController::class, 'index'])->name('index');
         Route::get('/create', [ProductoController::class, 'create'])->name('create');
         Route::post('/', [ProductoController::class, 'store'])->name('store');
@@ -203,130 +203,130 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
         Route::put('/{producto}/toggle', [ProductoController::class, 'toggle'])->name('toggle');
     });
     Route::get('productos/{id}/stock-detalle', [ProductoController::class, 'getStockDetalle'])->name('productos.stock-detalle');
-    Route::resource('proveedores', ProveedorController::class)->names('proveedores');
-    Route::resource('categorias', CategoriaController::class)->names('categorias');
-    Route::put('/categorias/{categoria}/toggle', [CategoriaController::class, 'toggle'])->name('categorias.toggle');
-    Route::get('/categorias/export', [CategoriaController::class, 'export'])->name('categorias.export');
-    Route::resource('marcas', MarcaController::class)->names('marcas');
-    Route::put('/marcas/{marca}/toggle', [MarcaController::class, 'toggle'])->name('marcas.toggle');
-    Route::get('/marcas/export', [MarcaController::class, 'export'])->name('marcas.export');
+    Route::resource('proveedores', ProveedorController::class)->names('proveedores')->middleware('role:admin|editor');
+    Route::resource('categorias', CategoriaController::class)->names('categorias')->middleware('role:admin|editor');
+    Route::put('/categorias/{categoria}/toggle', [CategoriaController::class, 'toggle'])->name('categorias.toggle')->middleware('role:admin|editor');
+    Route::get('/categorias/export', [CategoriaController::class, 'export'])->name('categorias.export')->middleware('role:admin|editor');
+    Route::resource('marcas', MarcaController::class)->names('marcas')->middleware('role:admin|editor');
+    Route::put('/marcas/{marca}/toggle', [MarcaController::class, 'toggle'])->name('marcas.toggle')->middleware('role:admin|editor');
+    Route::get('/marcas/export', [MarcaController::class, 'export'])->name('marcas.export')->middleware('role:admin|editor');
     Route::resource('almacenes', AlmacenController::class)->names('almacenes'); // Ã¢Å“â€¦ DUPLICACIÃƒâ€œN ELIMINADA
     Route::put('/almacenes/{almacen}/toggle', [AlmacenController::class, 'toggle'])->name('almacenes.toggle');
     Route::get('/almacenes/export', [AlmacenController::class, 'export'])->name('almacenes.export');
-    Route::resource('traspasos', TraspasoController::class)->names('traspasos');
-    Route::resource('movimientos-inventario', MovimientoInventarioController::class)->names('movimientos-inventario');
-    Route::resource('ajustes-inventario', AjusteInventarioController::class)->names('ajustes-inventario');
-    Route::resource('movimientos-manuales', MovimientoManualController::class)->names('movimientos-manuales');
+    Route::resource('traspasos', TraspasoController::class)->names('traspasos')->middleware('role:admin|editor');
+    Route::resource('movimientos-inventario', MovimientoInventarioController::class)->names('movimientos-inventario')->middleware('role:admin|editor');
+    Route::resource('ajustes-inventario', AjusteInventarioController::class)->names('ajustes-inventario')->middleware('role:admin|editor');
+    Route::resource('movimientos-manuales', MovimientoManualController::class)->names('movimientos-manuales')->middleware('role:admin|editor');
 
     // Rutas específicas de cotizaciones antes del resource para evitar conflictos
-    Route::get('/cotizaciones/siguiente-numero', [CotizacionController::class, 'obtenerSiguienteNumero'])->name('cotizaciones.siguiente-numero');
+    Route::get('/cotizaciones/siguiente-numero', [CotizacionController::class, 'obtenerSiguienteNumero'])->name('cotizaciones.siguiente-numero')->middleware('role:ventas|admin');
 
-    Route::resource('cotizaciones', CotizacionController::class)->names('cotizaciones')->where(['cotizaciones' => '[0-9]+']);
-    Route::resource('pedidos', PedidoController::class)->names('pedidos');
-    Route::resource('ventas', VentaController::class)->names('ventas');
-    Route::resource('servicios', ServicioController::class)->names('servicios');
-    Route::put('/servicios/{servicio}/toggle', [ServicioController::class, 'toggle'])->name('servicios.toggle');
-    Route::resource('usuarios', UserController::class)->names('usuarios');
-    Route::resource('compras', CompraController::class)->names('compras');
-    Route::post('/compras/{id}/cancel', [CompraController::class, 'cancel'])->name('compras.cancel');
-    Route::delete('/compras/{id}/force', [CompraController::class, 'forceDestroy'])->name('compras.force-destroy');
-    Route::resource('cuentas-por-pagar', \App\Http\Controllers\CuentasPorPagarController::class)->names('cuentas-por-pagar');
-    Route::post('/cuentas-por-pagar/{id}/registrar-pago', [\App\Http\Controllers\CuentasPorPagarController::class, 'registrarPago'])->name('cuentas-por-pagar.registrar-pago');
-    Route::post('/cuentas-por-pagar/{id}/marcar-pagado', [\App\Http\Controllers\CuentasPorPagarController::class, 'marcarPagado'])->name('cuentas-por-pagar.marcar-pagado');
-    Route::resource('cuentas-por-cobrar', CuentasPorCobrarController::class)->names('cuentas-por-cobrar');
-    Route::post('/cuentas-por-cobrar/{id}/registrar-pago', [CuentasPorCobrarController::class, 'registrarPago'])->name('cuentas-por-cobrar.registrar-pago');
+    Route::resource('cotizaciones', CotizacionController::class)->names('cotizaciones')->where(['cotizaciones' => '[0-9]+'])->middleware('role:ventas|admin');
+    Route::resource('pedidos', PedidoController::class)->names('pedidos')->middleware('role:ventas|admin');
+    Route::resource('ventas', VentaController::class)->names('ventas')->middleware('role:ventas|admin');
+    Route::resource('servicios', ServicioController::class)->names('servicios')->middleware('role:admin|editor');
+    Route::put('/servicios/{servicio}/toggle', [ServicioController::class, 'toggle'])->name('servicios.toggle')->middleware('role:admin|editor');
+    Route::resource('usuarios', UserController::class)->names('usuarios')->middleware('role:admin');
+    Route::resource('compras', CompraController::class)->names('compras')->middleware('role:admin|editor');
+    Route::post('/compras/{id}/cancel', [CompraController::class, 'cancel'])->name('compras.cancel')->middleware('role:admin|editor');
+    Route::delete('/compras/{id}/force', [CompraController::class, 'forceDestroy'])->name('compras.force-destroy')->middleware('role:admin|editor');
+    Route::resource('cuentas-por-pagar', \App\Http\Controllers\CuentasPorPagarController::class)->names('cuentas-por-pagar')->middleware('role:admin|editor');
+    Route::post('/cuentas-por-pagar/{id}/registrar-pago', [\App\Http\Controllers\CuentasPorPagarController::class, 'registrarPago'])->name('cuentas-por-pagar.registrar-pago')->middleware('role:admin|editor');
+    Route::post('/cuentas-por-pagar/{id}/marcar-pagado', [\App\Http\Controllers\CuentasPorPagarController::class, 'marcarPagado'])->name('cuentas-por-pagar.marcar-pagado')->middleware('role:admin|editor');
+    Route::resource('cuentas-por-cobrar', CuentasPorCobrarController::class)->names('cuentas-por-cobrar')->middleware('role:admin');
+    Route::post('/cuentas-por-cobrar/{id}/registrar-pago', [CuentasPorCobrarController::class, 'registrarPago'])->name('cuentas-por-cobrar.registrar-pago')->middleware('role:admin');
     // =====================================================
     // RUTAS DE REPORTES ORGANIZADAS
     // =====================================================
 
     // Centro de reportes con tabs
-    Route::get('/reportes', [ReportesDashboardController::class, 'indexTabs'])->name('reportes.index');
+    Route::get('/reportes', [ReportesDashboardController::class, 'indexTabs'])->name('reportes.index')->middleware('role:admin');
 
     // Dashboard de categorÃƒÂ­as de reportes
-    Route::get('/reportes/dashboard', [ReportesController::class, 'index'])->name('reportes.dashboard');
+    Route::get('/reportes/dashboard', [ReportesController::class, 'index'])->name('reportes.dashboard')->middleware('role:admin');
 
     // CRUD de reportes personalizados (debe ir primero para evitar conflictos)
-    Route::resource('reportes', ReporteController::class)->except(['index', 'show']);
+    Route::resource('reportes', ReporteController::class)->except(['index', 'show'])->middleware('role:admin');
 
     // Reportes especÃƒÂ­ficos redirigidos al centro de reportes con tabs
     Route::get('/reportes/ventas', function () {
         return redirect('/reportes?tab=ventas');
-    })->name('reportes.ventas');
+    })->name('reportes.ventas')->middleware('role:admin');
     Route::get('/reportes/corte-diario', function () {
         return redirect('/reportes?tab=corte');
-    })->name('reportes.corte-diario');
+    })->name('reportes.corte-diario')->middleware('role:admin');
     // Registrar entrega directa desde Corte Diario
     Route::post('/reportes/corte/entrega', [EntregaDineroController::class, 'storeDesdeCorte'])
-        ->name('reportes.corte.entrega');
-    Route::get('/reportes/export', [ReporteController::class, 'exportarCorteDiario'])->name('reportes.export');
+        ->name('reportes.corte.entrega')->middleware('role:admin');
+    Route::get('/reportes/export', [ReporteController::class, 'exportarCorteDiario'])->name('reportes.export')->middleware('role:admin');
     Route::get('/reportes/tecnicos', function () {
         return redirect('/reportes?tab=personal');
-    })->name('reportes.tecnicos.index');
-    Route::get('/reportes/tecnicos/datos', [ReporteTecnicoController::class, 'datos'])->name('reportes.tecnicos.datos');
+    })->name('reportes.tecnicos.index')->middleware('role:admin');
+    Route::get('/reportes/tecnicos/datos', [ReporteTecnicoController::class, 'datos'])->name('reportes.tecnicos.datos')->middleware('role:admin');
 
     // Nuevos reportes redirigidos
     Route::get('/reportes/ventas-pendientes', function () {
         return redirect('/reportes?tab=ventas');
-    })->name('reportes.ventas-pendientes');
+    })->name('reportes.ventas-pendientes')->middleware('role:admin');
     Route::get('/reportes/clientes', function () {
         return redirect('/reportes?tab=clientes');
-    })->name('reportes.clientes');
+    })->name('reportes.clientes')->middleware('role:admin');
     Route::get('/reportes/inventario', function () {
         return redirect('/reportes?tab=inventario');
-    })->name('reportes.inventario');
+    })->name('reportes.inventario')->middleware('role:admin');
     Route::get('/reportes/servicios', function () {
         return redirect('/reportes?tab=servicios');
-    })->name('reportes.servicios');
+    })->name('reportes.servicios')->middleware('role:admin');
     Route::get('/reportes/citas', function () {
         return redirect('/reportes?tab=citas');
-    })->name('reportes.citas');
+    })->name('reportes.citas')->middleware('role:admin');
     Route::get('/reportes/mantenimientos', function () {
         return redirect('/reportes?tab=mantenimientos');
-    })->name('reportes.mantenimientos');
+    })->name('reportes.mantenimientos')->middleware('role:admin');
     Route::get('/reportes/rentas', function () {
         return redirect('/reportes?tab=rentas');
-    })->name('reportes.rentas');
+    })->name('reportes.rentas')->middleware('role:admin');
     Route::get('/reportes/cobranzas', function () {
         return redirect('/reportes?tab=cobranzas');
-    })->name('reportes.cobranzas');
+    })->name('reportes.cobranzas')->middleware('role:admin');
     Route::get('/reportes/ganancias', function () {
         return redirect('/reportes?tab=ganancias');
-    })->name('reportes.ganancias');
+    })->name('reportes.ganancias')->middleware('role:admin');
     Route::get('/reportes/productos', function () {
         return redirect('/reportes?tab=productos');
-    })->name('reportes.productos');
+    })->name('reportes.productos')->middleware('role:admin');
     Route::get('/reportes/proveedores', function () {
         return redirect('/reportes?tab=proveedores');
-    })->name('reportes.proveedores');
+    })->name('reportes.proveedores')->middleware('role:admin');
     Route::get('/reportes/empleados', function () {
         return redirect('/reportes?tab=empleados');
-    })->name('reportes.empleados');
+    })->name('reportes.empleados')->middleware('role:admin');
     Route::get('/reportes/auditoria', function () {
         return redirect('/reportes?tab=auditoria');
-    })->name('reportes.auditoria');
+    })->name('reportes.auditoria')->middleware('role:admin');
 
     // Reporte de préstamos por cliente
-    Route::get('/reportes/prestamos-por-cliente', [ReporteController::class, 'prestamosPorCliente'])->name('reportes.prestamos-por-cliente');
-    Route::get('/reportes/prestamos-por-cliente/export', [ReporteController::class, 'exportarPrestamosPorCliente'])->name('reportes.prestamos-por-cliente.export');
+    Route::get('/reportes/prestamos-por-cliente', [ReporteController::class, 'prestamosPorCliente'])->name('reportes.prestamos-por-cliente')->middleware('role:admin');
+    Route::get('/reportes/prestamos-por-cliente/export', [ReporteController::class, 'exportarPrestamosPorCliente'])->name('reportes.prestamos-por-cliente.export')->middleware('role:admin');
 
     // Reporte de movimientos de inventario redirigido
     Route::get('/reportes/movimientos-inventario', function () {
         return redirect('/reportes?tab=movimientos');
-    })->name('reportes.movimientos-inventario');
-    Route::get('/reportes/movimientos-inventario/{id}', [ReporteMovimientosController::class, 'show'])->name('reportes.movimientos-inventario.show');
-    Route::get('/reportes/movimientos-inventario-export', [ReporteMovimientosController::class, 'export'])->name('reportes.movimientos-inventario.export');
+    })->name('reportes.movimientos-inventario')->middleware('role:admin');
+    Route::get('/reportes/movimientos-inventario/{id}', [ReporteMovimientosController::class, 'show'])->name('reportes.movimientos-inventario.show')->middleware('role:admin');
+    Route::get('/reportes/movimientos-inventario-export', [ReporteMovimientosController::class, 'export'])->name('reportes.movimientos-inventario.export')->middleware('role:admin');
 
     // Reportes especÃƒÂ­ficos de inventario
-    Route::get('/reportes/inventario/dashboard', [ReportesInventarioController::class, 'index'])->name('reportes.inventario.dashboard');
-    Route::get('/reportes/inventario/stock-por-almacen', [ReportesInventarioController::class, 'stockPorAlmacen'])->name('reportes.inventario.stock-por-almacen');
-    Route::get('/reportes/inventario/productos-bajo-stock', [ReportesInventarioController::class, 'productosBajoStock'])->name('reportes.inventario.productos-bajo-stock');
-    Route::get('/reportes/inventario/movimientos-por-periodo', [ReportesInventarioController::class, 'movimientosPorPeriodo'])->name('reportes.inventario.movimientos-por-periodo');
-    Route::get('/reportes/inventario/costos', [ReportesInventarioController::class, 'costosInventario'])->name('reportes.inventario.costos');
+    Route::get('/reportes/inventario/dashboard', [ReportesInventarioController::class, 'index'])->name('reportes.inventario.dashboard')->middleware('role:admin');
+    Route::get('/reportes/inventario/stock-por-almacen', [ReportesInventarioController::class, 'stockPorAlmacen'])->name('reportes.inventario.stock-por-almacen')->middleware('role:admin');
+    Route::get('/reportes/inventario/productos-bajo-stock', [ReportesInventarioController::class, 'productosBajoStock'])->name('reportes.inventario.productos-bajo-stock')->middleware('role:admin');
+    Route::get('/reportes/inventario/movimientos-por-periodo', [ReportesInventarioController::class, 'movimientosPorPeriodo'])->name('reportes.inventario.movimientos-por-periodo')->middleware('role:admin');
+    Route::get('/reportes/inventario/costos', [ReportesInventarioController::class, 'costosInventario'])->name('reportes.inventario.costos')->middleware('role:admin');
 
     // Exportaciones
-    Route::get('/reportes/clientes/export', [ReporteController::class, 'exportarClientes'])->name('reportes.clientes.export');
-    Route::get('/reportes/inventario/export', [ReporteController::class, 'exportarInventario'])->name('reportes.inventario.export');
-    Route::get('/reportes/productos/export', [ReporteController::class, 'exportarProductos'])->name('reportes.productos.export');
+    Route::get('/reportes/clientes/export', [ReporteController::class, 'exportarClientes'])->name('reportes.clientes.export')->middleware('role:admin');
+    Route::get('/reportes/inventario/export', [ReporteController::class, 'exportarInventario'])->name('reportes.inventario.export')->middleware('role:admin');
+    Route::get('/reportes/productos/export', [ReporteController::class, 'exportarProductos'])->name('reportes.productos.export')->middleware('role:admin');
     Route::resource('tecnicos', TecnicoController::class)->names('tecnicos');
     // Catálogo de herramientas (módulo mejorado)
     Route::resource('herramientas', HerramientaController::class)->names('herramientas');
@@ -367,34 +367,34 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // Eliminado: asignaciones masivas de herramientas
 
     // Rutas para control de herramientas por tÃƒÂ©cnico
-    Route::resource('citas', CitaController::class)->names('citas');
-    Route::post('/citas/{id}/convertir-a-pedido', [CitaController::class, 'convertirAPedido'])->name('citas.convertir-a-pedido');
-    Route::post('/citas/{id}/convertir-a-venta', [CitaController::class, 'convertirAVenta'])->name('citas.convertir-a-venta');
-    Route::resource('carros', CarroController::class)->names('carros');
-    Route::resource('mantenimientos', MantenimientoController::class)->names('mantenimientos');
-    Route::post('mantenimientos/{mantenimiento}/marcar-realizado-hoy', [MantenimientoController::class, 'marcarRealizadoHoy'])->name('mantenimientos.marcar-realizado-hoy');
-    Route::post('mantenimientos/generar-recurrentes', [MantenimientoController::class, 'generarRecurrentes'])->name('mantenimientos.generar-recurrentes');
+    Route::resource('citas', CitaController::class)->names('citas')->middleware('role:ventas|admin');
+    Route::post('/citas/{id}/convertir-a-pedido', [CitaController::class, 'convertirAPedido'])->name('citas.convertir-a-pedido')->middleware('role:ventas|admin');
+    Route::post('/citas/{id}/convertir-a-venta', [CitaController::class, 'convertirAVenta'])->name('citas.convertir-a-venta')->middleware('role:ventas|admin');
+    Route::resource('carros', CarroController::class)->names('carros')->middleware('role:admin|editor');
+    Route::resource('mantenimientos', MantenimientoController::class)->names('mantenimientos')->middleware('role:admin|editor');
+    Route::post('mantenimientos/{mantenimiento}/marcar-realizado-hoy', [MantenimientoController::class, 'marcarRealizadoHoy'])->name('mantenimientos.marcar-realizado-hoy')->middleware('role:admin|editor');
+    Route::post('mantenimientos/generar-recurrentes', [MantenimientoController::class, 'generarRecurrentes'])->name('mantenimientos.generar-recurrentes')->middleware('role:admin|editor');
 
     // Rutas API para validaciones de mantenimiento
-    Route::get('mantenimientos/api/{carroId}/servicios/{tipoServicio}', [MantenimientoController::class, 'getServiciosPorTipo'])->name('mantenimientos.api.servicios-por-tipo');
-    Route::post('mantenimientos/api/validar-servicio', [MantenimientoController::class, 'validarServicio'])->name('mantenimientos.api.validar-servicio');
-    Route::get('mantenimientos/api/estadisticas', [MantenimientoController::class, 'getEstadisticasMantenimientos'])->name('mantenimientos.api.estadisticas');
+    Route::get('mantenimientos/api/{carroId}/servicios/{tipoServicio}', [MantenimientoController::class, 'getServiciosPorTipo'])->name('mantenimientos.api.servicios-por-tipo')->middleware('role:admin|editor');
+    Route::post('mantenimientos/api/validar-servicio', [MantenimientoController::class, 'validarServicio'])->name('mantenimientos.api.validar-servicio')->middleware('role:admin|editor');
+    Route::get('mantenimientos/api/estadisticas', [MantenimientoController::class, 'getEstadisticasMantenimientos'])->name('mantenimientos.api.estadisticas')->middleware('role:admin|editor');
 
     // Rutas PATCH para acciones rápidas de mantenimiento
-    Route::patch('mantenimientos/{mantenimiento}/completar', [MantenimientoController::class, 'completar'])->name('mantenimientos.completar');
-    Route::patch('mantenimientos/{mantenimiento}/posponer', [MantenimientoController::class, 'posponer'])->name('mantenimientos.posponer');
-    Route::patch('mantenimientos/{mantenimiento}/reprogramar', [MantenimientoController::class, 'reprogramar'])->name('mantenimientos.reprogramar');
-    Route::resource('equipos', EquipoController::class);
-    Route::put('/equipos/{equipo}/toggle', [EquipoController::class, 'toggle'])->name('equipos.toggle');
-    Route::get('/equipos/export', [EquipoController::class, 'export'])->name('equipos.export');
-    Route::resource('rentas', RentasController::class);
+    Route::patch('mantenimientos/{mantenimiento}/completar', [MantenimientoController::class, 'completar'])->name('mantenimientos.completar')->middleware('role:admin|editor');
+    Route::patch('mantenimientos/{mantenimiento}/posponer', [MantenimientoController::class, 'posponer'])->name('mantenimientos.posponer')->middleware('role:admin|editor');
+    Route::patch('mantenimientos/{mantenimiento}/reprogramar', [MantenimientoController::class, 'reprogramar'])->name('mantenimientos.reprogramar')->middleware('role:admin|editor');
+    Route::resource('equipos', EquipoController::class)->middleware('role:admin|editor');
+    Route::put('/equipos/{equipo}/toggle', [EquipoController::class, 'toggle'])->name('equipos.toggle')->middleware('role:admin|editor');
+    Route::get('/equipos/export', [EquipoController::class, 'export'])->name('equipos.export')->middleware('role:admin|editor');
+    Route::resource('rentas', RentasController::class)->middleware('role:admin|editor');
     // Contrato de Renta (PDF)
-    Route::get('/rentas/{renta}/contrato', [RentasContratoController::class, 'contratoPDF'])->name('rentas.contrato');
-    Route::post('/rentas/{renta}/duplicate', [RentasController::class, 'duplicate'])->name('rentas.duplicate');
-    Route::post('/rentas/{renta}/suspender', [RentasController::class, 'suspender'])->name('rentas.suspender');
-    Route::post('/rentas/{renta}/reactivar', [RentasController::class, 'reactivar'])->name('rentas.reactivar');
-    Route::post('/rentas/{renta}/finalizar', [RentasController::class, 'finalizar'])->name('rentas.finalizar');
-    Route::post('/rentas/{renta}/renovar', [RentasController::class, 'renovar'])->name('rentas.renovar');
+    Route::get('/rentas/{renta}/contrato', [RentasContratoController::class, 'contratoPDF'])->name('rentas.contrato')->middleware('role:admin|editor');
+    Route::post('/rentas/{renta}/duplicate', [RentasController::class, 'duplicate'])->name('rentas.duplicate')->middleware('role:admin|editor');
+    Route::post('/rentas/{renta}/suspender', [RentasController::class, 'suspender'])->name('rentas.suspender')->middleware('role:admin|editor');
+    Route::post('/rentas/{renta}/reactivar', [RentasController::class, 'reactivar'])->name('rentas.reactivar')->middleware('role:admin|editor');
+    Route::post('/rentas/{renta}/finalizar', [RentasController::class, 'finalizar'])->name('rentas.finalizar')->middleware('role:admin|editor');
+    Route::post('/rentas/{renta}/renovar', [RentasController::class, 'renovar'])->name('rentas.renovar')->middleware('role:admin|editor');
 
     // Categorías de herramientas (gestión completa)
     Route::get('/herramientas/categorias', [CategoriaHerramientaController::class, 'index'])->name('herramientas.categorias.index');
@@ -404,23 +404,23 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::delete('/herramientas/categorias/{categoria}', [CategoriaHerramientaController::class, 'destroy'])->name('herramientas.categorias.destroy');
     Route::patch('/herramientas/categorias/{categoria}/toggle', [CategoriaHerramientaController::class, 'toggle'])->name('herramientas.categorias.toggle');
 
-    Route::resource('cobranza', CobranzaController::class);
-    Route::post('/cobranza/{id}/marcar-pagada', [CobranzaController::class, 'marcarPagada'])->name('cobranza.marcar-pagada');
-    Route::post('/cobranza/venta/{id}/marcar-pagada', [CobranzaController::class, 'marcarVentaPagada'])->name('cobranza.venta.marcar-pagada');
-    Route::post('/cobranza/generar-automaticas', [CobranzaController::class, 'generarCobranzas'])->name('cobranza.generar-automaticas');
+    Route::resource('cobranza', CobranzaController::class)->middleware('role:admin|editor');
+    Route::post('/cobranza/{id}/marcar-pagada', [CobranzaController::class, 'marcarPagada'])->name('cobranza.marcar-pagada')->middleware('role:admin|editor');
+    Route::post('/cobranza/venta/{id}/marcar-pagada', [CobranzaController::class, 'marcarVentaPagada'])->name('cobranza.venta.marcar-pagada')->middleware('role:admin|editor');
+    Route::post('/cobranza/generar-automaticas', [CobranzaController::class, 'generarCobranzas'])->name('cobranza.generar-automaticas')->middleware('role:admin|editor');
 
-    Route::get('/entregas-dinero/pendientes-por-usuario', [EntregaDineroController::class, 'pendientesPorUsuario'])->name('entregas-dinero.pendientes-por-usuario');
-    Route::get('/entregas-dinero/reporte-pagos', [EntregaDineroController::class, 'reportePagosRecibidos'])->name('entregas-dinero.reporte-pagos');
-    Route::post('/entregas-dinero/marcar-automatico/{tipo_origen}/{id_origen}', [EntregaDineroController::class, 'marcarAutomaticoRecibido'])->name('entregas-dinero.marcar-automatico');
-    Route::post('/entregas-dinero/{id}/marcar-entregado-responsable', [EntregaDineroController::class, 'marcarEntregadoResponsable'])->name('entregas-dinero.marcar-entregado-responsable');
-    Route::resource('entregas-dinero', EntregaDineroController::class);
+    Route::get('/entregas-dinero/pendientes-por-usuario', [EntregaDineroController::class, 'pendientesPorUsuario'])->name('entregas-dinero.pendientes-por-usuario')->middleware('role:admin');
+    Route::get('/entregas-dinero/reporte-pagos', [EntregaDineroController::class, 'reportePagosRecibidos'])->name('entregas-dinero.reporte-pagos')->middleware('role:admin');
+    Route::post('/entregas-dinero/marcar-automatico/{tipo_origen}/{id_origen}', [EntregaDineroController::class, 'marcarAutomaticoRecibido'])->name('entregas-dinero.marcar-automatico')->middleware('role:admin');
+    Route::post('/entregas-dinero/{id}/marcar-entregado-responsable', [EntregaDineroController::class, 'marcarEntregadoResponsable'])->name('entregas-dinero.marcar-entregado-responsable')->middleware('role:admin');
+    Route::resource('entregas-dinero', EntregaDineroController::class)->middleware('role:admin');
 
     Route::resource('bitacora-actividades', BitacoraActividadController::class)->names('bitacora-actividades');
 
     // =====================================================
     // RUTAS DE CONFIGURACIÓN DE EMPRESA
     // =====================================================
-    Route::prefix('empresa')->name('empresa-configuracion.')->group(function () {
+    Route::prefix('empresa')->name('empresa-configuracion.')->middleware('role:admin')->group(function () {
         Route::get('/configuracion', [EmpresaConfiguracionController::class, 'index'])->name('index');
         Route::match(['post', 'put'], '/configuracion', [EmpresaConfiguracionController::class, 'update'])->name('update');
         Route::post('/configuracion/logo', [EmpresaConfiguracionController::class, 'subirLogo'])->name('subir-logo');
@@ -439,14 +439,14 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // RUTAS ESPECÃƒÂFICAS DE CLIENTES
     // =====================================================
     Route::post('/clientes/validar-rfc', [ClienteController::class, 'validarRfc'])->name('clientes.validarRfc');
-    Route::get('/clientes/validar-email', [ClienteController::class, 'validarEmail'])->name('clientes.validarEmail');
+    Route::get('/clientes/validar-email', [ClienteController::class, 'validarEmail'])->name('clientes.validarEmail')->middleware('role:ventas|admin');
     Route::get('/clientes/export', [ClienteController::class, 'export'])->name('clientes.export');
-    Route::post('/clientes/search', [ClienteController::class, 'search'])->name('clientes.search');
-    Route::get('/clientes/stats', [ClienteController::class, 'stats'])->name('clientes.stats');
-    Route::post('/clientes/clear-cache', [ClienteController::class, 'clearCache'])->name('clientes.clearCache');
-    Route::put('/clientes/{cliente}/toggle', [ClienteController::class, 'toggle'])->name('clientes.toggle');
-    Route::get('/clientes/{cliente}/can-delete', [ClienteController::class, 'canDelete'])->name('clientes.canDelete');
-    Route::get('/clientes/{cliente}/has-prestamos', [ClienteController::class, 'hasPrestamos'])->name('clientes.hasPrestamos');
+    Route::post('/clientes/search', [ClienteController::class, 'search'])->name('clientes.search')->middleware('role:ventas|admin');
+    Route::get('/clientes/stats', [ClienteController::class, 'stats'])->name('clientes.stats')->middleware('role:ventas|admin');
+    Route::post('/clientes/clear-cache', [ClienteController::class, 'clearCache'])->name('clientes.clearCache')->middleware('role:ventas|admin');
+    Route::put('/clientes/{cliente}/toggle', [ClienteController::class, 'toggle'])->name('clientes.toggle')->middleware('role:ventas|admin');
+    Route::get('/clientes/{cliente}/can-delete', [ClienteController::class, 'canDelete'])->name('clientes.canDelete')->middleware('role:ventas|admin');
+    Route::get('/clientes/{cliente}/has-prestamos', [ClienteController::class, 'hasPrestamos'])->name('clientes.hasPrestamos')->middleware('role:ventas|admin');
 
     // =====================================================
     // RUTAS ESPECÃƒÂFICAS DE PROVEEDORES
@@ -496,12 +496,15 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // =====================================================
     // RUTAS ESPECÃƒÂFICAS DE COTIZACIONES
     // =====================================================
-    Route::post('/cotizaciones/{id}/convertir-a-venta', [CotizacionController::class, 'convertirAVenta'])->name('cotizaciones.convertir-a-venta');
-    Route::get('/cotizaciones/{id}/confirmar-pedido', [CotizacionController::class, 'mostrarConfirmacionPedido'])->name('cotizaciones.confirmar-pedido');
-    Route::get('/cotizaciones/{id}/confirmar-venta', [CotizacionController::class, 'mostrarConfirmacionVenta'])->name('cotizaciones.confirmar-venta');
-    Route::post('/cotizaciones/draft', [CotizacionController::class, 'guardarBorrador'])->name('cotizaciones.storeDraft');
-    Route::post('/cotizaciones/{id}/enviar-email', [CotizacionController::class, 'enviarEmail'])->name('cotizaciones.enviar-email');
-    Route::get('/cotizaciones/{id}/pdf', [CotizacionController::class, 'generarPDF'])->name('cotizaciones.pdf');
+    Route::post('/cotizaciones/{id}/convertir-a-venta', [CotizacionController::class, 'convertirAVenta'])->name('cotizaciones.convertir-a-venta')->middleware('role:ventas|admin');
+    Route::get('/cotizaciones/{id}/confirmar-pedido', [CotizacionController::class, 'mostrarConfirmacionPedido'])->name('cotizaciones.confirmar-pedido')->middleware('role:ventas|admin');
+    Route::get('/cotizaciones/{id}/confirmar-venta', [CotizacionController::class, 'mostrarConfirmacionVenta'])->name('cotizaciones.confirmar-venta')->middleware('role:ventas|admin');
+    Route::post('/cotizaciones/draft', [CotizacionController::class, 'guardarBorrador'])->name('cotizaciones.storeDraft')->middleware('role:ventas|admin');
+    Route::post('/cotizaciones/{id}/enviar-email', [CotizacionController::class, 'enviarEmail'])->name('cotizaciones.enviar-email')->middleware('role:ventas|admin');
+    Route::get('/cotizaciones/{id}/pdf', [CotizacionController::class, 'generarPDF'])->name('cotizaciones.pdf')->middleware('role:ventas|admin');
+    Route::get('/cotizaciones/{id}/ticket', [CotizacionController::class, 'generarTicket'])->name('cotizaciones.ticket')->middleware('role:ventas|admin');
+    Route::get('/pedidos/{id}/ticket', [PedidoController::class, 'generarTicket'])->name('pedidos.ticket')->middleware('role:ventas|admin');
+    Route::get('/ventas/{id}/ticket', [VentaController::class, 'generarTicket'])->name('ventas.ticket')->middleware('role:ventas|admin');
     Route::post('/cotizaciones/{cotizacion}/duplicate', [CotizacionController::class, 'duplicate'])->name('cotizaciones.duplicate');
     Route::post('/cotizaciones/{id}/enviar-pedido', [CotizacionController::class, 'enviarAPedido'])->name('cotizaciones.enviar-pedido');
     Route::post('/cotizaciones/{id}/cancel', [CotizacionController::class, 'cancel'])->name('cotizaciones.cancel');
@@ -509,22 +512,22 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // =====================================================
     // RUTAS ESPECÃƒÂFICAS DE PEDIDOS
     // =====================================================
-    Route::post('/pedidos/{id}/confirmar', [PedidoController::class, 'confirmar'])->name('pedidos.confirmar');
+    Route::post('/pedidos/{id}/confirmar', [PedidoController::class, 'confirmar'])->name('pedidos.confirmar')->middleware('role:ventas|admin');
     Route::post('/pedidos/{id}/enviar-a-venta', [PedidoController::class, 'enviarAVenta'])
-        ->name('pedidos.enviar-a-venta');
-    Route::post('/pedidos/{id}/enviar-email', [PedidoController::class, 'enviarEmail'])->name('pedidos.enviar-email');
-    Route::get('/pedidos/{id}/pdf', [PedidoController::class, 'generarPDF'])->name('pedidos.pdf');
-    Route::post('/pedidos/{id}/cancel', [PedidoController::class, 'cancel'])->name('pedidos.cancel');
-    Route::post('/pedidos/{pedido}/duplicate', [PedidoController::class, 'duplicate'])->name('pedidos.duplicate');
+        ->name('pedidos.enviar-a-venta')->middleware('role:ventas|admin');
+    Route::post('/pedidos/{id}/enviar-email', [PedidoController::class, 'enviarEmail'])->name('pedidos.enviar-email')->middleware('role:ventas|admin');
+    Route::get('/pedidos/{id}/pdf', [PedidoController::class, 'generarPDF'])->name('pedidos.pdf')->middleware('role:ventas|admin');
+    Route::post('/pedidos/{id}/cancel', [PedidoController::class, 'cancel'])->name('pedidos.cancel')->middleware('role:ventas|admin');
+    Route::post('/pedidos/{pedido}/duplicate', [PedidoController::class, 'duplicate'])->name('pedidos.duplicate')->middleware('role:ventas|admin');
 
     // =====================================================
     // RUTAS ESPECÃƒÂFICAS DE VENTAS
     // =====================================================
-    Route::post('/ventas/{venta}/duplicate', [VentaController::class, 'duplicate'])->name('ventas.duplicate');
-    Route::post('/ventas/{id}/enviar-email', [VentaController::class, 'enviarEmail'])->name('ventas.enviar-email');
-    Route::get('/ventas/{id}/pdf', [VentaController::class, 'generarPDF'])->name('ventas.pdf');
-    Route::post('/ventas/{id}/cancel', [VentaController::class, 'cancel'])->name('ventas.cancel');
-    Route::post('/ventas/{id}/marcar-pagado', [VentaController::class, 'marcarPagado'])->name('ventas.marcar-pagado');
+    Route::post('/ventas/{venta}/duplicate', [VentaController::class, 'duplicate'])->name('ventas.duplicate')->middleware('role:ventas|admin');
+    Route::post('/ventas/{id}/enviar-email', [VentaController::class, 'enviarEmail'])->name('ventas.enviar-email')->middleware('role:ventas|admin');
+    Route::get('/ventas/{id}/pdf', [VentaController::class, 'generarPDF'])->name('ventas.pdf')->middleware('role:ventas|admin');
+    Route::post('/ventas/{id}/cancel', [VentaController::class, 'cancel'])->name('ventas.cancel')->middleware('role:ventas|admin');
+    Route::post('/ventas/{id}/marcar-pagado', [VentaController::class, 'marcarPagado'])->name('ventas.marcar-pagado')->middleware('role:ventas|admin');
     // =====================================================
     // RUTAS ESPECÃƒÂFICAS DE USUARIOS
     // =====================================================

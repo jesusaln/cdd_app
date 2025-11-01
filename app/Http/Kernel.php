@@ -68,4 +68,13 @@ class Kernel extends HttpKernel
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'role' => \App\Http\Middleware\RoleMiddleware::class, // Registramos tu middleware aquí
     ];
+
+    /**
+     * Route middleware (backward compat for older Laravel APIs expecting $routeMiddleware).
+     *
+     * @var array<string, class-string|string>
+     */
+    protected $routeMiddleware = [
+        'role' => \App\Http\Middleware\RoleMiddleware::class,
+    ];
 }

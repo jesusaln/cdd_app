@@ -28,6 +28,7 @@ class Venta extends Model
         'pagado_por',
         'vendedor_type',
         'vendedor_id',
+        'almacen_id',
     ];
 
     protected $casts = [
@@ -95,6 +96,11 @@ class Venta extends Model
     public function cuentaPorCobrar(): HasOne
     {
         return $this->hasOne(CuentasPorCobrar::class, 'venta_id');
+    }
+
+    public function almacen()
+    {
+        return $this->belongsTo(Almacen::class);
     }
 
     // Calcular ganancia total de la venta

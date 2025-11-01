@@ -188,6 +188,7 @@ class VentaController extends Controller
             'servicios' => Servicio::select('id', 'nombre', 'precio', 'descripcion')->get(),
             'usuarios' => User::select('id', 'name', 'email')->get(),
             'tecnicos' => Tecnico::select('id', 'nombre', 'apellido', 'email')->get(),
+            'almacenes' => Almacen::where('estado', 'activo')->select('id', 'nombre')->get(),
             'catalogs' => [
                 'tiposPersona' => [
                     ['value' => 'fisica', 'text' => 'Persona FÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­sica'],
@@ -230,6 +231,7 @@ class VentaController extends Controller
         // Validación dinámica para series en ventas
         $rules = [
             'cliente_id' => 'required|exists:clientes,id',
+            'almacen_id' => 'required|exists:almacenes,id',
             'vendedor_type' => 'nullable|in:App\\Models\\User,App\\Models\\Tecnico',
             'vendedor_id' => 'nullable|integer',
             'productos' => 'required|array',
@@ -257,18 +259,27 @@ class VentaController extends Controller
 
         DB::beginTransaction();
         try {
-            // Validar stock disponible para productos (considerando reservas)
+            // Validar stock disponible para productos en el almacén seleccionado
             foreach ($validated['productos'] as $item) {
                 if ($item['tipo'] === 'producto') {
-                    $producto = Producto::with('inventarios')->find($item['id']);
+                    $producto = Producto::find($item['id']);
                     if (!$producto) {
                         return redirect()->back()->with('error', "Producto con ID {$item['id']} no encontrado");
                     }
 
-                    if ($producto->stock_disponible < $item['cantidad']) {
+                    // Obtener stock específico del almacén seleccionado
+                    $inventarioAlmacen = \App\Models\Inventario::where('producto_id', $producto->id)
+                        ->where('almacen_id', $validated['almacen_id'])
+                        ->first();
+
+                    $stockDisponible = $inventarioAlmacen ? $inventarioAlmacen->cantidad : 0;
+
+                    if ($stockDisponible < $item['cantidad']) {
+                        $almacen = Almacen::find($validated['almacen_id']);
+                        $nombreAlmacen = $almacen ? $almacen->nombre : 'Almacén seleccionado';
                         return redirect()->back()->with(
                             'error',
-                            "Stock insuficiente para '{$producto->nombre}'. Disponible: {$producto->stock_disponible}, Solicitado: {$item['cantidad']}"
+                            "Stock insuficiente para '{$producto->nombre}' en {$nombreAlmacen}. Disponible: {$stockDisponible}, Solicitado: {$item['cantidad']}"
                         );
                     }
                 }
@@ -325,6 +336,7 @@ class VentaController extends Controller
 
             $venta = Venta::create([
                 'cliente_id' => $validated['cliente_id'],
+                'almacen_id' => $validated['almacen_id'],
                 'vendedor_type' => $validated['vendedor_type'] ?? null,
                 'vendedor_id' => $validated['vendedor_id'] ?? null,
                 'factura_id' => null, // Puede llenarse si se asocia con una factura
@@ -400,42 +412,35 @@ class VentaController extends Controller
 
                         \App\Models\ProductoSerie::whereIn('id', $seriesEnStock->all())->update(['estado' => 'vendido']);
                     }
-                    $cantidadRestante = $item['cantidad'];
 
-                    // Primero consumir reservas si existen
-                    if ($modelo->reservado > 0) {
-                        $consumirReserva = min($modelo->reservado, $cantidadRestante);
-                        $modelo->decrement('reservado', $consumirReserva);
-                        $cantidadRestante -= $consumirReserva;
+                    // Reducir stock específicamente del almacén seleccionado
+                    $inventarioAlmacen = \App\Models\Inventario::where('producto_id', $modelo->id)
+                        ->where('almacen_id', $validated['almacen_id'])
+                        ->first();
 
-                        Log::info("Reserva consumida para producto {$modelo->id}", [
-                            'producto_id' => $modelo->id,
-                            'reserva_consumida' => $consumirReserva,
-                            'reservado_anterior' => $modelo->reservado + $consumirReserva,
-                            'reservado_actual' => $modelo->reservado
-                        ]);
+                    if (!$inventarioAlmacen) {
+                        throw new \Exception("No se encontró inventario para el producto '{$modelo->nombre}' en el almacén seleccionado.");
                     }
 
-                    // Si queda cantidad por consumir, reducir stock fÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­sico
-                    if ($cantidadRestante > 0) {
-                        $stockAnterior = $modelo->stock;
-                        $this->inventarioService->salida($modelo, $cantidadRestante, [
-                            'motivo' => 'Venta creada',
-                            'referencia' => $venta,
-                            'detalles' => [
-                                'venta_item_id' => $ventaItem->id,
-                                'cantidad_total' => $item['cantidad'],
-                                'reservado_consumido' => $item['cantidad'] - $cantidadRestante,
-                            ],
-                        ]);
-
-                        Log::info("Stock reducido para producto {$modelo->id}", [
-                            'producto_id' => $modelo->id,
-                            'cantidad_reducida' => $cantidadRestante,
-                            'stock_anterior' => $stockAnterior,
-                            'stock_actual' => $modelo->stock,
-                        ]);
+                    if ($inventarioAlmacen->cantidad < $item['cantidad']) {
+                        throw new \Exception("Stock insuficiente en almacén para '{$modelo->nombre}'. Disponible: {$inventarioAlmacen->cantidad}, Solicitado: {$item['cantidad']}");
                     }
+
+                    // Reducir stock del almacén específico
+                    $inventarioAlmacen->decrement('cantidad', $item['cantidad']);
+
+                    // También reducir el stock total del producto
+                    $modelo->decrement('stock', $item['cantidad']);
+
+                    Log::info("Stock reducido para producto {$modelo->id} en almacén {$validated['almacen_id']}", [
+                        'producto_id' => $modelo->id,
+                        'almacen_id' => $validated['almacen_id'],
+                        'cantidad_reducida' => $item['cantidad'],
+                        'stock_almacen_anterior' => $inventarioAlmacen->cantidad + $item['cantidad'],
+                        'stock_almacen_actual' => $inventarioAlmacen->cantidad,
+                        'stock_total_anterior' => $modelo->stock + $item['cantidad'],
+                        'stock_total_actual' => $modelo->stock,
+                    ]);
                 }
             }
 
@@ -1235,6 +1240,50 @@ class VentaController extends Controller
             throw ValidationException::withMessages([
                 'email' => $mensaje . ' | Detalle: ' . $errorMessage,
             ]);
+        }
+    }
+
+    /**
+     * Generar ticket térmico de venta (80mm)
+     */
+    public function generarTicket($id)
+    {
+        try {
+            // Obtener la venta con todas las relaciones necesarias
+            $venta = Venta::with(['cliente', 'items.ventable'])->findOrFail($id);
+
+            // Obtener configuración de empresa
+            $configuracion = \App\Models\EmpresaConfiguracion::getConfig();
+
+            // Generar PDF usando la plantilla de ticket térmico
+            $pdf = Pdf::loadView('venta_ticket', [
+                'venta' => $venta,
+                'configuracion' => $configuracion,
+            ]);
+
+            // Configurar opciones del PDF para ticket térmico (80mm)
+            $pdf->setPaper([0, 0, 226.77, 1000], 'portrait'); // 80mm = 226.77 puntos
+            $pdf->setOptions([
+                'defaultFont' => 'monospace',
+                'isHtml5ParserEnabled' => true,
+                'isPhpEnabled' => true,
+                'margin-top' => 5,
+                'margin-right' => 5,
+                'margin-bottom' => 5,
+                'margin-left' => 5,
+            ]);
+
+            // Retornar PDF para impresión térmica
+            return $pdf->download("ticket-venta-{$venta->numero_venta}.pdf");
+        } catch (\Exception $e) {
+            Log::error("Error al generar ticket térmico de venta", [
+                'venta_id' => $id,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return redirect()->back()->with('error', 'Error al generar el ticket térmico de la venta');
         }
     }
 
