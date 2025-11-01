@@ -39,11 +39,19 @@ class RolesAndPermissionsSeeder extends Seeder
         // Crear roles si no existen
         $adminRole = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
         $userRole = Role::firstOrCreate(['name' => 'user', 'guard_name' => 'web']);
+        $ventasRole = Role::firstOrCreate(['name' => 'ventas', 'guard_name' => 'web']);
 
         // Asignar permisos después de crearlos
         $adminRole->syncPermissions($permissions);
         $userRole->syncPermissions([
             'view usuarios',
+            'view clientes',
+            'create clientes',
+            'edit clientes',
+            'export clientes',
+            'stats clientes'
+        ]);
+        $ventasRole->syncPermissions([
             'view clientes',
             'create clientes',
             'edit clientes',

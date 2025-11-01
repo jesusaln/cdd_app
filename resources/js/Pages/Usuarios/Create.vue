@@ -486,6 +486,7 @@
                   <option v-for="rol in roles" :key="rol.id" :value="rol.name">
                     {{ rol.label || rol.name }}
                   </option>
+                  <option value="ventas">Ventas</option>
                 </select>
                 <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                   <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

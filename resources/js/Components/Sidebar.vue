@@ -47,8 +47,8 @@
     <!-- Navegación -->
     <nav class="flex-1 overflow-y-auto pt-4">
       <div class="px-2 pb-4">
-        <!-- Dashboard -->
-        <div class="mb-4">
+        <!-- Dashboard (solo para admin y user) -->
+        <div v-if="!isVentasRole" class="mb-4">
           <h3
             v-show="!props.isSidebarCollapsed"
             class="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2"
@@ -119,8 +119,8 @@
           </div>
         </div>
 
-        <!-- Préstamos -->
-        <div class="mb-4">
+        <!-- Préstamos (solo para admin y user) -->
+        <div v-if="!isVentasRole" class="mb-4">
           <div
             @click="toggleAccordion('prestamos')"
             class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
@@ -154,8 +154,8 @@
           </div>
         </div>
 
-        <!-- Compras -->
-        <div class="mb-4">
+        <!-- Compras (solo para admin y user) -->
+        <div v-if="!isVentasRole" class="mb-4">
           <div
             @click="toggleAccordion('compras')"
             class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
@@ -192,8 +192,8 @@
           </div>
         </div>
 
-        <!-- Rentas PDV -->
-        <div class="mb-4">
+        <!-- Rentas PDV (solo para admin y user) -->
+        <div v-if="!isVentasRole" class="mb-4">
           <div
             @click="toggleAccordion('rentas')"
             class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
@@ -227,8 +227,8 @@
           </div>
         </div>
 
-        <!-- Inventario -->
-        <div class="mb-4">
+        <!-- Inventario (solo para admin y user) -->
+        <div v-if="!isVentasRole" class="mb-4">
           <div
             @click="toggleAccordion('inventario')"
             class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
@@ -253,6 +253,9 @@
             <NavLink href="/productos" icon="box" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Productos' : null">
               Productos
             </NavLink>
+            <NavLink href="/almacenes" icon="warehouse" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Almacenes' : null">
+              Almacenes
+            </NavLink>
             <NavLink href="/traspasos" icon="exchange-alt" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Traspasos' : null">
               Traspasos
             </NavLink>
@@ -268,8 +271,8 @@
           </div>
         </div>
 
-        <!-- Catálogos -->
-        <div class="mb-4">
+        <!-- Catálogos (solo para admin y user) -->
+        <div v-if="!isVentasRole" class="mb-4">
           <div
             @click="toggleAccordion('catalogos')"
             class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
@@ -297,17 +300,14 @@
             <NavLink href="/marcas" icon="trademark" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Marcas de Productos' : null">
               Marcas de Productos
             </NavLink>
-            <NavLink href="/almacenes" icon="warehouse" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Almacenes' : null">
-              Almacenes
-            </NavLink>
             <NavLink href="/servicios" icon="wrench" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Servicios' : null">
               Servicios
             </NavLink>
           </div>
         </div>
 
-        <!-- Reportes -->
-        <div class="mb-4">
+        <!-- Reportes (solo para admin y user) -->
+        <div v-if="!isVentasRole" class="mb-4">
           <div
             @click="toggleAccordion('reportes')"
             class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
@@ -335,8 +335,8 @@
           </div>
         </div>
 
-                <!-- Gestión de Herramientas -->
-        <div class="mb-4">
+                <!-- Gestión de Herramientas (solo para admin y user) -->
+        <div v-if="!isVentasRole" class="mb-4">
           <div
             @click="toggleAccordion('gestion_herramientas')"
             class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
@@ -370,8 +370,8 @@
           </div>
         </div>
 
-        <!-- Taller -->
-        <div class="mb-4">
+        <!-- Taller (solo para admin y user) -->
+        <div v-if="!isVentasRole" class="mb-4">
           <div
             @click="toggleAccordion('taller')"
             class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
@@ -400,8 +400,8 @@
               Mantenimientos
             </NavLink>
           </div>
-        </div><!-- Administración -->
-        <div class="mb-4">
+        </div><!-- Administración (solo para admin y user) -->
+        <div v-if="!isVentasRole" class="mb-4">
           <div
             @click="toggleAccordion('administracion')"
             class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
@@ -432,8 +432,8 @@
           </div>
         </div>
 
-        <!-- Usuario -->
-        <div class="mb-4">
+        <!-- Usuario (solo para admin y user) -->
+        <div v-if="!isVentasRole" class="mb-4">
           <div
             @click="toggleAccordion('usuario')"
             class="flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white hover:bg-gray-700/50 rounded-md transition-colors duration-200"
@@ -501,7 +501,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import NavLink from '@/Components/NavLink.vue';
 
@@ -519,6 +519,11 @@ const props = defineProps({
     type: Boolean,
     default: false
   }
+});
+
+// Computed para determinar si el usuario tiene rol de ventas
+const isVentasRole = computed(() => {
+  return props.usuario.roles && props.usuario.roles.some(role => role.name === 'ventas');
 });
 
 // Emits
