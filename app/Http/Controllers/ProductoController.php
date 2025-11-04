@@ -117,7 +117,6 @@ class ProductoController extends Controller
             'marca_id'          => 'required|exists:marcas,id',
             'proveedor_id'      => 'nullable|exists:proveedores,id',
             'almacen_id'        => 'nullable|exists:almacenes,id',
-            'stock_minimo'      => 'required|integer|min:0',
             'expires'       => 'boolean',
             'requiere_serie'=> 'boolean',
             'precio_compra'     => 'required|numeric|min:0',
@@ -128,6 +127,8 @@ class ProductoController extends Controller
             'imagen'            => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
             'estado'            => 'required|in:activo,inactivo',
             'comision_vendedor' => 'nullable|numeric|min:0|max:100',
+            'stock_minimo_por_almacen' => 'nullable|array',
+            'stock_minimo_por_almacen.*' => 'integer|min:0',
         ]);
 
         if ($request->hasFile('imagen')) {
@@ -145,13 +146,24 @@ class ProductoController extends Controller
         // Set default values for missing fillable fields
         $validated['reservado'] = $validated['reservado'] ?? 0;
         $validated['stock'] = $validated['stock'] ?? 0;
-        $validated['stock_minimo'] = $validated['stock_minimo'] ?? 0;
         $validated['expires'] = $validated['expires'] ?? false;
         $validated['requiere_serie'] = $validated['requiere_serie'] ?? false;
         $validated['margen_ganancia'] = $validated['margen_ganancia'] ?? 0;
         $validated['comision_vendedor'] = $validated['comision_vendedor'] ?? 0;
 
         $producto = Producto::create($validated);
+
+        // Crear registros de inventario para cada almacén con stock mínimo configurado
+        if (!empty($validated['stock_minimo_por_almacen'])) {
+            foreach ($validated['stock_minimo_por_almacen'] as $almacenId => $stockMinimo) {
+                \App\Models\Inventario::create([
+                    'producto_id' => $producto->id,
+                    'almacen_id' => $almacenId,
+                    'cantidad' => 0,
+                    'stock_minimo' => $stockMinimo,
+                ]);
+            }
+        }
 
         // Log initial prices
         ProductoPrecioHistorial::create([
@@ -173,7 +185,7 @@ class ProductoController extends Controller
      */
     public function edit($id)
     {
-        $producto    = Producto::findOrFail($id);
+        $producto    = Producto::with('inventarios')->findOrFail($id);
         $categorias  = Categoria::all(['id', 'nombre']);
         $marcas      = Marca::all(['id', 'nombre']);
         $proveedores = Proveedor::all(['id', 'nombre_razon_social']);
@@ -208,7 +220,6 @@ class ProductoController extends Controller
             'codigo_barras' => 'nullable|string|unique:productos,codigo_barras,' . $producto->id,
             'marca_id'      => 'required|exists:marcas,id',
             'almacen_id'    => 'nullable|exists:almacenes,id',
-            'stock_minimo'  => 'nullable|integer|min:0',
             'expires'       => 'boolean',
             'requiere_serie'=> 'boolean',
             'precio_compra' => 'nullable|numeric|min:0',
@@ -220,6 +231,10 @@ class ProductoController extends Controller
 
             // Imagen
             'imagen'        => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+
+            // Stock mínimo por almacén
+            'stock_minimo_por_almacen' => 'nullable|array',
+            'stock_minimo_por_almacen.*' => 'integer|min:0',
         ]);
 
         if ($request->hasFile('imagen')) {
@@ -235,11 +250,28 @@ class ProductoController extends Controller
 
         // Set default values for missing fillable fields in update
         $validated['reservado'] = $validated['reservado'] ?? 0;
-        $validated['stock_minimo'] = $validated['stock_minimo'] ?? 0;
         $validated['expires'] = $validated['expires'] ?? false;
         $validated['requiere_serie'] = $validated['requiere_serie'] ?? false;
         $validated['margen_ganancia'] = $validated['margen_ganancia'] ?? 0;
         $validated['comision_vendedor'] = $validated['comision_vendedor'] ?? 0;
+
+        // Actualizar stock mínimo por almacén
+        if (!empty($validated['stock_minimo_por_almacen'])) {
+            foreach ($validated['stock_minimo_por_almacen'] as $almacenId => $stockMinimo) {
+                \App\Models\Inventario::updateOrCreate(
+                    [
+                        'producto_id' => $producto->id,
+                        'almacen_id' => $almacenId,
+                    ],
+                    [
+                        'cantidad' => \App\Models\Inventario::where('producto_id', $producto->id)
+                            ->where('almacen_id', $almacenId)
+                            ->value('cantidad') ?? 0,
+                        'stock_minimo' => $stockMinimo,
+                    ]
+                );
+            }
+        }
 
         // Check for price changes before updating
         $precioCompraChanged = isset($validated['precio_compra']) && $validated['precio_compra'] != $producto->precio_compra;
@@ -327,6 +359,7 @@ class ProductoController extends Controller
                     'nombre' => $producto->nombre,
                     'codigo' => $producto->codigo,
                     'requiere_serie' => (bool) ($producto->requiere_serie ?? false),
+                    'stock_total' => (int) ($producto->stock ?? 0),
                 ],
                 'counts' => [
                     'en_stock' => $seriesEnStock->count(),
@@ -336,12 +369,87 @@ class ProductoController extends Controller
                     'en_stock' => $seriesEnStock,
                     'vendido' => $seriesVendidas,
                 ],
+                'almacenes' => \App\Models\Almacen::select('id', 'nombre')->where('estado', 'activo')->orderBy('nombre')->get(),
             ]);
         } catch (\Exception $e) {
             Log::error('Error en ProductoController@series: ' . $e->getMessage());
             return response()->json([
                 'error' => 'Error al cargar las series',
                 'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Agrega números de serie en lote al producto (en_stock).
+     */
+    public function storeSeries(Request $request, Producto $producto): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'seriales' => ['required', 'array', 'min:1'],
+                'seriales.*' => ['required', 'string', 'max:191', 'distinct'],
+                'almacen_id' => ['nullable', 'exists:almacenes,id']
+            ]);
+
+            $seriales = collect($validated['seriales'] ?? [])
+                ->map(fn($s) => trim((string)$s))
+                ->filter(fn($s) => $s !== '')
+                ->unique()
+                ->values();
+
+            if ($seriales->isEmpty()) {
+                return response()->json([
+                    'error' => 'No se recibieron números de serie válidos.'
+                ], 422);
+            }
+
+            // Verificar existentes globalmente (numero_serie es unique)
+            $existentes = DB::table('producto_series')
+                ->whereIn('numero_serie', $seriales->all())
+                ->pluck('numero_serie')
+                ->all();
+
+            if (!empty($existentes)) {
+                return response()->json([
+                    'error' => 'Algunos números de serie ya existen.',
+                    'duplicados' => array_values($existentes),
+                ], 422);
+            }
+
+            $creados = [];
+            $almacenId = $validated['almacen_id'] ?? null;
+            foreach ($seriales as $serieStr) {
+                $id = DB::table('producto_series')->insertGetId([
+                    'producto_id' => $producto->id,
+                    'compra_id' => null,
+                    'almacen_id' => $almacenId,
+                    'numero_serie' => $serieStr,
+                    'estado' => 'en_stock',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                $creados[] = [
+                    'id' => $id,
+                    'numero_serie' => $serieStr,
+                    'estado' => 'en_stock',
+                    'created_at' => now()->toDateTimeString(),
+                ];
+            }
+
+            return response()->json([
+                'success' => true,
+                'created' => $creados,
+                'counts' => [
+                    'en_stock' => DB::table('producto_series')->where('producto_id', $producto->id)->where('estado', 'en_stock')->count(),
+                    'vendido' => DB::table('producto_series')->where('producto_id', $producto->id)->where('estado', 'vendido')->count(),
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Error en ProductoController@storeSeries: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Error al agregar las series',
+                'message' => $e->getMessage(),
             ], 500);
         }
     }

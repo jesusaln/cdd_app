@@ -63,6 +63,84 @@ const seriesPage = ref({ enStock: 1, vendidas: 1 })
 const seriesPerPage = ref({ enStock: 10, vendidas: 10 })
 const editSerie = ref({ rowId: null, value: '' })
 
+// Agregar series (pegar y guardar)
+const addSeriesText = ref('')
+const addSeriesLoading = ref(false)
+const addSeriesAlmacenId = ref('')
+
+const csrfToken = () => {
+  const meta = typeof document !== 'undefined' ? document.querySelector('meta[name="csrf-token"]') : null
+  if (meta) return meta.getAttribute('content')
+  const m = typeof document !== 'undefined' ? document.cookie.match(/XSRF-TOKEN=([^;]+)/) : null
+  return m ? decodeURIComponent(m[1]) : null
+}
+
+const faltantesSeries = computed(() => {
+  const total = Number(seriesDetalle.value?.producto?.stock_total ?? seriesDetalle.value?.producto?.stock ?? 0)
+  const enStock = Number(seriesDetalle.value?.counts?.en_stock ?? 0)
+  return Math.max(0, total - enStock)
+})
+
+const almacenesModal = computed(() => {
+  return seriesDetalle.value?.almacenes || []
+})
+
+const guardarSeriesPegadas = async (productoId) => {
+  const raw = (addSeriesText.value || '').split(/\r?\n/)
+    .map(s => (s || '').trim())
+    .filter(Boolean)
+  let unique = Array.from(new Set(raw))
+  const max = faltantesSeries.value || unique.length
+  if (unique.length > max) {
+    unique = unique.slice(0, max)
+  }
+  if (unique.length === 0) {
+    notyf.error('Captura al menos una serie')
+    return
+  }
+  addSeriesLoading.value = true
+  try {
+    let url
+    try { url = route('productos.series.store', productoId) } catch (e) {
+      const base = typeof window !== 'undefined' ? window.location.origin : ''
+      url = `${base}/productos/${productoId}/series`
+    }
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-CSRF-TOKEN': csrfToken(),
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({ seriales: unique, almacen_id: addSeriesAlmacenId.value || null })
+    })
+    const data = await resp.json().catch(() => null)
+    if (!resp.ok) {
+      const msg = (data && (data.error || data.message)) || 'No se pudieron guardar las series'
+      notyf.error(msg)
+      return
+    }
+    // Actualizar detalle del modal
+    const creados = data?.created || []
+    if (!seriesDetalle.value.series) seriesDetalle.value.series = { en_stock: [], vendido: [] }
+    seriesDetalle.value.series.en_stock = [...creados, ...(seriesDetalle.value.series.en_stock || [])]
+    if (data?.counts) {
+      seriesDetalle.value.counts = data.counts
+      seriesCountMap.value[productoId] = data.counts
+    }
+    addSeriesText.value = ''
+    addSeriesAlmacenId.value = ''
+    notyf.success('Series agregadas correctamente')
+  } catch (err) {
+    console.error('Error guardando series:', err)
+    notyf.error('Error al guardar las series')
+  } finally {
+    addSeriesLoading.value = false
+  }
+}
+
 // Filtros
 const searchTerm = ref(props.filters?.search ?? '')
 const sortBy = ref('nombre-asc')
@@ -270,6 +348,7 @@ const verSeries = async (producto) => {
       return
     }
     seriesDetalle.value = await response.json()
+    addSeriesAlmacenId.value = ''
     showSeriesModal.value = true
   } catch (error) {
     console.error('Error al cargar series:', error)
@@ -369,14 +448,14 @@ const guardarSerie = async (productoId, s) => {
     }
 
     // Obtener el token CSRF
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+    const token = csrfToken()
 
     const res = await fetch(url, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'X-CSRF-TOKEN': csrfToken,
+        'X-CSRF-TOKEN': token,
         'X-Requested-With': 'XMLHttpRequest'
       },
       credentials: 'same-origin',
@@ -555,16 +634,11 @@ const getSeriesTotal = (productoId) => {
                     </button>
                     <button v-if="(getSeriesTotal(producto.id) > 0) || producto.raw.requiere_serie"
                             @click="verSeries(producto.raw)"
-                            class="relative w-8 h-8 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors duration-150"
+                            class="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors duration-150"
                             title="Series">
                       <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-7 4h8M5 8h14" />
                       </svg>
-                      <span class="absolute -top-1 -right-1 min-w-[56px] h-5 px-2 rounded-full text-[10px] font-semibold flex items-center justify-center"
-                            :class="(getSeriesTotal(producto.id)) > 0 ? 'bg-emerald-600 text-white' : 'bg-gray-300 text-gray-700'">
-                        <template v-if="seriesLoadingMap[producto.id]">…</template>
-                        <template v-else>E:{{ getSeriesCount(producto.id, 'en_stock') }} | V:{{ getSeriesCount(producto.id, 'vendido') }}</template>
-                      </span>
                     </button>
                     <button @click="editarProducto(producto.id)" class="w-8 h-8 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-colors duration-150" title="Editar">
                       <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -904,17 +978,17 @@ const getSeriesTotal = (productoId) => {
 
  <!-- Modal Series -->
  <div v-if="showSeriesModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="showSeriesModal = false">
-   <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl">
-     <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+   <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+     <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
        <h3 class="text-lg font-semibold text-gray-900">Series del Producto: {{ seriesDetalle?.producto?.nombre || '' }}</h3>
        <button @click="showSeriesModal = false" class="text-gray-400 hover:text-gray-600 transition-colors">
          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
        </button>
      </div>
-     <div class="p-6">
+     <div class="flex-1 overflow-y-auto p-6">
        <div v-if="!seriesDetalle"><p class="text-sm text-gray-500">Cargando...</p></div>
-       <div v-else>
-         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div v-else>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
            <div>
              <label class="block text-xs font-medium text-gray-700 mb-1">Buscar en stock</label>
              <input v-model.trim="seriesSearch.enStock" type="text" placeholder="Buscar número de serie" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
@@ -934,14 +1008,42 @@ const getSeriesTotal = (productoId) => {
              <div class="text-2xl font-semibold text-gray-800">{{ seriesDetalle.counts.vendido }}</div>
            </div>
          </div>
-         <div>
-           <h4 class="text-sm font-medium text-gray-700 mb-2">Listado de series en stock</h4>
+          <!-- Agregar series (pegar y guardar) -->
+          <div class="mb-6 p-4 border border-amber-200 rounded-lg bg-amber-50">
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="text-sm font-medium text-amber-800">Agregar series al stock</h4>
+            </div>
+            <p class="text-xs text-amber-700 mb-1">Pega una por línea. Deben corresponder a este producto.</p>
+            <div class="text-xs text-amber-800 mb-2">
+              Faltan {{ faltantesSeries }} {{ faltantesSeries === 1 ? 'serie' : 'series' }} por capturar
+              <span v-if="seriesDetalle?.producto?.stock_total !== undefined" class="text-amber-700">(stock total: {{ seriesDetalle.producto.stock_total }}, en stock con serie: {{ seriesDetalle.counts.en_stock }})</span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2">
+              <div>
+                <label class="block text-xs font-medium text-amber-800 mb-1">Almacén (opcional)</label>
+                <select v-model="addSeriesAlmacenId" class="w-full border border-amber-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
+                  <option value="">Sin almacén</option>
+                  <option v-for="a in almacenesModal" :key="a.id" :value="a.id">{{ a.nombre }}</option>
+                </select>
+              </div>
+            </div>
+            <textarea v-model.trim="addSeriesText" rows="4" class="w-full border border-amber-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500" placeholder="Pega números de serie, uno por línea"></textarea>
+            <div class="mt-3 text-right">
+              <button @click="guardarSeriesPegadas(seriesDetalle.producto.id)" :disabled="addSeriesLoading || faltantesSeries === 0" class="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:opacity-50">
+                {{ addSeriesLoading ? 'Guardando...' : 'Guardar series' }}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <h4 class="text-sm font-medium text-gray-700 mb-2">Listado de series en stock</h4>
            <div class="max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
              <table class="min-w-full divide-y divide-gray-200">
                <thead class="bg-gray-50">
                  <tr>
                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">#</th>
                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">Número de serie</th>
+                   <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">Acciones</th>
                  </tr>
                </thead>
                <tbody class="bg-white divide-y divide-gray-200">
@@ -966,7 +1068,7 @@ const getSeriesTotal = (productoId) => {
                    </td>
                  </tr>
                  <tr v-if="filteredEnStock.length === 0">
-                   <td colspan="2" class="px-4 py-6 text-center text-sm text-gray-500">Sin series en stock</td>
+                   <td colspan="3" class="px-4 py-6 text-center text-sm text-gray-500">Sin series en stock</td>
                  </tr>
                </tbody>
              </table>
@@ -974,7 +1076,7 @@ const getSeriesTotal = (productoId) => {
          </div>
        </div>
      </div>
-     <div class="px-6 py-4 border-t bg-gray-50 border-gray-200 text-right">
+     <div class="px-6 py-4 border-t bg-gray-50 border-gray-200 text-right flex-shrink-0">
        <button @click="showSeriesModal = false" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">Cerrar</button>
      </div>
    </div>

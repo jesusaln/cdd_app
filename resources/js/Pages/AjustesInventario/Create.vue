@@ -1,6 +1,6 @@
 <!-- /resources/js/Pages/AjustesInventario/Create.vue -->
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { Head, router, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { Notyf } from 'notyf'
@@ -48,6 +48,12 @@ const stockActual = ref(0)
 const loadingStock = ref(false)
 
 // Computed
+const selectedProducto = computed(() => {
+  const id = form.value.producto_id
+  return props.productos.find(p => String(p.id) === String(id)) || null
+})
+const requiereSerie = computed(() => !!(selectedProducto.value && selectedProducto.value.requiere_serie))
+
 const cantidadNueva = computed(() => {
   const actual = parseInt(stockActual.value) || 0
   const ajuste = parseInt(form.value.cantidad_ajuste) || 0
@@ -59,12 +65,34 @@ const cantidadNueva = computed(() => {
   }
 })
 
+// Series para productos que lo requieren
+const seriales = ref([])
+const requiredSerials = computed(() => requiereSerie.value ? (parseInt(form.value.cantidad_ajuste) || 0) : 0)
+
+watch(requiredSerials, (n) => {
+  const next = (seriales.value || []).slice(0, n)
+  while (next.length < n) next.push('')
+  seriales.value = next
+})
+
+watch(() => form.value.producto_id, () => { seriales.value = [] })
+watch(() => form.value.tipo, () => { seriales.value = [] })
+
 const puedeGuardar = computed(() => {
-  return form.value.producto_id &&
-         form.value.almacen_id &&
-         form.value.cantidad_ajuste > 0 &&
-         form.value.motivo.trim() &&
-         (form.value.tipo !== 'decremento' || cantidadNueva.value >= 0)
+  const baseOk = form.value.producto_id &&
+    form.value.almacen_id &&
+    form.value.cantidad_ajuste > 0 &&
+    form.value.motivo.trim() &&
+    (form.value.tipo !== 'decremento' || cantidadNueva.value >= 0)
+
+  if (!baseOk) return false
+  if (!requiereSerie.value) return true
+
+  const req = requiredSerials.value
+  if (req <= 0) return false
+  const trimmed = (seriales.value || []).map(s => (s || '').trim()).filter(Boolean)
+  const unique = new Set(trimmed)
+  return trimmed.length === req && unique.size === trimmed.length
 })
 
 // Métodos
@@ -97,7 +125,12 @@ const submit = () => {
 
   loading.value = true
 
-  router.post(route('ajustes-inventario.store'), form.value, {
+  const payload = { ...form.value }
+  if (requiereSerie.value && (seriales.value || []).length > 0) {
+    payload.seriales = (seriales.value || []).map(s => (s || '').trim()).filter(Boolean)
+  }
+
+  router.post(route('ajustes-inventario.store'), payload, {
     onSuccess: () => {
       notyf.success('Ajuste de inventario realizado correctamente')
       router.visit(route('ajustes-inventario.index'))
@@ -263,6 +296,27 @@ const watchAlmacen = () => {
               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
               placeholder="Ingresa la cantidad"
             />
+          </div>
+
+          <!-- Series (solo si el producto requiere serie) -->
+          <div v-if="requiereSerie" class="bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <h3 class="text-sm font-medium text-amber-800 mb-2">Captura de series</h3>
+            <p class="text-xs text-amber-700 mb-3">
+              Este producto requiere capturar un número de serie por unidad.
+              Ingresa exactamente {{ requiredSerials }} {{ requiredSerials === 1 ? 'serie' : 'series' }}.
+            </p>
+            <div v-if="requiredSerials > 0" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div v-for="(val, idx) in requiredSerials" :key="idx" class="flex items-center gap-2">
+                <span class="text-xs text-gray-500 w-6 text-right">#{{ idx + 1 }}</span>
+                <input
+                  type="text"
+                  class="flex-1 px-3 py-2 border border-amber-300 rounded-md focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm"
+                  v-model.trim="seriales[idx]"
+                  placeholder="Número de serie"
+                />
+              </div>
+            </div>
+            <div v-else class="text-xs text-amber-700">Indica primero la cantidad a ajustar.</div>
           </div>
 
           <!-- Vista Previa del Resultado -->

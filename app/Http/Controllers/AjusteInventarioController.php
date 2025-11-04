@@ -6,6 +6,7 @@ use App\Models\AjusteInventario;
 use App\Models\Producto;
 use App\Models\Almacen;
 use App\Models\Inventario;
+use App\Models\ProductoSerie;
 use App\Services\InventarioService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -150,7 +151,7 @@ class AjusteInventarioController extends Controller
      */
     public function create()
     {
-        $productos = Producto::select('id', 'nombre', 'codigo')->orderBy('nombre')->get();
+        $productos = Producto::select('id', 'nombre', 'codigo', 'requiere_serie')->orderBy('nombre')->get();
         $almacenes = Almacen::select('id', 'nombre')->where('estado', 'activo')->orderBy('nombre')->get();
 
         return Inertia::render('AjustesInventario/Create', [
@@ -172,12 +173,24 @@ class AjusteInventarioController extends Controller
             'motivo' => 'required|string|max:255',
             'observaciones' => 'nullable|string|max:1000',
         ]);
+        
+        $producto = Producto::findOrFail($request->producto_id);
+        $cantidadAjuste = (int) $request->cantidad_ajuste;
 
-        DB::transaction(function () use ($request) {
+        // Si el producto requiere serie, validar seriales según tipo
+        if ($producto->requiere_serie) {
+            $rules = [
+                'seriales' => ['required', 'array', 'size:' . $cantidadAjuste],
+                'seriales.*' => ['required', 'string', 'max:191', 'distinct'],
+            ];
+            $request->validate($rules);
+        }
+
+        DB::transaction(function () use ($request, $producto, $cantidadAjuste) {
             $productoId = $request->producto_id;
             $almacenId = $request->almacen_id;
             $tipo = $request->tipo;
-            $cantidadAjuste = $request->cantidad_ajuste;
+            $cantidadAjuste = (int) $cantidadAjuste;
 
             // Obtener el inventario actual
             $inventario = Inventario::where('producto_id', $productoId)
@@ -196,7 +209,50 @@ class AjusteInventarioController extends Controller
                 throw new \Exception('El ajuste resultaría en stock negativo. Stock actual: ' . $cantidadAnterior);
             }
 
-            $producto = Producto::find($productoId);
+            // Manejo de series si aplica
+            if ($producto->requiere_serie) {
+                $seriales = array_map(function ($s) {
+                    return trim((string) $s);
+                }, (array) $request->input('seriales', []));
+
+                if ($tipo === 'incremento') {
+                    // Validar que no existan ya (únicos por tabla)
+                    $existentes = DB::table('producto_series')
+                        ->whereIn('numero_serie', $seriales)
+                        ->pluck('numero_serie')
+                        ->all();
+
+                    if (!empty($existentes)) {
+                        throw new \Exception('Los siguientes números de serie ya existen: ' . implode(', ', $existentes));
+                    }
+
+                    foreach ($seriales as $serieStr) {
+                        ProductoSerie::create([
+                            'producto_id' => $producto->id,
+                            'compra_id' => null,
+                            'almacen_id' => $almacenId,
+                            'numero_serie' => $serieStr,
+                            'estado' => 'en_stock',
+                        ]);
+                    }
+                } else { // decremento
+                    $seriesEnStock = ProductoSerie::where('producto_id', $producto->id)
+                        ->whereIn('numero_serie', $seriales)
+                        ->where('estado', 'en_stock')
+                        ->where(function ($q) use ($almacenId) {
+                            // Permitir series legacy sin almacén, o que coincidan con el almacén seleccionado
+                            $q->whereNull('almacen_id')->orWhere('almacen_id', $almacenId);
+                        })
+                        ->pluck('id');
+
+                    if (count($seriales) !== $seriesEnStock->count()) {
+                        throw new \Exception('Algunas series no existen o no están en stock para el producto seleccionado en el almacén elegido.');
+                    }
+
+                    ProductoSerie::whereIn('id', $seriesEnStock->all())
+                        ->update(['estado' => 'ajuste_baja', 'almacen_id' => $almacenId]);
+                }
+            }
 
             // Usar el servicio para ajustar inventario
             if ($tipo === 'incremento') {

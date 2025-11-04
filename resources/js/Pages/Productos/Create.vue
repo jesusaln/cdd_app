@@ -216,21 +216,30 @@
                 <!-- Precios e Inventario Tab -->
                 <div v-show="activeTab === 'pricing'" class="space-y-6">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Stock Mínimo -->
-                        <div>
-                            <label for="stock_minimo" class="block text-sm font-medium text-gray-700 mb-2">
-                                Stock Mínimo <span class="text-red-500">*</span>
+                        <!-- Stock Mínimo por Almacén -->
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Stock Mínimo por Almacén
                             </label>
-                            <input
-                                v-model="form.stock_minimo"
-                                type="number"
-                                id="stock_minimo"
-                                placeholder="Stock mínimo requerido"
-                                class="input-field"
-                                min="0"
-                                required
-                            />
-                            <div v-if="form.errors.stock_minimo" class="error-message">{{ form.errors.stock_minimo }}</div>
+                            <div class="space-y-3">
+                                <div v-for="almacen in almacenes" :key="almacen.id" class="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                                    <div class="flex-1">
+                                        <span class="text-sm font-medium text-gray-900">{{ almacen.nombre }}</span>
+                                    </div>
+                                    <div class="w-32">
+                                        <input
+                                            v-model="stockMinimoPorAlmacen[almacen.id]"
+                                            type="number"
+                                            :placeholder="'Mínimo para ' + almacen.nombre"
+                                            class="input-field text-sm"
+                                            min="0"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2">
+                                Configure el stock mínimo para cada almacén. Si no especifica, se usará 0 por defecto.
+                            </p>
                         </div>
 
                         <!-- Precio de Compra -->
@@ -505,6 +514,9 @@ const cargandoCodigo = ref(false);
 const unidadesMedida = ref([]);
 const cargandoUnidades = ref(false);
 
+// Estado para stock mínimo por almacén
+const stockMinimoPorAlmacen = ref({});
+
 // Formulario para crear un producto
 const form = useForm({
     nombre: '',
@@ -514,7 +526,6 @@ const form = useForm({
     marca_id: '',
     proveedor_id: '',
     almacen_id: '',
-    stock_minimo: '',
     precio_compra: '',
     precio_venta: '',
     tipo_producto: 'fisico',
@@ -524,6 +535,8 @@ const form = useForm({
     comision_vendedor: '',
     // Importante: declarar unidad_medida para que Inertia la envíe en el POST
     unidad_medida: 'Pieza',
+    // Stock mínimo por almacén
+    stock_minimo_por_almacen: {},
 });
 
 watch(
@@ -584,10 +597,20 @@ const submit = () => {
         }
         return;
     }
+
+    // Preparar stock mínimo por almacén
+    form.stock_minimo_por_almacen = {};
+    for (const [almacenId, stockMinimo] of Object.entries(stockMinimoPorAlmacen.value)) {
+        if (stockMinimo && parseInt(stockMinimo) > 0) {
+            form.stock_minimo_por_almacen[almacenId] = parseInt(stockMinimo);
+        }
+    }
+
     form.post(route('productos.store'), {
         onSuccess: () => {
             form.reset();
             imagePreview.value = null;
+            stockMinimoPorAlmacen.value = {};
             // Obtener el siguiente código después de crear un producto
             obtenerSiguienteCodigo();
         },

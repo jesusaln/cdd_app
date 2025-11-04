@@ -315,22 +315,30 @@
                                 </div>
                             </div>
 
-                            <!-- Stock Mínimo -->
-                            <div>
-                                <label for="stock_minimo" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Stock Mínimo
+                            <!-- Stock Mínimo por Almacén -->
+                            <div class="md:col-span-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Stock Mínimo por Almacén
                                 </label>
-                                <input
-                                    v-model="form.stock_minimo"
-                                    type="number"
-                                    id="stock_minimo"
-                                    min="0"
-                                    placeholder="0"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
-                                />
-                                <div v-if="form.errors.stock_minimo" class="mt-1 text-sm text-red-600">
-                                    {{ form.errors.stock_minimo }}
+                                <div class="space-y-3">
+                                    <div v-for="almacen in almacenes" :key="almacen.id" class="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                                        <div class="flex-1">
+                                            <span class="text-sm font-medium text-gray-900">{{ almacen.nombre }}</span>
+                                        </div>
+                                        <div class="w-32">
+                                            <input
+                                                v-model="stockMinimoPorAlmacen[almacen.id]"
+                                                type="number"
+                                                :placeholder="'Mínimo para ' + almacen.nombre"
+                                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 text-sm"
+                                                min="0"
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
+                                <p class="text-xs text-gray-500 mt-2">
+                                    Configure el stock mínimo para cada almacén. Si no especifica, se mantendrá el valor actual.
+                                </p>
                             </div>
 
                             <!-- Unidad de Medida -->
@@ -610,7 +618,7 @@
 
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3';
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue';
 import UnidadMedidaModal from '@/Components/Modals/UnidadMedidaModal.vue';
 
@@ -638,6 +646,9 @@ const unidadesMedida = ref([...props.unidadesMedida]);
 // Modal de unidades de medida
 const showUnidadMedidaModal = ref(false);
 
+// Estado para stock mínimo por almacén
+const stockMinimoPorAlmacen = ref({});
+
 // Inicializa el formulario con los datos del producto
 const form = useForm({
     id: props.producto?.id || '',
@@ -650,7 +661,6 @@ const form = useForm({
     codigo: props.producto?.codigo || '',
     codigo_barras: props.producto?.codigo_barras || '',
     requiere_serie: props.producto?.requiere_serie ?? false,
-    stock_minimo: props.producto?.stock_minimo || '',
     precio_compra: props.producto?.precio_compra || '',
     precio_venta: props.producto?.precio_venta || '',
     tipo_producto: props.producto?.tipo_producto || '',
@@ -659,6 +669,8 @@ const form = useForm({
     peso: props.producto?.peso || '',
     dimensiones: props.producto?.dimensiones || '',
     estado: props.producto?.estado || '',
+    // Stock mínimo por almacén
+    stock_minimo_por_almacen: {},
 });
 
 watch(
@@ -671,6 +683,16 @@ watch(
         }
     }
 );
+
+// Inicializar stock mínimo por almacén desde los datos existentes
+onMounted(() => {
+    // Cargar stock mínimo actual por almacén
+    if (props.producto?.inventarios) {
+        props.producto.inventarios.forEach(inventario => {
+            stockMinimoPorAlmacen.value[inventario.almacen_id] = inventario.stock_minimo || 0;
+        });
+    }
+});
 
 // Función para calcular el margen de ganancia
 const calcularMargen = () => {
@@ -693,6 +715,15 @@ const submit = () => {
         }
         return;
     }
+
+    // Preparar stock mínimo por almacén
+    form.stock_minimo_por_almacen = {};
+    for (const [almacenId, stockMinimo] of Object.entries(stockMinimoPorAlmacen.value)) {
+        if (stockMinimo && parseInt(stockMinimo) > 0) {
+            form.stock_minimo_por_almacen[almacenId] = parseInt(stockMinimo);
+        }
+    }
+
     form.put(route('productos.update', props.producto.id), {
         onSuccess: () => {
             // Producto actualizado correctamente

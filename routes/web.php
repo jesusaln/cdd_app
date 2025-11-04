@@ -192,6 +192,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
 
         // Rutas de series - ANTES de las rutas con {producto}
         Route::get('/{producto}/series', [ProductoController::class, 'series'])->name('series');
+        Route::post('/{producto}/series', [ProductoController::class, 'storeSeries'])->name('series.store');
         Route::put('/{producto}/series/{serie}', [ProductoController::class, 'updateSerie'])->name('series.update');
         Route::get('/{producto}/stock-detalle', [ProductoController::class, 'getStockDetalle'])->name('stock-detalle');
 
