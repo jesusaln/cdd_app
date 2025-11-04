@@ -590,8 +590,8 @@ class ClienteController extends Controller
                 $data['email'] = strtolower(trim($data['email']));
             }
 
-            // Establecer domicilio_fiscal_cp igual al codigo_postal para CFDI 4.0
-            $data['domicilio_fiscal_cp'] = $data['codigo_postal'];
+            // Establecer domicilio_fiscal_cp igual al codigo_postal para CFDI 4.0 (si existe)
+            $data['domicilio_fiscal_cp'] = $data['codigo_postal'] ?? null;
 
             $cliente = Cliente::create($data);
 

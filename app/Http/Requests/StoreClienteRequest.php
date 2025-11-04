@@ -21,6 +21,12 @@ class StoreClienteRequest extends FormRequest
     {
         $requiereFactura = $this->input('requiere_factura', false);
 
+        // Si no envían país, por defecto MX para permitir clientes mínimos sin dirección
+        $paisInput = strtoupper(trim((string) $this->input('pais')));
+        if ($paisInput === '' || $paisInput === null) {
+            $paisInput = 'MX';
+        }
+
         $normalized = [
             'nombre_razon_social' => trim((string) $this->input('nombre_razon_social')),
             'calle'               => trim((string) $this->input('calle')),
@@ -30,7 +36,7 @@ class StoreClienteRequest extends FormRequest
             'codigo_postal'       => trim((string) $this->input('codigo_postal')),
             'municipio'           => trim((string) $this->input('municipio')),
             'estado'              => strtoupper(trim((string) $this->input('estado'))),
-            'pais'                => strtoupper(trim((string) $this->input('pais'))),
+            'pais'                => $paisInput,
         ];
 
         // Solo normalizar campos fiscales si requiere factura
