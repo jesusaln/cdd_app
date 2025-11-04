@@ -48,6 +48,7 @@ class User extends Authenticatable
         'observaciones',
         'es_empleado',
         'activo',
+        'almacen_venta_id',
     ];
 
     /**
@@ -224,6 +225,12 @@ class User extends Authenticatable
     public function scopeEmpleadosActivos($query)
     {
         return $query->where('es_empleado', true)->where('activo', true);
+    }
+
+    // Relación con almacén de venta predeterminado
+    public function almacenVenta()
+    {
+        return $this->belongsTo(Almacen::class, 'almacen_venta_id');
     }
 
 }

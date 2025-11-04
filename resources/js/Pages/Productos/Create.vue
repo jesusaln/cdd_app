@@ -184,18 +184,18 @@
 
                         <!-- Almacén -->
                         <div>
-                            <label for="almacen_id" class="block text-sm font-medium text-gray-700 mb-2">
-                                Almacén
-                            </label>
-                            <select v-model="form.almacen_id" id="almacen_id" class="input-field">
-                                <option value="">Seleccione un almacén</option>
-                                <option v-for="almacen in almacenes" :key="almacen.id" :value="almacen.id">
-                                    {{ almacen.nombre }}
-                                </option>
-                            </select>
-                            <button type="button" class="mt-2 text-sm text-blue-600 hover:underline" @click="showAlmacenModal = true">+ Nuevo almacén</button>
-                            <div v-if="form.errors.almacen_id" class="error-message">{{ form.errors.almacen_id }}</div>
-                        </div>
+                             <label for="almacen_id" class="block text-sm font-medium text-gray-700 mb-2">
+                                 Almacén
+                             </label>
+                             <select v-model="form.almacen_id" id="almacen_id" class="input-field">
+                                 <option value="">Seleccione un almacén</option>
+                                 <option v-for="almacen in almacenes" :key="almacen.id" :value="almacen.id">
+                                     {{ almacen.nombre }}
+                                 </option>
+                             </select>
+                             <button type="button" class="mt-2 text-sm text-blue-600 hover:underline" @click="showAlmacenModal = true">+ Nuevo almacén</button>
+                             <div v-if="form.errors.almacen_id" class="error-message">{{ form.errors.almacen_id }}</div>
+                         </div>
                     </div>
 
                     <!-- Descripción -->
@@ -238,7 +238,7 @@
                                 </div>
                             </div>
                             <p class="text-xs text-gray-500 mt-2">
-                                Configure el stock mínimo para cada almacén. Si no especifica, se usará 0 por defecto.
+                                Configure el stock mínimo específico para cada almacén. Si no especifica un valor, se usará 0 por defecto.
                             </p>
                         </div>
 

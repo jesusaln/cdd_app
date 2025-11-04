@@ -533,6 +533,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // RUTAS ESPECÃƒÂFICAS DE USUARIOS
     // =====================================================
     Route::get('/perfil', [UserController::class, 'profile'])->name('perfil');
+    Route::post('/user/update-almacen-venta', [UserController::class, 'updateAlmacenVenta'])->name('user.update-almacen-venta');
     // Ã¢Å“â€¦ CONFLICTO RESUELTO: Eliminada ruta duplicada - usa la del resource usuarios.show
 
     // =====================================================

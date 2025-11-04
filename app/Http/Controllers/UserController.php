@@ -26,7 +26,13 @@ class UserController extends BaseController
     public function profile()
     {
         $user = Auth::user();
-        return Inertia::render('Usuarios/Profile', ['usuario' => $user]);
+        $almacenes = \App\Models\Almacen::select('id', 'nombre')->where('estado', 'activo')->orderBy('nombre')->get();
+        return Inertia::render('Profile/Show', [
+            'user' => $user,
+            'almacenes' => $almacenes,
+            'sessions' => collect(),
+            'confirmsTwoFactorAuthentication' => false
+        ]);
     }
 
     public function index(Request $request)
@@ -361,6 +367,29 @@ class UserController extends BaseController
             Log::error('Error cambiando estado del usuario: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Hubo un problema al cambiar el estado del usuario.');
         }
+    }
+
+    public function updateAlmacenVenta(Request $request)
+    {
+        $request->validate([
+            'almacen_venta_id' => 'nullable|exists:almacenes,id',
+        ]);
+
+        $user = Auth::user();
+        $user->update([
+            'almacen_venta_id' => $request->almacen_venta_id,
+        ]);
+
+        $almacenVenta = null;
+        if ($request->almacen_venta_id) {
+            $almacenVenta = \App\Models\Almacen::find($request->almacen_venta_id);
+        }
+
+        return response()->json([
+            'success' => true,
+            'almacen_venta' => $almacenVenta,
+            'message' => 'Almacén de venta actualizado correctamente.'
+        ]);
     }
 
     public function export(Request $request)

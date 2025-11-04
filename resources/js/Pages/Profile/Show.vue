@@ -14,6 +14,8 @@ import 'notyf/notyf.min.css';
 const props = defineProps({
     confirmsTwoFactorAuthentication: Boolean, // Indica si se requiere confirmación para autenticación de dos factores
     sessions: Array, // Lista de sesiones activas del usuario
+    almacenes: Array, // Lista de almacenes disponibles
+    user: Object, // Información del usuario
 });
 
 // Notificaciones
@@ -28,6 +30,11 @@ const notyf = new Notyf({
 
 const page = usePage();
 const user = computed(() => page.props.auth.user);
+
+// Estado para almacén de venta
+const almacenes = ref(props.almacenes || []);
+const userData = computed(() => props.user || user.value);
+const selectedAlmacen = ref(userData.value?.almacen_venta_id || '');
 
 // Estadísticas del perfil
 const profileStats = computed(() => ({
@@ -44,6 +51,40 @@ const headerConfig = {
   subtitle: `Bienvenido, ${user.value?.name || 'Usuario'}`,
   showCreateButton: false,
   showStats: true
+};
+
+// Función para actualizar almacén de venta
+const updateAlmacenVenta = async () => {
+    try {
+        const response = await fetch('/user/update-almacen-venta', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                almacen_venta_id: selectedAlmacen.value || null
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            // Actualizar el usuario localmente
+            if (userData.value) {
+                userData.value.almacen_venta_id = selectedAlmacen.value;
+                userData.value.almacen_venta = data.almacen_venta;
+            }
+            notyf.success('Almacén de venta actualizado correctamente');
+        } else {
+            throw new Error('Error al actualizar');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        notyf.error('Error al actualizar el almacén de venta');
+        // Revertir el cambio
+        selectedAlmacen.value = userData.value?.almacen_venta_id || '';
+    }
 };
 </script>
 
@@ -152,6 +193,49 @@ const headerConfig = {
                         <h3 class="text-xl font-semibold text-slate-900">Autenticación de Dos Factores</h3>
                     </div>
                     <TwoFactorAuthenticationForm :requires-confirmation="props.confirmsTwoFactorAuthentication" />
+                </div>
+
+                <!-- Almacén de Venta Predeterminado -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-lg transition-all duration-300">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                            <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-semibold text-slate-900">Almacén de Venta Predeterminado</h3>
+                    </div>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="almacen_venta" class="block text-sm font-medium text-gray-700 mb-2">
+                                Selecciona tu almacén predeterminado para ventas
+                            </label>
+                            <select
+                                v-model="selectedAlmacen"
+                                @change="updateAlmacenVenta"
+                                id="almacen_venta"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200"
+                            >
+                                <option value="">Sin almacén predeterminado</option>
+                                <option v-for="almacen in almacenes" :key="almacen.id" :value="almacen.id">
+                                    {{ almacen.nombre }}
+                                </option>
+                            </select>
+                            <p class="text-xs text-gray-500 mt-1">
+                                Este almacén se seleccionará automáticamente al crear nuevas ventas.
+                            </p>
+                        </div>
+                        <div v-if="userData.almacen_venta" class="p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+                            <div class="flex items-center gap-2">
+                                <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                </svg>
+                                <span class="text-sm text-indigo-700">
+                                    Almacén actual: <strong>{{ userData.almacen_venta.nombre }}</strong>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Sesiones del Navegador -->

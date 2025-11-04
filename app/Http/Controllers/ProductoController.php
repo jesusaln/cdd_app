@@ -344,14 +344,14 @@ class ProductoController extends Controller
                 ->where('producto_id', $producto->id)
                 ->where('estado', 'en_stock')
                 ->orderBy('numero_serie')
-                ->get(['id', 'numero_serie', 'estado', 'created_at']);
+                ->get(['id', 'numero_serie', 'estado', 'almacen_id', 'created_at']);
 
             // Obtener series vendidas (estado = 'vendido')
             $seriesVendidas = DB::table('producto_series')
                 ->where('producto_id', $producto->id)
                 ->where('estado', 'vendido')
                 ->orderBy('numero_serie')
-                ->get(['id', 'numero_serie', 'estado', 'created_at']);
+                ->get(['id', 'numero_serie', 'estado', 'almacen_id', 'created_at']);
 
             return response()->json([
                 'producto' => [

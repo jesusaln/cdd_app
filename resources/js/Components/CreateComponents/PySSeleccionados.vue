@@ -92,6 +92,21 @@
 
           <div v-if="entry.tipo === 'producto' && getItemInfo(entry)?.requiere_serie" class="mt-3">
             <label class="block text-xs font-medium text-gray-700 mb-1">Series requeridas</label>
+
+            <div class="flex items-center gap-3 mb-2">
+              <button
+                type="button"
+                @click="emit('open-serials', entry)"
+                class="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                title="Seleccionar de series disponibles"
+              >
+                Seleccionar series ({{ serialCount(entry) }}/{{ quantities[`${entry.tipo}-${entry.id}`] || 1 }})
+              </button>
+              <span class="text-xs text-gray-500 truncate">
+                {{ getSerialsString(entry) || 'Sin series seleccionadas' }}
+              </span>
+            </div>
+
             <textarea
               :value="getSerialsString(entry)"
               @input="updateSerials(entry, $event.target.value)"
@@ -100,7 +115,7 @@
               class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-y"
             ></textarea>
             <p class="mt-1 text-xs text-gray-500">
-              Debes ingresar exactamente {{ quantities[`${entry.tipo}-${entry.id}`] || 1 }} series únicas.
+              Puedes usar el botón "Seleccionar series" o pegar valores separados por coma o por línea. Debes ingresar exactamente {{ quantities[`${entry.tipo}-${entry.id}`] || 1 }} series únicas.
             </p>
           </div>
 
@@ -129,7 +144,7 @@ const props = defineProps({
   serials: { type: Object, default: () => ({}) },
 });
 
-const emit = defineEmits(['eliminar-producto','update-quantity','update-discount','update-serials','calcular-total']);
+const emit = defineEmits(['eliminar-producto','update-quantity','update-discount','update-serials','open-serials','calcular-total']);
 
 const getItemInfo = (entry) => {
   const items = entry.tipo === 'producto' ? props.productos : props.servicios;
@@ -193,5 +208,12 @@ const updateSerials = (entry, value) => {
     .filter(s => s.length > 0);
   const uniqueSerials = [...new Set(serials)];
   emit('update-serials', key, uniqueSerials);
+};
+
+// Contar series seleccionadas actualmente
+const serialCount = (entry) => {
+  const key = `${entry.tipo}-${entry.id}`;
+  const serials = props.serials?.[key] || [];
+  return Array.isArray(serials) ? serials.length : 0;
 };
 </script>

@@ -112,8 +112,10 @@
                     v-for="almacen in almacenes"
                     :key="almacen.id"
                     :value="almacen.id"
+                    :selected="almacen.id === userAlmacenPredeterminado"
                   >
                     {{ almacen.nombre }}
+                    <span v-if="almacen.id === userAlmacenPredeterminado" class="text-xs text-blue-600">(Predeterminado)</span>
                   </option>
                 </select>
                 <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
@@ -124,6 +126,9 @@
               </div>
               <p class="mt-1 text-xs text-gray-500">
                 Selecciona el almacén desde donde se venderán los productos
+                <span v-if="userAlmacenPredeterminado" class="text-blue-600">
+                  · Tu almacén predeterminado está preseleccionado
+                </span>
               </p>
             </div>
           </div>
@@ -179,6 +184,7 @@
               @update-quantity="updateQuantity"
               @update-discount="updateDiscount"
               @update-serials="updateSerials"
+              @open-serials="openSerials"
             />
           </div>
         </div>
@@ -289,13 +295,64 @@
     @close="mostrarModalCliente = false"
     @cliente-creado="onClienteCreado"
   />
+
+  <!-- Modal Seleccionar Series -->
+  <div v-if="showSeriesPicker" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="closeSeriesPicker">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl">
+      <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <h3 class="text-lg font-semibold text-gray-900">Seleccionar series: {{ pickerProducto?.nombre || '' }}</h3>
+        <button @click="closeSeriesPicker" class="text-gray-400 hover:text-gray-600 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="p-6">
+        <div class="mb-3 text-sm text-gray-700">
+          Selecciona exactamente {{ pickerRequired }} {{ pickerRequired === 1 ? 'serie' : 'series' }}. Seleccionadas: {{ selectedSeries.length }}.
+        </div>
+        <div class="mb-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+          <input v-model.trim="pickerSearch" type="text" placeholder="Buscar número de serie" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+          <div class="text-xs text-gray-500 self-center">
+            <span class="inline-block px-2 py-1 bg-emerald-100 text-emerald-700 rounded">En stock: {{ pickerSeries.length }}</span>
+          </div>
+        </div>
+        <div class="max-h-72 overflow-y-auto border border-gray-200 rounded-lg">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">Sel</th>
+                <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">Número de serie</th>
+                <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">Almacén</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <tr v-for="s in filteredPickerSeries" :key="s.id">
+                <td class="px-4 py-2 text-sm">
+                  <input type="checkbox" :checked="selectedSeries.includes(s.numero_serie)" @change="toggleSerie(s.numero_serie)" :disabled="!selectedSeries.includes(s.numero_serie) && selectedSeries.length >= pickerRequired" />
+                </td>
+                <td class="px-4 py-2 text-sm font-medium text-gray-900">{{ s.numero_serie }}</td>
+                <td class="px-4 py-2 text-sm text-gray-700">{{ nombreAlmacen(s.almacen_id) }}</td>
+              </tr>
+              <tr v-if="filteredPickerSeries.length === 0">
+                <td colspan="3" class="px-4 py-6 text-center text-sm text-gray-500">Sin series disponibles</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 text-right">
+        <button @click="closeSeriesPicker" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors mr-2">Cancelar</button>
+        <button @click="confirmSeries" :disabled="selectedSeries.length !== pickerRequired" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50">Usar {{ selectedSeries.length }}/{{ pickerRequired }} series</button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
-import { Head, useForm, router } from '@inertiajs/vue3';
+import { Head, useForm, router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import { Notyf } from 'notyf';
+import 'notyf/notyf.min.css';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Header from '@/Components/CreateComponents/Header.vue';
 import BuscarCliente from '@/Components/CreateComponents/BuscarCliente.vue';
@@ -331,6 +388,7 @@ const props = defineProps({
   servicios: { type: Array, default: () => [] },
   catalogs: { type: Object, default: () => ({}) },
   almacenes: { type: Array, default: () => [] },
+  user: { type: Object, default: () => ({}) },
 });
 
 // Copia reactiva de clientes para evitar mutación de props
@@ -338,6 +396,9 @@ const clientesList = ref([...props.clientes]);
 
 // Catalogs para el modal
 const catalogs = computed(() => props.catalogs);
+
+// Almacén predeterminado del usuario
+const userAlmacenPredeterminado = computed(() => props.user?.almacen_venta?.id || null);
 
 // Número de venta fijo
 const numeroVentaFijo = 'V0001';
@@ -356,7 +417,7 @@ const form = useForm({
   numero_venta: numeroVentaFijo,
   fecha: getCurrentDate(),
   cliente_id: '',
-  almacen_id: '',
+  almacen_id: userAlmacenPredeterminado.value || '',
   subtotal: 0,
   descuento_items: 0,
   iva: 0,
@@ -425,6 +486,80 @@ const handlePreview = () => {
 // Actualizar series desde el componente hijo
 const updateSerials = (key, serials) => {
   serialsMap.value[key] = serials;
+};
+
+// Selector de series
+const showSeriesPicker = ref(false);
+const pickerKey = ref('');
+const pickerProducto = ref(null);
+const pickerSeries = ref([]); // en_stock
+const pickerSearch = ref('');
+const selectedSeries = ref([]);
+const pickerRequired = computed(() => {
+  if (!pickerKey.value) return 0;
+  const q = quantities.value[pickerKey.value];
+  return Number.parseFloat(q) || 0;
+});
+
+const nombreAlmacen = (id) => {
+  if (!id) return '—';
+  const a = props.almacenes?.find(x => String(x.id) === String(id));
+  return a ? a.nombre : `ID ${id}`;
+};
+
+const filteredPickerSeries = computed(() => {
+  const q = (pickerSearch.value || '').toLowerCase();
+  const list = pickerSeries.value || [];
+  return q ? list.filter(s => (s.numero_serie || '').toLowerCase().includes(q)) : list;
+});
+
+const openSerials = async (entry) => {
+  try {
+    pickerKey.value = `${entry.tipo}-${entry.id}`;
+    pickerProducto.value = props.productos.find(p => p.id === entry.id) || { id: entry.id, nombre: entry.nombre || 'Producto' };
+    // cargar series del backend
+    let url = '';
+    try { url = route('productos.series', entry.id) } catch (e) { const base = typeof window !== 'undefined' ? window.location.origin : ''; url = `${base}/productos/${entry.id}/series`; }
+    const res = await fetch(url, { method: 'GET', headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' });
+    if (!res.ok) { notyf.error('No se pudieron cargar las series'); return; }
+    const data = await res.json();
+    pickerSeries.value = data?.series?.en_stock || [];
+    const prev = serialsMap.value[pickerKey.value] || [];
+    selectedSeries.value = Array.isArray(prev) ? prev.slice(0, pickerRequired.value) : [];
+    showSeriesPicker.value = true;
+  } catch (e) {
+    console.error('Error al abrir selector de series:', e);
+    notyf.error('Error al abrir selector de series');
+  }
+};
+
+const closeSeriesPicker = () => {
+  showSeriesPicker.value = false;
+  pickerKey.value = '';
+  pickerProducto.value = null;
+  pickerSeries.value = [];
+  pickerSearch.value = '';
+  selectedSeries.value = [];
+};
+
+const toggleSerie = (numero) => {
+  const idx = selectedSeries.value.indexOf(numero);
+  if (idx >= 0) {
+    selectedSeries.value.splice(idx, 1);
+  } else if (selectedSeries.value.length < pickerRequired.value) {
+    selectedSeries.value.push(numero);
+  }
+};
+
+const confirmSeries = () => {
+  if (!pickerKey.value) return;
+  if (selectedSeries.value.length !== pickerRequired.value) {
+    notyf.error(`Debes seleccionar ${pickerRequired.value} series`);
+    return;
+  }
+  serialsMap.value[pickerKey.value] = selectedSeries.value.slice();
+  closeSeriesPicker();
+  notyf.success('Series seleccionadas');
 };
 
 const closeShortcuts = () => {
@@ -774,6 +909,14 @@ const asegurarFechaActual = () => {
 
 // Lifecycle hooks
 onMounted(() => {
+  // Mostrar mensajes flash del servidor (errores de backend)
+  try {
+    const page = usePage();
+    const flash = page?.props?.flash;
+    if (flash?.success) showNotification(flash.success, 'success');
+    if (flash?.error) showNotification(flash.error, 'error');
+    if (flash?.warning) showNotification(flash.warning, 'warning');
+  } catch (e) { /* noop */ }
   // Mostrar información sobre el número de venta fijo
   showNotification(`Número de venta fijo: ${numeroVentaFijo}`, 'info');
 
