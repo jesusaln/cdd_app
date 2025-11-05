@@ -177,7 +177,9 @@ class RegistroVacaciones extends Model
      */
     public function getDiasDisponiblesAttribute()
     {
-        return $this->dias_disponibles - $this->dias_utilizados;
+        $diasDisponibles = $this->attributes['dias_disponibles'] ?? 0;
+        $diasUtilizados = $this->attributes['dias_utilizados'] ?? 0;
+        return $diasDisponibles - $diasUtilizados;
     }
 
     /**
@@ -202,5 +204,34 @@ class RegistroVacaciones extends Model
     public function scopeConDiasPendientes($query)
     {
         return $query->where('dias_pendientes', '>', 0);
+    }
+
+    /**
+     * Aplicar un ajuste manual de días por un administrador
+     */
+    public function aplicarAjuste(int $dias, ?string $motivo, int $adminId)
+    {
+        $dias = (int) $dias;
+        if ($dias === 0) {
+            return $this;
+        }
+
+        $nuevosDisponibles = max(0, ($this->dias_disponibles ?? 0) + $dias);
+        $nuevosPendientes = max(0, ($this->dias_pendientes ?? 0) + $dias);
+
+        $this->update([
+            'dias_disponibles' => $nuevosDisponibles,
+            'dias_pendientes' => $nuevosPendientes,
+        ]);
+
+        \App\Models\AjusteVacaciones::create([
+            'user_id' => $this->user_id,
+            'anio' => $this->anio,
+            'dias' => $dias,
+            'motivo' => $motivo,
+            'creado_por' => $adminId,
+        ]);
+
+        return $this->fresh();
     }
 }

@@ -11,10 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('herramientas', function (Blueprint $table) {
-            $table->timestamp('fecha_asignacion')->nullable()->after('dias_para_mantenimiento');
-            $table->timestamp('fecha_recepcion')->nullable()->after('fecha_asignacion');
-        });
+        // Agregar columnas solo si no existen (idempotente)
+        if (!Schema::hasColumn('herramientas', 'fecha_asignacion') || !Schema::hasColumn('herramientas', 'fecha_recepcion')) {
+            Schema::table('herramientas', function (Blueprint $table) {
+                if (!Schema::hasColumn('herramientas', 'fecha_asignacion')) {
+                    $table->timestamp('fecha_asignacion')->nullable()->after('dias_para_mantenimiento');
+                }
+                if (!Schema::hasColumn('herramientas', 'fecha_recepcion')) {
+                    $table->timestamp('fecha_recepcion')->nullable()->after('fecha_asignacion');
+                }
+            });
+        }
     }
 
     /**
@@ -23,7 +30,12 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('herramientas', function (Blueprint $table) {
-            $table->dropColumn(['fecha_asignacion', 'fecha_recepcion']);
+            if (Schema::hasColumn('herramientas', 'fecha_asignacion')) {
+                $table->dropColumn('fecha_asignacion');
+            }
+            if (Schema::hasColumn('herramientas', 'fecha_recepcion')) {
+                $table->dropColumn('fecha_recepcion');
+            }
         });
     }
 };

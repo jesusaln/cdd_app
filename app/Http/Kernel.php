@@ -37,6 +37,7 @@ class Kernel extends HttpKernel
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             \App\Http\Middleware\HandleInertiaRequests::class, // Necesario para Inertia
+            \App\Http\Middleware\CleanJsonResponse::class, // Limpia caracteres UTF-8 inválidos
         ],
 
         'api' => [

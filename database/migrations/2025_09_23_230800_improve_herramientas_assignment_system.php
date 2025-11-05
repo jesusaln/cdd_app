@@ -13,92 +13,131 @@ return new class extends Migration
     {
         // Mejorar tabla de asignaciones para mejor control
         Schema::table('asignacion_herramientas', function (Blueprint $table) {
-            // Agregar campos para mejor control de asignaciones
-            $table->enum('estado', ['pendiente', 'activa', 'completada', 'cancelada'])->default('pendiente')->after('activo');
-            $table->timestamp('fecha_entrega_real')->nullable()->after('fecha_asignacion');
-            $table->timestamp('fecha_recepcion_real')->nullable()->after('fecha_entrega_real');
-            $table->text('notas_internas')->nullable()->after('observaciones_recepcion');
-            $table->boolean('requiere_autorizacion')->default(false)->after('notas_internas');
-            $table->foreignId('autorizado_por')->nullable()->constrained('users')->onDelete('set null')->after('requiere_autorizacion');
-            $table->timestamp('fecha_autorizacion')->nullable()->after('autorizado_por');
+            // Agregar campos solo si no existen para idempotencia
+            $addedEstado = false;
+            if (!Schema::hasColumn('asignacion_herramientas', 'estado')) {
+                $table->enum('estado', ['pendiente', 'activa', 'completada', 'cancelada'])->default('pendiente')->after('activo');
+                $addedEstado = true;
+            }
+            if (!Schema::hasColumn('asignacion_herramientas', 'fecha_entrega_real')) {
+                $table->timestamp('fecha_entrega_real')->nullable()->after('fecha_asignacion');
+            }
+            if (!Schema::hasColumn('asignacion_herramientas', 'fecha_recepcion_real')) {
+                $table->timestamp('fecha_recepcion_real')->nullable()->after('fecha_entrega_real');
+            }
+            if (!Schema::hasColumn('asignacion_herramientas', 'notas_internas')) {
+                $table->text('notas_internas')->nullable()->after('observaciones_recepcion');
+            }
+            if (!Schema::hasColumn('asignacion_herramientas', 'requiere_autorizacion')) {
+                $table->boolean('requiere_autorizacion')->default(false)->after('notas_internas');
+            }
+            if (!Schema::hasColumn('asignacion_herramientas', 'autorizado_por')) {
+                $table->foreignId('autorizado_por')->nullable()->constrained('users')->onDelete('set null')->after('requiere_autorizacion');
+            }
+            if (!Schema::hasColumn('asignacion_herramientas', 'fecha_autorizacion')) {
+                $table->timestamp('fecha_autorizacion')->nullable()->after('autorizado_por');
+            }
 
-            // Índices para mejor rendimiento
-            $table->index(['estado', 'fecha_asignacion']);
-            $table->index(['tecnico_id', 'estado']);
-            $table->index(['herramienta_id', 'estado']);
+            // Índices: solo crearlos si se agregó 'estado' en esta ejecución para evitar duplicados
+            if ($addedEstado) {
+                $table->index(['estado', 'fecha_asignacion']);
+                $table->index(['tecnico_id', 'estado']);
+                $table->index(['herramienta_id', 'estado']);
+            }
         });
 
         // Crear tabla para asignaciones masivas (múltiples herramientas a un técnico)
-        Schema::create('asignaciones_masivas', function (Blueprint $table) {
-            $table->id();
-            $table->string('codigo_asignacion')->unique(); // Código único para la asignación masiva
-            $table->foreignId('tecnico_id')->constrained('tecnicos')->onDelete('cascade');
-            $table->foreignId('asignado_por')->constrained('users')->onDelete('set null');
-            $table->timestamp('fecha_asignacion');
-            $table->timestamp('fecha_devolucion_programada')->nullable();
-            $table->timestamp('fecha_devolucion_real')->nullable();
-            $table->foreignId('recibido_por')->nullable()->constrained('users')->onDelete('set null');
-            $table->enum('estado', ['pendiente', 'activa', 'completada', 'cancelada'])->default('pendiente');
-            $table->text('observaciones_asignacion')->nullable();
-            $table->text('observaciones_devolucion')->nullable();
-            $table->json('herramientas_ids'); // Array de IDs de herramientas
-            $table->integer('total_herramientas')->default(0);
-            $table->integer('herramientas_devueltas')->default(0);
-            $table->string('proyecto_trabajo')->nullable(); // Para qué proyecto/trabajo se asignan
-            $table->timestamps();
+        if (!Schema::hasTable('asignaciones_masivas')) {
+            Schema::create('asignaciones_masivas', function (Blueprint $table) {
+                $table->id();
+                $table->string('codigo_asignacion')->unique(); // Código único para la asignación masiva
+                $table->foreignId('tecnico_id')->constrained('tecnicos')->onDelete('cascade');
+                $table->foreignId('asignado_por')->nullable()->constrained('users')->onDelete('set null');
+                $table->timestamp('fecha_asignacion');
+                $table->timestamp('fecha_devolucion_programada')->nullable();
+                $table->timestamp('fecha_devolucion_real')->nullable();
+                $table->foreignId('recibido_por')->nullable()->constrained('users')->onDelete('set null');
+                $table->enum('estado', ['pendiente', 'activa', 'completada', 'cancelada'])->default('pendiente');
+                $table->text('observaciones_asignacion')->nullable();
+                $table->text('observaciones_devolucion')->nullable();
+                $table->json('herramientas_ids'); // Array de IDs de herramientas
+                $table->integer('total_herramientas')->default(0);
+                $table->integer('herramientas_devueltas')->default(0);
+                $table->string('proyecto_trabajo')->nullable(); // Para qué proyecto/trabajo se asignan
+                $table->timestamps();
 
-            $table->index(['tecnico_id', 'estado']);
-            $table->index(['fecha_asignacion', 'estado']);
-            $table->index('codigo_asignacion');
-        });
+                $table->index(['tecnico_id', 'estado']);
+                $table->index(['fecha_asignacion', 'estado']);
+                $table->index('codigo_asignacion');
+            });
+        }
 
         // Crear tabla para el detalle de asignaciones masivas
-        Schema::create('detalle_asignaciones_masivas', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('asignacion_masiva_id')->constrained('asignaciones_masivas')->onDelete('cascade');
-            $table->foreignId('herramienta_id')->constrained('herramientas')->onDelete('cascade');
-            $table->enum('estado_individual', ['asignada', 'devuelta', 'perdida', 'dañada'])->default('asignada');
-            $table->timestamp('fecha_asignacion_individual');
-            $table->timestamp('fecha_devolucion_individual')->nullable();
-            $table->text('observaciones_asignacion')->nullable();
-            $table->text('observaciones_devolucion')->nullable();
-            $table->string('estado_herramienta_entrega')->nullable();
-            $table->string('estado_herramienta_devolucion')->nullable();
-            $table->string('foto_estado_entrega')->nullable();
-            $table->string('foto_estado_devolucion')->nullable();
-            $table->timestamps();
+        if (!Schema::hasTable('detalle_asignaciones_masivas')) {
+            Schema::create('detalle_asignaciones_masivas', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('asignacion_masiva_id')->constrained('asignaciones_masivas')->onDelete('cascade');
+                $table->foreignId('herramienta_id')->constrained('herramientas')->onDelete('cascade');
+                $table->enum('estado_individual', ['asignada', 'devuelta', 'perdida', 'dañada'])->default('asignada');
+                $table->timestamp('fecha_asignacion_individual');
+                $table->timestamp('fecha_devolucion_individual')->nullable();
+                $table->text('observaciones_asignacion')->nullable();
+                $table->text('observaciones_devolucion')->nullable();
+                $table->string('estado_herramienta_entrega')->nullable();
+                $table->string('estado_herramienta_devolucion')->nullable();
+                $table->string('foto_estado_entrega')->nullable();
+                $table->string('foto_estado_devolucion')->nullable();
+                $table->timestamps();
 
-            $table->index(['asignacion_masiva_id', 'estado_individual']);
-            $table->index(['herramienta_id', 'estado_individual']);
-        });
+                $table->index(['asignacion_masiva_id', 'estado_individual']);
+                $table->index(['herramienta_id', 'estado_individual']);
+            });
+        }
 
         // Mejorar tabla de historial para incluir referencia a asignaciones masivas
         Schema::table('historial_herramientas', function (Blueprint $table) {
-            $table->foreignId('asignacion_masiva_id')->nullable()->constrained('asignaciones_masivas')->onDelete('set null')->after('tecnico_id');
-            $table->string('codigo_asignacion')->nullable()->after('asignacion_masiva_id');
-            $table->string('proyecto_trabajo')->nullable()->after('codigo_asignacion');
-            $table->enum('tipo_asignacion', ['individual', 'masiva'])->default('individual')->after('proyecto_trabajo');
+            $addedAny = false;
+            if (!Schema::hasColumn('historial_herramientas', 'asignacion_masiva_id')) {
+                $table->foreignId('asignacion_masiva_id')->nullable()->constrained('asignaciones_masivas')->onDelete('set null')->after('tecnico_id');
+                $addedAny = true;
+            }
+            if (!Schema::hasColumn('historial_herramientas', 'codigo_asignacion')) {
+                $table->string('codigo_asignacion')->nullable()->after('asignacion_masiva_id');
+                $addedAny = true;
+            }
+            if (!Schema::hasColumn('historial_herramientas', 'proyecto_trabajo')) {
+                $table->string('proyecto_trabajo')->nullable()->after('codigo_asignacion');
+                $addedAny = true;
+            }
+            if (!Schema::hasColumn('historial_herramientas', 'tipo_asignacion')) {
+                $table->enum('tipo_asignacion', ['individual', 'masiva'])->default('individual')->after('proyecto_trabajo');
+                $addedAny = true;
+            }
 
-            $table->index(['asignacion_masiva_id', 'fecha_asignacion']);
-            $table->index(['codigo_asignacion']);
-            $table->index(['tipo_asignacion', 'fecha_asignacion']);
+            if ($addedAny) {
+                $table->index(['asignacion_masiva_id', 'fecha_asignacion']);
+                $table->index(['codigo_asignacion']);
+                $table->index(['tipo_asignacion', 'fecha_asignacion']);
+            }
         });
 
         // Crear tabla para control de responsabilidades
-        Schema::create('responsabilidades_herramientas', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('tecnico_id')->constrained('tecnicos')->onDelete('cascade');
-            $table->json('herramientas_asignadas'); // Array de IDs de herramientas actualmente asignadas
-            $table->integer('total_herramientas')->default(0);
-            $table->decimal('valor_total_herramientas', 10, 2)->default(0);
-            $table->timestamp('ultima_actualizacion');
-            $table->boolean('tiene_herramientas_vencidas')->default(false);
-            $table->integer('dias_promedio_uso')->default(0);
-            $table->timestamps();
+        if (!Schema::hasTable('responsabilidades_herramientas')) {
+            Schema::create('responsabilidades_herramientas', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('tecnico_id')->constrained('tecnicos')->onDelete('cascade');
+                $table->json('herramientas_asignadas'); // Array de IDs de herramientas actualmente asignadas
+                $table->integer('total_herramientas')->default(0);
+                $table->decimal('valor_total_herramientas', 10, 2)->default(0);
+                $table->timestamp('ultima_actualizacion');
+                $table->boolean('tiene_herramientas_vencidas')->default(false);
+                $table->integer('dias_promedio_uso')->default(0);
+                $table->timestamps();
 
-            $table->unique('tecnico_id');
-            $table->index(['tecnico_id', 'total_herramientas']);
-        });
+                $table->unique('tecnico_id');
+                $table->index(['tecnico_id', 'total_herramientas']);
+            });
+        }
     }
 
     /**

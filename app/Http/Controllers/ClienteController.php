@@ -577,6 +577,26 @@ class ClienteController extends Controller
         try {
             $data = $request->validated();
 
+            // Si no se muestra la dirección en el formulario, evitar sobrescribirla con null/''
+            $camposDireccion = ['calle','numero_exterior','numero_interior','colonia','codigo_postal','municipio','estado'];
+            if (!$request->boolean('mostrar_direccion')) {
+                foreach ($camposDireccion as $campo) {
+                    if (!array_key_exists($campo, $data) || $data[$campo] === null || $data[$campo] === '') {
+                        unset($data[$campo]);
+                    }
+                }
+            }
+
+            // Si no se muestra la dirección en el formulario, evitar sobrescribirla con null/''
+            $camposDireccion = ['calle','numero_exterior','numero_interior','colonia','codigo_postal','municipio','estado'];
+            if (!$request->boolean('mostrar_direccion')) {
+                foreach ($camposDireccion as $campo) {
+                    if (!array_key_exists($campo, $data) || $data[$campo] === null || $data[$campo] === '') {
+                        unset($data[$campo]);
+                    }
+                }
+            }
+
             // Normalización de datos básicos (siempre presentes)
             $data['nombre_razon_social'] = trim($data['nombre_razon_social']);
             $data['pais']                = self::DEFAULT_COUNTRY; // Forzado
@@ -687,6 +707,16 @@ class ClienteController extends Controller
 
         try {
             $data = $request->validated();
+
+            // Si no se muestra la dirección en el formulario, evitar sobrescribirla con null/''
+            $camposDireccion = ['calle','numero_exterior','numero_interior','colonia','codigo_postal','municipio','estado'];
+            if (!$request->boolean('mostrar_direccion')) {
+                foreach ($camposDireccion as $campo) {
+                    if (!array_key_exists($campo, $data) || $data[$campo] === null || $data[$campo] === '') {
+                        unset($data[$campo]);
+                    }
+                }
+            }
 
             // Normalización
             $data['nombre_razon_social'] = trim($data['nombre_razon_social']);

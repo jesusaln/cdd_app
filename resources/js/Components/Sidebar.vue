@@ -496,6 +496,9 @@
             <NavLink href="/vacaciones/create" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Nueva Solicitud' : null">
               Nueva Solicitud
             </NavLink>
+            <NavLink href="/registro-vacaciones" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Registro de Vacaciones' : null">
+              Registro de Vacaciones
+            </NavLink>
           </div>
         </div>
 
@@ -717,7 +720,6 @@ aside::-webkit-scrollbar-thumb:hover { background: rgba(156, 163, 175, 0.7); }
   }
 }
 </style>
-
 
 
 

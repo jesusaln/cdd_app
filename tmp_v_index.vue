@@ -230,7 +230,7 @@
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-              <tr v-for="vacacion in vacaciones.data" :key="vacacion.id" class="hover:bg-gray-50 transition-colors duration-150" :class="vacacion.id === Number(props.highlightId) ? 'bg-green-50 ring-2 ring-green-300' : ''" :ref="el => { if (vacacion.id && el) rowRefs.value[vacacion.id] = el }">
+              <tr v-for="vacacion in vacaciones.data" :key="vacacion.id" class="hover:bg-gray-50 transition-colors duration-150" :class="vacacion.id === Number(props.highlightId) ? 'bg-green-50 ring-2 ring-green-300' : ''" ref="rowRefs[vacacion.id]">
                 <td class="px-6 py-4">
                   <div class="text-sm font-medium text-gray-900">
                 {{ vacacion.empleado.name }}
@@ -399,7 +399,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed } from 'vue'
 import { Head, router, Link } from '@inertiajs/vue3'
 import { Notyf } from 'notyf'
 import 'notyf/notyf.min.css'
@@ -416,7 +416,6 @@ const props = defineProps({
   empleados: Array,
   filters: Object,
   sorting: Object,
-  highlightId: [Number, String]
 })
 
 const notyf = new Notyf({
@@ -440,20 +439,6 @@ const irRegistro = () => {
     router.visit(route('registro-vacaciones.por-empleado', selectedEmpleadoId.value))
   }
 }
-
-// Destacar y desplazarse a la última solicitud creada
-const rowRefs = ref({})
-onMounted(() => {
-  if (props.highlightId) {
-    nextTick(() => {
-      const id = Number(props.highlightId)
-      const el = rowRefs.value[id]
-      if (el && el.scrollIntoView) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }
-    })
-  }
-})
 
 // UI de ajuste manual de días (solo admin; el endpoint valida rol)
 const showAjuste = ref(false)
@@ -614,3 +599,4 @@ const crearParaEmpleado = () => {
   background-color: #f9fafb;
 }
 </style>
+

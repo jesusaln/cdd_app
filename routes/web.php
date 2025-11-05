@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
@@ -43,7 +43,7 @@ use App\Http\Controllers\CfdiController;
 use App\Http\Controllers\ReporteTecnicoController;
 use App\Http\Controllers\ReportesDashboardController;
 use App\Http\Controllers\ReporteMovimientosController;
-// Controladores del módulo de herramientas
+// Controladores del m�dulo de herramientas
 use App\Http\Controllers\HerramientaController;
 // use App\Http\Controllers\AsignacionHerramientaController;
 // use App\Http\Controllers\EstadoHerramientaController;
@@ -64,7 +64,7 @@ use App\Http\Controllers\EmpresaWhatsAppController;
 use App\Http\Controllers\ImageController;
 use App\Models\Empresa;
 
-// Forzar patrón numérico para {herramienta} y evitar colisiones con rutas estáticas
+// Forzar patr�n num�rico para {herramienta} y evitar colisiones con rutas est�ticas
 Route::pattern('herramienta', '[0-9]+');
 
 
@@ -88,18 +88,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
 |--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
-| AquÃƒÂ­ defines todas las rutas web de tu aplicaciÃƒÂ³n. Estas rutas estÃƒÂ¡n
-| cargadas por el RouteServiceProvider y automÃƒÂ¡ticamente tienen el
+| AquÃ­ defines todas las rutas web de tu aplicaciÃ³n. Estas rutas estÃ¡n
+| cargadas por el RouteServiceProvider y automÃ¡ticamente tienen el
 | middleware 'web' aplicado.
 */
 
 
-// Ruta para marcar todas las notificaciones como leÃƒÂ­das
+// Ruta para marcar todas las notificaciones como leÃ­das
 Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
 
 
 // =====================================================
-// RUTAS PÃƒÅ¡BLICAS
+// RUTAS PÃšBLICAS
 // =====================================================
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -116,7 +116,7 @@ Route::get('/empresas', [EmpresasController::class, 'index'])->name('empresas.in
 // =====================================================
 Route::get('/placeholder/{w}x{h}/{bg?}/{fg?}', function (int $w, int $h, $bg = 'e5e7eb', $fg = '6b7280') {
     $text = \Illuminate\Support\Str::of(request('text', 'Sin imagen'))->limit(40);
-    $fontSize = max(12, min($w / 12, 24)); // TamaÃƒÂ±o de fuente adaptativo
+    $fontSize = max(12, min($w / 12, 24)); // TamaÃ±o de fuente adaptativo
 
     $svg = <<<SVG
 <svg xmlns="http://www.w3.org/2000/svg" width="{$w}" height="{$h}" viewBox="0 0 {$w} {$h}">
@@ -147,7 +147,7 @@ Route::get('/productos/{id}/inventario', [ProductoController::class, 'showInvent
 Route::resource('inventario', InventarioController::class);
 
 // =====================================================
-// RUTAS PROTEGIDAS POR AUTENTICACIÃƒâ€œN
+// RUTAS PROTEGIDAS POR AUTENTICACIÃ“N
 // =====================================================
 Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified'])->group(function () {
 
@@ -174,7 +174,10 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::get('productos/{productoId}/historial-precios', [OrdenCompraController::class, 'obtenerHistorialPrecios'])->name('productos.historial-precios');
     Route::get('reportes/historial-precios/{productoId}', [OrdenCompraController::class, 'mostrarHistorialPrecios'])->name('reportes.historial-precios');
 
-    Route::resource('clientes', ClienteController::class)->names('clientes')->middleware('role:ventas|admin');
+    Route::resource('clientes', ClienteController::class)
+        ->names('clientes')
+        ->middleware('role:ventas|admin')
+        ->where(['cliente' => '[0-9]+']);
     Route::resource('prestamos', PrestamoController::class)->names('prestamos');
     Route::post('/prestamos/calcular-pagos', [PrestamoController::class, 'calcularPagos'])->name('prestamos.calcular-pagos');
     Route::patch('/prestamos/{prestamo}/cambiar-estado', [PrestamoController::class, 'cambiarEstado'])->name('prestamos.cambiar-estado');
@@ -196,7 +199,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
         Route::put('/{producto}/series/{serie}', [ProductoController::class, 'updateSerie'])->name('series.update');
         Route::get('/{producto}/stock-detalle', [ProductoController::class, 'getStockDetalle'])->name('stock-detalle');
 
-        // Rutas con parámetro {producto} - AL FINAL
+        // Rutas con par�metro {producto} - AL FINAL
         Route::get('/{producto}', [ProductoController::class, 'show'])->name('show');
         Route::get('/{producto}/edit', [ProductoController::class, 'edit'])->name('edit');
         Route::put('/{producto}', [ProductoController::class, 'update'])->name('update');
@@ -211,7 +214,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::resource('marcas', MarcaController::class)->names('marcas')->middleware('role:admin|editor');
     Route::put('/marcas/{marca}/toggle', [MarcaController::class, 'toggle'])->name('marcas.toggle')->middleware('role:admin|editor');
     Route::get('/marcas/export', [MarcaController::class, 'export'])->name('marcas.export')->middleware('role:admin|editor');
-    Route::resource('almacenes', AlmacenController::class)->names('almacenes'); // Ã¢Å“â€¦ DUPLICACIÃƒâ€œN ELIMINADA
+    Route::resource('almacenes', AlmacenController::class)->names('almacenes'); // âœ… DUPLICACIÃ“N ELIMINADA
     Route::put('/almacenes/{almacen}/toggle', [AlmacenController::class, 'toggle'])->name('almacenes.toggle');
     Route::get('/almacenes/export', [AlmacenController::class, 'export'])->name('almacenes.export');
     Route::resource('traspasos', TraspasoController::class)->names('traspasos')->middleware('role:admin|editor');
@@ -219,7 +222,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::resource('ajustes-inventario', AjusteInventarioController::class)->names('ajustes-inventario')->middleware('role:admin|editor');
     Route::resource('movimientos-manuales', MovimientoManualController::class)->names('movimientos-manuales')->middleware('role:admin|editor');
 
-    // Rutas específicas de cotizaciones antes del resource para evitar conflictos
+    // Rutas espec�ficas de cotizaciones antes del resource para evitar conflictos
     Route::get('/cotizaciones/siguiente-numero', [CotizacionController::class, 'obtenerSiguienteNumero'])->name('cotizaciones.siguiente-numero')->middleware('role:ventas|admin');
 
     Route::resource('cotizaciones', CotizacionController::class)->names('cotizaciones')->where(['cotizaciones' => '[0-9]+'])->middleware('role:ventas|admin');
@@ -243,13 +246,13 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // Centro de reportes con tabs
     Route::get('/reportes', [ReportesDashboardController::class, 'indexTabs'])->name('reportes.index')->middleware('role:admin');
 
-    // Dashboard de categorÃƒÂ­as de reportes
+    // Dashboard de categorÃ­as de reportes
     Route::get('/reportes/dashboard', [ReportesController::class, 'index'])->name('reportes.dashboard')->middleware('role:admin');
 
     // CRUD de reportes personalizados (debe ir primero para evitar conflictos)
     Route::resource('reportes', ReporteController::class)->except(['index', 'show'])->middleware('role:admin');
 
-    // Reportes especÃƒÂ­ficos redirigidos al centro de reportes con tabs
+    // Reportes especÃ­ficos redirigidos al centro de reportes con tabs
     Route::get('/reportes/ventas', function () {
         return redirect('/reportes?tab=ventas');
     })->name('reportes.ventas')->middleware('role:admin');
@@ -306,7 +309,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
         return redirect('/reportes?tab=auditoria');
     })->name('reportes.auditoria')->middleware('role:admin');
 
-    // Reporte de préstamos por cliente
+    // Reporte de pr�stamos por cliente
     Route::get('/reportes/prestamos-por-cliente', [ReporteController::class, 'prestamosPorCliente'])->name('reportes.prestamos-por-cliente')->middleware('role:admin');
     Route::get('/reportes/prestamos-por-cliente/export', [ReporteController::class, 'exportarPrestamosPorCliente'])->name('reportes.prestamos-por-cliente.export')->middleware('role:admin');
 
@@ -317,7 +320,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::get('/reportes/movimientos-inventario/{id}', [ReporteMovimientosController::class, 'show'])->name('reportes.movimientos-inventario.show')->middleware('role:admin');
     Route::get('/reportes/movimientos-inventario-export', [ReporteMovimientosController::class, 'export'])->name('reportes.movimientos-inventario.export')->middleware('role:admin');
 
-    // Reportes especÃƒÂ­ficos de inventario
+    // Reportes especÃ­ficos de inventario
     Route::get('/reportes/inventario/dashboard', [ReportesInventarioController::class, 'index'])->name('reportes.inventario.dashboard')->middleware('role:admin');
     Route::get('/reportes/inventario/stock-por-almacen', [ReportesInventarioController::class, 'stockPorAlmacen'])->name('reportes.inventario.stock-por-almacen')->middleware('role:admin');
     Route::get('/reportes/inventario/productos-bajo-stock', [ReportesInventarioController::class, 'productosBajoStock'])->name('reportes.inventario.productos-bajo-stock')->middleware('role:admin');
@@ -329,7 +332,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::get('/reportes/inventario/export', [ReporteController::class, 'exportarInventario'])->name('reportes.inventario.export')->middleware('role:admin');
     Route::get('/reportes/productos/export', [ReporteController::class, 'exportarProductos'])->name('reportes.productos.export')->middleware('role:admin');
     Route::resource('tecnicos', TecnicoController::class)->names('tecnicos');
-    // Catálogo de herramientas (módulo mejorado)
+    // Cat�logo de herramientas (m�dulo mejorado)
     Route::resource('herramientas', HerramientaController::class)->names('herramientas');
     Route::get('herramientas-dashboard', [HerramientaController::class, 'dashboard'])->name('herramientas.dashboard');
     Route::get('herramientas-mantenimiento', [HerramientaController::class, 'mantenimiento'])->name('herramientas.mantenimiento');
@@ -346,7 +349,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::get('herramientas-mantenimiento', [HerramientaController::class, 'mantenimiento'])->name('herramientas-mantenimiento');
     Route::get('herramientas-reportes', [HerramientaController::class, 'reportes'])->name('herramientas.reportes');
     Route::post('herramientas/reasignar', [GestionHerramientasController::class, 'reasignar'])->name('herramientas.reasignar');
-    // Gestión de Herramientas - módulo independiente (index, create, edit)
+    // Gesti�n de Herramientas - m�dulo independiente (index, create, edit)
     Route::get('herramientas/gestion', [GestionHerramientasController::class, 'index'])->name('herramientas.gestion.index');
     Route::get('herramientas/gestion/create', [GestionHerramientasController::class, 'create'])->name('herramientas.gestion.create');
     Route::get('herramientas/gestion/{tecnico}/edit', [GestionHerramientasController::class, 'edit'])->name('herramientas.gestion.edit');
@@ -367,7 +370,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
 
     // Eliminado: asignaciones masivas de herramientas
 
-    // Rutas para control de herramientas por tÃƒÂ©cnico
+    // Rutas para control de herramientas por tÃ©cnico
     Route::resource('citas', CitaController::class)->names('citas')->middleware('role:ventas|admin');
     Route::post('/citas/{id}/convertir-a-pedido', [CitaController::class, 'convertirAPedido'])->name('citas.convertir-a-pedido')->middleware('role:ventas|admin');
     Route::post('/citas/{id}/convertir-a-venta', [CitaController::class, 'convertirAVenta'])->name('citas.convertir-a-venta')->middleware('role:ventas|admin');
@@ -381,7 +384,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::post('mantenimientos/api/validar-servicio', [MantenimientoController::class, 'validarServicio'])->name('mantenimientos.api.validar-servicio')->middleware('role:admin|editor');
     Route::get('mantenimientos/api/estadisticas', [MantenimientoController::class, 'getEstadisticasMantenimientos'])->name('mantenimientos.api.estadisticas')->middleware('role:admin|editor');
 
-    // Rutas PATCH para acciones rápidas de mantenimiento
+    // Rutas PATCH para acciones r�pidas de mantenimiento
     Route::patch('mantenimientos/{mantenimiento}/completar', [MantenimientoController::class, 'completar'])->name('mantenimientos.completar')->middleware('role:admin|editor');
     Route::patch('mantenimientos/{mantenimiento}/posponer', [MantenimientoController::class, 'posponer'])->name('mantenimientos.posponer')->middleware('role:admin|editor');
     Route::patch('mantenimientos/{mantenimiento}/reprogramar', [MantenimientoController::class, 'reprogramar'])->name('mantenimientos.reprogramar')->middleware('role:admin|editor');
@@ -397,7 +400,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::post('/rentas/{renta}/finalizar', [RentasController::class, 'finalizar'])->name('rentas.finalizar')->middleware('role:admin|editor');
     Route::post('/rentas/{renta}/renovar', [RentasController::class, 'renovar'])->name('rentas.renovar')->middleware('role:admin|editor');
 
-    // Categorías de herramientas (gestión completa)
+    // Categor�as de herramientas (gesti�n completa)
     Route::get('/herramientas/categorias', [CategoriaHerramientaController::class, 'index'])->name('herramientas.categorias.index');
     Route::post('/herramientas/categorias', [CategoriaHerramientaController::class, 'store'])->name('herramientas.categorias.store');
     Route::get('/herramientas/categorias/{categoria}', [CategoriaHerramientaController::class, 'show'])->name('herramientas.categorias.show');
@@ -419,7 +422,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::resource('bitacora-actividades', BitacoraActividadController::class)->names('bitacora-actividades');
 
     // =====================================================
-    // RUTAS DE CONFIGURACIÓN DE EMPRESA
+    // RUTAS DE CONFIGURACI�N DE EMPRESA
     // =====================================================
     Route::prefix('empresa')->name('empresa-configuracion.')->middleware('role:admin')->group(function () {
         Route::get('/configuracion', [EmpresaConfiguracionController::class, 'index'])->name('index');
@@ -437,7 +440,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
 
 
     // =====================================================
-    // RUTAS ESPECÃƒÂFICAS DE CLIENTES
+    // RUTAS ESPECÃFICAS DE CLIENTES
     // =====================================================
     Route::post('/clientes/validar-rfc', [ClienteController::class, 'validarRfc'])->name('clientes.validarRfc');
     Route::get('/clientes/validar-email', [ClienteController::class, 'validarEmail'])->name('clientes.validarEmail')->middleware('role:ventas|admin');
@@ -450,19 +453,19 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::get('/clientes/{cliente}/has-prestamos', [ClienteController::class, 'hasPrestamos'])->name('clientes.hasPrestamos')->middleware('role:ventas|admin');
 
     // =====================================================
-    // RUTAS ESPECÃƒÂFICAS DE PROVEEDORES
+    // RUTAS ESPECÃFICAS DE PROVEEDORES
     // =====================================================
     Route::get('/proveedores/export', [ProveedorController::class, 'export'])->name('proveedores.export');
     Route::put('/proveedores/{proveedor}/toggle', [ProveedorController::class, 'toggle'])->name('proveedores.toggle');
 
     // =====================================================
-    // RUTAS ESPECÃƒÂFICAS DE TÃƒâ€°CNICOS
+    // RUTAS ESPECÃFICAS DE TÃ‰CNICOS
     // =====================================================
     Route::get('/tecnicos/export', [TecnicoController::class, 'export'])->name('tecnicos.export');
     Route::put('/tecnicos/{tecnico}/toggle', [TecnicoController::class, 'toggle'])->name('tecnicos.toggle');
 
     // =====================================================
-    // RUTAS ESPECÃƒÂFICAS DE USUARIOS
+    // RUTAS ESPECÃFICAS DE USUARIOS
     // =====================================================
     Route::get('/usuarios/export', [UserController::class, 'export'])->name('usuarios.export');
     Route::put('/usuarios/{user}/toggle', [UserController::class, 'toggle'])->name('usuarios.toggle');
@@ -479,23 +482,25 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // =====================================================
     // RUTAS DE REGISTRO DE VACACIONES
     // =====================================================
+    Route::post('/registro-vacaciones/{empleado}/ajustar', [RegistroVacacionesController::class, 'ajustar'])->name('registro-vacaciones.ajustar')->middleware('role:admin');
     Route::resource('registro-vacaciones', RegistroVacacionesController::class)->names('registro-vacaciones');
+Route::get('/registro-vacaciones/export', [RegistroVacacionesController::class, 'export'])->name('registro-vacaciones.export')->middleware('role:admin');
     Route::post('/registro-vacaciones/actualizar/{empleado}', [RegistroVacacionesController::class, 'actualizar'])->name('registro-vacaciones.actualizar');
     Route::get('/registro-vacaciones/empleado/{empleado}', [RegistroVacacionesController::class, 'porEmpleado'])->name('registro-vacaciones.por-empleado');
 
     // =====================================================
-    // RUTAS ESPECÃƒÂFICAS DE CITAS
+    // RUTAS ESPECÃFICAS DE CITAS
     // =====================================================
     Route::get('/citas/export', [CitaController::class, 'export'])->name('citas.export');
 
     // =====================================================
-    // RUTAS ESPECÃƒÂFICAS DE PRODUCTOS
+    // RUTAS ESPECÃFICAS DE PRODUCTOS
     // =====================================================
     Route::post('/productos/validate-stock', [ProductoController::class, 'validateStock'])->name('productos.validateStock');
     Route::put('/productos/{producto}/toggle', [ProductoController::class, 'toggle'])->name('productos.toggle');
 
     // =====================================================
-    // RUTAS ESPECÃƒÂFICAS DE COTIZACIONES
+    // RUTAS ESPECÃFICAS DE COTIZACIONES
     // =====================================================
     Route::post('/cotizaciones/{id}/convertir-a-venta', [CotizacionController::class, 'convertirAVenta'])->name('cotizaciones.convertir-a-venta')->middleware('role:ventas|admin');
     Route::get('/cotizaciones/{id}/confirmar-pedido', [CotizacionController::class, 'mostrarConfirmacionPedido'])->name('cotizaciones.confirmar-pedido')->middleware('role:ventas|admin');
@@ -511,7 +516,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::post('/cotizaciones/{id}/cancel', [CotizacionController::class, 'cancel'])->name('cotizaciones.cancel');
 
     // =====================================================
-    // RUTAS ESPECÃƒÂFICAS DE PEDIDOS
+    // RUTAS ESPECÃFICAS DE PEDIDOS
     // =====================================================
     Route::post('/pedidos/{id}/confirmar', [PedidoController::class, 'confirmar'])->name('pedidos.confirmar')->middleware('role:ventas|admin');
     Route::post('/pedidos/{id}/enviar-a-venta', [PedidoController::class, 'enviarAVenta'])
@@ -522,7 +527,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::post('/pedidos/{pedido}/duplicate', [PedidoController::class, 'duplicate'])->name('pedidos.duplicate')->middleware('role:ventas|admin');
 
     // =====================================================
-    // RUTAS ESPECÃƒÂFICAS DE VENTAS
+    // RUTAS ESPECÃFICAS DE VENTAS
     // =====================================================
     Route::post('/ventas/{venta}/duplicate', [VentaController::class, 'duplicate'])->name('ventas.duplicate')->middleware('role:ventas|admin');
     Route::post('/ventas/{id}/enviar-email', [VentaController::class, 'enviarEmail'])->name('ventas.enviar-email')->middleware('role:ventas|admin');
@@ -530,14 +535,14 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::post('/ventas/{id}/cancel', [VentaController::class, 'cancel'])->name('ventas.cancel')->middleware('role:ventas|admin');
     Route::post('/ventas/{id}/marcar-pagado', [VentaController::class, 'marcarPagado'])->name('ventas.marcar-pagado')->middleware('role:ventas|admin');
     // =====================================================
-    // RUTAS ESPECÃƒÂFICAS DE USUARIOS
+    // RUTAS ESPECÃFICAS DE USUARIOS
     // =====================================================
     Route::get('/perfil', [UserController::class, 'profile'])->name('perfil');
     Route::post('/user/update-almacen-venta', [UserController::class, 'updateAlmacenVenta'])->name('user.update-almacen-venta');
-    // Ã¢Å“â€¦ CONFLICTO RESUELTO: Eliminada ruta duplicada - usa la del resource usuarios.show
+    // âœ… CONFLICTO RESUELTO: Eliminada ruta duplicada - usa la del resource usuarios.show
 
     // =====================================================
-    // RUTAS ESPECÃƒÂFICAS DE CITAS
+    // RUTAS ESPECÃFICAS DE CITAS
     // =====================================================
     Route::put('/citas/{id}', [CitaController::class, 'update']); // Nota: Esto duplica el resource update
     Route::patch('/citas/{id}/update-index', [CitaController::class, 'updateIndex'])->name('citas.updateIndex');
@@ -555,10 +560,24 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // Ruta temporal para pruebas
     Route::post('/test-notification', [UserNotificationController::class, 'createTest'])->name('test.notification');
 
-    // Ruta de prueba para imágenes
+    // Ruta de prueba para im�genes
     Route::get('/test-images', function () {
         return Inertia::render('TestImages');
     })->name('test.images');
+
+    // Ruta de prueba para UTF-8
+    Route::get('/test-utf8', function () {
+        // Simular datos con caracteres UTF-8 inválidos
+        $invalidUtf8 = "Valid text " . "\x80\x81\x82" . " more text";
+        
+        return response()->json([
+            'original' => $invalidUtf8,
+            'cleaned' => \App\Helpers\Utf8Helper::cleanString($invalidUtf8),
+            'is_valid_original' => \App\Helpers\Utf8Helper::hasInvalidUtf8($invalidUtf8),
+            'is_valid_cleaned' => \App\Helpers\Utf8Helper::hasInvalidUtf8(\App\Helpers\Utf8Helper::cleanString($invalidUtf8)),
+            'utf8_info' => \App\Helpers\Utf8Helper::getUtf8Info($invalidUtf8),
+        ]);
+    });
 
     // =====================================================
     // RUTAS BACKUP
@@ -580,7 +599,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
         });
 
     // =====================================================
-    // RUTAS DE CONFIGURACIÓN WHATSAPP
+    // RUTAS DE CONFIGURACI�N WHATSAPP
     // =====================================================
     Route::middleware(['auth'])
         ->prefix('admin/whatsapp')
@@ -616,11 +635,11 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     })->middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']);
 });
 
-// Alias de rutas antiguas a la nueva gestión de herramientas (evita 404 en vistas existentes)
-// Eliminado: alias antiguos relacionados con gestión de herramientas
+// Alias de rutas antiguas a la nueva gesti�n de herramientas (evita 404 en vistas existentes)
+// Eliminado: alias antiguos relacionados con gesti�n de herramientas
 
 // =====================================================
-// RUTA DE PRUEBA PARA VERIFICAR CARGA DE IMÁGENES
+// RUTA DE PRUEBA PARA VERIFICAR CARGA DE IM�GENES
 // =====================================================
 Route::get('/test-images', function () {
     $profilePhotos = \Illuminate\Support\Facades\Storage::disk('public')->files('profile-photos');
@@ -653,13 +672,13 @@ Route::get('/test-images', function () {
 })->name('test.images');
 
 // =====================================================
-// SERVIDOR ESPECÍFICO PARA IMÁGENES CON HEADERS PERMISIVOS
+// SERVIDOR ESPEC�FICO PARA IM�GENES CON HEADERS PERMISIVOS
 // =====================================================
 Route::get('/profile-photo/{filename}', [ImageController::class, 'serveProfilePhoto'])->name('serve-profile-photo');
 Route::get('/api/profile-photos', [ImageController::class, 'listProfilePhotos'])->name('list-profile-photos');
 
 // =====================================================
-// RUTAS ALTERNATIVAS PARA IMÁGENES (INDEPENDIENTES DE APP_URL)
+// RUTAS ALTERNATIVAS PARA IM�GENES (INDEPENDIENTES DE APP_URL)
 // =====================================================
 Route::get('/img/profile-photos/{filename}', function ($filename) {
     $path = 'profile-photos/' . $filename;
@@ -682,7 +701,7 @@ Route::get('/img/profile-photos/{filename}', function ($filename) {
     ]);
 })->name('image.profile-photo');
 
-// Ruta de debug para verificar configuración de URLs
+// Ruta de debug para verificar configuraci�n de URLs
 Route::get('/debug-urls', function () {
     return response()->json([
         'app_url' => config('app.url'),

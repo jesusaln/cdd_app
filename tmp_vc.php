@@ -98,7 +98,6 @@ class VacacionController extends BaseController
                 'empleados' => $empleados,
                 'filters' => $request->only(['empleado', 'estado', 'fecha_desde', 'fecha_hasta']),
                 'sorting' => ['sort_by' => $sortBy, 'sort_direction' => $sortDirection],
-                'highlightId' => session('highlight_id'),
             ]);
         } catch (Exception $e) {
             Log::error('Error en VacacionController@index: ' . $e->getMessage());
@@ -106,29 +105,33 @@ class VacacionController extends BaseController
         }
     }
 
-        public function create(Request $request)
+    public function create(Request $request)
     {
         $this->authorize('create', Vacacion::class);
-        Log::info('VacacionController@create: render', [
-            'by_user' => Auth::id(),
-            'query' => $request->all(),
-        ]);
+
         $empleados = User::empleadosActivos()
             ->orderBy('name')
             ->get(['id', 'name']);
+
         $empleadoSeleccionado = null;
+
+        // Si se especifica un empleado en la URL, preseleccionarlo
         if ($request->has('empleado_id')) {
-            $empleadoSeleccionado = User::empleadosActivos()->find($request->empleado_id);
+            $empleadoSeleccionado = User::empleadosActivos()
+                ->find($request->empleado_id);
         } else {
+            // Si no hay empleado específico, usar el usuario autenticado si es empleado
             $authUser = Auth::user();
             if ($authUser && $authUser->es_empleado) {
                 $empleadoSeleccionado = $authUser;
             }
         }
+
         $registroVacaciones = null;
         if ($empleadoSeleccionado) {
             $registroVacaciones = RegistroVacaciones::actualizarRegistroAnual($empleadoSeleccionado->id);
         }
+
         return Inertia::render('Vacaciones/Create', [
             'empleados' => $empleados,
             'empleadoSeleccionado' => $empleadoSeleccionado,
@@ -139,29 +142,30 @@ class VacacionController extends BaseController
     public function store(Request $request)
     {
         $this->authorize('create', Vacacion::class);
-        Log::info('VacacionController@store: start', ['by_user' => Auth::id()]);
+
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
             'fecha_inicio' => 'required|date|after_or_equal:today',
             'fecha_fin' => 'required|date|after_or_equal:fecha_inicio',
             'motivo' => 'nullable|string|max:500',
         ]);
-        Log::info('VacacionController@store: validated', [
-            'by_user' => Auth::id(),
-            'payload' => $request->only(['user_id','fecha_inicio','fecha_fin'])
-        ]);
+
+        // Verificar que el usuario sea un empleado
         $empleado = User::findOrFail($validated['user_id']);
         if (!$empleado->es_empleado) {
             return redirect()->back()->with('error', 'El usuario seleccionado no es un empleado.');
         }
+
+        // Los empleados pueden crear vacaciones para sí mismos
+        // Los administradores pueden crear vacaciones para cualquiera
+        // Esta funcionalidad está controlada por las políticas de autorización
+
+        // Calcular días solicitados
         $fechaInicio = \Carbon\Carbon::parse($validated['fecha_inicio']);
         $fechaFin = \Carbon\Carbon::parse($validated['fecha_fin']);
         $diasSolicitados = $fechaInicio->diffInDays($fechaFin) + 1;
-        Log::info('VacacionController@store: dias calculados', [
-            'dias_solicitados' => $diasSolicitados,
-            'fecha_inicio' => (string) $fechaInicio,
-            'fecha_fin' => (string) $fechaFin,
-        ]);
+
+        // Verificar que no haya vacaciones en esas fechas
         $conflicto = Vacacion::where('user_id', $validated['user_id'])
             ->where('estado', 'aprobada')
             ->where(function ($query) use ($fechaInicio, $fechaFin) {
@@ -173,47 +177,31 @@ class VacacionController extends BaseController
                       });
             })
             ->exists();
-        Log::info('VacacionController@store: conflicto?', ['conflicto' => $conflicto]);
+
         if ($conflicto) {
             return redirect()->back()->with('error', 'Ya existen vacaciones aprobadas en esas fechas.');
         }
+
+        // Verificar que el empleado tenga suficientes días disponibles
         $registroActual = RegistroVacaciones::actualizarRegistroAnual($validated['user_id']);
-        Log::info('VacacionController@store: registro anual', [
-            'registro' => (bool) $registroActual,
-            'dias_disponibles' => $registroActual->dias_disponibles ?? null,
-        ]);
-        if (!$registroActual) {
-            return redirect()->back()->with('error', 'El empleado no tiene un registro de vacaciones para el año actual. Verifique la fecha de contratación o contacte al administrador.');
+        if (!$registroActual || !$registroActual->tieneDiasDisponibles($diasSolicitados)) {
+            $diasDisponibles = $registroActual ? $registroActual->dias_disponibles : 0;
+            return redirect()->back()->with('error', "El empleado no tiene suficientes días de vacaciones disponibles. Días disponibles: {$diasDisponibles}, Días solicitados: {$diasSolicitados}");
         }
 
-        if (!$registroActual->tieneDiasDisponibles($diasSolicitados)) {
-            return redirect()->back()->with('error', "El empleado no tiene suficientes días de vacaciones disponibles. Días disponibles: {$registroActual->dias_disponibles}, Días solicitados: {$diasSolicitados}");
-        }
-        try {
-            $vacacion = Vacacion::create([
-                'user_id' => $validated['user_id'],
-                'fecha_inicio' => $validated['fecha_inicio'],
-                'fecha_fin' => $validated['fecha_fin'],
-                'dias_solicitados' => $diasSolicitados,
-                'dias_pendientes' => $diasSolicitados,
-                'motivo' => $validated['motivo'],
-            ]);
-            Log::info('Vacacion creada', [
-                'vacacion_id' => $vacacion->id,
-                'user_id' => $vacacion->user_id,
-                'estado' => $vacacion->estado,
-            ]);
-            return redirect()->route('vacaciones.index')
-                ->with('success', 'Solicitud de vacaciones creada exitosamente.')
-                ->with('highlight_id', $vacacion->id);
-        } catch (\Throwable $e) {
-            Log::error('Error creando vacacion', [
-                'by_user' => Auth::id(),
-                'error' => $e->getMessage(),
-            ]);
-            return redirect()->back()->with('error', 'Ocurri� un error creando la solicitud de vacaciones.');
-        }
-    }public function show($id)
+        Vacacion::create([
+            'user_id' => $validated['user_id'],
+            'fecha_inicio' => $validated['fecha_inicio'],
+            'fecha_fin' => $validated['fecha_fin'],
+            'dias_solicitados' => $diasSolicitados,
+            'dias_pendientes' => $diasSolicitados,
+            'motivo' => $validated['motivo'],
+        ]);
+
+        return redirect()->route('vacaciones.index')->with('success', 'Solicitud de vacaciones creada exitosamente.');
+    }
+
+    public function show($id)
     {
         $vacacion = Vacacion::with([
             'empleado' => function ($query) {
@@ -321,10 +309,4 @@ class VacacionController extends BaseController
         ]);
     }
 }
-
-
-
-
-
-
 

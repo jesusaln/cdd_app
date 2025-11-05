@@ -11,9 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('compras', function (Blueprint $table) {
-            $table->foreignId('orden_compra_id')->nullable()->constrained('orden_compras')->nullOnDelete();
-        });
+        if (!Schema::hasColumn('compras', 'orden_compra_id')) {
+            Schema::table('compras', function (Blueprint $table) {
+                $table->foreignId('orden_compra_id')->nullable()->constrained('orden_compras')->nullOnDelete();
+            });
+        }
     }
 
     /**
@@ -22,8 +24,10 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('compras', function (Blueprint $table) {
-            $table->dropForeign(['orden_compra_id']);
-            $table->dropColumn('orden_compra_id');
+            if (Schema::hasColumn('compras', 'orden_compra_id')) {
+                $table->dropForeign(['orden_compra_id']);
+                $table->dropColumn('orden_compra_id');
+            }
         });
     }
 };

@@ -11,15 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('traspasos', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('producto_id')->constrained('productos');
-            $table->foreignId('almacen_origen_id')->constrained('almacenes');
-            $table->foreignId('almacen_destino_id')->constrained('almacenes');
-            $table->integer('cantidad');
-            $table->text('observaciones')->nullable();
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('traspasos')) {
+            Schema::create('traspasos', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('producto_id')->constrained('productos');
+                $table->foreignId('almacen_origen_id')->constrained('almacenes');
+                $table->foreignId('almacen_destino_id')->constrained('almacenes');
+                $table->integer('cantidad');
+                $table->text('observaciones')->nullable();
+                $table->timestamps();
+            });
+        }
     }
 
     /**

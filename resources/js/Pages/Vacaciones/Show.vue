@@ -36,7 +36,7 @@
               <div class="space-y-3">
                 <div class="flex justify-between">
                   <span class="text-gray-600">Nombre:</span>
-                  <span class="font-medium">{{ vacacion.empleado ? `${vacacion.empleado.name || 'N/A'} ${vacacion.empleado.apellido_paterno || ''}` : 'N/A' }}</span>
+<span class="font-medium">{{ vacacion.empleado ? (vacacion.empleado.name || 'N/A') : 'N/A' }}</span>
                 </div>
                 <div class="flex justify-between">
                   <span class="text-gray-600">Puesto:</span>
@@ -153,6 +153,37 @@
           </div>
         </div>
 
+        <!-- Historial de ajustes de vacaciones (año de la solicitud) -->
+        <div class="mt-8">
+          <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <svg class="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 1.343-3 3m6 0c0-1.657-1.343-3-3-3m0 0V5m0 6h3m-3 0H9m9 4a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            Ajustes de vacaciones (año)
+          </h2>
+          <div v-if="(ajustesVacaciones && ajustesVacaciones.length)" class="overflow-x-auto bg-gray-50 border border-gray-200 rounded-lg">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-100">
+                <tr>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Fecha</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Días (+/-)</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Motivo</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Aplicado por</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                <tr v-for="a in ajustesVacaciones" :key="a.id">
+                  <td class="px-4 py-3 text-sm text-gray-900">{{ formatDate(a.created_at) }}</td>
+                  <td class="px-4 py-3 text-sm" :class="a.dias >= 0 ? 'text-green-700' : 'text-red-700'">{{ a.dias }}</td>
+                  <td class="px-4 py-3 text-sm text-gray-700">{{ a.motivo || '-' }}</td>
+                  <td class="px-4 py-3 text-sm text-gray-900">{{ a.creador?.name || 'Sistema' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p v-else class="text-sm text-gray-600">No hay ajustes registrados para este año.</p>
+        </div>
+
         <!-- Acciones (solo para administradores y vacaciones pendientes) -->
         <div v-if="vacacion.estado === 'pendiente' && $page.props.auth.user && $page.props.auth.user.roles && $page.props.auth.user.roles.some && $page.props.auth.user.roles.some(role => role.name === 'admin')" class="mt-8 pt-6 border-t border-gray-200">
           <div class="flex justify-end gap-3">
@@ -196,6 +227,10 @@ defineOptions({
 const props = defineProps({
   vacacion: Object,
   registroVacaciones: Object,
+  ajustesVacaciones: {
+    type: Array,
+    default: () => []
+  }
 })
 
 const notyf = new Notyf({

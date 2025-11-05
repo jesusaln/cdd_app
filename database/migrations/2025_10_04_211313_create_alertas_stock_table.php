@@ -11,24 +11,26 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('alertas_stock', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('producto_id')->constrained('productos')->onDelete('cascade');
-            $table->foreignId('almacen_id')->constrained('almacenes')->onDelete('cascade');
-            $table->enum('tipo', ['bajo', 'critico', 'agotado']);
-            $table->integer('stock_actual');
-            $table->integer('stock_minimo');
-            $table->text('mensaje')->nullable();
-            $table->boolean('leida')->default(false);
-            $table->timestamp('leida_at')->nullable();
-            $table->timestamps();
+        if (!Schema::hasTable('alertas_stock')) {
+            Schema::create('alertas_stock', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('producto_id')->constrained('productos')->onDelete('cascade');
+                $table->foreignId('almacen_id')->constrained('almacenes')->onDelete('cascade');
+                $table->enum('tipo', ['bajo', 'critico', 'agotado']);
+                $table->integer('stock_actual');
+                $table->integer('stock_minimo');
+                $table->text('mensaje')->nullable();
+                $table->boolean('leida')->default(false);
+                $table->timestamp('leida_at')->nullable();
+                $table->timestamps();
 
-            // Índices para mejor rendimiento
-            $table->index(['producto_id', 'almacen_id']);
-            $table->index(['tipo']);
-            $table->index(['leida']);
-            $table->index(['created_at']);
-        });
+                // Índices para mejor rendimiento
+                $table->index(['producto_id', 'almacen_id']);
+                $table->index(['tipo']);
+                $table->index(['leida']);
+                $table->index(['created_at']);
+            });
+        }
     }
 
     /**

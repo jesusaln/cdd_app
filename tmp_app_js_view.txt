@@ -155,13 +155,14 @@ createInertiaApp({
   setup({ el, App, props, plugin }) {
     const app = createApp({ render: () => h(App, props) })
       .use(plugin)
-      .use(ZiggyVue, window.Ziggy)
+      .use(ZiggyVue)
       // Registrar ambos nombres para evitar discrepancias en plantillas
       .component('FontAwesomeIcon', FontAwesomeIcon)
       .component('font-awesome-icon', FontAwesomeIcon)
 
     // Hacer route disponible globalmente (configuración correcta para ziggy-js)
-    
+    app.config.globalProperties.route = route
+    app.config.globalProperties.Ziggy = Ziggy
 
     app.mount(el)
   },
@@ -169,3 +170,4 @@ createInertiaApp({
     color: '#4B5563', // gris oscuro acorde a tu UI
   },
 })
+

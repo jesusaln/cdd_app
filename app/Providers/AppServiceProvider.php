@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use Inertia\Inertia;
+
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\URL;
@@ -27,6 +29,9 @@ class AppServiceProvider extends ServiceProvider
         //     URL::forceScheme('https');
         // }
 
+        // Nota: Para manejar UTF-8 malformado, trata los datos de origen
+        // (BD/strings) antes de pasarlos a Inertia. Evitamos usar métodos
+        // inexistentes en la versión actual de inertia-laravel.
         // Registrar el evento y el listener
         Event::listen(
             \App\Events\ClientCreated::class, // El evento
@@ -40,6 +45,10 @@ class AppServiceProvider extends ServiceProvider
             'producto' => \App\Models\Producto::class,
             'servicio' => \App\Models\Servicio::class,
             'cliente'  => \App\Models\Cliente::class,
+            'prestamo' => \App\Models\Prestamo::class,
+            'pago_prestamo' => \App\Models\PagoPrestamo::class,
+            'historial_pago_prestamo' => \App\Models\HistorialPagoPrestamo::class,
+            'venta' => \App\Models\Venta::class,
             // Nota: Para modelos de terceros como User/Tecnico usados por spatie/permission,
             // no definimos alias cortos para no romper pivotes existentes
 
@@ -49,6 +58,12 @@ class AppServiceProvider extends ServiceProvider
             'App\\Models\\Cliente'  => \App\Models\Cliente::class,
             'App\\Models\\User' => \App\Models\User::class,
             'App\\Models\\Tecnico' => \App\Models\Tecnico::class,
+            'App\\Models\\Prestamo' => \App\Models\Prestamo::class,
+            'App\\Models\\PagoPrestamo' => \App\Models\PagoPrestamo::class,
+            'App\\Models\\HistorialPagoPrestamo' => \App\Models\HistorialPagoPrestamo::class,
+            'App\\Models\\Venta' => \App\Models\Venta::class,
         ]);
     }
 }
+
+

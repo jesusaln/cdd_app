@@ -11,17 +11,19 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('inventario_movimientos', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('producto_id')->constrained()->onDelete('cascade');
-            $table->enum('tipo', ['entrada', 'salida']);
-            $table->integer('cantidad');
-            $table->string('motivo');
-            $table->string('referencia')->nullable();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->json('metadatos')->nullable();
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('inventario_movimientos')) {
+            Schema::create('inventario_movimientos', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('producto_id')->constrained()->onDelete('cascade');
+                $table->enum('tipo', ['entrada', 'salida']);
+                $table->integer('cantidad');
+                $table->string('motivo');
+                $table->string('referencia')->nullable();
+                $table->foreignId('user_id')->constrained()->onDelete('cascade');
+                $table->json('metadatos')->nullable();
+                $table->timestamps();
+            });
+        }
     }
 
     /**

@@ -39,7 +39,7 @@
                 </svg>
                 <div>
                   <p class="text-sm font-medium text-blue-800">
-                    Creando vacaciones para: <strong>{{ props.empleadoSeleccionado.name }} {{ props.empleadoSeleccionado.apellido_paterno }}</strong>
+Creando vacaciones para: <strong>{{ props.empleadoSeleccionado.name }}</strong>
                   </p>
                   <p class="text-xs text-blue-600">{{ props.empleadoSeleccionado.puesto }}</p>
                 </div>
@@ -63,7 +63,7 @@
               >
                 <option value="" disabled>Seleccionar empleado</option>
                 <option v-for="empleado in empleados" :key="empleado.id" :value="empleado.id">
-                  {{ empleado.name }} {{ empleado.apellido_paterno }} - {{ empleado.puesto }}
+{{ empleado.name }} - {{ empleado.puesto }}
                 </option>
               </select>
               <InputError class="mt-2" :message="form.errors.user_id" />
@@ -249,6 +249,15 @@ const form = useForm({
   motivo: '',
 })
 
+// Debug toggle: add ?debugVacaciones=1 or set localStorage.debugVacaciones = '1'
+const DEBUG = computed(() => {
+  try {
+    const hasQuery = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debugVacaciones')
+    const ls = typeof window !== 'undefined' && window.localStorage?.getItem('debugVacaciones') === '1'
+    return !!(hasQuery || ls)
+  } catch { return false }
+})
+
 const diasSolicitados = computed(() => {
   if (!form.fecha_inicio || !form.fecha_fin) return 0
 
@@ -271,27 +280,50 @@ const isFormValid = computed(() => {
 })
 
 const submit = () => {
-  form.post(route('vacaciones.store'), {
-    onSuccess: () => {
-      const empleadoNombre = props.empleadoSeleccionado ? props.empleadoSeleccionado.name : 'el empleado'
-      notyf.success(`Solicitud de vacaciones para ${empleadoNombre} enviada exitosamente.`)
-      form.reset()
-    },
-    onError: (errors) => {
-      console.log('Errores:', errors)
-      notyf.error('Error al enviar la solicitud. Revisa los campos.')
+  try {
+    if (DEBUG.value) {
+      // eslint-disable-next-line no-console
+      console.log('[Vacaciones][Create] Enviando', {
+        route: route('vacaciones.store'),
+        data: { ...form }
+      })
+    }
+    form.post(route('vacaciones.store'), {
+      onSuccess: (page) => {
+        const empleadoNombre = props.empleadoSeleccionado ? props.empleadoSeleccionado.name : 'el empleado'
+        notyf.success(`Solicitud de vacaciones para ${empleadoNombre} enviada exitosamente.`)
+        if (DEBUG.value) {
+          // eslint-disable-next-line no-console
+          console.log('[Vacaciones][Create] Success', { page })
+        }
+        form.reset()
+      },
+      onError: (errors) => {
+        // eslint-disable-next-line no-console
+        console.error('[Vacaciones][Create] Errores de validación', errors)
+        notyf.error('Error al enviar la solicitud. Revisa los campos.')
 
-      // Scroll al primer error
-      const firstErrorField = Object.keys(errors)[0]
-      if (firstErrorField) {
-        const element = document.getElementById(firstErrorField)
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'center' })
-          element.focus()
+        const firstErrorField = Object.keys(errors)[0]
+        if (firstErrorField) {
+          const element = document.getElementById(firstErrorField)
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            element.focus()
+          }
+        }
+      },
+      onFinish: () => {
+        if (DEBUG.value) {
+          // eslint-disable-next-line no-console
+          console.log('[Vacaciones][Create] Finalizado')
         }
       }
-    }
-  })
+    })
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error('[Vacaciones][Create] Error inesperado', e)
+    notyf.error('Ocurrió un error inesperado al enviar la solicitud.')
+  }
 }
 </script>
 

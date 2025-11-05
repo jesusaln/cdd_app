@@ -12,9 +12,20 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('inventarios', function (Blueprint $table) {
-            $table->foreignId('almacen_id')->constrained('almacenes')->onDelete('cascade')->after('producto_id');
-            $table->integer('stock_minimo')->default(0)->after('cantidad');
-            $table->unique(['producto_id', 'almacen_id']);
+            // Solo agregar almacen_id si no existe
+            if (!Schema::hasColumn('inventarios', 'almacen_id')) {
+                $table->foreignId('almacen_id')->constrained('almacenes')->onDelete('cascade')->after('producto_id');
+            }
+            
+            // Solo agregar stock_minimo si no existe
+            if (!Schema::hasColumn('inventarios', 'stock_minimo')) {
+                $table->integer('stock_minimo')->default(0)->after('cantidad');
+            }
+            
+            // Solo agregar índice único si no existe
+            if (!Schema::hasIndex('inventarios', ['producto_id', 'almacen_id'])) {
+                $table->unique(['producto_id', 'almacen_id']);
+            }
         });
     }
 
