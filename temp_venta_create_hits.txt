@@ -1,0 +1,5 @@
+app/Http/Controllers\CitaController.php:611:        $venta = Venta::create([
+app/Http/Controllers\CitaController.php:1067:            $venta = Venta::create([
+app/Http/Controllers\CotizacionController.php:814:            $venta = Venta::create([
+app/Http/Controllers\Api\VentaController.php:152:            $venta = Venta::create([
+app/Http/Controllers\VentaController.php:338:            $venta = Venta::create([

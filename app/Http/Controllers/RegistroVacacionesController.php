@@ -139,6 +139,15 @@ class RegistroVacacionesController extends Controller
         $anio = (int)($request->get('anio', now()->year));
         $registro = RegistroVacaciones::actualizarRegistroAnual($empleado->id, $anio);
 
+        // Obtener las vacaciones del empleado para el año seleccionado
+        $vacaciones = \App\Models\Vacacion::where('user_id', $empleado->id)
+            ->where(function($query) use ($anio) {
+                $query->whereYear('fecha_inicio', $anio)
+                      ->orWhereYear('fecha_fin', $anio);
+            })
+            ->orderBy('fecha_inicio', 'desc')
+            ->get(['id', 'fecha_inicio', 'fecha_fin', 'dias_solicitados', 'estado', 'motivo', 'created_at']);
+
         // Ajustes del año seleccionado y del año anterior (vista compacta)
         $ajustes = AjusteVacaciones::with(['creador:id,name'])
             ->where('user_id', $empleado->id)
@@ -151,6 +160,7 @@ class RegistroVacacionesController extends Controller
             'anio' => $anio,
             'registro' => $registro,
             'ajustes' => $ajustes,
+            'vacaciones' => $vacaciones,
         ]);
     }
 }

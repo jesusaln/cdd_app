@@ -288,6 +288,12 @@ const submit = () => {
         data: { ...form }
       })
     }
+    // Log de payload enviado (incondicional)
+    // eslint-disable-next-line no-console
+    console.log('[Vacaciones][Create] Payload a enviar', {
+      ...form,
+      diasSolicitados: diasSolicitados.value
+    })
     form.post(route('vacaciones.store'), {
       onSuccess: (page) => {
         const empleadoNombre = props.empleadoSeleccionado ? props.empleadoSeleccionado.name : 'el empleado'
@@ -299,6 +305,13 @@ const submit = () => {
         form.reset()
       },
       onError: (errors) => {
+        // Log detallado de errores y payload
+        // eslint-disable-next-line no-console
+        console.error('[Vacaciones][Create] onError', {
+          errors,
+          sent: { ...form },
+          diasSolicitados: diasSolicitados.value
+        })
         // eslint-disable-next-line no-console
         console.error('[Vacaciones][Create] Errores de validación', errors)
         notyf.error('Error al enviar la solicitud. Revisa los campos.')

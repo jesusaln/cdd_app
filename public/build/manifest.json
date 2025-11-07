@@ -785,7 +785,7 @@
     ]
   },
   "resources/js/Pages/Citas/Edit.vue": {
-    "file": "assets/Edit-Xc95Xvxe.js",
+    "file": "assets/Edit-DY3Kf0GS.js",
     "name": "Edit",
     "src": "resources/js/Pages/Citas/Edit.vue",
     "isDynamicEntry": true,
@@ -1261,7 +1261,7 @@
     ]
   },
   "resources/js/Pages/EmpresaConfiguracion/Index.vue": {
-    "file": "assets/Index-DoAQgT9w.js",
+    "file": "assets/Index-BoxtKfZF.js",
     "name": "Index",
     "src": "resources/js/Pages/EmpresaConfiguracion/Index.vue",
     "isDynamicEntry": true,
@@ -2846,7 +2846,7 @@
     ]
   },
   "resources/js/Pages/Vacaciones/Create.vue": {
-    "file": "assets/Create-DjeY7pRo.js",
+    "file": "assets/Create-07l4QgIb.js",
     "name": "Create",
     "src": "resources/js/Pages/Vacaciones/Create.vue",
     "isDynamicEntry": true,
@@ -2859,11 +2859,11 @@
       "_ui--kdgU_Iu.js"
     ],
     "css": [
-      "assets/Create-B_2qcrZv.css"
+      "assets/Create-DG-EM72G.css"
     ]
   },
   "resources/js/Pages/Vacaciones/Index.vue": {
-    "file": "assets/Index-CFM0u5nV.js",
+    "file": "assets/Index-CzqBa4Da.js",
     "name": "Index",
     "src": "resources/js/Pages/Vacaciones/Index.vue",
     "isDynamicEntry": true,
@@ -2875,7 +2875,7 @@
       "_ui--kdgU_Iu.js"
     ],
     "css": [
-      "assets/Index-DFSVwL-2.css"
+      "assets/Index-ByGvSTJ2.css"
     ]
   },
   "resources/js/Pages/Vacaciones/MisVacaciones.vue": {
@@ -2895,25 +2895,29 @@
     ]
   },
   "resources/js/Pages/Vacaciones/RegistroEmpleado.vue": {
-    "file": "assets/RegistroEmpleado-D8YnWusl.js",
+    "file": "assets/RegistroEmpleado-Wlj5eE1b.js",
     "name": "RegistroEmpleado",
     "src": "resources/js/Pages/Vacaciones/RegistroEmpleado.vue",
     "isDynamicEntry": true,
     "imports": [
       "_vendor-BbW20Lbp.js",
+      "_AppLayout-ChOf-TcP.js",
       "_utils-DpGW8oSp.js",
-      "_ui--kdgU_Iu.js"
+      "_ui--kdgU_Iu.js",
+      "__plugin-vue_export-helper-DlAUqK2U.js"
     ]
   },
   "resources/js/Pages/Vacaciones/RegistroIndex.vue": {
-    "file": "assets/RegistroIndex-DMzMtD-_.js",
+    "file": "assets/RegistroIndex-1uK8Co8d.js",
     "name": "RegistroIndex",
     "src": "resources/js/Pages/Vacaciones/RegistroIndex.vue",
     "isDynamicEntry": true,
     "imports": [
       "_vendor-BbW20Lbp.js",
+      "_AppLayout-ChOf-TcP.js",
       "_utils-DpGW8oSp.js",
-      "_ui--kdgU_Iu.js"
+      "_ui--kdgU_Iu.js",
+      "__plugin-vue_export-helper-DlAUqK2U.js"
     ]
   },
   "resources/js/Pages/Vacaciones/Show.vue": {
@@ -3019,7 +3023,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-B4CCCkdL.js",
+    "file": "assets/app-CwInsco_.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,

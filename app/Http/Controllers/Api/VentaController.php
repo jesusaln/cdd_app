@@ -7,6 +7,7 @@ use App\Models\Venta;
 use App\Services\InventarioService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 
 class VentaController extends Controller
 {
@@ -141,6 +142,7 @@ class VentaController extends Controller
             // Validar los datos de entrada
             $validatedData = $request->validate([
                 'cliente_id' => 'required|exists:clientes,id',
+                'almacen_id' => 'nullable|integer|exists:almacenes,id,estado,activo',
                 'items' => 'required|array',
                 'items.*.id' => 'required|integer',
                 'items.*.tipo' => 'required|in:producto,servicio',
@@ -151,8 +153,9 @@ class VentaController extends Controller
             // Crear la venta
             $venta = Venta::create([
                 'cliente_id' => $validatedData['cliente_id'],
+                'almacen_id' => ($validatedData['almacen_id'] ?? null),
                 'total' => array_sum(array_map(function ($item) {
-                    return $item['cantidad'] * $item['precio'];
+                return $item['cantidad'] * $item['precio'];
                 }, $validatedData['items'])),
             ]);
 
@@ -203,6 +206,7 @@ class VentaController extends Controller
 
             // Validar los datos de entrada
             $validatedData = $request->validate([
+                'almacen_id' => 'nullable|integer|exists:almacenes,id,estado,activo',
                 'cliente_id' => 'sometimes|exists:clientes,id',
                 'items' => 'sometimes|array',
                 'items.*.id' => 'required_with:items|integer',
@@ -306,3 +310,7 @@ class VentaController extends Controller
         }
     }
 }
+
+
+
+

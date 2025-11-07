@@ -594,15 +594,47 @@ class CitaController extends Controller
             return; // No hay nada que vender, salir silenciosamente
         }
 
-        // Validar stock disponible para productos
+        // Determinar almacén a usar y validar existencia
+        $almacenId = $user?->almacen_venta_id;
+        if (!$almacenId) {
+            throw ValidationException::withMessages([
+                'almacen_id' => 'No se pudo determinar el almacén. Configure su almacén de ventas en su usuario o indique uno explícitamente.',
+            ]);
+        }
+
+        // Validar stock disponible para productos en el almacén seleccionado y validar series si aplica
         foreach ($items as $it) {
             if ($it['tipo'] === 'producto') {
                 $producto = $it['modelo'];
                 $cantidad = $it['cantidad'];
-                if ($producto->stock_disponible < $cantidad) {
+
+                $inventarioAlmacen = \App\Models\Inventario::where('producto_id', $producto->id)
+                    ->where('almacen_id', $almacenId)
+                    ->first();
+
+                $stockDisponible = $inventarioAlmacen?->cantidad ?? 0;
+                if ($stockDisponible < $cantidad) {
                     throw ValidationException::withMessages([
-                        'productos' => "Stock insuficiente para '{$producto->nombre}'. Disponible: {$producto->stock_disponible}, Solicitado: {$cantidad}",
+                        'productos' => "Stock insuficiente para '{$producto->nombre}' en el almacén seleccionado. Disponible: {$stockDisponible}, Solicitado: {$cantidad}",
                     ]);
+                }
+
+                // Si el producto requiere serie, verificar que existan suficientes series en el mismo almacén
+                if (($producto->requiere_serie ?? false)) {
+                    $seriesEnAlmacen = \App\Models\ProductoSerie::where('producto_id', $producto->id)
+                        ->where('estado', 'en_stock')
+                        ->where(function ($q) use ($almacenId) {
+                            // Permitir series legacy sin almacén o que coincidan con el almacén
+                            $q->whereNull('almacen_id')->orWhere('almacen_id', $almacenId);
+                        })
+                        ->limit($cantidad)
+                        ->pluck('id');
+
+                    if ($seriesEnAlmacen->count() < $cantidad) {
+                        throw ValidationException::withMessages([
+                            'series' => "No hay suficientes series disponibles en el almacén para '{$producto->nombre}'. Requeridas: {$cantidad}, Disponibles: {$seriesEnAlmacen->count()}",
+                        ]);
+                    }
                 }
             }
         }
@@ -610,6 +642,7 @@ class CitaController extends Controller
         // Crear venta
         $venta = Venta::create([
             'cliente_id' => $cita->cliente_id,
+            'almacen_id' => $almacenId,
             'numero_venta' => $this->generarNumeroVenta(),
             'fecha' => now()->toDateString(),
             'estado' => EstadoVenta::Pendiente,
@@ -661,7 +694,31 @@ class CitaController extends Controller
                         'cita_id' => $cita->id,
                     ],
                     'user_id' => $user?->id,
+                    'almacen_id' => $almacenId,
                 ]);
+
+                // Reducir inventario del almacén específico (además del servicio)
+                $inventarioAlmacen = \App\Models\Inventario::where('producto_id', $producto->id)
+                    ->where('almacen_id', $almacenId)
+                    ->first();
+                if ($inventarioAlmacen) {
+                    $inventarioAlmacen->decrement('cantidad', $cantidad);
+                }
+
+                // Marcar series como vendidas si aplica (toma las primeras disponibles en este almacén)
+                if (($producto->requiere_serie ?? false)) {
+                    $seriesIds = \App\Models\ProductoSerie::where('producto_id', $producto->id)
+                        ->where('estado', 'en_stock')
+                        ->where(function ($q) use ($almacenId) {
+                            $q->whereNull('almacen_id')->orWhere('almacen_id', $almacenId);
+                        })
+                        ->limit($cantidad)
+                        ->pluck('id');
+                    if ($seriesIds->count() == $cantidad) {
+                        \App\Models\ProductoSerie::whereIn('id', $seriesIds->all())
+                            ->update(['estado' => 'vendido']);
+                    }
+                }
             }
         }
 

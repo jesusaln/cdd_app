@@ -99,18 +99,29 @@ class RegistroVacaciones extends Model
         $fechaCalculo = now();
         $aniosAntiguedad = $fechaCalculo->diffInYears($fechaContratacion);
 
-        // Si el empleado tiene menos de 1 año, no genera registro
-        if ($aniosAntiguedad < 1) {
-            return null;
-        }
-
         // Calcular días correspondientes según antigüedad
         $diasCorrespondientes = self::calcularDiasSegunAntiguedad($aniosAntiguedad);
+
+        // Si el empleado tiene menos de 1 año, no le corresponden días pero igual creamos registro
+        if ($aniosAntiguedad < 1) {
+            $diasCorrespondientes = 0;
+        }
+
+        // Calcular días utilizados a partir de vacaciones aprobadas del año
+        $diasUtilizados = \App\Models\Vacacion::where('user_id', $empleadoId)
+            ->where('estado', 'aprobada')
+            ->where(function($query) use ($anio) {
+                $query->whereYear('fecha_inicio', $anio)
+                      ->orWhereYear('fecha_fin', $anio);
+            })
+            ->sum('dias_solicitados');
 
         if ($registro) {
             // Actualizar registro existente
             $registro->update([
                 'dias_correspondientes' => $diasCorrespondientes,
+                'dias_utilizados' => $diasUtilizados,
+                'dias_pendientes' => max(0, $registro->dias_disponibles - $diasUtilizados),
                 'fecha_calculo' => $fechaCalculo,
             ]);
         } else {
@@ -121,14 +132,16 @@ class RegistroVacaciones extends Model
 
             $diasAcumulados = $registroAnterior ? $registroAnterior->dias_acumulados_siguiente : 0;
 
+            $diasDisponibles = $diasCorrespondientes + $diasAcumulados;
+
             // Crear nuevo registro
             $registro = self::create([
                 'user_id' => $empleadoId,
                 'anio' => $anio,
                 'dias_correspondientes' => $diasCorrespondientes,
-                'dias_disponibles' => $diasCorrespondientes + $diasAcumulados,
-                'dias_utilizados' => 0,
-                'dias_pendientes' => $diasCorrespondientes + $diasAcumulados,
+                'dias_disponibles' => $diasDisponibles,
+                'dias_utilizados' => $diasUtilizados,
+                'dias_pendientes' => max(0, $diasDisponibles - $diasUtilizados),
                 'dias_acumulados_siguiente' => 0,
                 'fecha_calculo' => $fechaCalculo,
             ]);

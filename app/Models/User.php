@@ -82,8 +82,9 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
-            'fecha_nacimiento' => 'date',
-            'fecha_contratacion' => 'date',
+            // Serializar como YYYY-MM-DD para inputs HTML date
+            'fecha_nacimiento' => 'date:Y-m-d',
+            'fecha_contratacion' => 'date:Y-m-d',
             'salario' => 'decimal:2',
             'es_empleado' => 'boolean',
             'activo' => 'boolean',
@@ -213,6 +214,36 @@ class User extends Authenticatable
             return null;
         }
         return now()->diffInYears($this->fecha_contratacion);
+    }
+
+    // Días de vacaciones correspondientes del año en curso (según antigüedad)
+    public function getDiasVacacionesCorrespondientesAttribute()
+    {
+        if (!$this->es_empleado || !$this->fecha_contratacion) {
+            return 0;
+        }
+
+        $registro = $this->registroVacacionesActual()->first();
+        if (!$registro) {
+            $registro = \App\Models\RegistroVacaciones::actualizarRegistroAnual($this->id);
+        }
+        return $registro?->dias_correspondientes ?? 0;
+    }
+
+    // Días de vacaciones disponibles del año en curso
+    public function getDiasVacacionesDisponiblesAttribute()
+    {
+        if (!$this->es_empleado || !$this->fecha_contratacion) {
+            return 0;
+        }
+
+        $registro = $this->registroVacacionesActual()->first();
+        if (!$registro) {
+            $registro = \App\Models\RegistroVacaciones::actualizarRegistroAnual($this->id);
+        }
+        if (!$registro) return 0;
+
+        return max(0, ($registro->dias_disponibles ?? 0) - ($registro->dias_utilizados ?? 0));
     }
 
     // Scope para empleados activos

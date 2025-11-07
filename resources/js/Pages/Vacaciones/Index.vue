@@ -230,7 +230,7 @@
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-              <tr v-for="vacacion in vacaciones.data" :key="vacacion.id" class="hover:bg-gray-50 transition-colors duration-150" :class="vacacion.id === Number(props.highlightId) ? 'bg-green-50 ring-2 ring-green-300' : ''" :ref="el => { if (vacacion.id && el) rowRefs.value[vacacion.id] = el }">
+              <tr v-for="vacacion in vacaciones.data" :key="vacacion.id" class="hover:bg-gray-50 transition-colors duration-150" :class="vacacion.id === Number(props.highlightId) ? 'bg-green-50 ring-2 ring-green-300' : ''" :ref="el => { if (vacacion.id && el) { rowRefs.value = rowRefs.value || {}; rowRefs.value[String(vacacion.id)] = el } }">
                 <td class="px-6 py-4">
                   <div class="text-sm font-medium text-gray-900">
                 {{ vacacion.empleado.name }}
@@ -446,8 +446,8 @@ const rowRefs = ref({})
 onMounted(() => {
   if (props.highlightId) {
     nextTick(() => {
-      const id = Number(props.highlightId)
-      const el = rowRefs.value[id]
+      const id = String(props.highlightId)
+      const el = rowRefs.value ? rowRefs.value[id] : null
       if (el && el.scrollIntoView) {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' })
       }

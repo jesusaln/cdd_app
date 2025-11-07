@@ -810,7 +810,6 @@ class CotizacionController extends Controller
 
         DB::beginTransaction();
         try {
-            // Import ya declarado arriba: use App\Models\Venta;
             $venta = Venta::create([
                 'cliente_id' => $cotizacion->cliente_id,
                 'cotizacion_id' => $cotizacion->id,
@@ -1384,3 +1383,15 @@ class CotizacionController extends Controller
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+

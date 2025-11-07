@@ -69,6 +69,12 @@
 <script setup>
 import { Head, Link, router } from '@inertiajs/vue3'
 import { ref } from 'vue'
+import AppLayout from '@/Layouts/AppLayout.vue'
+
+defineOptions({
+  layout: AppLayout,
+  inheritAttrs: false
+})
 
 const props = defineProps({
   anio: Number,

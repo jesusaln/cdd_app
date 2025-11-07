@@ -13,6 +13,7 @@ use Inertia\Inertia;
 use Illuminate\Database\QueryException;
 use Spatie\Permission\Models\Role;
 use Exception;
+use App\Models\RegistroVacaciones;
 
 class UserController extends BaseController
 {
@@ -207,7 +208,10 @@ class UserController extends BaseController
             'nss' => $validated['nss'] ?? null,
             'puesto' => $validated['puesto'] ?? null,
             'departamento' => $validated['departamento'] ?? null,
-            'fecha_contratacion' => $validated['fecha_contratacion'] ?? null,
+            // Preservar la fecha de contratación existente si no viene en la solicitud
+            'fecha_contratacion' => array_key_exists('fecha_contratacion', $validated)
+                ? $validated['fecha_contratacion']
+                : $user->fecha_contratacion,
             'salario' => $validated['salario'] ?? null,
             'tipo_contrato' => $validated['tipo_contrato'] ?? null,
             'numero_empleado' => $validated['numero_empleado'] ?? null,
@@ -224,6 +228,15 @@ class UserController extends BaseController
 
         $user = User::create($userData);
         $user->assignRole($validated['role']);
+
+        // Inicializar registro de vacaciones si aplica
+        try {
+            if ($user->es_empleado && $user->fecha_contratacion) {
+                RegistroVacaciones::actualizarRegistroAnual($user->id);
+            }
+        } catch (Exception $e) {
+            Log::warning('No se pudo inicializar registro de vacaciones: ' . $e->getMessage());
+        }
 
         $tipo = $user->es_empleado ? 'empleado' : 'usuario';
         return redirect()->route('usuarios.index')->with('success', ucfirst($tipo) . ' creado exitosamente.');
@@ -252,7 +265,7 @@ class UserController extends BaseController
             'nss' => 'nullable|string|size:11|unique:users,nss,' . $user->id,
             'puesto' => 'nullable|string|max:255',
             'departamento' => 'nullable|string|max:255',
-            'fecha_contratacion' => 'nullable|date',
+            'fecha_contratacion' => 'required_if:es_empleado,true|date',
             'salario' => 'nullable|numeric|min:0',
             'tipo_contrato' => 'nullable|in:tiempo_completo,medio_tiempo,temporal,por_obra',
             'numero_empleado' => 'nullable|string|unique:users,numero_empleado,' . $user->id,
@@ -307,6 +320,17 @@ class UserController extends BaseController
 
         if (isset($validated['role'])) {
             $user->syncRoles([$validated['role']]);
+        }
+
+        // Recalcular registro de vacaciones si cambió condición relevante
+        try {
+            if (array_key_exists('fecha_contratacion', $validated) || array_key_exists('es_empleado', $validated)) {
+                if ($user->es_empleado && $user->fecha_contratacion) {
+                    RegistroVacaciones::actualizarRegistroAnual($user->id);
+                }
+            }
+        } catch (Exception $e) {
+            Log::warning('No se pudo recalcular registro de vacaciones: ' . $e->getMessage());
         }
 
         $tipo = $user->es_empleado ? 'empleado' : 'usuario';

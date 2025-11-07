@@ -10,6 +10,24 @@ class Venta extends Model
 {
     protected $table = 'ventas';
 
+    protected static function booted(): void
+    {
+        static::creating(function (Venta $venta) {
+            if (empty($venta->almacen_id)) {
+                $user = \Illuminate\Support\Facades\Auth::user();
+                if ($user && !empty($user->almacen_venta_id)) {
+                    $venta->almacen_id = $user->almacen_venta_id;
+                }
+            }
+
+            if (empty($venta->almacen_id)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'almacen_id' => 'El almacén es obligatorio para crear la venta.',
+                ]);
+            }
+        });
+    }
+
     protected $fillable = [
         'cliente_id',
         'cotizacion_id',
@@ -212,4 +230,3 @@ class Venta extends Model
         return $this->calcularCostoTotal();
     }
 }
-

@@ -18,6 +18,7 @@ use App\Models\SatEstado;
 use App\Models\SatRegimenFiscal;
 use App\Models\SatUsoCfdi;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use App\Services\EntregaDineroService;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -232,7 +233,7 @@ class VentaController extends Controller
         // Validación dinámica para series en ventas
         $rules = [
             'cliente_id' => 'required|exists:clientes,id',
-            'almacen_id' => 'required|exists:almacenes,id',
+            'almacen_id' => 'required|integer|exists:almacenes,id,estado,activo',
             'vendedor_type' => 'nullable|in:App\\Models\\User,App\\Models\\Tecnico',
             'vendedor_id' => 'nullable|integer',
             'productos' => 'required|array',
@@ -1374,3 +1375,9 @@ class VentaController extends Controller
         }
     }
 }
+
+
+
+
+
+
