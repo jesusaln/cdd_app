@@ -109,6 +109,9 @@
             </NavLink>
             <NavLink href="/ventas" icon="dollar-sign" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Ventas Realizadas' : null">
               Ventas Realizadas
+            <NavLink href="/garantias" icon="shield-alt" :collapsed="props.isSidebarCollapsed" :title="props.isSidebarCollapsed ? 'Garantías' : null">
+              Garantías
+            </NavLink>
             </NavLink>
           </div>
         </div>

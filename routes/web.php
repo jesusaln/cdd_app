@@ -63,6 +63,7 @@ use App\Http\Controllers\RegistroVacacionesController;
 use App\Http\Controllers\EmpresaWhatsAppController;
 use App\Http\Controllers\ImageController;
 use App\Models\Empresa;
+use App\Http\Controllers\GarantiaController;
 
 // Forzar patr�n num�rico para {herramienta} y evitar colisiones con rutas est�ticas
 Route::pattern('herramienta', '[0-9]+');
@@ -228,6 +229,16 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::resource('cotizaciones', CotizacionController::class)->names('cotizaciones')->where(['cotizaciones' => '[0-9]+'])->middleware('role:ventas|admin');
     Route::resource('pedidos', PedidoController::class)->names('pedidos')->middleware('role:ventas|admin');
     Route::resource('ventas', VentaController::class)->names('ventas')->middleware('role:ventas|admin');
+
+    // =====================================================
+    // RUTAS DE GARANTÍAS
+    // =====================================================
+    Route::get('/garantias', [GarantiaController::class, 'index'])
+        ->name('garantias.index')
+        ->middleware('role:ventas|admin');
+    Route::post('/garantias/{serie}/crear-cita', [GarantiaController::class, 'crearCitaGarantia'])
+        ->name('garantias.crear-cita')
+        ->middleware('role:ventas|admin');
     Route::resource('servicios', ServicioController::class)->names('servicios')->middleware('role:admin|editor');
     Route::put('/servicios/{servicio}/toggle', [ServicioController::class, 'toggle'])->name('servicios.toggle')->middleware('role:admin|editor');
     Route::resource('usuarios', UserController::class)->names('usuarios')->middleware('role:admin');
