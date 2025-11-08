@@ -39,6 +39,7 @@ const form = useForm({
   fecha: props.venta.fecha,
   estado: props.venta.estado,
   descuento_general: props.venta.descuento_general || 0,
+  metodo_pago: props.venta.metodo_pago || 'efectivo',
   productos: [],
   notas: props.venta.notas || ''
 });
@@ -209,6 +210,11 @@ const actualizarVenta = () => {
   }
   if (selectedProducts.value.length === 0) {
     notyf.error('Agrega al menos un producto o servicio');
+    return;
+  }
+
+  if (!form.metodo_pago) {
+    notyf.error('Selecciona un método de pago');
     return;
   }
 
@@ -397,6 +403,32 @@ const updateDiscount = (key, discount) => {
           />
         </div>
 </div>
+        <!-- Pago -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div class="px-6 py-4 bg-gray-50 border-b">
+            <h2 class="text-lg font-semibold text-gray-800">Pago</h2>
+          </div>
+          <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label for="metodo_pago" class="block text-sm font-medium text-gray-700 mb-2">Método de Pago *</label>
+              <select
+                id="metodo_pago"
+                v-model="form.metodo_pago"
+                class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                required
+              >
+                <option value="">Selecciona un método</option>
+                <option value="efectivo">Efectivo</option>
+                <option value="transferencia">Transferencia</option>
+                <option value="cheque">Cheque</option>
+                <option value="tarjeta">Tarjeta</option>
+                <option value="otros">Otros</option>
+              </select>
+              <p class="mt-1 text-xs text-gray-500">Requerido para registrar la venta y generar la entrega automática.</p>
+            </div>
+          </div>
+        </div>
+
         <!-- Notas -->
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <div class="px-6 py-4 bg-gray-50 border-b">
@@ -425,7 +457,7 @@ const updateDiscount = (key, discount) => {
         <BotonesAccion
           :back-url="route('ventas.index')"
           :is-processing="form.processing"
-          :can-submit="form.cliente_id && selectedProducts.length > 0"
+          :can-submit="form.cliente_id && form.metodo_pago && selectedProducts.length > 0"
           :button-text="form.processing ? 'Guardando...' : 'Actualizar Venta'"
         />
       </form>

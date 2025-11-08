@@ -336,22 +336,49 @@ class ProductoController extends Controller
     /**
      * Devuelve las series del producto (en stock y vendidas) y sus conteos.
      */
-    public function series(Producto $producto): JsonResponse
+    public function series(Request $request, Producto $producto): JsonResponse
     {
         try {
-            // Obtener series en stock (estado = 'en_stock')
-            $seriesEnStock = DB::table('producto_series')
+            $almacenId = $request->get('almacen_id');
+
+            // Base query para series en stock
+            $queryEnStock = DB::table('producto_series')
                 ->where('producto_id', $producto->id)
-                ->where('estado', 'en_stock')
+                ->where('estado', 'en_stock');
+
+            // Base query para series vendidas
+            $queryVendidas = DB::table('producto_series')
+                ->where('producto_id', $producto->id)
+                ->where('estado', 'vendido');
+
+            // Aplicar filtro de almacén si se especifica
+            if ($almacenId) {
+                $queryEnStock->where('almacen_id', $almacenId);
+                $queryVendidas->where('almacen_id', $almacenId);
+            }
+
+            // Obtener series en stock
+            $seriesEnStock = $queryEnStock
                 ->orderBy('numero_serie')
                 ->get(['id', 'numero_serie', 'estado', 'almacen_id', 'created_at']);
 
-            // Obtener series vendidas (estado = 'vendido')
-            $seriesVendidas = DB::table('producto_series')
-                ->where('producto_id', $producto->id)
-                ->where('estado', 'vendido')
+            // Obtener series vendidas
+            $seriesVendidas = $queryVendidas
                 ->orderBy('numero_serie')
                 ->get(['id', 'numero_serie', 'estado', 'almacen_id', 'created_at']);
+
+            // Agregar información de almacén a las series
+            $seriesEnStock = $seriesEnStock->map(function ($serie) {
+                $almacen = $serie->almacen_id ? \App\Models\Almacen::find($serie->almacen_id) : null;
+                $serie->almacen_nombre = $almacen ? $almacen->nombre : 'Sin almacén';
+                return $serie;
+            });
+
+            $seriesVendidas = $seriesVendidas->map(function ($serie) {
+                $almacen = $serie->almacen_id ? \App\Models\Almacen::find($serie->almacen_id) : null;
+                $serie->almacen_nombre = $almacen ? $almacen->nombre : 'Sin almacén';
+                return $serie;
+            });
 
             return response()->json([
                 'producto' => [
@@ -370,6 +397,7 @@ class ProductoController extends Controller
                     'vendido' => $seriesVendidas,
                 ],
                 'almacenes' => \App\Models\Almacen::select('id', 'nombre')->where('estado', 'activo')->orderBy('nombre')->get(),
+                'filtro_almacen' => $almacenId,
             ]);
         } catch (\Exception $e) {
             Log::error('Error en ProductoController@series: ' . $e->getMessage());

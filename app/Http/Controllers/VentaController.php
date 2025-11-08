@@ -237,16 +237,25 @@ class VentaController extends Controller
             'vendedor_type' => 'nullable|in:App\\Models\\User,App\\Models\\Tecnico',
             'vendedor_id' => 'nullable|integer',
             'productos' => 'required|array',
-            'productos.*.id' => 'required|integer|exists:productos,id',
+            // Validación de existencia por tipo (se ajusta por item más abajo)
+            'productos.*.id' => 'required|integer',
             'productos.*.tipo' => 'required|in:producto,servicio',
             'productos.*.cantidad' => 'required|integer|min:1',
             'productos.*.precio' => 'required|numeric|min:0',
             'productos.*.descuento' => 'required|numeric|min:0|max:100',
+            'metodo_pago' => 'required|in:efectivo,transferencia,cheque,tarjeta,otros',
             'descuento_general' => 'nullable|numeric|min:0|max:100',
             'notas' => 'nullable|string',
         ];
 
         foreach (($request->productos ?? []) as $index => $p) {
+            // Validar existencia según el tipo
+            if (($p['tipo'] ?? '') === 'producto') {
+                $rules["productos.{$index}.id"] = 'required|integer|exists:productos,id';
+            } elseif (($p['tipo'] ?? '') === 'servicio') {
+                $rules["productos.{$index}.id"] = 'required|integer|exists:servicios,id';
+            }
+
             if (($p['tipo'] ?? '') === 'producto') {
                 $productoModel = Producto::find($p['id'] ?? null);
                 if ($productoModel && ($productoModel->requiere_serie ?? false)) {
@@ -353,6 +362,9 @@ class VentaController extends Controller
                 'pagado' => false, // Asegurar que no esté pagado inicialmente
             ]);
 
+            // Guardar método de pago suministrado
+            $venta->update(['metodo_pago' => $validated['metodo_pago']]);
+
             // Crear cuenta por cobrar si la venta no está pagada
             if (!$venta->pagado) {
                 CuentasPorCobrar::create([
@@ -451,10 +463,10 @@ class VentaController extends Controller
                 'venta',
                 $venta->id,
                 (float) $venta->total,
-                $request->metodo_pago,
+                ($validated['metodo_pago'] ?? 'efectivo'),
                 $venta->fecha_pago?->format('Y-m-d') ?? now()->toDateString(),
                 (int) $request->user()->id,
-                'Entrega automática - Venta #' . ($venta->numero_venta ?? $venta->id) . ' - Método: ' . $request->metodo_pago
+                'Entrega automática - Venta #' . ($venta->numero_venta ?? $venta->id) . ' - Método: ' . ($validated['metodo_pago'] ?? 'efectivo')
             );
 
             DB::commit();
@@ -638,10 +650,40 @@ class VentaController extends Controller
             'productos.*.cantidad' => 'required|integer|min:1',
             'productos.*.precio' => 'required|numeric|min:0',
             'productos.*.descuento' => 'required|numeric|min:0|max:100',
+            'metodo_pago' => 'required|in:efectivo,transferencia,cheque,tarjeta,otros',
             'descuento_general' => 'nullable|numeric|min:0',
             'notas' => 'nullable|string',
             'ajustar_margen' => 'nullable|boolean',
         ]);
+
+        // Validar existencia de id según tipo (producto/servicio) por ítem
+        $rulesItems = [];
+        foreach (($request->productos ?? []) as $index => $p) {
+            if ((isset($p['tipo']) && $p['tipo'] === 'producto')) {
+                $rulesItems["productos.{$index}.id"] = 'required|integer|exists:productos,id';
+            } elseif ((isset($p['tipo']) && $p['tipo'] === 'servicio')) {
+                $rulesItems["productos.{$index}.id"] = 'required|integer|exists:servicios,id';
+            }
+        }
+        if (!empty($rulesItems)) {
+            $request->validate($rulesItems);
+        }
+
+        // Validar series en productos que lo requieran (igual que en store)
+        $serialRules = [];
+        foreach (($request->productos ?? []) as $index => $p) {
+            if (($p['tipo'] ?? '') === 'producto') {
+                $productoModel = Producto::find($p['id'] ?? null);
+                if ($productoModel && ($productoModel->requiere_serie ?? false)) {
+                    $requiredSize = isset($p['cantidad']) ? max(1, (int) $p['cantidad']) : 1;
+                    $serialRules["productos.{$index}.seriales"] = ['required', 'array', 'size:' . $requiredSize];
+                    $serialRules["productos.{$index}.seriales.*"] = 'required|string|max:191|distinct';
+                }
+            }
+        }
+        if (!empty($serialRules)) {
+            $request->validate($serialRules);
+        }
 
         // Validar mÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡rgenes de ganancia antes de calcular totales
         $marginService = new MarginService();
@@ -710,6 +752,7 @@ class VentaController extends Controller
                 'fecha' => now(),
                 'estado' => $nuevoEstado,
                 'notas' => $request->notas,
+                'metodo_pago' => $validated['metodo_pago'],
             ]);
 
             // Eliminar ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­tems anteriores

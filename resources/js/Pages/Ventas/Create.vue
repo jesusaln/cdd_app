@@ -25,7 +25,7 @@
               Información General
             </h2>
           </div>
-          <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="p-6 grid grid-cols-1 md:grid-cols-4 gap-6">
             <!-- Número de Venta -->
             <div>
               <label for="numero_venta" class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
@@ -130,6 +130,40 @@
                   · Tu almacén predeterminado está preseleccionado
                 </span>
               </p>
+            </div>
+
+            <!-- Método de Pago -->
+            <div>
+              <label for="metodo_pago" class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                Método de Pago *
+                <span class="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  Requerido
+                </span>
+              </label>
+              <div class="relative">
+                <select
+                  id="metodo_pago"
+                  v-model="form.metodo_pago"
+                  class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  required
+                >
+                  <option value="">Selecciona un método</option>
+                  <option value="efectivo">Efectivo</option>
+                  <option value="transferencia">Transferencia</option>
+                  <option value="cheque">Cheque</option>
+                  <option value="tarjeta">Tarjeta</option>
+                  <option value="otros">Otros</option>
+                </select>
+                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                  <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+              <p class="mt-1 text-xs text-gray-500">Selecciona cómo se paga la venta.</p>
             </div>
           </div>
         </div>
@@ -256,7 +290,7 @@
         <BotonesAccion
           :back-url="route('ventas.index')"
           :is-processing="form.processing"
-          :can-submit="form.cliente_id && form.almacen_id && selectedProducts.length > 0"
+          :can-submit="form.cliente_id && form.almacen_id && form.metodo_pago && selectedProducts.length > 0"
           :button-text="form.processing ? 'Guardando...' : 'Crear Venta'"
             @limpiar="limpiarFormulario"
         />
@@ -418,6 +452,7 @@ const form = useForm({
   fecha: getCurrentDate(),
   cliente_id: '',
   almacen_id: userAlmacenPredeterminado.value || '',
+  metodo_pago: 'efectivo',
   subtotal: 0,
   descuento_items: 0,
   iva: 0,
@@ -756,6 +791,11 @@ const validarDatos = () => {
 
   if (selectedProducts.value.length === 0) {
     showNotification('Agrega al menos un producto o servicio', 'error');
+    return false;
+  }
+
+  if (!form.metodo_pago) {
+    showNotification('Selecciona un método de pago', 'error');
     return false;
   }
 
