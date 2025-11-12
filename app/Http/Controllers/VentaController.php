@@ -1028,6 +1028,27 @@ class VentaController extends Controller
                                 'reservado_actual' => $producto->reservado
                             ]);
                         }
+
+                        // Revertir series de productos que requieren serie
+                        if (($producto->requiere_serie ?? false)) {
+                            // Obtener las series asociadas a este item de venta
+                            $seriesVendidas = DB::table('venta_item_series')
+                                ->where('venta_item_id', $item->id)
+                                ->pluck('producto_serie_id');
+
+                            if ($seriesVendidas->isNotEmpty()) {
+                                // Revertir el estado de las series de 'vendido' a 'en_stock'
+                                \App\Models\ProductoSerie::whereIn('id', $seriesVendidas->all())
+                                    ->update(['estado' => 'en_stock']);
+
+                                Log::info("Series revertidas para producto {$producto->id} (venta cancelada)", [
+                                    'producto_id' => $producto->id,
+                                    'venta_id' => $venta->id,
+                                    'venta_item_id' => $item->id,
+                                    'series_revertidas' => $seriesVendidas->count()
+                                ]);
+                            }
+                        }
                     }
                 }
             }

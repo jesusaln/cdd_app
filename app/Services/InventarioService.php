@@ -71,8 +71,8 @@ class InventarioService
                     'almacen_id' => $almacenId,
                 ],
                 [
-                    'cantidad' => 0,
-                    'stock_minimo' => 0,
+                    'cantidad' => ( === 'salida' ? max(0, (int) (->stock ?? 0)) : 0),
+                'stock_minimo' => 0,
                 ]
             );
 
@@ -297,8 +297,8 @@ class InventarioService
                     'almacen_id' => $almacenId,
                 ],
                 [
-                    'cantidad' => 0,
-                    'stock_minimo' => 0,
+                    'cantidad' => ( === 'salida' ? max(0, (int) (->stock ?? 0)) : 0),
+                'stock_minimo' => 0,
                 ]
             );
 
@@ -433,3 +433,4 @@ class InventarioService
         });
     }
 }
+

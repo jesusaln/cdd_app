@@ -12,6 +12,8 @@ use App\Models\Marca;
 use App\Models\User;
 use App\Enums\EstadoCompra;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Role;
+use Laravel\\Sanctum\\Sanctum;
 
 class CompraTest extends TestCase
 {
@@ -28,6 +30,12 @@ class CompraTest extends TestCase
         // Autenticar usuario
         /** @var \App\Models\User $user */
         $user = User::factory()->create();
+        // Verificar email para pasar middleware 'verified'
+        $user->forceFill(['email_verified_at' => now()])->save();
+        // Asignar rol requerido por middleware de rutas
+        $role = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+        $user->assignRole($role);
+        Sanctum::actingAs($user, ['*']);
         $this->actingAs($user);
 
         // Crear categoria y marca para productos
@@ -376,3 +384,6 @@ class CompraTest extends TestCase
         $this->assertEquals(150.80, $compra->total);
     }
 }
+
+
+

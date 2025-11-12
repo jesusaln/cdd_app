@@ -29,12 +29,17 @@ class DatabaseBackupController extends Controller
 
             // Formatear los datos de respaldos para el frontend
             $formattedBackups = collect($backups)->map(function ($backup) {
+                $path = $backup['path'];
+                $isFull = stripos($path, 'backups/application/') !== false || stripos($path, 'backups\\application\\') !== false;
+                $ext = pathinfo($path, PATHINFO_EXTENSION);
                 return [
                     'name' => $backup['name'] ?? basename($backup['path']),
-                    'path' => $backup['path'],
+                    'path' => $path,
                     'size' => $backup['size'] ?? 0,
-                    'created_at' => $backup['created_at'] ?? filemtime($backup['path']),
-                    'compressed' => $this->isCompressed($backup['path']),
+                    'created_at' => $backup['created_at'] ?? filemtime($path),
+                    'compressed' => $this->isCompressed($path),
+                    'kind' => $isFull ? 'full' : 'db',
+                    'extension' => $ext,
                 ];
             })->values()->toArray();
 
@@ -158,6 +163,48 @@ class DatabaseBackupController extends Controller
 
             return redirect()->route('backup.index')
                 ->with('error', 'Error interno al crear el respaldo. Por favor, inténtelo de nuevo.');
+        }
+    }
+
+    /**
+     * Crear un respaldo completo (BD + archivos: fotos y módulos)
+     */
+    public function createFull(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'nullable|string|max:255|regex:/^[a-zA-Z0-9_\-\.]+$/',
+            'include' => 'array',
+            'include.*' => 'string',
+            'exclude' => 'array',
+            'exclude.*' => 'string',
+        ], [
+            'name.regex' => 'El nombre del respaldo solo puede contener letras, números, guiones, guiones bajos y puntos.',
+            'name.max' => 'El nombre del respaldo no puede exceder 255 caracteres.'
+        ]);
+
+        try {
+            $backupName = $validated['name'] ?: ('app_backup_' . date('Y-m-d_H-i-s'));
+
+            $result = $this->backupService->createApplicationBackup([
+                'name' => $backupName,
+                'include_paths' => $validated['include'] ?? null,
+                'exclude' => $validated['exclude'] ?? null,
+            ]);
+
+            if ($result['success']) {
+                return redirect()->route('backup.index')
+                    ->with('success', $result['message'] . ' Tamaño: ' . $this->formatFileSize($result['size'] ?? 0));
+            }
+
+            return redirect()->route('backup.index')->with('error', $result['message'] ?? 'Error creando respaldo.');
+        } catch (Exception $e) {
+            Log::error('Error creating full backup: ' . $e->getMessage(), [
+                'user_id' => Auth::id(),
+                'request_data' => $request->all()
+            ]);
+
+            return redirect()->route('backup.index')
+                ->with('error', 'Error interno al crear el respaldo completo.');
         }
     }
 

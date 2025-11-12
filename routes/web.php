@@ -599,6 +599,7 @@ Route::get('/registro-vacaciones/export', [RegistroVacacionesController::class, 
         ->group(function () {
             Route::get('/', [DatabaseBackupController::class, 'index'])->name('index');
             Route::post('/create', [DatabaseBackupController::class, 'create'])->name('create');
+            Route::post('/create-full', [DatabaseBackupController::class, 'createFull'])->name('createFull');
             Route::get('/download/{filename}', [DatabaseBackupController::class, 'download'])->name('download');
             Route::delete('/delete/{filename}', [DatabaseBackupController::class, 'delete'])->name('delete');
             Route::post('/delete-multiple', [DatabaseBackupController::class, 'deleteMultiple'])->name('deleteMultiple');

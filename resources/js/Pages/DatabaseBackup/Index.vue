@@ -36,6 +36,47 @@
               </button>
 
               <button
+                @click="createFullBackup"
+                :disabled="creatingFull"
+                class="inline-flex items-center gap-2.5 px-6 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white font-semibold rounded-xl hover:from-emerald-700 hover:to-emerald-800 transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Crear respaldo completo (BD + archivos)"
+              >
+                <svg v-if="!creatingFull" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M4 12l8-8 8 8M12 4v12" />
+                </svg>
+                <svg v-else class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span>{{ creatingFull ? 'Preparando...' : 'Respaldo Completo' }}</span>
+              </button>
+
+              <details class="w-full sm:w-auto">
+                <summary class="cursor-pointer text-sm text-slate-700 underline">Opciones de archivos</summary>
+                <div class="mt-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                  <p class="text-xs text-slate-600 mb-2">Selecciona carpetas a incluir en el respaldo completo</p>
+                  <div class="flex flex-col gap-2">
+                    <label class="inline-flex items-center gap-2">
+                      <input type="checkbox" v-model="fullIncludePaths['storage/app/public']" />
+                      <span class="text-sm">storage/app/public</span>
+                    </label>
+                    <label class="inline-flex items-center gap-2">
+                      <input type="checkbox" v-model="fullIncludePaths['storage/csd']" />
+                      <span class="text-sm">storage/csd</span>
+                    </label>
+                    <label class="inline-flex items-center gap-2">
+                      <input type="checkbox" v-model="fullIncludePaths['public/uploads']" />
+                      <span class="text-sm">public/uploads</span>
+                    </label>
+                    <div class="mt-2">
+                      <label class="text-xs text-slate-600">Ruta adicional (opcional)</label>
+                      <input v-model="customIncludePath" type="text" placeholder="ej. public/storage"
+                        class="mt-1 w-full sm:w-72 rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                  </div>
+                </div>
+              </details>
+
+              <button
                 @click="showCleanDialog = true"
                 class="inline-flex items-center gap-2 px-4 py-3 bg-red-50 text-red-700 rounded-xl hover:bg-red-100 transition-all duration-200 border border-red-200"
               >
@@ -311,9 +352,14 @@
                   <div class="text-sm text-gray-700">{{ formatFileSize(backup.size) }}</div>
                 </td>
                 <td class="px-6 py-4">
-                  <span :class="backup.compressed ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
-                    {{ backup.compressed ? 'Comprimido' : 'Sin Comprimir' }}
-                  </span>
+                  <div class="flex items-center gap-2">
+                    <span :class="backup.kind === 'full' ? 'bg-emerald-100 text-emerald-800' : 'bg-indigo-100 text-indigo-800'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                      {{ backup.kind === 'full' ? 'Completo' : 'Base de Datos' }}
+                    </span>
+                    <span :class="backup.compressed || backup.extension === 'zip' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                      {{ (backup.compressed || backup.extension === 'zip') ? 'Comprimido' : 'SQL' }}
+                    </span>
+                  </div>
                 </td>
                 <td class="px-6 py-4 text-right">
                   <div class="flex items-center justify-end space-x-1">
@@ -624,6 +670,14 @@ const backupForm = ref({
   include_structure_only: false
 })
 
+const creatingFull = ref(false)
+const fullIncludePaths = ref({
+  'storage/app/public': true,
+  'storage/csd': true,
+  'public/uploads': false,
+})
+const customIncludePath = ref('')
+
 const cleanForm = ref({
   daysOld: 30
 })
@@ -646,6 +700,14 @@ const createBackup = async () => {
   try {
     const formData = new FormData()
     formData.append('name', backupForm.value.name || '')
+
+    // Construir include[] basado en checkboxes
+    Object.keys(fullIncludePaths.value).forEach(p => {
+      if (fullIncludePaths.value[p]) formData.append('include[]', p)
+    })
+    if (customIncludePath.value && customIncludePath.value.trim() !== '') {
+      formData.append('include[]', customIncludePath.value.trim())
+    }
     formData.append('compress', backupForm.value.compress ? '1' : '0')
     formData.append('include_structure_only', backupForm.value.include_structure_only ? '1' : '0')
 
@@ -666,6 +728,35 @@ const createBackup = async () => {
   } catch (error) {
     console.error('Unexpected error:', error)
     creating.value = false
+  }
+}
+
+
+// Crear respaldo completo (BD + archivos)
+const createFullBackup = async () => {
+  if (creatingFull.value) return
+  creatingFull.value = true
+  try {
+    const formData = new FormData()
+    formData.append('name', backupForm.value.name || '')
+
+    await router.post('/admin/backup/create-full', formData, {
+      onSuccess: () => {
+        backupForm.value = { name: '', compress: true, include_structure_only: false }
+        notyf.success('Respaldo completo creado exitosamente')
+        router.reload({ only: ['backups', 'stats'] })
+      },
+      onError: (errors) => {
+        console.error('Error creating full backup:', errors)
+        notyf.error('Error al crear el respaldo completo')
+      },
+      onFinish: () => {
+        creatingFull.value = false
+      }
+    })
+  } catch (error) {
+    console.error('Unexpected error:', error)
+    creatingFull.value = false
   }
 }
 
@@ -959,6 +1050,3 @@ const formatFileSize = (bytes) => {
     }
 }
 </style>
-
-
-

@@ -19,9 +19,22 @@ return new class extends Migration
         }
 
         // Realign sequences for users and roles so nextval doesn't collide with existing ids
-        // Using explicit table names to avoid SQL injection and to stay focused on reported errors
-        DB::statement("SELECT setval(pg_get_serial_sequence('users','id'), COALESCE((SELECT MAX(id) FROM users), 0), true)");
-        DB::statement("SELECT setval(pg_get_serial_sequence('roles','id'), COALESCE((SELECT MAX(id) FROM roles), 0), true)");
+        // Safe semantics for empty tables (set to 1 and is_called=false)
+        DB::statement(
+            "SELECT setval(\n" .
+            "  pg_get_serial_sequence('users','id'),\n" .
+            "  COALESCE(NULLIF((SELECT MAX(id) FROM users), 0), 1),\n" .
+            "  (SELECT COUNT(*)>0 FROM users)\n" .
+            ")"
+        );
+
+        DB::statement(
+            "SELECT setval(\n" .
+            "  pg_get_serial_sequence('roles','id'),\n" .
+            "  COALESCE(NULLIF((SELECT MAX(id) FROM roles), 0), 1),\n" .
+            "  (SELECT COUNT(*)>0 FROM roles)\n" .
+            ")"
+        );
     }
 
     public function down(): void
@@ -29,4 +42,3 @@ return new class extends Migration
         // No-op: sequence alignment does not need rollback
     }
 };
-

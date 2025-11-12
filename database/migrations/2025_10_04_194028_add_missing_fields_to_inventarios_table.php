@@ -14,7 +14,12 @@ return new class extends Migration
         Schema::table('inventarios', function (Blueprint $table) {
             // Solo agregar almacen_id si no existe
             if (!Schema::hasColumn('inventarios', 'almacen_id')) {
-                $table->foreignId('almacen_id')->constrained('almacenes')->onDelete('cascade')->after('producto_id');
+                if (Schema::hasTable('almacenes')) {
+                    $table->foreignId('almacen_id')->constrained('almacenes')->onDelete('cascade')->after('producto_id');
+                } else {
+                    // Agregar la columna sin FK para evitar dependencia de orden
+                    $table->foreignId('almacen_id')->after('producto_id');
+                }
             }
             
             // Solo agregar stock_minimo si no existe

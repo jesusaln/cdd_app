@@ -26,7 +26,8 @@ return new class extends Migration
             $table->foreignId('categoria_id')->constrained('categorias');
             $table->foreignId('marca_id')->constrained('marcas');
             $table->foreignId('proveedor_id')->nullable()->constrained('proveedores');
-            $table->foreignId('almacen_id')->nullable()->constrained('almacenes');
+            // Evitar dependencia temprana con almacenes; agregar FK en migración posterior si se requiere
+            $table->foreignId('almacen_id')->nullable();
 
             // Control de inventario
             $table->integer('stock')->default(0);
@@ -69,3 +70,4 @@ return new class extends Migration
         Schema::dropIfExists('productos');
     }
 };
+

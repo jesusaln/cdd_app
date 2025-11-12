@@ -6,6 +6,9 @@ return [
 
     'path' => env('BACKUP_PATH', 'backups/database/'),
 
+    // Ruta para respaldos completos de aplicación (BD + archivos)
+    'full_backup_path' => env('BACKUP_FULL_PATH', 'backups/application/'),
+
     'mysqldump_path' => env('MYSQLDUMP_PATH', 'mysqldump'),
 
     'compression' => [
@@ -99,5 +102,24 @@ return [
         'auto_cleanup' => env('BACKUP_AUTO_CLEANUP', true),
         'max_total_backups' => env('BACKUP_MAX_TOTAL', 100),
         'smart_cleanup' => env('BACKUP_SMART_CLEANUP', true),    // Limpieza inteligente basada en espacio
+    ],
+
+    // Archivos a incluir/excluir en respaldos completos
+    'files' => [
+        // Directorios a incluir (relativos al root del proyecto)
+        'include_paths' => [
+            'storage/app/public',   // fotos y archivos subidos
+            'storage/csd',          // certificados si existen
+            'public/uploads',       // uploads directos (si existe)
+        ],
+        // Patrones/directorios a excluir
+        'exclude' => [
+            'storage/app/backups',
+            'storage/framework/cache',
+            'storage/framework/sessions',
+            'node_modules',
+            'vendor',
+            '.git',
+        ],
     ],
 ];

@@ -15,31 +15,22 @@ class CreatePedidosTable extends Migration
             $table->id(); // ID del pedido
 
             // Relación con el cliente (igual que cotizaciones)
-            $table->foreignId('cliente_id')
-                ->constrained('clientes')
-                ->onDelete('cascade');
+            // Nota: evitar foreign key directa para no depender del orden de migraciones
+            $table->foreignId('cliente_id');
 
             // (Opcional) vínculo a la cotización de origen
             $table->foreignId('cotizacion_id')
-                ->nullable()
-                ->constrained('cotizaciones')
-                ->nullOnDelete();
+                ->nullable();
 
             // Quién creó / actualizó / eliminó (auditoría, igual que cotizaciones)
             $table->foreignId('created_by')
-                ->nullable()
-                ->constrained('users')
-                ->nullOnDelete();
+                ->nullable();
 
             $table->foreignId('updated_by')
-                ->nullable()
-                ->constrained('users')
-                ->nullOnDelete();
+                ->nullable();
 
             $table->foreignId('deleted_by')
-                ->nullable()
-                ->constrained('users')
-                ->nullOnDelete();
+                ->nullable();
 
             // Identificador legible/externo (único) para el pedido
             $table->string('numero_pedido', 30)->unique();

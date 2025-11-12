@@ -24,6 +24,8 @@ class DatabaseBackupService
 
     protected string $backupPath = 'backups/database/';
 
+    protected string $fullBackupPath = 'backups/application/';
+
     public function __construct()
     {
         // Permitir configurar disco y ruta desde config/backup.php o .env
@@ -32,6 +34,10 @@ class DatabaseBackupService
         // Normalizar y asegurar trailing slash
         $configuredPath = str_replace('\\', '/', trim($configuredPath));
         $this->backupPath = rtrim($configuredPath, '/') . '/';
+
+        $configuredFull = config('backup.full_backup_path', $this->fullBackupPath);
+        $configuredFull = str_replace('\\', '/', trim($configuredFull));
+        $this->fullBackupPath = rtrim($configuredFull, '/') . '/';
     }
 
     /**
@@ -986,6 +992,12 @@ class DatabaseBackupService
 
         $sql .= $this->getSqlFooter();
 
+        // Asegurar UTF-8 sin BOM para evitar problemas en restauración
+        $sql = $this->stripBom($sql);
+        if (class_exists(\App\Helpers\Utf8Helper::class)) {
+            $sql = \App\Helpers\Utf8Helper::cleanString($sql);
+        }
+
         if (Storage::disk($this->backupDisk)->put($path, $sql)) {
             return [
                 'success' => true,
@@ -1340,7 +1352,11 @@ class DatabaseBackupService
      */
     public function listBackups(): array
     {
-        $files = Storage::disk($this->backupDisk)->files($this->backupPath);
+        $files = [];
+        $files = array_merge(
+            Storage::disk($this->backupDisk)->files($this->backupPath),
+            Storage::disk($this->backupDisk)->files($this->fullBackupPath)
+        );
         $backups = [];
 
         foreach ($files as $file) {
@@ -1380,8 +1396,7 @@ class DatabaseBackupService
      */
     public function backupExists(string $filename): bool
     {
-        $path = $this->backupPath.$filename;
-        return Storage::disk($this->backupDisk)->exists($path);
+        return $this->resolveBackupRelativePath($filename) !== null;
     }
 
     /**
@@ -1392,7 +1407,8 @@ class DatabaseBackupService
      */
     public function getBackupPath(string $filename): string
     {
-        return Storage::disk($this->backupDisk)->path($this->backupPath.$filename);
+        $rel = $this->resolveBackupRelativePath($filename);
+        return $rel ? Storage::disk($this->backupDisk)->path($rel) : '';
     }
 
     /**
@@ -1402,9 +1418,9 @@ class DatabaseBackupService
      */
     public function deleteBackup(string $filename): array
     {
-        $path = $this->backupPath.$filename;
+        $path = $this->resolveBackupRelativePath($filename);
 
-        if (! Storage::disk($this->backupDisk)->exists($path)) {
+        if (!$path || ! Storage::disk($this->backupDisk)->exists($path)) {
             return ['success' => false, 'message' => 'El archivo no existe.'];
         }
 
@@ -1418,6 +1434,23 @@ class DatabaseBackupService
         }
 
         return ['success' => false, 'message' => 'No se pudo eliminar el archivo.'];
+    }
+
+    /**
+     * Resolver ruta relativa del respaldo buscando en rutas conocidas.
+     */
+    protected function resolveBackupRelativePath(string $filename): ?string
+    {
+        $candidates = [
+            $this->backupPath.$filename,
+            $this->fullBackupPath.$filename,
+        ];
+        foreach ($candidates as $rel) {
+            if (Storage::disk($this->backupDisk)->exists($rel)) {
+                return $rel;
+            }
+        }
+        return null;
     }
 
     /**
@@ -2121,6 +2154,135 @@ class DatabaseBackupService
             'deleted_count' => $deletedCount,
             'freed_space' => $freedSpace,
         ];
+    }
+
+    /**
+     * Crear respaldo completo de la aplicación (BD + archivos: fotos, etc.)
+     */
+    public function createApplicationBackup(array $options = []): array
+    {
+        try {
+            $timestamp = date('Y-m-d_H-i-s');
+            $backupBaseName = $options['name'] ?? ('app_backup_' . $timestamp);
+
+            // 1) Crear respaldo de BD (sin comprimir para incorporarlo al zip)
+            $dbResult = $this->createBackup([
+                'name' => $backupBaseName . '_db.sql',
+                'compress' => false,
+            ]);
+
+            if (!($dbResult['success'] ?? false)) {
+                return [
+                    'success' => false,
+                    'message' => 'Error creando respaldo de base de datos: ' . ($dbResult['message'] ?? 'desconocido')
+                ];
+            }
+
+            // 2) Preparar ZIP de aplicación
+            $disk = Storage::disk($this->backupDisk);
+            $zipRelPath = $this->fullBackupPath . $backupBaseName . '.zip';
+            $zipAbsPath = $disk->path($zipRelPath);
+
+            $zipDir = dirname($zipAbsPath);
+            if (!is_dir($zipDir)) {
+                mkdir($zipDir, 0755, true);
+            }
+
+            $zip = new ZipArchive();
+            if ($zip->open($zipAbsPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+                throw new \Exception('No se pudo crear el archivo ZIP del respaldo.');
+            }
+
+            // 2a) Agregar SQL (asegurar sin BOM y UTF-8)
+            $dbFileAbsPath = $disk->path($dbResult['path']);
+            $sqlContent = @file_get_contents($dbFileAbsPath) ?: '';
+            $sqlContent = $this->stripBom($sqlContent);
+            // Limpieza básica de UTF-8 para evitar caracteres inválidos
+            if (class_exists(\App\Helpers\Utf8Helper::class)) {
+                $sqlContent = \App\Helpers\Utf8Helper::cleanString($sqlContent);
+            }
+            $zip->addFromString('database/' . basename($dbResult['path']), $sqlContent);
+
+            // 2b) Agregar directorios de archivos (fotos y relacionados)
+            $include = $options['include_paths'] ?? config('backup.files.include_paths', []);
+            $exclude = $options['exclude'] ?? config('backup.files.exclude', []);
+            foreach ($include as $rel) {
+                $abs = base_path($rel);
+                if (is_dir($abs)) {
+                    $this->addDirectoryToZip($zip, $abs, base_path(), $exclude);
+                }
+            }
+
+            $zip->close();
+
+            // Tamaño del ZIP
+            $size = filesize($zipAbsPath) ?: 0;
+
+            // Opcionalmente eliminar el SQL suelto generado, ya que está dentro del zip
+            // Mantenerlo si se desea conservar listados de la vista anterior
+            // @unlink($dbFileAbsPath);
+
+            return [
+                'success' => true,
+                'message' => 'Respaldo completo creado exitosamente',
+                'path' => $zipRelPath,
+                'size' => $size,
+            ];
+        } catch (\Exception $e) {
+            Log::error('Error creando respaldo completo de aplicación', ['exception' => $e]);
+            return [
+                'success' => false,
+                'message' => 'Error creando respaldo completo: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Agregar un directorio completo al ZIP, respetando exclusiones.
+     */
+    protected function addDirectoryToZip(ZipArchive $zip, string $dirPath, string $basePath, array $exclude): void
+    {
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($dirPath, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::SELF_FIRST
+        );
+
+        foreach ($iterator as $file) {
+            $full = $file->getPathname();
+            $rel = ltrim(str_replace('\\', '/', substr($full, strlen(rtrim($basePath, DIRECTORY_SEPARATOR)) )), '/');
+
+            if ($this->shouldExclude($rel, $exclude)) {
+                continue;
+            }
+
+            if ($file->isDir()) {
+                // Asegurar entrada de directorio
+                $zip->addEmptyDir($rel);
+            } else {
+                // Añadir archivo tal cual (binarios incluidos, p.ej. fotos)
+                $zip->addFile($full, $rel);
+            }
+        }
+    }
+
+    protected function shouldExclude(string $relativePath, array $exclude): bool
+    {
+        foreach ($exclude as $pattern) {
+            $pattern = str_replace('\\', '/', trim($pattern, '/'));
+            if ($pattern === '') continue;
+            if (str_starts_with($relativePath, $pattern)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    protected function stripBom(string $content): string
+    {
+        if (str_starts_with($content, "\xEF\xBB\xBF")) {
+            return substr($content, 3);
+        }
+        return $content;
     }
 
     /**
@@ -3677,4 +3839,3 @@ class DatabaseBackupService
         };
     }
 }
-

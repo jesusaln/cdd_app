@@ -28,7 +28,8 @@ class ProveedorFactory extends Factory
             'numero_exterior' => $this->faker->buildingNumber(),
             'numero_interior' => $this->faker->optional()->buildingNumber(),
             'colonia' => $this->faker->citySuffix(),
-            'codigo_postal' => $this->faker->postcode(),
+            // CP de 5 dígitos para cumplir con la restricción del esquema
+            'codigo_postal' => $this->faker->numerify('#####'),
             'municipio' => $this->faker->city(),
             'estado' => $this->faker->state(),
             'pais' => 'México',
