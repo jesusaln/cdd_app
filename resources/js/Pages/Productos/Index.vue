@@ -1,4 +1,4 @@
-﻿<!-- /resources/js/Pages/Productos/IndexNew.vue -->
+<!-- /resources/js/Pages/Productos/IndexNew.vue -->
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { Head, router, usePage, Link } from '@inertiajs/vue3'

@@ -292,12 +292,11 @@
                                 Unidad de Medida <span class="text-red-500">*</span>
                             </label>
                             <select v-model="form.unidad_medida" id="unidad_medida" class="input-field" required>
-                                <option value="">Seleccione una unidad</option>
-                                <option v-for="unidad in unidadesMedida" :key="unidad.id" :value="unidad.nombre">
+                                <option v-for="unidad in unidadesMedida" :key="unidad.id" :value="unidad.nombre" :selected="unidad.nombre === form.unidad_medida">
                                     {{ unidad.nombre }}
                                 </option>
                             </select>
-                            <button type="button" class="mt-2 text-sm text-blue-600 hover:underline" @click="showUnidadMedidaModal = true">+ Gestionar unidades</button>
+                            <button type="button" class="mt-2 text-sm text-blue-600 hover:underline" @click="openUnidadMedidaModal">+ Gestionar unidades</button>
                             <div v-if="form.errors.unidad_medida" class="error-message">{{ form.errors.unidad_medida }}</div>
                         </div>
 
@@ -871,14 +870,21 @@ const cargarUnidadesMedida = async () => {
            { id: 3, nombre: 'Gramos', abreviatura: 'g' },
            { id: 4, nombre: 'Litros', abreviatura: 'l' },
            { id: 5, nombre: 'Mililitros', abreviatura: 'ml' },
-           { id: 6, nombre: 'Metros', abreviatura: 'm' },
-           { id: 7, nombre: 'Centímetros', abreviatura: 'cm' },
-           { id: 8, nombre: 'Milímetros', abreviatura: 'mm' },
+           { id: 6, nombre: 'Metro(s)', abreviatura: 'm' },
+           { id: 7, nombre: 'Centimetros', abreviatura: 'cm' },
+           { id: 8, nombre: 'Milimetros', abreviatura: 'mm' },
            { id: 9, nombre: 'Unidad', abreviatura: 'u' },
        ];
    } finally {
        cargandoUnidades.value = false;
    }
+};
+
+const openUnidadMedidaModal = () => {
+    showUnidadMedidaModal.value = true;
+    if (!unidadesMedida.value.length) {
+        cargarUnidadesMedida();
+    }
 };
 
 // Funciones para manejar eventos del modal de unidades

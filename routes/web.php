@@ -236,6 +236,12 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::get('/garantias', [GarantiaController::class, 'index'])
         ->name('garantias.index')
         ->middleware('role:ventas|admin');
+    Route::get('/garantias/create', [GarantiaController::class, 'create'])
+        ->name('garantias.create')
+        ->middleware('role:ventas|admin');
+    Route::get('/garantias/buscar', [GarantiaController::class, 'index'])
+        ->name('garantias.buscar')
+        ->middleware('role:ventas|admin');
     Route::post('/garantias/{serie}/crear-cita', [GarantiaController::class, 'crearCitaGarantia'])
         ->name('garantias.crear-cita')
         ->middleware('role:ventas|admin');
@@ -600,6 +606,7 @@ Route::get('/registro-vacaciones/export', [RegistroVacacionesController::class, 
             Route::get('/', [DatabaseBackupController::class, 'index'])->name('index');
             Route::post('/create', [DatabaseBackupController::class, 'create'])->name('create');
             Route::post('/create-full', [DatabaseBackupController::class, 'createFull'])->name('createFull');
+            Route::post('/upload', [DatabaseBackupController::class, 'upload'])->name('upload');
             Route::get('/download/{filename}', [DatabaseBackupController::class, 'download'])->name('download');
             Route::delete('/delete/{filename}', [DatabaseBackupController::class, 'delete'])->name('delete');
             Route::post('/delete-multiple', [DatabaseBackupController::class, 'deleteMultiple'])->name('deleteMultiple');

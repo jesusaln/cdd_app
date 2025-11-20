@@ -116,9 +116,14 @@ class User extends Authenticatable
        public function getProfilePhotoUrlAttribute()
        {
            if ($this->profile_photo_path) {
-               return $this->generateCorrectStorageUrl('profile-photos/' . $this->profile_photo_path);
+               // Usar la ruta del ImageController que maneja archivos inexistentes correctamente
+               $scheme = request()->isSecure() ? 'https' : 'http';
+               $host = request()->getHost();
+               $port = request()->getPort();
+               $portString = ( ($scheme === 'http' && $port !== 80) || ($scheme === 'https' && $port !== 443) ) ? ':' . $port : '';
+               return "{$scheme}://{$host}{$portString}/profile-photo/{$this->profile_photo_path}";
            }
- 
+
            return $this->defaultProfilePhotoUrl();
        }
  

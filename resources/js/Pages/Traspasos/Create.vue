@@ -31,15 +31,21 @@ const form = ref({
   producto_id: '',
   almacen_origen_id: '',
   almacen_destino_id: '',
-  cantidad: 1
+  cantidad: 1,
+  series: []
 })
 
 // Estados
 const loading = ref(false)
 const showNoStockModal = ref(false)
 const suggestedAlmacen = ref(null)
+const seriesDisponibles = ref([])
+const seriesSeleccionadas = ref([])
 
 // Computed
+const productoSeleccionado = computed(() => props.productos.find(p => p.id == form.value.producto_id))
+const requiereSerie = computed(() => !!productoSeleccionado.value?.requiere_serie)
+
 const productosFiltrados = computed(() => {
   if (!form.value.almacen_origen_id) return props.productos
   return props.productos.filter(producto => {
@@ -91,6 +97,12 @@ const stockDestinoFinal = computed(() => {
   return stockDestino.value + form.value.cantidad
 })
 
+watch(() => seriesSeleccionadas.value.length, (val) => {
+  if (requiereSerie.value) {
+    form.value.cantidad = val
+  }
+})
+
 // Watchers
 watch(() => form.value.almacen_origen_id, () => {
   if (form.value.almacen_origen_id && form.value.producto_id) {
@@ -124,10 +136,32 @@ watch(() => form.value.almacen_destino_id, () => {
   }
 })
 
+watch(
+  () => [form.value.producto_id, form.value.almacen_origen_id],
+  () => {
+    seriesSeleccionadas.value = []
+    form.value.series = []
+    if (requiereSerie.value) {
+      cargarSeriesDisponibles()
+    } else {
+      seriesDisponibles.value = []
+    }
+  }
+)
+
 const submit = () => {
   if (form.value.cantidad > stockOrigen.value) {
-    notyf.error('La cantidad excede el stock disponible en el almacén origen')
+    notyf.error('La cantidad excede el stock disponible en el almacen origen')
     return
+  }
+
+  if (requiereSerie.value) {
+    if (!seriesSeleccionadas.value.length) {
+      notyf.error('Selecciona las series a traspasar')
+      return
+    }
+    form.value.series = [...seriesSeleccionadas.value]
+    form.value.cantidad = seriesSeleccionadas.value.length
   }
 
   loading.value = true
@@ -162,6 +196,25 @@ const selectSuggestedAlmacen = () => {
 const closeNoStockModal = () => {
   showNoStockModal.value = false
   suggestedAlmacen.value = null
+}
+
+const cargarSeriesDisponibles = async () => {
+  if (!form.value.producto_id || !form.value.almacen_origen_id || !requiereSerie.value) {
+    seriesDisponibles.value = []
+    return
+  }
+
+  try {
+    const url = route('productos.series', form.value.producto_id) + `?almacen_id=${form.value.almacen_origen_id}`
+    const res = await fetch(url, { headers: { Accept: 'application/json' } })
+    if (!res.ok) throw new Error(`Error ${res.status}`)
+    const data = await res.json()
+    seriesDisponibles.value = data?.series?.en_stock || []
+  } catch (error) {
+    console.error('Error cargando series disponibles', error)
+    notyf.error('No se pudieron cargar las series del almacén origen')
+    seriesDisponibles.value = []
+  }
 }
 </script>
 
@@ -264,12 +317,51 @@ const closeNoStockModal = () => {
               type="number"
               min="1"
               :max="stockOrigen"
+              :disabled="requiereSerie"
               required
               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
               placeholder="Cantidad a transferir"
             />
             <p v-if="form.producto_id && form.almacen_origen_id" class="mt-1 text-sm text-gray-500">
               Stock disponible en origen: <strong>{{ stockOrigen }}</strong>
+            </p>
+            <p v-if="requiereSerie" class="mt-1 text-sm text-blue-600">
+              La cantidad se define por las series seleccionadas ({{ seriesSeleccionadas.length }}).
+            </p>
+          </div>
+
+          <div v-if="requiereSerie" class="border border-blue-200 bg-blue-50 rounded-lg p-4">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <p class="font-medium text-blue-800">Series disponibles en el almacén origen</p>
+                <p class="text-sm text-blue-700">Selecciona las series que deseas traspasar</p>
+              </div>
+              <button type="button" @click="cargarSeriesDisponibles" class="text-sm text-blue-700 hover:underline">
+                Recargar
+              </button>
+            </div>
+            <div v-if="!seriesDisponibles.length" class="text-sm text-blue-700">
+              No hay series en stock en este almacén.
+            </div>
+            <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-64 overflow-y-auto">
+              <label
+                v-for="serie in seriesDisponibles"
+                :key="serie.id"
+                class="flex items-center gap-3 p-2 bg-white border border-blue-200 rounded-md hover:bg-blue-100"
+              >
+                <input
+                  type="checkbox"
+                  :value="serie.id"
+                  v-model="seriesSeleccionadas"
+                  class="text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <div class="text-sm text-gray-800">
+                  <span class="font-semibold">Serie:</span> {{ serie.numero_serie }}
+                </div>
+              </label>
+            </div>
+            <p class="mt-3 text-sm text-blue-800 font-medium">
+              Seleccionadas: {{ seriesSeleccionadas.length }}
             </p>
           </div>
 
@@ -368,3 +460,4 @@ const closeNoStockModal = () => {
   animation: spin 1s linear infinite;
 }
 </style>
+

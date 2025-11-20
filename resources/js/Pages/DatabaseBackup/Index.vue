@@ -77,6 +77,16 @@
               </details>
 
               <button
+                @click="showUploadDialog = true"
+                class="inline-flex items-center gap-2 px-4 py-3 bg-purple-50 text-purple-700 rounded-xl hover:bg-purple-100 transition-all duration-200 border border-purple-200"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                <span class="text-sm font-medium">Subir Archivo</span>
+              </button>
+
+              <button
                 @click="showCleanDialog = true"
                 class="inline-flex items-center gap-2 px-4 py-3 bg-red-50 text-red-700 rounded-xl hover:bg-red-100 transition-all duration-200 border border-red-200"
               >
@@ -488,9 +498,9 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
                 </svg>
               </div>
-              <h3 class="text-lg font-medium text-gray-900 mb-2">Â¿Restaurar Base de Datos?</h3>
+              <h3 class="text-lg font-medium text-gray-900 mb-2">¿Restaurar Base de Datos?</h3>
               <p class="text-sm text-gray-500 mb-4">
-                Â¿Estás seguro de que deseas restaurar la base de datos desde el respaldo <strong>{{ restoreDialog.backup?.name }}</strong>?
+                ¿Estás seguro de que deseas restaurar la base de datos desde el respaldo <strong>{{ restoreDialog.backup?.name }}</strong>?
                 Esta acción reemplazará todos los datos actuales.
               </p>
             </div>
@@ -503,6 +513,81 @@
             </button>
             <button @click="executeRestore" class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors">
               Restaurar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal de Subida de Archivo -->
+      <div v-if="showUploadDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="showUploadDialog = false">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <!-- Header del modal -->
+          <div class="flex items-center justify-between p-6 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">
+              Subir Archivo de Respaldo
+            </h3>
+            <button @click="showUploadDialog = false" class="text-gray-400 hover:text-gray-600 transition-colors">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="p-6">
+            <div class="text-center">
+              <div class="w-12 h-12 mx-auto bg-purple-100 rounded-full flex items-center justify-center mb-4">
+                <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+              </div>
+              <h3 class="text-lg font-medium text-gray-900 mb-2">Subir Archivo de Respaldo</h3>
+              <p class="text-sm text-gray-500 mb-4">
+                Selecciona un archivo de respaldo (.sql, .zip, .gz, .tar) para subir al servidor.
+              </p>
+
+              <!-- Selector de archivo -->
+              <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                  Archivo de Respaldo
+                </label>
+                <input
+                  type="file"
+                  @change="handleFileSelect"
+                  accept=".sql,.zip,.gz,.tar,.dbsql,.db,.bak,.backup"
+                  class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
+                />
+                <p class="text-xs text-gray-500 mt-1">
+                  Tamaño máximo: 100MB. Tipos permitidos: SQL, ZIP, GZ, TAR, DBSQL, DB, BAK, BACKUP
+                </p>
+              </div>
+
+              <!-- Opción de sobrescribir -->
+              <div class="flex items-center mb-4">
+                <input
+                  id="overwrite"
+                  type="checkbox"
+                  v-model="uploadForm.overwrite"
+                  class="h-4 w-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                />
+                <label for="overwrite" class="ml-2 text-sm text-gray-700">
+                  Sobrescribir si el archivo ya existe
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer del modal -->
+          <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+            <button @click="showUploadDialog = false" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+              Cancelar
+            </button>
+            <button
+              @click="executeUpload"
+              :disabled="!uploadForm.backup_file || uploading"
+              class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <span v-if="uploading">Subiendo...</span>
+              <span v-else>Subir Archivo</span>
             </button>
           </div>
         </div>
@@ -640,7 +725,13 @@ const props = defineProps({
   pagination: { type: Object, default: () => ({}) },
   mysqldump_available: { type: Boolean, default: false },
   total_backups: { type: Number, default: 0 },
-  total_size: { type: Number, default: 0 }
+  total_size: { type: Number, default: 0 },
+  // Props adicionales para evitar warnings de Vue
+  errors: { type: Object, default: () => ({}) },
+  jetstream: { type: Object, default: () => ({}) },
+  auth: { type: Object, default: () => ({}) },
+  errorBags: { type: Object, default: () => ({}) },
+  flash: { type: Object, default: () => ({}) }
 })
 
 // Variable reactiva para backups
@@ -654,9 +745,11 @@ const showAdvancedMetrics = ref(false)
 
 // Estado UI
 const showCleanDialog = ref(false)
+const showUploadDialog = ref(false)
 const creating = ref(false)
 const restoring = ref(false)
 const deleting = ref(false)
+const uploading = ref(false)
 const loadingMetrics = ref(false)
 
 // Filtros
@@ -680,6 +773,11 @@ const customIncludePath = ref('')
 
 const cleanForm = ref({
   daysOld: 30
+})
+
+const uploadForm = ref({
+  backup_file: null,
+  overwrite: false
 })
 
 // Diálogos
@@ -876,6 +974,74 @@ const executeClean = async () => {
     })
   } catch (error) {
     console.error('Unexpected error:', error)
+  }
+}
+
+const executeUpload = async () => {
+  if (!uploadForm.value.backup_file) {
+    notyf.error('Por favor selecciona un archivo')
+    return
+  }
+
+  uploading.value = true
+
+  try {
+    const formData = new FormData()
+    formData.append('backup_file', uploadForm.value.backup_file)
+    formData.append('overwrite', uploadForm.value.overwrite ? '1' : '0')
+
+    await router.post(route('backup.upload'), formData, {
+      onSuccess: () => {
+        showUploadDialog.value = false
+        uploadForm.value = { backup_file: null, overwrite: false }
+        notyf.success('Archivo de respaldo subido exitosamente')
+        router.reload({ only: ['backups', 'stats'] })
+      },
+      onError: (errors) => {
+        console.error('Error uploading backup:', errors)
+
+        // Extraer mensaje de error específico
+        let errorMessage = 'Error al subir el archivo de respaldo'
+
+        if (errors && typeof errors === 'object') {
+          // Buscar mensajes de error específicos (Laravel validation errors)
+          if (errors.backup_file && Array.isArray(errors.backup_file) && errors.backup_file.length > 0) {
+            errorMessage = errors.backup_file[0]
+          } else if (errors.message) {
+            errorMessage = errors.message
+          } else if (errors.error) {
+            errorMessage = errors.error
+          } else {
+            // Buscar el primer mensaje de error disponible en cualquier campo
+            for (const [field, messages] of Object.entries(errors)) {
+              if (Array.isArray(messages) && messages.length > 0) {
+                errorMessage = messages[0]
+                break
+              } else if (typeof messages === 'string') {
+                errorMessage = messages
+                break
+              }
+            }
+          }
+        }
+
+        notyf.error(errorMessage)
+      },
+      onFinish: () => {
+        uploading.value = false
+      }
+    })
+  } catch (error) {
+    console.error('Unexpected error:', error)
+    notyf.error('Error inesperado al subir el archivo. Por favor, inténtelo de nuevo.')
+    uploading.value = false
+  }
+}
+
+const handleFileSelect = (event) => {
+  const file = event.target.files[0]
+  if (file) {
+    uploadForm.value.backup_file = file
   }
 }
 

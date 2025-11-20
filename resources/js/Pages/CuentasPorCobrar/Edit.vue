@@ -1,4 +1,4 @@
-﻿<template>
+<template>
     <AppLayout title="Editar Cuenta por Cobrar">
         <template #header>
             <div class="flex justify-between items-center">

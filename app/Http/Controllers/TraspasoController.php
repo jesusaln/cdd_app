@@ -117,7 +117,7 @@ class TraspasoController extends Controller
         ];
 
         // Datos para filtros
-        $productos = Producto::select('id', 'nombre')->orderBy('nombre')->get();
+        $productos = Producto::select('id', 'nombre', 'requiere_serie')->orderBy('nombre')->get();
         $almacenes = Almacen::select('id', 'nombre')->where('estado', 'activo')->orderBy('nombre')->get();
 
         return Inertia::render('Traspasos/Index', [
@@ -144,7 +144,7 @@ class TraspasoController extends Controller
 
     public function create()
     {
-        $productos = Producto::select('id', 'nombre')->get();
+        $productos = Producto::select('id', 'nombre', 'requiere_serie')->get();
         $almacenes = Almacen::select('id', 'nombre')->get();
         $inventarios = Inventario::with(['producto', 'almacen'])->get();
 
@@ -162,6 +162,8 @@ class TraspasoController extends Controller
             'almacen_origen_id' => 'required|exists:almacenes,id',
             'almacen_destino_id' => 'required|exists:almacenes,id|different:almacen_origen_id',
             'cantidad' => 'required|integer|min:1',
+            'series' => 'nullable|array',
+            'series.*' => 'integer|exists:producto_series,id',
             'observaciones' => 'nullable|string|max:1000',
             'referencia' => 'nullable|string|max:100',
             'costo_transporte' => 'nullable|numeric|min:0',
@@ -171,7 +173,32 @@ class TraspasoController extends Controller
             $productoId = $request->producto_id;
             $almacenOrigenId = $request->almacen_origen_id;
             $almacenDestinoId = $request->almacen_destino_id;
-            $cantidad = $request->cantidad;
+            $seriesIds = collect($request->input('series', []))
+                ->filter()
+                ->map(fn($id) => (int) $id)
+                ->values();
+            $producto = Producto::findOrFail($productoId);
+
+            if ($producto->requiere_serie) {
+                if ($seriesIds->isEmpty()) {
+                    throw new \Exception('Debe seleccionar las series a traspasar para este producto.');
+                }
+
+                $seriesEnOrigen = DB::table('producto_series')
+                    ->whereIn('id', $seriesIds)
+                    ->where('producto_id', $productoId)
+                    ->where('almacen_id', $almacenOrigenId)
+                    ->where('estado', 'en_stock')
+                    ->pluck('id');
+
+                if ($seriesEnOrigen->count() !== $seriesIds->count()) {
+                    throw new \Exception('Algunas series no est\u00e1n disponibles en el almac\u00e9n origen o no est\u00e1n en stock.');
+                }
+
+                $cantidad = $seriesIds->count();
+            } else {
+                $cantidad = $request->cantidad;
+            }
 
             // Obtener almacenes para evitar consultas múltiples
             $almacenOrigen = Almacen::find($almacenOrigenId);
@@ -189,7 +216,6 @@ class TraspasoController extends Controller
             if (!$inventarioOrigen || $inventarioOrigen->cantidad < $cantidad) {
                 throw new \Exception('Stock insuficiente en el almacén de origen');
             }
-
             // Crear el traspaso
             $traspaso = Traspaso::create([
                 'producto_id' => $productoId,
@@ -206,20 +232,30 @@ class TraspasoController extends Controller
                 'costo_transporte' => $request->costo_transporte,
             ]);
 
+            // Actualizar el almacen de las series involucradas
+            if ($producto->requiere_serie && $seriesIds->isNotEmpty()) {
+                DB::table('producto_series')
+                    ->whereIn('id', $seriesIds)
+                    ->update([
+                        'almacen_id' => $almacenDestinoId,
+                        'updated_at' => now(),
+                    ]);
+            }
+
             $producto = Producto::find($productoId);
 
-            // Salida del almacén origen
+            // Salida del almacen origen
             $this->inventarioService->salida($producto, $cantidad, [
                 'almacen_id' => $almacenOrigenId,
-                'motivo' => 'Traspaso a almacén ' . $almacenDestino->nombre,
-                'detalles' => ['traspaso_id' => $traspaso->id, 'destino' => $almacenDestinoId],
+                'motivo' => 'Traspaso a almacen ' . $almacenDestino->nombre,
+                'detalles' => ['traspaso_id' => $traspaso->id, 'destino' => $almacenDestinoId, 'series' => $seriesIds],
             ]);
 
-            // Entrada al almacén destino
+            // Entrada al almacen destino
             $this->inventarioService->entrada($producto, $cantidad, [
                 'almacen_id' => $almacenDestinoId,
-                'motivo' => 'Traspaso desde almacén ' . $almacenOrigen->nombre,
-                'detalles' => ['traspaso_id' => $traspaso->id, 'origen' => $almacenOrigenId],
+                'motivo' => 'Traspaso desde almacen ' . $almacenOrigen->nombre,
+                'detalles' => ['traspaso_id' => $traspaso->id, 'origen' => $almacenOrigenId, 'series' => $seriesIds],
             ]);
 
             Log::info('Traspaso realizado', [
@@ -234,3 +270,4 @@ class TraspasoController extends Controller
         return redirect()->route('traspasos.index')->with('success', 'Traspaso realizado correctamente');
     }
 }
+

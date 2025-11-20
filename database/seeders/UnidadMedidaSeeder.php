@@ -17,7 +17,7 @@ class UnidadMedidaSeeder extends Seeder
             [
                 'nombre' => 'Pieza',
                 'abreviatura' => 'pz',
-                'descripcion' => 'Unidad individual o pieza',
+                'descripcion' => 'Unidad individual o pieza (predeterminada)',
                 'estado' => 'activo',
             ],
             [
@@ -45,21 +45,21 @@ class UnidadMedidaSeeder extends Seeder
                 'estado' => 'activo',
             ],
             [
-                'nombre' => 'Metros',
+                'nombre' => 'Metro(s)',
                 'abreviatura' => 'm',
                 'descripcion' => 'Unidad de longitud en metros',
                 'estado' => 'activo',
             ],
             [
-                'nombre' => 'Centímetros',
+                'nombre' => 'Centimetros',
                 'abreviatura' => 'cm',
-                'descripcion' => 'Unidad de longitud en centímetros',
+                'descripcion' => 'Unidad de longitud en Centimetros',
                 'estado' => 'activo',
             ],
             [
-                'nombre' => 'Milímetros',
+                'nombre' => 'Milimetros',
                 'abreviatura' => 'mm',
-                'descripcion' => 'Unidad de longitud en milímetros',
+                'descripcion' => 'Unidad de longitud en Milimetros',
                 'estado' => 'activo',
             ],
             [
@@ -95,10 +95,17 @@ class UnidadMedidaSeeder extends Seeder
         ];
 
         foreach ($unidades as $unidad) {
-            UnidadMedida::firstOrCreate(
+            $record = UnidadMedida::withTrashed()->updateOrCreate(
                 ['nombre' => $unidad['nombre']],
                 $unidad
             );
+
+            if ($record->trashed()) {
+                $record->restore();
+            }
         }
     }
 }
+
+
+

@@ -1353,14 +1353,28 @@ class DatabaseBackupService
     public function listBackups(): array
     {
         $files = [];
-        $files = array_merge(
-            Storage::disk($this->backupDisk)->files($this->backupPath),
-            Storage::disk($this->backupDisk)->files($this->fullBackupPath)
-        );
+
+        // Buscar en múltiples directorios
+        $searchPaths = [
+            '', // Raíz del directorio de backups (para archivos subidos)
+            $this->backupPath, // backups/database/
+            $this->fullBackupPath // backups/application/
+        ];
+
+        foreach ($searchPaths as $path) {
+            try {
+                $pathFiles = Storage::disk($this->backupDisk)->files($path);
+                $files = array_merge($files, $pathFiles);
+            } catch (\Exception $e) {
+                Log::warning("Error accediendo al directorio {$path}: " . $e->getMessage());
+            }
+        }
+
         $backups = [];
 
         foreach ($files as $file) {
-            if (! preg_match('/\.(sql|zip)$/', $file)) {
+            // Verificar que sea un archivo de respaldo válido
+            if (! preg_match('/\.(sql|zip|dbsql|db|bak|backup)$/i', $file)) {
                 continue;
             }
             if (! Storage::disk($this->backupDisk)->exists($file)) {
@@ -1396,7 +1410,20 @@ class DatabaseBackupService
      */
     public function backupExists(string $filename): bool
     {
-        return $this->resolveBackupRelativePath($filename) !== null;
+        // Buscar en múltiples ubicaciones
+        $candidates = [
+            $filename, // Raíz del directorio de backups
+            $this->backupPath . $filename, // backups/database/
+            $this->fullBackupPath . $filename // backups/application/
+        ];
+
+        foreach ($candidates as $path) {
+            if (Storage::disk($this->backupDisk)->exists($path)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -1407,8 +1434,20 @@ class DatabaseBackupService
      */
     public function getBackupPath(string $filename): string
     {
-        $rel = $this->resolveBackupRelativePath($filename);
-        return $rel ? Storage::disk($this->backupDisk)->path($rel) : '';
+        // Buscar en múltiples ubicaciones
+        $candidates = [
+            $filename, // Raíz del directorio de backups
+            $this->backupPath . $filename, // backups/database/
+            $this->fullBackupPath . $filename // backups/application/
+        ];
+
+        foreach ($candidates as $path) {
+            if (Storage::disk($this->backupDisk)->exists($path)) {
+                return Storage::disk($this->backupDisk)->path($path);
+            }
+        }
+
+        return '';
     }
 
     /**
@@ -1418,14 +1457,27 @@ class DatabaseBackupService
      */
     public function deleteBackup(string $filename): array
     {
-        $path = $this->resolveBackupRelativePath($filename);
+        // Buscar en múltiples ubicaciones
+        $candidates = [
+            $filename, // Raíz del directorio de backups
+            $this->backupPath . $filename, // backups/database/
+            $this->fullBackupPath . $filename // backups/application/
+        ];
 
-        if (!$path || ! Storage::disk($this->backupDisk)->exists($path)) {
+        $foundPath = null;
+        foreach ($candidates as $path) {
+            if (Storage::disk($this->backupDisk)->exists($path)) {
+                $foundPath = $path;
+                break;
+            }
+        }
+
+        if (!$foundPath) {
             return ['success' => false, 'message' => 'El archivo no existe.'];
         }
 
-        $size = Storage::disk($this->backupDisk)->size($path);
-        if (Storage::disk($this->backupDisk)->delete($path)) {
+        $size = Storage::disk($this->backupDisk)->size($foundPath);
+        if (Storage::disk($this->backupDisk)->delete($foundPath)) {
             return [
                 'success' => true,
                 'message' => 'Respaldo eliminado.',
@@ -1436,22 +1488,6 @@ class DatabaseBackupService
         return ['success' => false, 'message' => 'No se pudo eliminar el archivo.'];
     }
 
-    /**
-     * Resolver ruta relativa del respaldo buscando en rutas conocidas.
-     */
-    protected function resolveBackupRelativePath(string $filename): ?string
-    {
-        $candidates = [
-            $this->backupPath.$filename,
-            $this->fullBackupPath.$filename,
-        ];
-        foreach ($candidates as $rel) {
-            if (Storage::disk($this->backupDisk)->exists($rel)) {
-                return $rel;
-            }
-        }
-        return null;
-    }
 
     /**
      * Restaurar la base de datos desde un respaldo con soporte para desencriptación.
@@ -2326,8 +2362,6 @@ class DatabaseBackupService
      */
     public function getBackupInfo(string $filename): array
     {
-        $path = $this->backupPath.$filename;
-
         if (! $this->backupExists($filename)) {
             throw new \Exception('Archivo no encontrado.');
         }
@@ -2343,7 +2377,7 @@ class DatabaseBackupService
             'size_formatted' => $this->formatBytes($size),
             'created_at' => $mtime,
             'created_at_formatted' => Carbon::createFromTimestamp($mtime)->format('Y-m-d H:i:s'),
-            'is_compressed' => in_array(pathinfo($filename, PATHINFO_EXTENSION), ['zip', 'gz']),
+            'is_compressed' => in_array(pathinfo($filename, PATHINFO_EXTENSION), ['zip', 'gz', '7z']),
             'type' => pathinfo($filename, PATHINFO_EXTENSION),
         ];
     }

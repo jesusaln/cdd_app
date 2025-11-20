@@ -110,6 +110,15 @@ class GarantiaController extends Controller
         ]);
     }
 
+    public function create()
+    {
+        // Página para buscar series de garantía
+        return Inertia::render('Garantias/BuscarSerie', [
+            'serie' => null,
+            'resultado' => null,
+        ]);
+    }
+
     public function crearCitaGarantia($serieId)
     {
         try {

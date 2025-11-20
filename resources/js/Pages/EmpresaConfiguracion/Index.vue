@@ -1,4 +1,4 @@
-﻿<!-- /resources/js/Pages/EmpresaConfiguracion/Index.vue -->
+<!-- /resources/js/Pages/EmpresaConfiguracion/Index.vue -->
 <script setup>
  import { ref, computed, onMounted } from 'vue'
  import { Head, useForm, router, usePage } from '@inertiajs/vue3'

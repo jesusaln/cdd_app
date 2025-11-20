@@ -152,7 +152,7 @@ class CitaController extends Controller
     /**
       * Mostrar formulario para crear una nueva cita.
       */
-    public function create()
+    public function create(Request $request)
     {
         $tecnicos = Tecnico::all();
         $clientes = Cliente::select('id', 'nombre_razon_social', 'email', 'telefono')->get();
@@ -163,11 +163,24 @@ class CitaController extends Controller
             ->active()
             ->get();
 
+        $prefill = array_filter([
+            'cliente_id' => $request->input('cliente_id'),
+            'numero_serie' => $request->input('numero_serie'),
+            'descripcion' => $request->input('descripcion'),
+            'direccion_servicio' => $request->input('direccion') ?? $request->input('direccion_servicio'),
+            'tipo_servicio' => $request->input('tipo_servicio'),
+        ], fn ($v) => $v !== null && $v !== '');
+
+        if (($prefill['tipo_servicio'] ?? null) === 'garantia') {
+            $prefill['garantia'] = 'si';
+        }
+
         return Inertia::render('Citas/Create', [
             'tecnicos' => $tecnicos,
             'clientes' => $clientes,
             'servicios' => $servicios,
             'productos' => $productos,
+            'prefill' => $prefill,
         ]);
     }
 

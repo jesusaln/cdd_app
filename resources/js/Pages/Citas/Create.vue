@@ -331,6 +331,10 @@ const props = defineProps({
     clientes: Array,
     servicios: Array,
     productos: Array,
+    prefill: {
+        type: Object,
+        default: () => ({})
+    },
 });
 
 // Referencias reactivas para el buscador de clientes
@@ -477,6 +481,27 @@ const onClienteSeleccionado = (cliente) => {
     if (cliente && cliente.direccion) {
         form.direccion_servicio = cliente.direccion;
     }
+};
+
+const applyPrefillFromProps = () => {
+    const prefill = props.prefill || {};
+    if (!prefill || Object.keys(prefill).length === 0) return;
+
+    if (prefill.cliente_id) {
+        const id = Number(prefill.cliente_id);
+        const cliente = props.clientes?.find(c => Number(c.id) === id);
+        if (cliente) {
+            onClienteSeleccionado(cliente);
+        } else {
+            form.cliente_id = id;
+        }
+    }
+
+    if (prefill.numero_serie) form.numero_serie = prefill.numero_serie;
+    if (prefill.descripcion) form.descripcion = prefill.descripcion;
+    if (prefill.direccion_servicio) form.direccion_servicio = prefill.direccion_servicio;
+    if (prefill.tipo_servicio) form.tipo_servicio = prefill.tipo_servicio;
+    if (prefill.garantia) form.garantia = prefill.garantia;
 };
 
 const onCrearNuevoCliente = (nombreBuscado) => {
@@ -871,6 +896,8 @@ const submit = () => {
 let autoSaveInterval;
 
 onMounted(() => {
+    applyPrefillFromProps();
+
     // Iniciar auto-guardado
     autoSaveInterval = setInterval(() => {
         if (form.isDirty && (selectedCliente.value || form.cliente_id)) {

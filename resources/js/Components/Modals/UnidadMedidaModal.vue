@@ -73,6 +73,15 @@
                     </PrimaryButton>
                 </div>
 
+                <div class="flex items-start justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                    <div class="text-sm text-gray-700">
+                        <span class="font-semibold">Predeterminada:</span>
+                        {{ defaultUnidadName }}
+                        <span class="text-gray-500"> - Siempre disponible y no se puede eliminar.</span>
+                    </div>
+                    <span class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">Valor base</span>
+                </div>
+
                 <!-- Loading state -->
                 <div v-if="loading" class="flex justify-center py-4">
                     <LoadingSpinner />
@@ -86,9 +95,12 @@
                         class="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50"
                     >
                         <div class="flex-1">
-                            <div class="font-medium text-gray-900">
+                            <div class="font-medium text-gray-900 flex items-center gap-2">
                                 {{ unidad.nombre }}
-                                <span v-if="unidad.abreviatura" class="text-sm text-gray-500 ml-2">
+                                <span v-if="unidad.nombre === defaultUnidadName" class="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
+                                    Predeterminada
+                                </span>
+                                <span v-if="unidad.abreviatura" class="text-sm text-gray-500 ml-1">
                                     ({{ unidad.abreviatura }})
                                 </span>
                             </div>
@@ -120,16 +132,23 @@
                                 Editar
                             </SecondaryButton>
                             <DangerButton
-                                v-if="unidad.puede_eliminarse"
+                                v-if="unidad.puede_eliminarse && unidad.nombre !== defaultUnidadName"
                                 size="sm"
                                 @click="confirmDelete(unidad)"
                             >
                                 Eliminar
                             </DangerButton>
                             <span
+                                v-else-if="unidad.nombre === defaultUnidadName"
+                                class="text-xs text-blue-600 px-2 py-1 bg-blue-50 rounded"
+                                title="Unidad de medida predeterminada"
+                            >
+                                Predeterminada
+                            </span>
+                            <span
                                 v-else
                                 class="text-xs text-gray-400 px-2 py-1 bg-gray-100 rounded"
-                                title="No se puede eliminar porque está siendo utilizada por productos"
+                                title="No se puede eliminar porque esta unidad esta en uso"
                             >
                                 En uso
                             </span>
@@ -190,7 +209,7 @@
                 Cancelar
             </SecondaryButton>
             <DangerButton
-                v-if="unidadToDelete?.puede_eliminarse"
+                v-if="unidadToDelete?.puede_eliminarse && unidadToDelete?.nombre !== defaultUnidadName"
                 :disabled="deleting"
                 @click="deleteUnidad"
             >
@@ -202,7 +221,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import DialogModal from '@/Components/Modal.vue';
 import ConfirmationModal from '@/Components/ConfirmationModal.vue';
@@ -223,6 +242,10 @@ const props = defineProps({
     unidades: {
         type: Array,
         default: () => [],
+    },
+    defaultName: {
+        type: String,
+        default: 'Pieza',
     },
 });
 
@@ -247,14 +270,28 @@ const unidadForm = useForm({
 });
 
 // Computed
-const filteredUnidades = computed(() => {
-    if (!searchQuery.value) return props.unidades;
+const defaultUnidadName = computed(() => (props.defaultName || 'Pieza').trim());
 
-    return props.unidades.filter(unidad =>
-        unidad.nombre.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-        (unidad.abreviatura && unidad.abreviatura.toLowerCase().includes(searchQuery.value.toLowerCase())) ||
-        (unidad.descripcion && unidad.descripcion.toLowerCase().includes(searchQuery.value.toLowerCase()))
-    );
+const ordenarUnidades = (lista = []) => {
+    return [...lista].sort((a, b) => {
+        if (a.nombre === defaultUnidadName.value) return -1;
+        if (b.nombre === defaultUnidadName.value) return 1;
+        return (a.nombre || '').localeCompare(b.nombre || '');
+    });
+};
+
+const filteredUnidades = computed(() => {
+    const base = props.unidades || [];
+
+    const coincidencias = !searchQuery.value
+        ? base
+        : base.filter(unidad =>
+            unidad.nombre.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+            (unidad.abreviatura && unidad.abreviatura.toLowerCase().includes(searchQuery.value.toLowerCase())) ||
+            (unidad.descripcion && unidad.descripcion.toLowerCase().includes(searchQuery.value.toLowerCase()))
+        );
+
+    return ordenarUnidades(coincidencias);
 });
 
 // Métodos
@@ -316,6 +353,10 @@ const updateUnidad = () => {
 };
 
 const confirmDelete = (unidad) => {
+    if (unidad?.nombre === defaultUnidadName.value) {
+        alert('La unidad predeterminada no se puede eliminar.');
+        return;
+    }
     unidadToDelete.value = unidad;
     showDeleteModal.value = true;
 };
@@ -363,3 +404,6 @@ watch(modalMode, (newMode) => {
 <style scoped>
 /* Estilos adicionales si son necesarios */
 </style>
+
+
+

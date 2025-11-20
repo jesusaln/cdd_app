@@ -287,13 +287,24 @@
                             <label for="unidad_medida" class="block text-sm font-medium text-gray-700 mb-2">
                                 Unidad de Medida <span class="text-red-500">*</span>
                             </label>
-                            <select v-model="form.unidad_medida" id="unidad_medida" class="input-field" required>
-                                <option value="">Seleccione una unidad</option>
-                                <option v-for="unidad in unidadesMedida" :key="unidad.id" :value="unidad.nombre">
-                                    {{ unidad.nombre }}
+                            <select
+                                v-model="form.unidad_medida"
+                                id="unidad_medida"
+                                class="input-field"
+                                :disabled="cargandoUnidades"
+                                required
+                            >
+                                <option v-for="unidad in unidadesMedida" :key="unidad.id || unidad.nombre" :value="unidad.nombre">
+                                    {{ unidad.nombre }}{{ unidad.nombre === unidadMedidaPredeterminada ? ' (Predeterminada)' : '' }}
                                 </option>
                             </select>
-                            <button type="button" class="mt-2 text-sm text-blue-600 hover:underline" @click="showUnidadMedidaModal = true">+ Gestionar unidades</button>
+                            <p class="text-xs text-gray-500 mt-1 flex items-center gap-2">
+                                <span class="px-2 py-0.5 bg-gray-100 rounded text-gray-700">
+                                    Predeterminada: {{ unidadMedidaPredeterminada }}
+                                </span>
+                                <span v-if="cargandoUnidades" class="text-blue-600">Cargando opciones...</span>
+                            </p>
+                            <button type="button" class="mt-2 text-sm text-blue-600 hover:underline" @click="openUnidadMedidaModal">+ Gestionar unidades</button>
                             <div v-if="form.errors.unidad_medida" class="error-message">{{ form.errors.unidad_medida }}</div>
                         </div>
 
@@ -466,6 +477,7 @@
         <UnidadMedidaModal
             :show="showUnidadMedidaModal"
             :unidades="unidadesMedida"
+            :default-name="unidadMedidaPredeterminada"
             @close="showUnidadMedidaModal = false"
             @unidad-created="handleUnidadCreated"
             @unidad-updated="handleUnidadUpdated"
@@ -490,12 +502,29 @@ const props = defineProps({
     marcas: Array,
     proveedores: Array,
     almacenes: Array,
+    unidadesMedida: {
+        type: Array,
+        default: () => [],
+    },
 });
 
 // Crear referencias reactivas para poder actualizar las listas
 const categorias = ref([...props.categorias]);
 const marcas = ref([...props.marcas]);
 const almacenes = ref([...props.almacenes]);
+
+const unidadMedidaPredeterminada = 'Pieza';
+const unidadesBase = [
+    { id: 'base-pieza', nombre: unidadMedidaPredeterminada, abreviatura: 'pz' },
+    { id: 'base-metro', nombre: 'Metro(s)', abreviatura: 'm' },
+    { id: 'base-kilo', nombre: 'Kilogramos', abreviatura: 'kg' },
+    { id: 'base-gramo', nombre: 'Gramos', abreviatura: 'g' },
+    { id: 'base-litro', nombre: 'Litros', abreviatura: 'l' },
+    { id: 'base-mililitro', nombre: 'Mililitros', abreviatura: 'ml' },
+    { id: 'base-centimetro', nombre: 'Centimetros', abreviatura: 'cm' },
+    { id: 'base-milimetro', nombre: 'Milimetros', abreviatura: 'mm' },
+    { id: 'base-unidad', nombre: 'Unidad', abreviatura: 'u' },
+];
 
 // Estado para las pestañas
 const activeTab = ref('general');
@@ -527,7 +556,7 @@ const form = useForm({
     imagen: null,
     estado: props.producto?.estado || 'activo',
     comision_vendedor: props.producto?.comision_vendedor || '',
-    unidad_medida: props.producto?.unidad_medida || 'Pieza',
+    unidad_medida: props.producto?.unidad_medida || unidadMedidaPredeterminada,
     // Stock mínimo por almacén
     stock_minimo_por_almacen: {},
 });
@@ -542,6 +571,54 @@ watch(
         }
     }
 );
+
+const normalizarUnidades = (lista = []) => {
+    const existentes = new Map();
+
+    [...lista, ...unidadesBase].forEach((unidad) => {
+        if (!unidad?.nombre) {
+            return;
+        }
+        const key = unidad.nombre.toLowerCase();
+        if (!existentes.has(key)) {
+            existentes.set(key, {
+                id: unidad.id,
+                nombre: unidad.nombre,
+                abreviatura: unidad.abreviatura || '',
+                descripcion: unidad.descripcion || '',
+                estado: unidad.estado || 'activo',
+            });
+        } else if (unidad.nombre === unidadMedidaPredeterminada) {
+            const actual = existentes.get(key);
+            existentes.set(key, {
+                ...unidad,
+                ...actual,
+                estado: 'activo',
+            });
+        }
+    });
+
+    const ordenadas = Array.from(existentes.values()).sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+
+    return ordenadas.sort((a, b) => (a.nombre === unidadMedidaPredeterminada ? -1 : b.nombre === unidadMedidaPredeterminada ? 1 : 0));
+};
+
+const asegurarUnidadSeleccionada = () => {
+    const existe = unidadesMedida.value.some((unidad) => unidad.nombre === form.unidad_medida);
+    if (!existe) {
+        form.unidad_medida = unidadMedidaPredeterminada;
+    }
+};
+
+unidadesMedida.value = normalizarUnidades(props.unidadesMedida || []);
+asegurarUnidadSeleccionada();
+
+const openUnidadMedidaModal = () => {
+    showUnidadMedidaModal.value = true;
+    if (!unidadesMedida.value.length) {
+        cargarUnidadesMedida();
+    }
+};
 
 // Inicializar componente
 onMounted(() => {
@@ -745,23 +822,15 @@ const cargarUnidadesMedida = async () => {
            throw new Error(`Error HTTP ${response.status}: ${response.statusText}`);
        }
 
-       const data = await response.json();
-       unidadesMedida.value = data.data || [];
+         const data = await response.json();
+         unidadesMedida.value = normalizarUnidades(data.data || []);
+         asegurarUnidadSeleccionada();
 
    } catch (error) {
        console.error('Error cargando unidades de medida:', error);
        // Fallback a unidades básicas si falla la carga
-       unidadesMedida.value = [
-           { id: 1, nombre: 'Pieza', abreviatura: 'pz' },
-           { id: 2, nombre: 'Kilogramos', abreviatura: 'kg' },
-           { id: 3, nombre: 'Gramos', abreviatura: 'g' },
-           { id: 4, nombre: 'Litros', abreviatura: 'l' },
-           { id: 5, nombre: 'Mililitros', abreviatura: 'ml' },
-           { id: 6, nombre: 'Metros', abreviatura: 'm' },
-           { id: 7, nombre: 'Centímetros', abreviatura: 'cm' },
-           { id: 8, nombre: 'Milímetros', abreviatura: 'mm' },
-           { id: 9, nombre: 'Unidad', abreviatura: 'u' },
-       ];
+       unidadesMedida.value = normalizarUnidades([]);
+       asegurarUnidadSeleccionada();
    } finally {
        cargandoUnidades.value = false;
    }
@@ -769,7 +838,10 @@ const cargarUnidadesMedida = async () => {
 
 // Funciones para manejar eventos del modal de unidades
 const handleUnidadCreated = (unidad) => {
-   unidadesMedida.value.push(unidad);
+   unidadesMedida.value = normalizarUnidades([...unidadesMedida.value, unidad]);
+   form.unidad_medida = unidad?.nombre || unidadMedidaPredeterminada;
+   showUnidadMedidaModal.value = false;
+   asegurarUnidadSeleccionada();
 };
 
 const handleUnidadUpdated = (unidad) => {
@@ -777,10 +849,16 @@ const handleUnidadUpdated = (unidad) => {
    if (index !== -1) {
        unidadesMedida.value[index] = unidad;
    }
+   unidadesMedida.value = normalizarUnidades(unidadesMedida.value);
+   asegurarUnidadSeleccionada();
 };
 
 const handleUnidadDeleted = (unidad) => {
-   unidadesMedida.value = unidadesMedida.value.filter(u => u.id !== unidad.id);
+   unidadesMedida.value = normalizarUnidades(unidadesMedida.value.filter(u => u.id !== unidad.id));
+   if (form.unidad_medida === unidad?.nombre) {
+       form.unidad_medida = unidadMedidaPredeterminada;
+   }
+   asegurarUnidadSeleccionada();
 };
 </script>
 
@@ -823,3 +901,5 @@ const handleUnidadDeleted = (unidad) => {
     color: #DC2626; /* text-red-600 */
 }
 </style>
+
+

@@ -1,4 +1,4 @@
-﻿<!-- /resources/js/Pages/Almacenes/Edit.vue -->
+<!-- /resources/js/Pages/Almacenes/Edit.vue -->
 <script setup>
 import { ref, onMounted } from 'vue'
 import { Head, router, usePage } from '@inertiajs/vue3'

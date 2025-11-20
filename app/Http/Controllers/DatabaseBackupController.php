@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Exception;
 
@@ -851,6 +852,70 @@ class DatabaseBackupController extends Controller
                 'success' => false,
                 'message' => 'Error obteniendo estadísticas de compresión'
             ], 500);
+        }
+    }
+
+    /**
+     * Subir un archivo de respaldo
+     */
+    public function upload(Request $request)
+    {
+        $validated = $request->validate([
+            'backup_file' => 'required|file|max:102400', // 100MB máximo, sin restricción de mimes para mayor flexibilidad
+            'overwrite' => 'boolean'
+        ], [
+            'backup_file.required' => 'Debe seleccionar un archivo de respaldo.',
+            'backup_file.file' => 'El archivo seleccionado no es válido.',
+            'backup_file.max' => 'El archivo no puede ser mayor a 100MB.'
+        ]);
+
+        // Validación adicional de extensión para mayor seguridad
+        $file = $request->file('backup_file');
+        $originalName = $file->getClientOriginalName();
+        $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+
+        // Extensiones permitidas (más flexibles)
+        $allowedExtensions = ['sql', 'zip', 'gz', 'tar', 'dbsql', 'db', 'bak', 'backup'];
+
+        if (!empty($extension) && !in_array($extension, $allowedExtensions)) {
+            return redirect()->route('backup.index')->with('error', 'Tipo de archivo no permitido. Extensiones válidas: ' . implode(', ', $allowedExtensions));
+        }
+
+        try {
+            $file = $request->file('backup_file');
+            $originalName = $file->getClientOriginalName();
+
+            // Verificar si ya existe un archivo con el mismo nombre
+            if (!$validated['overwrite'] && $this->backupService->backupExists($originalName)) {
+                return redirect()->route('backup.index')->with('error', 'Ya existe un archivo con el nombre "' . $originalName . '". Use la opción de sobrescribir si desea reemplazarlo.');
+            }
+
+            // Usar el mismo disco y ruta que emplea el servicio de backups
+            $disk = config('backup.disk', 'local');
+            $path = rtrim(config('backup.path', 'backups/database/'), '/') . '/';
+
+            // Mover el archivo al directorio de respaldos
+            Storage::disk($disk)->putFileAs($path, $file, $originalName);
+
+            // Verificar que el archivo se guardó correctamente
+            $relativePath = $path . $originalName;
+            if (!Storage::disk($disk)->exists($relativePath)) {
+                return redirect()->route('backup.index')->with('error', 'Error al guardar el archivo en el servidor.');
+            }
+
+            $fileSize = Storage::disk($disk)->size($relativePath);
+
+            return redirect()->route('backup.index')
+                ->with('success', 'Archivo de respaldo subido exitosamente: ' . $originalName . ' (' . $this->formatFileSize($fileSize) . ')');
+
+        } catch (Exception $e) {
+            Log::error('Error uploading backup file: ' . $e->getMessage(), [
+                'user_id' => Auth::id(),
+                'filename' => $request->file('backup_file')?->getClientOriginalName()
+            ]);
+
+            return redirect()->route('backup.index')
+                ->with('error', 'Error interno al subir el archivo de respaldo. Por favor, inténtelo de nuevo.');
         }
     }
 
