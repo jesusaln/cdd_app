@@ -30,11 +30,11 @@
             <div>
               <label for="numero_venta" class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
                 Número de Venta *
-                <span class="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                <span class="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
                   <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
-                  Número fijo
+                  Auto-generado
                 </span>
               </label>
               <div class="relative">
@@ -54,7 +54,7 @@
                 </div>
               </div>
               <p class="mt-1 text-xs text-gray-500">
-                Este número es fijo para todas las ventas
+                Este número se genera automáticamente para cada venta nueva
               </p>
             </div>
 
@@ -717,8 +717,8 @@ const limpiarFormulario = () => {
   // Limpiar notas
   form.notas = '';
 
-  // Restablecer número y fecha fijos
-  form.numero_venta = numeroVentaFijo;
+  // Restablecer número y fecha
+  form.numero_venta = numeroVentaFijo.value;
   form.fecha = getCurrentDate();
 
   // Limpiar variables de margen
@@ -941,7 +941,7 @@ const handleBeforeUnload = (event) => {
 // Guardar estado automáticamente
 const saveState = () => {
   const stateToSave = {
-    numero_venta: numeroVentaFijo,
+    numero_venta: numeroVentaFijo.value,
     fecha: form.fecha,
     cliente_id: form.cliente_id,
     cliente: clienteSeleccionado.value,
@@ -979,8 +979,8 @@ onMounted(async () => {
   const savedData = loadFromLocalStorage('ventaEnProgreso');
   if (savedData && typeof savedData === 'object') {
     try {
-      // Siempre usar número y fecha fijos
-      form.numero_venta = numeroVentaFijo;
+      // Usar número guardado o el generado automáticamente
+      form.numero_venta = savedData.numero_venta || numeroVentaFijo.value;
       form.fecha = getCurrentDate(); // Siempre usar fecha actual
 
       form.cliente_id = savedData.cliente_id || '';

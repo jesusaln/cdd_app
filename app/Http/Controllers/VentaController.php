@@ -419,19 +419,20 @@ class VentaController extends Controller
                         $seriesEnStock = \App\Models\ProductoSerie::where('producto_id', $modelo->id)
                             ->whereIn('numero_serie', array_map('strval', $seriales))
                             ->where('estado', 'en_stock')
-                            ->pluck('id');
+                            ->get(['id', 'numero_serie']);
 
                         if (count($seriales) !== $seriesEnStock->count()) {
                             throw new \Exception("Algunas series no existen o no están en stock para el producto '{$modelo->nombre}'.");
                         }
 
-                        \App\Models\ProductoSerie::whereIn('id', $seriesEnStock->all())->update(['estado' => 'vendido']);
+                        \App\Models\ProductoSerie::whereIn('id', $seriesEnStock->pluck('id')->all())->update(['estado' => 'vendido']);
                         // Vincular series vendidas al item de venta
                         $__nowTs = now();
-                        $____rows = array_map(function ($serieId) use ($ventaItem, $__nowTs) {
+                        $____rows = array_map(function ($serie) use ($ventaItem, $__nowTs) {
                             return [
                                 'venta_item_id' => $ventaItem->id,
-                                'producto_serie_id' => $serieId,
+                                'producto_serie_id' => $serie->id,
+                                'numero_serie' => $serie->numero_serie,
                                 'created_at' => $__nowTs,
                                 'updated_at' => $__nowTs,
                             ];

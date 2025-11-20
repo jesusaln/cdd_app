@@ -19,6 +19,8 @@ class FixSequences extends Command
             ['table' => 'migrations', 'column' => 'id'],
             // Tabla pivote de orden de compra
             ['table' => 'orden_compra_producto', 'column' => 'id'],
+            // Tabla de movimientos de inventario
+            ['table' => 'inventario_movimientos', 'column' => 'id'],
         ];
 
         foreach ($targets as $t) {
