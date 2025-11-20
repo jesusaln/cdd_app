@@ -94,6 +94,37 @@ class VentaController extends Controller
     }
 
     /**
+     * Get the next sales number.
+     */
+    public function nextNumeroVenta()
+    {
+        try {
+            // Obtener la parte numérica más alta de las ventas existentes
+            if (\DB::getDriverName() === 'pgsql') {
+                $max = \DB::table('ventas')
+                    ->selectRaw("COALESCE(MAX(NULLIF(regexp_replace(numero_venta, '\\\\D', '', 'g'), '')::int), 0) as max_num")
+                    ->value('max_num');
+            } else {
+                $ultimo = \App\Models\Venta::orderByDesc('id')->value('numero_venta');
+                $max = 0;
+                if ($ultimo && preg_match('/(\\d+)$/', $ultimo, $m)) {
+                    $max = (int) $m[1];
+                }
+            }
+
+            $siguiente = ((int) $max) + 1;
+            $numero_venta = 'V' . str_pad($siguiente, 4, '0', STR_PAD_LEFT);
+
+            return response()->json([
+                'numero_venta' => $numero_venta,
+                'siguiente_numero' => $siguiente
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Error al generar número de venta: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Muestra los detalles de una venta específica.
      */
     /**

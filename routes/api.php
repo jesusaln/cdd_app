@@ -118,6 +118,7 @@ Route::apiResource('proveedores', ProveedorController::class)->names('api.provee
 Route::apiResource('almacenes', AlmacenController::class)->names('api.almacenes');
 Route::apiResource('pedidos', PedidoController::class)->names('api.pedidos');
 Route::apiResource('ventas', VentaController::class)->names('api.ventas');
+Route::get('ventas/next-numero-venta', [VentaController::class, 'nextNumeroVenta'])->name('api.ventas.next-numero-venta');
 Route::apiResource('citas', CitaController::class)->names('api.citas');
 Route::apiResource('tecnicos', TecnicoController::class)->names('api.tecnicos');
 Route::apiResource('servicios', ServicioController::class)->names('api.servicios');

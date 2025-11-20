@@ -12,6 +12,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Si la tabla ya existe (entorno instalado), no recrearla
+        if (Schema::hasTable('users')) {
+            return;
+        }
+
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('name');
@@ -96,4 +101,3 @@ return new class extends Migration
         Schema::dropIfExists('users');
     }
 };
-

@@ -434,8 +434,8 @@ const catalogs = computed(() => props.catalogs);
 // Almacén predeterminado del usuario
 const userAlmacenPredeterminado = computed(() => props.user?.almacen_venta?.id || null);
 
-// Número de venta fijo
-const numeroVentaFijo = 'V0001';
+// Número de venta (se obtiene del backend)
+const numeroVentaFijo = ref('V0001');
 
 // Obtener fecha actual en formato YYYY-MM-DD (zona horaria local)
 const getCurrentDate = () => {
@@ -508,6 +508,21 @@ const removeFromLocalStorage = (key) => {
 };
 
 // --- FUNCIONES ---
+
+// Obtener el siguiente número de venta del backend
+const fetchNextNumeroVenta = async () => {
+  try {
+    const response = await axios.get('/api/ventas/next-numero-venta');
+    if (response.data && response.data.numero_venta) {
+      numeroVentaFijo.value = response.data.numero_venta;
+      form.numero_venta = response.data.numero_venta;
+      showNotification(`Número de venta generado: ${response.data.numero_venta}`, 'info');
+    }
+  } catch (error) {
+    console.error('Error al obtener el número de venta:', error);
+    showNotification('Error al generar el número de venta', 'error');
+  }
+};
 
 // Header
 const handlePreview = () => {
@@ -948,7 +963,7 @@ const asegurarFechaActual = () => {
 };
 
 // Lifecycle hooks
-onMounted(() => {
+onMounted(async () => {
   // Mostrar mensajes flash del servidor (errores de backend)
   try {
     const page = usePage();
@@ -957,8 +972,9 @@ onMounted(() => {
     if (flash?.error) showNotification(flash.error, 'error');
     if (flash?.warning) showNotification(flash.warning, 'warning');
   } catch (e) { /* noop */ }
-  // Mostrar información sobre el número de venta fijo
-  showNotification(`Número de venta fijo: ${numeroVentaFijo}`, 'info');
+
+  // Obtener el siguiente número de venta
+  await fetchNextNumeroVenta();
 
   const savedData = loadFromLocalStorage('ventaEnProgreso');
   if (savedData && typeof savedData === 'object') {

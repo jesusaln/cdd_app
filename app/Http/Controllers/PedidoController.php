@@ -1179,9 +1179,14 @@ class PedidoController extends Controller
      */
     private function generarNumeroVenta(): string
     {
-        $ultimo = Venta::orderBy('id', 'desc')->first();
-        $numero = $ultimo ? $ultimo->id + 1 : 1;
-        return 'VEN-' . str_pad($numero, 6, '0', STR_PAD_LEFT);
+        $ultimo = Venta::orderByDesc('id')->value('numero_venta');
+        $max = 0;
+        if ($ultimo && preg_match('/(\\d+)$/', $ultimo, $m)) {
+            $max = (int) $m[1];
+        }
+
+        $siguiente = $max + 1;
+        return 'V' . str_pad($siguiente, 4, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -1425,5 +1430,3 @@ class PedidoController extends Controller
         }
     }
 }
-
-

@@ -12,6 +12,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Si la tabla ya existe (entornos instalados), no recrearla
+        if (Schema::hasTable('almacenes')) {
+            return;
+        }
+
         Schema::create('almacenes', function (Blueprint $table) {
             $table->id();
 

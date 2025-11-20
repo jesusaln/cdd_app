@@ -12,6 +12,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Si las tablas ya existen (entornos instalados), no recrearlas
+        if (Schema::hasTable('categorias') && Schema::hasTable('categoria_herramientas')) {
+            return;
+        }
+
         // Crear tabla de categorías para productos
         Schema::create('categorias', function (Blueprint $table) {
             $table->id();

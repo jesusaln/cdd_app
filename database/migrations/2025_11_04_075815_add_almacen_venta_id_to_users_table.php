@@ -12,7 +12,14 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->foreignId('almacen_venta_id')->nullable()->constrained('almacenes')->onDelete('set null')->after('activo');
+            // Evitar errores si la columna ya existe en entornos parcialmente migrados
+            if (!Schema::hasColumn('users', 'almacen_venta_id')) {
+                $table->foreignId('almacen_venta_id')
+                    ->nullable()
+                    ->constrained('almacenes')
+                    ->onDelete('set null')
+                    ->after('activo');
+            }
         });
     }
 

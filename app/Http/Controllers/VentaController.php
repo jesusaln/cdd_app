@@ -1251,9 +1251,14 @@ class VentaController extends Controller
      */
     private function generarNumeroVenta()
     {
-        $ultima = Venta::orderBy('id', 'desc')->first();
-        $numero = $ultima ? $ultima->id + 1 : 1;
-        return 'VEN-' . date('Ymd') . '-' . str_pad($numero, 5, '0', STR_PAD_LEFT);
+        $ultimo = Venta::orderByDesc('id')->value('numero_venta');
+        $max = 0;
+        if ($ultimo && preg_match('/(\\d+)$/', $ultimo, $m)) {
+            $max = (int) $m[1];
+        }
+
+        $siguiente = $max + 1;
+        return 'V' . str_pad($siguiente, 4, '0', STR_PAD_LEFT);
     }
 
     /**

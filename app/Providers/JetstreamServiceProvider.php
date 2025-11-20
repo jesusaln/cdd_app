@@ -9,7 +9,9 @@ use App\Actions\Jetstream\DeleteUser;
 use App\Actions\Jetstream\InviteTeamMember;
 use App\Actions\Jetstream\RemoveTeamMember;
 use App\Actions\Jetstream\UpdateTeamName;
+use App\Models\Almacen;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Http\Request;
 use Laravel\Jetstream\Jetstream;
 
 class JetstreamServiceProvider extends ServiceProvider
@@ -39,6 +41,19 @@ class JetstreamServiceProvider extends ServiceProvider
 
         // Registrar rutas de Jetstream para Inertia
         Jetstream::inertia();
+
+        // Pasar almacenes y usuario con almacén de venta al perfil
+        Jetstream::inertia()->whenRendering('Profile/Show', function (Request $request, array $data) {
+            $almacenesActivos = Almacen::select('id', 'nombre')
+                ->where('estado', 'activo')
+                ->orderBy('nombre')
+                ->get();
+
+            return array_merge($data, [
+                'almacenes' => $almacenesActivos,
+                'user' => $request->user()?->load('almacenVenta'),
+            ]);
+        });
     }
 
     /**
