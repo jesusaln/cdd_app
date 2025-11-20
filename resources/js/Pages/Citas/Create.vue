@@ -425,6 +425,7 @@ const prioridadOptions = [
 
 const tipoServicioOptions = [
     { value: '', text: 'Selecciona el tipo de servicio', disabled: true },
+    { value: 'garantia', text: 'Garantía' },
     { value: 'instalacion', text: 'Instalación' },
     { value: 'reparacion', text: 'Reparación' },
     { value: 'mantenimiento', text: 'Mantenimiento' },
@@ -502,6 +503,12 @@ const applyPrefillFromProps = () => {
     if (prefill.direccion_servicio) form.direccion_servicio = prefill.direccion_servicio;
     if (prefill.tipo_servicio) form.tipo_servicio = prefill.tipo_servicio;
     if (prefill.garantia) form.garantia = prefill.garantia;
+
+    // Si es una cita de garantía, establecer prioridad media y estado programado
+    if (prefill.tipo_servicio === 'garantia') {
+        form.prioridad = 'media';
+        form.estado = 'programado';
+    }
 };
 
 const onCrearNuevoCliente = (nombreBuscado) => {

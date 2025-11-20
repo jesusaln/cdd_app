@@ -43,7 +43,7 @@ class GarantiaController extends Controller
             ]);
         }
 
-        // Lista de todas las series vendidas
+        // Lista de todas las series vendidas (excluyendo ventas canceladas)
         $query = DB::table('producto_series as ps')
             ->join('venta_item_series as vis', 'vis.producto_serie_id', '=', 'ps.id')
             ->join('venta_items as vi', 'vi.id', '=', 'vis.venta_item_id')
@@ -76,7 +76,9 @@ class GarantiaController extends Controller
                 'a.nombre as almacen_nombre',
                 'vi.precio',
                 'vi.cantidad'
-            );
+            )
+            // Excluir ventas canceladas
+            ->where('v.estado', '!=', 'cancelada');
 
         // Aplicar filtros
         if ($request->filled('search')) {

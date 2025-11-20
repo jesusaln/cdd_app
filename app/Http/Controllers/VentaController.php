@@ -1112,6 +1112,11 @@ class VentaController extends Controller
                                 ->pluck('producto_serie_id');
 
                             if ($seriesVendidas->isNotEmpty()) {
+                                // Eliminar registros de venta_item_series para que no aparezcan en garantías
+                                DB::table('venta_item_series')
+                                    ->where('venta_item_id', $item->id)
+                                    ->delete();
+
                                 // Revertir el estado de las series de 'vendido' a 'en_stock'
                                 \App\Models\ProductoSerie::whereIn('id', $seriesVendidas->all())
                                     ->update(['estado' => 'en_stock']);
@@ -1120,7 +1125,8 @@ class VentaController extends Controller
                                     'producto_id' => $producto->id,
                                     'venta_id' => $venta->id,
                                     'venta_item_id' => $item->id,
-                                    'series_revertidas' => $seriesVendidas->count()
+                                    'series_revertidas' => $seriesVendidas->count(),
+                                    'registros_eliminados' => true
                                 ]);
                             }
                         }
