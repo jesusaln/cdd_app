@@ -329,7 +329,8 @@ class VentaController extends Controller
                 $subtotal += $subtotalItem;
             }
 
-            $descuentoGeneralMonto = $request->descuento_general ?? 0;
+            $descuentoGeneralPct = (float) ($request->descuento_general ?? 0);
+            $descuentoGeneralMonto = $subtotal * ($descuentoGeneralPct / 100);
             $subtotalDespuesGeneral = $subtotal - $descuentoGeneralMonto;
 
             $descuentoItems = 0;
@@ -425,6 +426,19 @@ class VentaController extends Controller
                         }
 
                         \App\Models\ProductoSerie::whereIn('id', $seriesEnStock->all())->update(['estado' => 'vendido']);
+                        // Vincular series vendidas al item de venta
+                        $__nowTs = now();
+                        $____rows = array_map(function ($serieId) use ($ventaItem, $__nowTs) {
+                            return [
+                                'venta_item_id' => $ventaItem->id,
+                                'producto_serie_id' => $serieId,
+                                'created_at' => $__nowTs,
+                                'updated_at' => $__nowTs,
+                            ];
+                        }, $seriesEnStock->all());
+                        if (!empty($____rows)) {
+                            DB::table('venta_item_series')->insert($____rows);
+                        }
                     }
 
                     // Reducir stock específicamente del almacén seleccionado
@@ -441,10 +455,17 @@ class VentaController extends Controller
                     }
 
                     // Reducir stock del almacén específico
-                    $inventarioAlmacen->decrement('cantidad', $item['cantidad']);
-
-                    // También reducir el stock total del producto
-                    $modelo->decrement('stock', $item['cantidad']);
+                    // Ajuste de inventario mediante servicio (salida)
+                    $this->inventarioService->salida($modelo, (int) $item['cantidad'], [
+                        'almacen_id' => (int) $validated['almacen_id'],
+                        'user_id' => (int) $request->user()->id,
+                        'referencia' => $venta,
+                        'motivo' => 'Salida por venta',
+                        'detalles' => [
+                            'venta_item_id' => $ventaItem->id,
+                            'numero_venta' => $venta->numero_venta,
+                        ],
+                    ]);
 
                     Log::info("Stock reducido para producto {$modelo->id} en almacén {$validated['almacen_id']}", [
                         'producto_id' => $modelo->id,
@@ -718,7 +739,8 @@ class VentaController extends Controller
             $subtotal += $subtotalItem;
         }
 
-        $descuentoGeneralMonto = $request->descuento_general ?? 0;
+        $descuentoGeneralPct = (float) ($request->descuento_general ?? 0);
+        $descuentoGeneralMonto = $subtotal * ($descuentoGeneralPct / 100);
         $subtotalDespuesGeneral = $subtotal - $descuentoGeneralMonto;
 
         $descuentoItems = 0;
@@ -756,6 +778,53 @@ class VentaController extends Controller
             ]);
 
             // Eliminar ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­tems anteriores
+            // Ajustar inventario por diferencias entre items previos y nuevos (solo productos)
+            $prevItems = $venta->items()->where('ventable_type', Producto::class)->get();
+            $prevCantidades = [];
+            foreach ($prevItems as $pi) {
+                $pid = (int) $pi->ventable_id;
+                $prevCantidades[$pid] = ($prevCantidades[$pid] ?? 0) + (int) $pi->cantidad;
+            }
+            $newCantidades = [];
+            foreach (($validated['productos'] ?? []) as $it) {
+                if (($it['tipo'] ?? '') === 'producto') {
+                    $pid = (int) $it['id'];
+                    $newCantidades[$pid] = ($newCantidades[$pid] ?? 0) + (int) $it['cantidad'];
+                }
+            }
+            $allIds = array_unique(array_merge(array_keys($prevCantidades), array_keys($newCantidades)));
+            foreach ($allIds as $pid) {
+                $prevQ = (int) ($prevCantidades[$pid] ?? 0);
+                $newQ = (int) ($newCantidades[$pid] ?? 0);
+                $delta = $newQ - $prevQ;
+                if ($delta !== 0) {
+                    $productoAdj = Producto::find($pid);
+                    if ($productoAdj) {
+                        if ($delta > 0) {
+                            $this->inventarioService->salida($productoAdj, $delta, [
+                                'almacen_id' => (int) $venta->almacen_id,
+                                'user_id' => (int) $request->user()->id,
+                                'referencia' => $venta,
+                                'motivo' => 'Ajuste por actualizacion de venta',
+                                'detalles' => [
+                                    'numero_venta' => $venta->numero_venta,
+                                ],
+                            ]);
+                        } else {
+                            $this->inventarioService->entrada($productoAdj, abs($delta), [
+                                'almacen_id' => (int) $venta->almacen_id,
+                                'user_id' => (int) $request->user()->id,
+                                'referencia' => $venta,
+                                'motivo' => 'Ajuste por actualizacion de venta',
+                                'detalles' => [
+                                    'numero_venta' => $venta->numero_venta,
+                                ],
+                            ]);
+                        }
+                    }
+                }
+            }
+
             $venta->items()->delete();
 
             // Guardar nuevos ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­tems
@@ -1019,13 +1088,18 @@ class VentaController extends Controller
                         } else {
                             // Si la venta no estaba pagada, devolver a reservas (esto requiere lÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³gica especial)
                             // Nota: El servicio actual no maneja reservas, esto necesitarÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­a extensiÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³n
-                            $producto->increment('reservado', $item->cantidad);
-                            Log::info("Reserva devuelta para producto {$producto->id} (venta no pagada cancelada)", [
+                            $this->inventarioService->entrada($producto, $item->cantidad, [
+                                'almacen_id' => (int) $venta->almacen_id,
+                                'motivo' => 'Cancelacion de venta no pagada',
+                                'referencia' => $venta,
+                                'detalles' => [
+                                    'venta_item_id' => $item->id,
+                                ],
+                            ]);
+                            Log::info("Stock devuelto para producto {$producto->id} (venta no pagada cancelada)", [
                                 'producto_id' => $producto->id,
                                 'venta_id' => $venta->id,
-                                'cantidad_devuelta' => $item->cantidad,
-                                'reservado_anterior' => $producto->reservado - $item->cantidad,
-                                'reservado_actual' => $producto->reservado
+                                'cantidad_devuelta' => $item->cantidad
                             ]);
                         }
 
@@ -1439,9 +1513,3 @@ class VentaController extends Controller
         }
     }
 }
-
-
-
-
-
-

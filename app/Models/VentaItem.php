@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Models\Venta;
 
 class VentaItem extends Model
 {
@@ -21,7 +23,7 @@ class VentaItem extends Model
 
     public function venta()
     {
-        return $this->morphTo('venta', 'ventable_type', 'ventable_id');
+        return $this->belongsTo(Venta::class, 'venta_id');
     }
 
     public function ventable()

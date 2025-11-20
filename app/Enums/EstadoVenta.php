@@ -10,8 +10,6 @@ enum EstadoVenta: string
     case Enviada = 'enviada';
     case Facturada = 'facturada';
     case Cancelada = 'cancelada';
-    case SinEstado = 'sin_estado';
-    case Facturado = 'facturado';
     case Pagado = 'pagado';
     case Vencido = 'vencido';
     case Anulado = 'anulado';
@@ -30,8 +28,6 @@ enum EstadoVenta: string
             self::Enviada => 'Enviada',
             self::Facturada => 'Facturada',
             self::Cancelada => 'Cancelada',
-            self::SinEstado => 'Sin Estado',
-            self::Facturado => 'Facturado',
             self::Pagado => 'Pagado',
             self::Vencido => 'Vencido',
             self::Anulado => 'Anulado',
@@ -52,8 +48,6 @@ enum EstadoVenta: string
             self::Enviada => 'purple',
             self::Facturada => 'green',
             self::Cancelada => 'red',
-            self::SinEstado => 'gray',
-            self::Facturado => 'green',
             self::Pagado => 'green',
             self::Vencido => 'red',
             self::Anulado => 'gray',

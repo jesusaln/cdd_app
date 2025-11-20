@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
+use Illuminate\Validation\ValidationException;
 
 class AjusteInventarioController extends Controller
 {
@@ -177,6 +178,57 @@ class AjusteInventarioController extends Controller
         $producto = Producto::findOrFail($request->producto_id);
         $cantidadAjuste = (int) $request->cantidad_ajuste;
 
+        // Validaciones previas para evitar 500 y devolver 422 con mensajes claros
+        $productoId = $request->producto_id;
+        $almacenId = $request->almacen_id;
+        $tipo = $request->tipo;
+
+        // Validar que no quede stock negativo
+        $inventarioPrev = Inventario::where('producto_id', $productoId)
+            ->where('almacen_id', $almacenId)
+            ->first();
+        $cantidadAnteriorPrev = $inventarioPrev ? $inventarioPrev->cantidad : 0;
+        $cantidadNuevaPrev = $tipo === 'incremento'
+            ? $cantidadAnteriorPrev + $cantidadAjuste
+            : $cantidadAnteriorPrev - $cantidadAjuste;
+        if ($cantidadNuevaPrev < 0) {
+            throw ValidationException::withMessages([
+                'cantidad_ajuste' => 'El ajuste resultaría en stock negativo. Stock actual: ' . $cantidadAnteriorPrev,
+            ]);
+        }
+
+        // Validar series si aplica
+        if ($producto->requiere_serie) {
+            $seriales = array_map(function ($s) {
+                return trim((string) $s);
+            }, (array) $request->input('seriales', []));
+
+            if ($tipo === 'incremento') {
+                $existentes = DB::table('producto_series')
+                    ->whereIn('numero_serie', $seriales)
+                    ->pluck('numero_serie')
+                    ->all();
+                if (!empty($existentes)) {
+                    throw ValidationException::withMessages([
+                        'seriales' => 'Los siguientes números de serie ya existen: ' . implode(', ', $existentes),
+                    ]);
+                }
+            } else {
+                $seriesEnStock = \App\Models\ProductoSerie::where('producto_id', $producto->id)
+                    ->whereIn('numero_serie', $seriales)
+                    ->where('estado', 'en_stock')
+                    ->where(function ($q) use ($almacenId) {
+                        $q->whereNull('almacen_id')->orWhere('almacen_id', $almacenId);
+                    })
+                    ->pluck('id');
+                if (count($seriales) !== $seriesEnStock->count()) {
+                    throw ValidationException::withMessages([
+                        'seriales' => 'Algunas series no existen o no están en stock para el producto y almacén seleccionados.',
+                    ]);
+                }
+            }
+        }
+
         // Si el producto requiere serie, validar seriales según tipo
         if ($producto->requiere_serie) {
             $rules = [
@@ -186,6 +238,7 @@ class AjusteInventarioController extends Controller
             $request->validate($rules);
         }
 
+        try {
         DB::transaction(function () use ($request, $producto, $cantidadAjuste) {
             $productoId = $request->producto_id;
             $almacenId = $request->almacen_id;
@@ -301,6 +354,11 @@ class AjusteInventarioController extends Controller
                 'cantidad_nueva' => $cantidadNueva,
             ]);
         });
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            return back()->withErrors(['seriales' => $e->getMessage()])->withInput();
+        }
 
         return redirect()->route('ajustes-inventario.index')->with('success', 'Ajuste de inventario realizado correctamente');
     }

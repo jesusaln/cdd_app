@@ -1,0 +1,120 @@
+
+        return Inertia::render('OrdenesCompra/Index', [
+            'ordenesCompra' => $ordenes,
+            'stats' => $stats,
+            'estadoLabels' => $estadoLabels,
+            'filterOptions' => $filterOptions,
+            'filters' => $request->only(['search', 'estado', 'prioridad', 'proveedor_id', 'fecha_desde', 'fecha_hasta']),
+            'sorting' => [
+                'sort_by' => $sortBy,
+                'sort_direction' => $sortDirection,
+                'allowed_sorts' => $allowedSorts,
+            ],
+            'pagination' => [
+                'current_page' => $ordenes->currentPage(),
+                'last_page' => $ordenes->lastPage(),
+                'per_page' => $perPage,
+                'total' => $ordenes->total(),
+                'from' => $ordenes->firstItem(),
+                'to' => $ordenes->lastItem(),
+            ],
+        ]);
+    }
+
+    /**
+     * Muestra el formulario para crear una nueva orden de compra.
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function create()
+    {
+        // Obtiene todos los proveedores, productos y almacenes para los selectores/búsquedas en el frontend
+        $proveedores = Proveedor::all();
+        $productos = Producto::all();
+        $almacenes = \App\Models\Almacen::all();
+
+        // Obtener el próximo número de orden
+        $proximoNumero = OrdenCompra::getProximoNumero();
+
+        // Renderiza la vista de creación de órdenes de compra con Inertia
+        return Inertia::render('OrdenesCompra/Create', [
+            'proveedores' => $proveedores,
+            'productos' => $productos,
+            'almacenes' => $almacenes,
+            'proximoNumero' => $proximoNumero,
+        ]);
+    }
+
+    /**
+     * Almacena una orden de compra recién creada en la base de datos.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function store(Request $request)
+    {
+        // Log de depuración
+        Log::info('OrdenCompraController@store - Datos recibidos:', $request->all());
+
+        // Inicia una transacción de base de datos para asegurar la integridad
+        DB::beginTransaction();
+        try {
+            // Preparar y normalizar datos antes de validar
+            $requestData = $request->all();
+            if (!array_key_exists('almacen_id', $requestData) || $requestData['almacen_id'] === '' || $requestData['almacen_id'] === 0 || $requestData['almacen_id'] === '0') {
+                $requestData['almacen_id'] = null;
+            }
+            // Mezclar de vuelta al request para que la validación use los valores normalizados
+            $request->merge($requestData);
+
+            // Valida los datos de entrada del formulario
+            $validatedData = $request->validate([
+                'numero_orden' => 'nullable|string',
+                'fecha_orden' => 'required|date',
+                'fecha_entrega_esperada' => 'nullable|date',
+                'prioridad' => 'required|in:baja,media,alta,urgente',
+                'proveedor_id' => 'required|exists:proveedores,id',
+                'almacen_id' => 'nullable|exists:almacenes,id',
+                'direccion_entrega' => 'nullable|string',
+                'terminos_pago' => 'required|in:contado,15_dias,30_dias,45_dias,60_dias,90_dias',
+                'metodo_pago' => 'required|in:transferencia,cheque,efectivo,tarjeta',
+                'subtotal' => 'required|numeric|min:0',
+                'descuento_items' => 'required|numeric|min:0',
+                'descuento_general' => 'required|numeric|min:0|max:100',
+                'iva' => 'required|numeric|min:0',
+                'total' => 'required|numeric|min:0',
+                'observaciones' => 'nullable|string',
+                'items' => 'required|array',
+                'items.*.id' => 'required|integer',
+                'items.*.tipo' => 'required|in:producto',
+                'items.*.cantidad' => 'required|integer|min:1',
+                'items.*.precio' => 'required|numeric|min:0',
+                'items.*.descuento' => 'required|numeric|min:0|max:100',
+            ]);
+
+            Log::info('OrdenCompraController@store - Datos validados:', $validatedData);
+
+            // Crea la nueva orden de compra en la tabla \u0027orden_compras\u0027
+            $data = [
+                'numero_orden' => ['numero_orden'] ?: null,
+                'fecha_orden' => ['fecha_orden'],
+                'fecha_entrega_esperada' => ['fecha_entrega_esperada'],
+                'prioridad' => ['prioridad'],
+                'proveedor_id' => ['proveedor_id'],
+                'direccion_entrega' => ['direccion_entrega'],
+                'terminos_pago' => ['terminos_pago'],
+                'metodo_pago' => ['metodo_pago'],
+                'subtotal' => ['subtotal'],
+                'descuento_items' => ['descuento_items'],
+                'descuento_general' => ['descuento_general'],
+                'iva' => ['iva'],
+                'total' => ['total'],
+                'observaciones' => ['observaciones'],
+                'estado' => 'pendiente',
+            ];
+            if (\\Illuminate\\Support\\Facades\\Schema::hasColumn('orden_compras', 'almacen_id')) {
+                ['almacen_id'] = ['almacen_id'];
+            }
+            $ordenCompra = OrdenCompra::create($data);
+
+
