@@ -53,7 +53,7 @@
         </div>
       </div>
 
-      <form @submit.prevent="submit" class="space-y-8">
+      <form @submit.prevent="submit" class="space-y-8" autocomplete="off">
         <!-- Información General -->
         <div class="border-b border-gray-200 pb-6">
           <h2 class="text-lg font-medium text-gray-900 mb-4">Información General</h2>
@@ -89,7 +89,7 @@
                  id="nombre_razon_social"
                  v-model="form.nombre_razon_social"
                  @blur="toUpper('nombre_razon_social')"
-                 autocomplete="off"
+                 autocomplete="new-password"
                  :class="[
                     'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                     form.errors.nombre_razon_social ? 'border-red-300 bg-red-50' : 'border-gray-300'
@@ -112,7 +112,9 @@
                id="email"
                v-model="form.email"
                @blur="normalizeEmail"
-               autocomplete="new-password"
+               autocomplete="off"
+               readonly
+               onfocus="this.removeAttribute('readonly');"
                placeholder="correo@ejemplo.com"
 
                :class="[
@@ -215,7 +217,7 @@
                 :value="form.rfc"
                 @input="onRfcInput"
                 :disabled="!form.tipo_persona || !form.requiere_factura"
-                autocomplete="off"
+                autocomplete="new-password"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.rfc ? 'border-red-300 bg-red-50' : 'border-gray-300',
@@ -249,7 +251,7 @@
                 :value="form.curp"
                 @input="onCurpInput"
                 :disabled="form.tipo_persona === 'moral' || !form.tipo_persona || !form.requiere_factura"
-                autocomplete="off"
+                autocomplete="new-password"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.curp ? 'border-red-300 bg-red-50' : 'border-gray-300',
@@ -408,6 +410,7 @@
               <select
                 id="colonia"
                 v-model="form.colonia"
+                @change="form.clearErrors('colonia')"
                 :disabled="availableColonias.length === 0 || !form.mostrar_direccion"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
@@ -500,7 +503,7 @@
                   :key="estado.value"
                   :value="estado.value"
                 >
-                  {{ estado.text || estado.label }}
+                  {{ estado.text }}
                 </option>
               </select>
               <div v-if="form.errors.estado" class="mt-2 text-sm text-red-600">
@@ -511,45 +514,27 @@
               </div>
             </div>
 
-            <div class="mb-4">
-              <label for="pais" class="block text-sm font-medium text-gray-700">
-                País
-              </label>
-              <input
-                type="text"
-                id="pais"
-                v-model="form.pais"
-                @blur="toUpper('pais')"
-                placeholder="MX (México por defecto)"
-                autocomplete="new-password"
-                :class="[
-                  'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
-                  form.errors.pais ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                ]"
-              />
-              <div v-if="form.errors.pais" class="mt-2 text-sm text-red-600">
-                {{ form.errors.pais }}
+              <div class="mb-4">
+                <label for="pais" class="block text-sm font-medium text-gray-700">
+                  País
+                </label>
+                <select
+                  id="pais"
+                  v-model="form.pais"
+                  class="mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border-gray-300"
+                >
+                  <option value="MX">México</option>
+                  <option value="USA">Estados Unidos</option>
+                  <option value="CAN">Canadá</option>
+                  <option value="">Otro</option>
+                </select>
+                <div v-if="form.errors.pais" class="mt-2 text-sm text-red-600">
+                  {{ form.errors.pais }}
+                </div>
+                <div class="mt-1 text-xs text-gray-500">
+                  México por defecto.
+                </div>
               </div>
-              <div class="mt-1 text-xs text-gray-500">
-                Código de país (2-3 letras). México por defecto, cambia para clientes extranjeros.
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Información de debug (remover en producción) -->
-        <div v-if="isDevelopment" class="bg-gray-50 p-4 rounded-md text-xs">
-          <h3 class="font-semibold mb-2">Debug Info:</h3>
-          <p>Formulario válido: {{ isFormValid }}</p>
-          <p>Campos requeridos llenos: {{ requiredFieldsFilled }}</p>
-          <p>Sin errores: {{ !hasGlobalErrors }}</p>
-          <div class="mt-2">
-            <strong>Valores actuales:</strong>
-            <ul class="ml-4 list-disc">
-              <li v-for="field in requiredFields" :key="field">
-                {{ field }}: "{{ form[field] }}" ({{ typeof form[field] }})
-              </li>
-            </ul>
           </div>
         </div>
 
@@ -599,6 +584,47 @@ const showSuccessMessage = ref(false)
 const isDevelopment = ref(import.meta.env?.DEV || false)
 const availableColonias = ref([])
 const showAutoCompleteMessage = ref(false)
+
+// Mapeo de nombres de estados a códigos SAT
+const estadoMapping = {
+  'Aguascalientes': 'AGU',
+  'Baja California': 'BCN',
+  'Baja California Sur': 'BCS',
+  'Campeche': 'CAM',
+  'Chiapas': 'CHP',
+  'Chihuahua': 'CHH',
+  'Ciudad de México': 'CMX',
+  'Coahuila': 'COA',
+  'Coahuila de Zaragoza': 'COA',
+  'Colima': 'COL',
+  'Durango': 'DUR',
+  'Estado de México': 'MEX',
+  'México': 'MEX',
+  'Guanajuato': 'GUA',
+  'Guerrero': 'GRO',
+  'Hidalgo': 'HID',
+  'Jalisco': 'JAL',
+  'Michoacán': 'MIC',
+  'Michoacán de Ocampo': 'MIC',
+  'Morelos': 'MOR',
+  'Nayarit': 'NAY',
+  'Nuevo León': 'NLE',
+  'Oaxaca': 'OAX',
+  'Puebla': 'PUE',
+  'Querétaro': 'QUE',
+  'Querétaro de Arteaga': 'QUE',
+  'Quintana Roo': 'ROO',
+  'San Luis Potosí': 'SLP',
+  'Sinaloa': 'SIN',
+  'Sonora': 'SON',
+  'Tabasco': 'TAB',
+  'Tamaulipas': 'TAM',
+  'Tlaxcala': 'TLA',
+  'Veracruz': 'VER',
+  'Veracruz de Ignacio de la Llave': 'VER',
+  'Yucatán': 'YUC',
+  'Zacatecas': 'ZAC'
+}
 
 // Estados se obtienen de la API, no necesitamos mapeo local
 
@@ -690,14 +716,14 @@ const estados = computed(() => {
   if (Array.isArray(props.catalogs?.estados) && props.catalogs.estados[0]?.clave) {
     return props.catalogs.estados.map(e => ({
       value: e.clave,               // <-- CLAVE SAT (3)
-      text: `${e.clave} — ${e.nombre}`
+      text: e.nombre                // <-- Solo nombre (ej. "Sonora")
     }))
   }
 
   // Si sólo tienes nombres, deriva la clave con estadoMapping:
   return Object.entries(estadoMapping).map(([nombre, clave]) => ({
     value: clave,                   // <-- CLAVE SAT (3)
-    text: `${clave} — ${nombre}`
+    text: nombre                    // <-- Solo nombre (ej. "Sonora")
   }))
 })
 
@@ -815,10 +841,11 @@ const onCpInput = async (event) => {
       const data = response.data
 
       // AUTOCOMPLETAR ESTADO Y MUNICIPIO
-      // Estado: usar clave SAT directamente si viene del API
+      // Estado: convertir nombre a código SAT
       if (data.estado) {
-        form.estado = data.estado // Ya viene como clave SAT (AGU, SON, etc.)
-        console.log('Estado autocompletado:', data.estado)
+        const estadoCodigo = estadoMapping[data.estado] || data.estado
+        form.estado = estadoCodigo
+        console.log('Estado autocompletado:', data.estado, '->', estadoCodigo)
       }
 
       // Municipio: autocompletar siempre

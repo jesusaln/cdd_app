@@ -37,7 +37,7 @@
         <p class="text-sm font-medium text-green-800">Cliente actualizado exitosamente</p>
       </div>
 
-      <form @submit.prevent="submit" class="space-y-8">
+      <form @submit.prevent="submit" class="space-y-8" autocomplete="off">
         <!-- Información General -->
         <div class="border-b border-gray-200 pb-6">
           <h2 class="text-lg font-medium text-gray-900 mb-4">Información General</h2>
@@ -73,7 +73,7 @@
                   id="nombre_razon_social"
                   v-model="form.nombre_razon_social"
                   @blur="toUpper('nombre_razon_social')"
-                  autocomplete="off"
+                  autocomplete="new-password"
                   :class="[
                     'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                     form.errors.nombre_razon_social ? 'border-red-300 bg-red-50' : 'border-gray-300'
@@ -97,7 +97,9 @@
                v-model="form.email"
                @blur="() => { normalizeEmail(); validateEmail(form.email); }"
                placeholder="correo@ejemplo.com"
-               autocomplete="new-password"
+               autocomplete="off"
+               readonly
+               onfocus="this.removeAttribute('readonly');"
                :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.email ? 'border-red-300 bg-red-50' : 'border-gray-300'
@@ -122,7 +124,7 @@
                 maxlength="10"
                 placeholder="10 dígitos (opcional)"
                 pattern="[0-9]{10}"
-                autocomplete="tel-national"
+                autocomplete="new-password"
                 :class="[
                    'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                    form.errors.telefono ? 'border-red-300 bg-red-50' : 'border-gray-300'
@@ -217,7 +219,7 @@
                 @input="onRfcInput"
                 @blur="() => { toUpper('rfc'); validateRfc(form.rfc, props.cliente.id) }"
                 :disabled="!form.tipo_persona"
-                autocomplete="off"
+                autocomplete="new-password"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.rfc ? 'border-red-300 bg-red-50' : 'border-gray-300',
@@ -246,7 +248,7 @@
                 :disabled="form.tipo_persona === 'moral'"
                 :maxlength="18"
                 :placeholder="form.tipo_persona === 'fisica' ? 'ABCD123456HMEFGH99' : 'Opcional'"
-                autocomplete="off"
+                autocomplete="new-password"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.curp ? 'border-red-300 bg-red-50' : 'border-gray-300',
@@ -337,7 +339,7 @@
                   id="calle"
                   v-model="form.calle"
                   @blur="toUpper('calle')"
-                  autocomplete="off"
+                  autocomplete="new-password"
                   :class="[
                     'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                     form.errors.calle ? 'border-red-300 bg-red-50' : 'border-gray-300'
@@ -359,7 +361,7 @@
                 id="numero_exterior"
                 v-model="form.numero_exterior"
                 @blur="toUpper('numero_exterior')"
-                autocomplete="off"
+                autocomplete="new-password"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.numero_exterior ? 'border-red-300 bg-red-50' : 'border-gray-300'
@@ -379,7 +381,7 @@
                 id="numero_interior"
                 v-model="form.numero_interior"
                 @blur="toUpper('numero_interior')"
-                autocomplete="off"
+                autocomplete="new-password"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.numero_interior ? 'border-red-300 bg-red-50' : 'border-gray-300'
@@ -398,6 +400,7 @@
               <select
                 id="colonia"
                 v-model="form.colonia"
+                @change="form.clearErrors('colonia')"
                 :disabled="availableColonias.length === 0"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
@@ -437,7 +440,7 @@
                 :value="form.codigo_postal"
                 @input="onCpInput"
                 placeholder="12345"
-                autocomplete="off"
+                autocomplete="new-password"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.codigo_postal ? 'border-red-300 bg-red-50' : 'border-gray-300'
@@ -457,7 +460,7 @@
                 type="text"
                 id="municipio"
                 v-model="form.municipio"
-                autocomplete="off"
+                autocomplete="new-password"
                 :class="[
                   'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
                   form.errors.municipio ? 'border-red-300 bg-red-50' : 'border-gray-300'
@@ -494,48 +497,30 @@
               </div>
             </div>
 
-            <div class="mb-4">
-              <label for="pais" class="block text-sm font-medium text-gray-700">
-                País
-              </label>
-              <input
-                type="text"
-                id="pais"
-                v-model="form.pais"
-                @blur="toUpper('pais')"
-                placeholder="MX (usa MEX sólo si tu backend lo admite)"
-                autocomplete="new-password"
-                :class="[
-                  'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
-                  form.errors.pais ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                ]"
-              />
-              <div v-if="form.errors.pais" class="mt-2 text-sm text-red-600">
-                {{ form.errors.pais }}
+              <div class="mb-4">
+                <label for="pais" class="block text-sm font-medium text-gray-700">
+                  País
+                </label>
+                <select
+                  id="pais"
+                  v-model="form.pais"
+                  class="mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border-gray-300"
+                >
+                  <option value="MX">México</option>
+                  <option value="USA">Estados Unidos</option>
+                  <option value="CAN">Canadá</option>
+                  <option value="">Otro</option>
+                </select>
+                <div v-if="form.errors.pais" class="mt-2 text-sm text-red-600">
+                  {{ form.errors.pais }}
+                </div>
+                <div class="mt-1 text-xs text-gray-500">
+                  México por defecto.
+                </div>
               </div>
-              <div class="mt-1 text-xs text-gray-500">
-                Código de país (2-3 letras). MX para México, USA para Estados Unidos, etc.
-              </div>
-            </div>
           </div>
         </div>
 
-        <!-- Información de debug (remover en producción) -->
-        <div v-if="isDevelopment" class="bg-gray-50 p-4 rounded-md text-xs">
-          <h3 class="font-semibold mb-2">Debug Info:</h3>
-          <p>Formulario válido: {{ isFormValid }}</p>
-          <p>Campos requeridos llenos: {{ requiredFieldsFilled }}</p>
-          <p>Sin errores: {{ !hasGlobalErrors }}</p>
-          <p>Datos modificados: {{ form.isDirty }}</p>
-          <div class="mt-2">
-            <strong>Valores actuales:</strong>
-            <ul class="ml-4 list-disc">
-              <li v-for="field in (Array.isArray(requiredFields) ? requiredFields : [])" :key="field">
-                {{ field }}: "{{ form[field] }}" ({{ typeof form[field] }})
-              </li>
-            </ul>
-          </div>
-        </div>
 
         <div class="flex justify-between space-x-4 pt-6 border-t border-gray-200">
           <div>
@@ -560,7 +545,7 @@
             </button>
             <button
               type="submit"
-              :disabled="form.processing || !isFormValid || !form.isDirty"
+              :disabled="form.processing || !isFormValid"
               class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <span v-if="form.processing" class="flex items-center">
@@ -766,14 +751,14 @@ const estados = computed(() => {
   if (Array.isArray(props.catalogs?.estados) && props.catalogs.estados[0]?.clave) {
     return props.catalogs.estados.map(e => ({
       value: e.clave,               // <-- CLAVE SAT (3)
-      text: `${e.clave} — ${e.nombre}`
+      text: e.nombre                // <-- Solo nombre (ej. "Sonora")
     }))
   }
 
   // Si sólo tienes nombres, deriva la clave con estadoMapping:
   return Object.entries(estadoMapping).map(([nombre, clave]) => ({
     value: clave,                   // <-- CLAVE SAT (3)
-    text: `${clave} — ${nombre}`
+    text: nombre                    // <-- Solo nombre (ej. "Sonora")
   }))
 })
 
@@ -911,9 +896,11 @@ const onCpInput = async (event) => {
       if (response.ok) {
         const data = await response.json()
 
-        // Estado: usar clave SAT directamente si viene del API
+        // Estado: convertir nombre a código SAT
         if (data.estado) {
-          form.estado = data.estado // Ya viene como clave SAT (AGU, SON, etc.)
+          const estadoCodigo = estadoMapping[data.estado] || data.estado
+          form.estado = estadoCodigo
+          console.log('Estado autocompletado:', data.estado, '->', estadoCodigo)
         }
 
         form.municipio = data.municipio

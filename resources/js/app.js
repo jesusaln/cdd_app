@@ -111,11 +111,13 @@ import {
   faHandshake,         // 👈 NUEVO (handshake)
   faChartLine,          // 👈 NUEVO (chart-line)
   faHistory,           // 👈 NUEVO (history)
-  faMoneyBillWave      // 👈 NUEVO (money-bill-wave)
+  faMoneyBillWave,      // 👈 NUEVO (money-bill-wave)
+  faCircle,             // 👈 NUEVO (circle)
+  faShieldAlt          // 👈 NUEVO (shield-alt)
 } from '@fortawesome/free-solid-svg-icons'
 // Agrega todos los íconos necesarios a la librería
 library.add(
-    faPaperPlane,
+  faPaperPlane,
   faChevronLeft, faChevronRight,
   faTachometerAlt, faChartBar,
   faUsers, faCalendarAlt,
@@ -141,13 +143,15 @@ library.add(
   faHandshake,         // handshake
   faChartLine,          // chart-line
   faHistory,           // history
-  faMoneyBillWave      // money-bill-wave
+  faMoneyBillWave,      // money-bill-wave
+  faCircle,             // circle
+  faShieldAlt          // shield-alt
 )
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel'
 // Mejor práctica: desactivar devtools en producción
 if (import.meta.env.PROD) {
   // @ts-ignore
-  window.__VUE_DEVTOOLS_GLOBAL_HOOK__ = { emit: () => {}, on: () => {}, once: () => {}, off: () => {}, Vue: null }
+  window.__VUE_DEVTOOLS_GLOBAL_HOOK__ = { emit: () => { }, on: () => { }, once: () => { }, off: () => { }, Vue: null }
 }
 createInertiaApp({
   title: (title) => `${title} - ${appName}`,
@@ -161,7 +165,7 @@ createInertiaApp({
       .component('font-awesome-icon', FontAwesomeIcon)
 
     // Hacer route disponible globalmente (configuración correcta para ziggy-js)
-    
+
 
     app.mount(el)
   },

@@ -305,7 +305,7 @@ const eliminarCliente = async () => {
     loading.value = true
 
     // Usar la ruta nombrada correcta para eliminar
-    router.delete(route('clientes.destroy', selectedId.value), {}, {
+    router.delete(route('clientes.destroy', selectedId.value), {
       onStart: () => {
         notyf.success('Eliminando cliente...')
       },
@@ -947,22 +947,72 @@ const isNumber = (n) => Number.isFinite(parseFloat(n))
                   </p>
                 </div>
               </div>
+
+              <!-- Dirección -->
+              <div class="pt-4 border-t border-gray-200">
+                <h4 class="text-sm font-semibold text-gray-900 mb-3 flex items-center">
+                  <svg class="w-4 h-4 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  Dirección
+                </h4>
+                
+                <div v-if="selectedCliente.calle || selectedCliente.colonia || selectedCliente.codigo_postal" class="bg-gray-50 rounded-lg p-4 space-y-2">
+                  <p class="text-sm text-gray-700">
+                    <strong class="text-gray-900">Calle:</strong> {{ selectedCliente.calle || 'N/A' }}
+                    <span v-if="selectedCliente.numero_exterior"> #{{ selectedCliente.numero_exterior }}</span>
+                    <span v-if="selectedCliente.numero_interior"> Int. {{ selectedCliente.numero_interior }}</span>
+                  </p>
+                  <p class="text-sm text-gray-700">
+                    <strong class="text-gray-900">Colonia:</strong> {{ selectedCliente.colonia || 'N/A' }}
+                  </p>
+                  <p class="text-sm text-gray-700">
+                    <strong class="text-gray-900">CP:</strong> {{ selectedCliente.codigo_postal || 'N/A' }}
+                  </p>
+                  <p class="text-sm text-gray-700">
+                    <strong class="text-gray-900">Municipio:</strong> {{ selectedCliente.municipio || 'N/A' }}
+                  </p>
+                  <p class="text-sm text-gray-700">
+                    <strong class="text-gray-900">Estado:</strong> {{ selectedCliente.estado || 'N/A' }}
+                  </p>
+                  <p class="text-sm text-gray-700">
+                    <strong class="text-gray-900">País:</strong> {{ selectedCliente.pais || 'MX' }}
+                  </p>
+                </div>
+                
+                <div v-else class="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start">
+                  <svg class="w-5 h-5 text-amber-600 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div>
+                    <p class="text-sm font-medium text-amber-900">Sin dirección registrada</p>
+                    <p class="text-xs text-amber-700 mt-1">Este cliente no tiene información de dirección.</p>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- Botones de acción -->
-            <div class="flex flex-wrap justify-end gap-2 mt-6">
+            <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
               <button
-                @click="editarFila"
-                class="px-3 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm"
+                @click="onClose"
+                class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/50 focus:ring-offset-1"
               >
-                ✏️ Editar
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Cerrar
               </button>
 
               <button
-                @click="onClose"
-                class="px-3 py-2 bg-gray-300 rounded-lg hover:bg-gray-400 transition-colors text-sm"
+                @click="editarFila"
+                class="inline-flex items-center px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-1"
               >
-                Cerrar
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Editar Cliente
               </button>
             </div>
           </div>
