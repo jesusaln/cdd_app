@@ -256,7 +256,7 @@
 
   <script setup>
   import { Head, Link, router } from '@inertiajs/vue3';
-  import { ref, defineProps } from 'vue';
+  import { ref } from 'vue';
   import { Notyf } from 'notyf';
   import 'notyf/notyf.min.css';
 

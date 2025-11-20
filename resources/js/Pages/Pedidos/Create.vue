@@ -275,8 +275,23 @@ const clientesList = ref([...props.clientes]);
 // Catalogs para el modal
 const catalogs = computed(() => props.catalogs);
 
-// Número de pedido fijo
-const numeroPedidoFijo = 'P0001';
+// Número de pedido (se obtiene del backend)
+const numeroPedidoFijo = ref('P0001');
+
+// Obtener el siguiente número de pedido del backend
+const fetchNextNumeroPedido = async () => {
+  try {
+    const response = await axios.get('/pedidos/siguiente-numero');
+    if (response.data && response.data.siguiente_numero) {
+      numeroPedidoFijo.value = response.data.siguiente_numero;
+      form.numero_pedido = response.data.siguiente_numero;
+    }
+  } catch (error) {
+    console.error('Error al obtener el número de pedido:', error);
+    numeroPedidoFijo.value = 'P0001';
+    form.numero_pedido = 'P0001';
+  }
+};
 
 // Obtener fecha actual en formato YYYY-MM-DD (zona horaria local)
 const getCurrentDate = () => {
@@ -289,7 +304,7 @@ const getCurrentDate = () => {
 
 // Formulario
 const form = useForm({
-  numero_pedido: numeroPedidoFijo,
+  numero_pedido: numeroPedidoFijo.value || 'P0001',
   fecha_pedido: getCurrentDate(),
   cliente_id: '',
   subtotal: 0,
@@ -408,13 +423,16 @@ const agregarProducto = (item) => {
     const key = `${item.tipo}-${item.id}`;
     quantities.value[key] = 1;
 
-    // Validar precios con fallbacks seguros
+    // Validar precios con fallbacks seguros - usar parseFloat para manejar strings y numbers
     let precio = 0;
     if (item.tipo === 'producto') {
-      precio = typeof item.precio_venta === 'number' ? item.precio_venta : 0;
+      precio = parseFloat(item.precio_venta) || 0;
     } else {
-      precio = typeof item.precio === 'number' ? item.precio : 0;
+      precio = parseFloat(item.precio) || 0;
     }
+
+    // Debug: mostrar precio en consola
+    console.log('🔍 Pedido - Agregando:', item.nombre || item.descripcion, '- Precio:', precio, '- Tipo:', item.tipo, '- Precio raw:', item.precio || item.precio_venta);
 
     prices.value[key] = precio;
     discounts.value[key] = 0;
@@ -537,7 +555,7 @@ const validarDatos = () => {
 };
 
 // En el script
-const limpiarFormulario = () => {
+const limpiarFormulario = async () => {
   // Limpiar cliente
   clienteSeleccionado.value = null;
   form.cliente_id = '';
@@ -553,8 +571,8 @@ const limpiarFormulario = () => {
   // Limpiar notas
   form.notas = '';
 
-  // Restablecer número y fecha fijos
-  form.numero_pedido = numeroPedidoFijo;
+  // Obtener nuevo número de pedido
+  await fetchNextNumeroPedido();
   form.fecha_pedido = getCurrentDate();
 
   // Limpiar localStorage si es necesario
@@ -632,7 +650,7 @@ const handleBeforeUnload = (event) => {
 // Guardar estado automáticamente
 const saveState = () => {
   const stateToSave = {
-    numero_pedido: numeroPedidoFijo,
+    numero_pedido: numeroPedidoFijo.value,
     fecha_pedido: form.fecha_pedido,
     cliente_id: form.cliente_id,
     cliente: clienteSeleccionado.value,
@@ -653,15 +671,15 @@ const asegurarFechaActual = () => {
 };
 
 // Lifecycle hooks
-onMounted(() => {
-  // Mostrar información sobre el número de pedido fijo
-  showNotification(`Número de pedido fijo: ${numeroPedidoFijo}`, 'info');
+onMounted(async () => {
+  // Obtener el siguiente número de pedido
+  await fetchNextNumeroPedido();
 
   const savedData = loadFromLocalStorage('pedidoEnProgreso');
   if (savedData && typeof savedData === 'object') {
     try {
-      // Siempre usar número y fecha fijos
-      form.numero_pedido = numeroPedidoFijo;
+      // Usar número guardado o el generado automáticamente
+      form.numero_pedido = savedData.numero_pedido || numeroPedidoFijo.value;
       form.fecha_pedido = getCurrentDate(); // Siempre usar fecha actual
 
       form.cliente_id = savedData.cliente_id || '';

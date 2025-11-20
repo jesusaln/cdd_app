@@ -114,7 +114,7 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits } from 'vue';
+import { computed } from 'vue';
 
 const props = defineProps({
   showMarginCalculator: Boolean,

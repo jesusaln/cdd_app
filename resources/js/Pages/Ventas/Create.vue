@@ -512,15 +512,15 @@ const removeFromLocalStorage = (key) => {
 // Obtener el siguiente número de venta del backend
 const fetchNextNumeroVenta = async () => {
   try {
-    const response = await axios.get('/api/ventas/next-numero-venta');
-    if (response.data && response.data.numero_venta) {
-      numeroVentaFijo.value = response.data.numero_venta;
-      form.numero_venta = response.data.numero_venta;
-      showNotification(`Número de venta generado: ${response.data.numero_venta}`, 'info');
+    const response = await axios.get('/ventas/siguiente-numero');
+    if (response.data && response.data.siguiente_numero) {
+      numeroVentaFijo.value = response.data.siguiente_numero;
+      form.numero_venta = response.data.siguiente_numero;
     }
   } catch (error) {
     console.error('Error al obtener el número de venta:', error);
-    showNotification('Error al generar el número de venta', 'error');
+   numeroVentaFijo.value = 'V0001';
+    form.numero_venta = 'V0001';
   }
 };
 
@@ -663,12 +663,12 @@ const agregarProducto = (item) => {
     const key = `${item.tipo}-${item.id}`;
     quantities.value[key] = 1;
 
-    // Validar precios con fallbacks seguros
+    // Validar precios con fallbacks seguros - usar parseFloat para manejar strings y numbers
     let precio = 0;
     if (item.tipo === 'producto') {
-      precio = typeof item.precio_venta === 'number' ? item.precio_venta : 0;
+      precio = parseFloat(item.precio_venta) || 0;
     } else {
-      precio = typeof item.precio === 'number' ? item.precio : 0;
+      precio = parseFloat(item.precio) || 0;
     }
 
     prices.value[key] = precio;

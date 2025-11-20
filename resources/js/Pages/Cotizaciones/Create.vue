@@ -479,12 +479,12 @@ const agregarProducto = (item) => {
     const key = `${item.tipo}-${item.id}`;
     quantities.value[key] = 1;
 
-    // Validar precios con fallbacks seguros
+    // Validar precios con fallbacks seguros - usar parseFloat para manejar strings y numbers
     let precio = 0;
     if (item.tipo === 'producto') {
-      precio = typeof item.precio_venta === 'number' ? item.precio_venta : 0;
+      precio = parseFloat(item.precio_venta) || 0;
     } else {
-      precio = typeof item.precio === 'number' ? item.precio : 0;
+      precio = parseFloat(item.precio) || 0;
     }
 
     prices.value[key] = precio;

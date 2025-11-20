@@ -111,6 +111,9 @@
                 Estado
               </th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                Estado Garantía
+              </th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Acciones
               </th>
             </tr>
@@ -164,15 +167,32 @@
                   {{ serie.estado_serie === 'vendido' ? 'Vendido' : 'En Stock' }}
                 </span>
               </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <span v-if="serie.cita_id" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800">
+                  📅 Enviada a Cita #{{ serie.cita_id }}
+                </span>
+                <span v-else class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-600">
+                  Pendiente
+                </span>
+              </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                 <div class="flex gap-2">
                   <button
+                    v-if="!serie.cita_id"
                     @click="crearCitaGarantia(serie.producto_serie_id)"
                     class="text-orange-600 hover:text-orange-900 dark:text-orange-400 dark:hover:text-orange-300"
                     title="Crear cita de garantía"
                   >
                     📅 Crear Cita
                   </button>
+                  <Link
+                    v-if="serie.cita_id"
+                    :href="route('citas.edit', serie.cita_id)"
+                    class="text-orange-600 hover:text-orange-900 dark:text-orange-400 dark:hover:text-orange-300"
+                    title="Ver cita asociada"
+                  >
+                    👁️ Ver Cita #{{ serie.cita_id }}
+                  </Link>
                   <Link
                     :href="route('ventas.show', serie.venta_id)"
                     class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
@@ -252,11 +272,18 @@ const crearCitaGarantia = async (serieId) => {
 
     const data = await response.json()
 
-    if (data.success) {
+    if (response.ok && data.success) {
       // Redirigir a la página de creación de cita con los parámetros
       window.location.href = data.url
     } else {
-      alert('Error: ' + (data.error || 'No se pudo crear la cita'))
+      // Mostrar mensaje de error
+      const mensaje = data.mensaje || data.error || 'No se pudo crear la cita'
+      alert(mensaje)
+      
+      // Si ya existe una cita, recargar la página para actualizar el estado
+      if (data.cita_id) {
+        window.location.reload()
+      }
     }
   } catch (error) {
     console.error('Error al crear cita de garantía:', error)

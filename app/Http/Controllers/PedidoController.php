@@ -1194,9 +1194,33 @@ class PedidoController extends Controller
      */
     private function generarNumeroPedido()
     {
-        $ultimo = Pedido::orderBy('id', 'desc')->first();
-        $numero = $ultimo ? $ultimo->id + 1 : 1;
-        return 'PED-' . date('Ymd') . '-' . str_pad($numero, 5, '0', STR_PAD_LEFT);
+        // Buscar el último número de pedido existente
+        $ultimoPedido = Pedido::where('numero_pedido', 'LIKE', 'P%')
+            ->orderBy('id', 'desc')
+            ->first();
+
+        if (!$ultimoPedido || !$ultimoPedido->numero_pedido) {
+            return 'P0001';
+        }
+
+        // Extraer el número del pedido
+        $matches = [];
+        if (preg_match('/P(\d+)$/', $ultimoPedido->numero_pedido, $matches)) {
+            $ultimoNumero = (int) $matches[1];
+            $siguienteNumero = $ultimoNumero + 1;
+            $nuevoNumero = 'P' . str_pad($siguienteNumero, 4, '0', STR_PAD_LEFT);
+
+            // Verificar que no exista ya (evitar colisiones)
+            while (Pedido::where('numero_pedido', $nuevoNumero)->exists()) {
+                $siguienteNumero++;
+                $nuevoNumero = 'P' . str_pad($siguienteNumero, 4, '0', STR_PAD_LEFT);
+            }
+
+            return $nuevoNumero;
+        }
+
+        // Si no se puede extraer el número, empezar desde P0001
+        return 'P0001';
     }
 
     /**
@@ -1428,5 +1452,14 @@ class PedidoController extends Controller
 
             return redirect()->back()->with('error', 'Error al generar el ticket térmico del pedido');
         }
+    }
+
+    /**
+     * Obtener el siguiente número de pedido disponible
+     */
+    public function obtenerSiguienteNumero()
+    {
+        $siguienteNumero = $this->generarNumeroPedido();
+        return response()->json(['siguiente_numero' => $siguienteNumero]);
     }
 }

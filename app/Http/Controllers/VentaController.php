@@ -1524,4 +1524,13 @@ class VentaController extends Controller
             throw $e; // Re-lanzar para que se maneje en el método padre
         }
     }
+
+    /**
+     * Obtener el siguiente número de venta disponible
+     */
+    public function obtenerSiguienteNumero()
+    {
+        $siguienteNumero = $this->generarNumeroVenta();
+        return response()->json(['siguiente_numero' => $siguienteNumero]);
+    }
 }

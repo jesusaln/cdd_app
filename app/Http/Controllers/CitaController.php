@@ -80,9 +80,11 @@ class CitaController extends Controller
                 $query->orderByRaw("
                     CASE
                         WHEN estado = 'en_proceso' THEN 1
-                        WHEN estado = 'pendiente' THEN 2
-                        WHEN estado = 'completado' THEN 3
-                        WHEN estado = 'cancelado' THEN 4
+                        WHEN estado = 'programado' THEN 2
+                        WHEN estado = 'pendiente' THEN 3
+                        WHEN estado = 'reprogramado' THEN 4
+                        WHEN estado = 'completado' THEN 5
+                        WHEN estado = 'cancelado' THEN 6
                         ELSE 999
                     END ASC
                 ")->orderBy('fecha_hora', 'asc');
@@ -112,9 +114,11 @@ class CitaController extends Controller
             $clientes = Cliente::select('id', 'nombre_razon_social')->get();
             $estados = [
                 Cita::ESTADO_PENDIENTE => 'Pendiente',
+                Cita::ESTADO_PROGRAMADO => 'Programado',
                 Cita::ESTADO_EN_PROCESO => 'En Proceso',
                 Cita::ESTADO_COMPLETADO => 'Completado',
                 Cita::ESTADO_CANCELADO => 'Cancelado',
+                Cita::ESTADO_REPROGRAMADO => 'Reprogramado',
             ];
 
             return Inertia::render('Citas/Index', [
@@ -189,6 +193,14 @@ class CitaController extends Controller
       */
     public function store(Request $request)
     {
+        // Parse items if it's a JSON string
+        if ($request->has('items') && is_string($request->input('items'))) {
+            $items = json_decode($request->input('items'), true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $request->merge(['items' => $items]);
+            }
+        }
+        
         // Validar los datos recibidos con mejoras
         $validated = $request->validate([
             'tecnico_id' => 'required|exists:tecnicos,id',
@@ -210,7 +222,7 @@ class CitaController extends Controller
             ],
             'prioridad' => 'nullable|string|in:,baja,media,alta,urgente',
             'descripcion' => 'nullable|string|max:1000',
-            'estado' => 'required|string|in:pendiente,en_proceso,completado,cancelado',
+            'estado' => 'required|string|in:pendiente,programado,en_proceso,completado,cancelado,reprogramado',
             'evidencias' => 'nullable|string|max:2000',
             'foto_equipo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'foto_hoja_servicio' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
@@ -224,10 +236,11 @@ class CitaController extends Controller
             'items.*.id' => 'required|integer|min:1',
             'items.*.tipo' => 'required|in:producto,servicio',
             'items.*.cantidad' => 'required|integer|min:1',
-            'items.*.precio' => 'required|numeric|min:0.01',
+            'items.*.precio' => 'required|numeric|min:0',
             'items.*.descuento' => 'required|numeric|min:0|max:100',
             'descuento_general' => 'nullable|numeric|min:0|max:100',
             'notas' => 'nullable|string|max:1000',
+            'producto_serie_id' => 'nullable|integer|exists:producto_series,id',
         ], [
             'tecnico_id.required' => 'Debe seleccionar un técnico.',
             'cliente_id.required' => 'Debe seleccionar un cliente.',
@@ -346,6 +359,35 @@ class CitaController extends Controller
                 }
             }
 
+            // Si viene de una garantía, asociar la serie con la cita
+            if ($request->filled('producto_serie_id')) {
+                $productoSerieId = $request->input('producto_serie_id');
+                
+                // Verificar que la serie no esté ya asociada a otra cita
+                $serieExistente = DB::table('producto_series')
+                    ->where('id', $productoSerieId)
+                    ->whereNotNull('cita_id')
+                    ->first();
+                
+                if ($serieExistente) {
+                    DB::rollBack();
+                    return redirect()
+                        ->back()
+                        ->withInput()
+                        ->with('error', 'Esta serie de garantía ya tiene una cita asociada (Cita #' . $serieExistente->cita_id . '). No se pueden crear múltiples citas para la misma garantía.');
+                }
+                
+                // Actualizar el producto_serie con el cita_id
+                DB::table('producto_series')
+                    ->where('id', $productoSerieId)
+                    ->update(['cita_id' => $cita->id]);
+                
+                Log::info("Serie de garantía asociada a cita", [
+                    'cita_id' => $cita->id,
+                    'producto_serie_id' => $productoSerieId
+                ]);
+            }
+
             DB::commit();
 
             return redirect()->route('citas.index')->with('success', 'Cita creada exitosamente.');
@@ -408,7 +450,7 @@ class CitaController extends Controller
             ],
             'prioridad' => 'nullable|string|in:baja,media,alta,urgente',
             'descripcion' => 'nullable|string|max:1000',
-            'estado' => 'sometimes|required|string|in:pendiente,en_proceso,completado,cancelado',
+            'estado' => 'sometimes|required|string|in:pendiente,programado,en_proceso,completado,cancelado,reprogramado',
             'evidencias' => 'nullable|string|max:2000',
             'foto_equipo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
             'foto_hoja_servicio' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',

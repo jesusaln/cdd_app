@@ -93,7 +93,7 @@
 </template>
 
 <script setup>
-import { ref, defineProps, defineEmits } from 'vue'
+import { ref, defineProps } from 'vue'
 import { router } from '@inertiajs/vue3'
 
 // Props

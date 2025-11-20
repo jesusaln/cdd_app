@@ -223,11 +223,19 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::resource('ajustes-inventario', AjusteInventarioController::class)->names('ajustes-inventario')->middleware('role:admin|editor');
     Route::resource('movimientos-manuales', MovimientoManualController::class)->names('movimientos-manuales')->middleware('role:admin|editor');
 
-    // Rutas espec�ficas de cotizaciones antes del resource para evitar conflictos
+    // Rutas especficas de cotizaciones antes del resource para evitar conflictos
     Route::get('/cotizaciones/siguiente-numero', [CotizacionController::class, 'obtenerSiguienteNumero'])->name('cotizaciones.siguiente-numero')->middleware('role:ventas|admin');
 
     Route::resource('cotizaciones', CotizacionController::class)->names('cotizaciones')->where(['cotizaciones' => '[0-9]+'])->middleware('role:ventas|admin');
+    
+    // Rutas específicas de pedidos antes del resource
+    Route::get('/pedidos/siguiente-numero', [PedidoController::class, 'obtenerSiguienteNumero'])->name('pedidos.siguiente-numero')->middleware('role:ventas|admin');
+    
     Route::resource('pedidos', PedidoController::class)->names('pedidos')->middleware('role:ventas|admin');
+    
+    // Rutas específicas de ventas antes del resource
+    Route::get('/ventas/siguiente-numero', [VentaController::class, 'obtenerSiguienteNumero'])->name('ventas.siguiente-numero')->middleware('role:ventas|admin');
+    
     Route::resource('ventas', VentaController::class)->names('ventas')->middleware('role:ventas|admin');
 
     // =====================================================

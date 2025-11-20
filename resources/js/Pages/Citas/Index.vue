@@ -83,12 +83,14 @@ const estadisticas = computed(() => ({
 const citasDocumentos = computed(() => {
   let citas = [...citasData.value];
 
-  // Ordenar por estado: En proceso -> Pendientes -> Completadas -> Canceladas
+  // Ordenar por estado: En proceso -> Programado -> Pendientes -> Reprogramado -> Completadas -> Canceladas
   const ordenEstados = {
     'en_proceso': 1,
-    'pendiente': 2,
-    'completado': 3,
-    'cancelado': 4
+    'programado': 2,
+    'pendiente': 3,
+    'reprogramado': 4,
+    'completado': 5,
+    'cancelado': 6
   };
 
   citas.sort((a, b) => {
@@ -263,9 +265,11 @@ const formatearHora = (date) => {
 const obtenerEstadoCitaClase = (estado) => {
   const clases = {
     'pendiente': 'bg-yellow-100 text-yellow-700',
-    'en_proceso': 'bg-blue-100 text-blue-700',
+    'programado': 'bg-blue-100 text-blue-700',
+    'en_proceso': 'bg-indigo-100 text-indigo-700',
     'completado': 'bg-green-100 text-green-700',
-    'cancelado': 'bg-red-100 text-red-700'
+    'cancelado': 'bg-red-100 text-red-700',
+    'reprogramado': 'bg-purple-100 text-purple-700'
   }
   return clases[estado] || 'bg-gray-100 text-gray-700'
 }
@@ -273,9 +277,11 @@ const obtenerEstadoCitaClase = (estado) => {
 const obtenerEstadoCitaLabel = (estado) => {
   const labels = {
     'pendiente': 'Pendiente',
+    'programado': 'Programado',
     'en_proceso': 'En Proceso',
     'completado': 'Completado',
-    'cancelado': 'Cancelado'
+    'cancelado': 'Cancelado',
+    'reprogramado': 'Reprogramado'
   }
   return labels[estado] || 'Desconocido'
 }

@@ -24,6 +24,7 @@ class GarantiaController extends Controller
                     'ps.id as producto_serie_id',
                     'ps.numero_serie',
                     'ps.estado as estado_serie',
+                    'ps.cita_id',
                     'p.id as producto_id',
                     'p.nombre as producto_nombre',
                     'v.id as venta_id',
@@ -56,6 +57,7 @@ class GarantiaController extends Controller
                 'ps.numero_serie',
                 'ps.estado as estado_serie',
                 'ps.created_at as serie_creada',
+                'ps.cita_id',
                 'p.id as producto_id',
                 'p.nombre as producto_nombre',
                 'p.codigo as producto_codigo',
@@ -133,7 +135,9 @@ class GarantiaController extends Controller
                 ->join('productos as p', 'p.id', '=', 'ps.producto_id')
                 ->where('ps.id', $serieId)
                 ->select(
+                    'ps.id as producto_serie_id',
                     'ps.numero_serie',
+                    'ps.cita_id',
                     'p.nombre as producto_nombre',
                     'c.id as cliente_id',
                     'c.nombre_razon_social as cliente_nombre',
@@ -151,6 +155,15 @@ class GarantiaController extends Controller
 
             if (!$serieInfo) {
                 return response()->json(['error' => 'Serie no encontrada'], 404);
+            }
+            
+            // Verificar si ya existe una cita para esta serie
+            if ($serieInfo->cita_id) {
+                return response()->json([
+                    'error' => 'Esta serie ya tiene una cita asociada',
+                    'cita_id' => $serieInfo->cita_id,
+                    'mensaje' => 'Esta garantía ya tiene una cita creada (Cita #' . $serieInfo->cita_id . '). No se pueden crear múltiples citas para la misma garantía.'
+                ], 400);
             }
 
             // Construir dirección completa
@@ -174,7 +187,7 @@ class GarantiaController extends Controller
                 'descripcion' => $descripcion,
                 'direccion' => $direccion,
                 'tipo_servicio' => 'garantia',
-                'tipo_equipo' => 'boiler' // Asumiendo que es boiler según el contexto
+                'producto_serie_id' => $serieId,
             ];
 
             $queryString = http_build_query($params);

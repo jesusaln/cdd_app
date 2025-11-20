@@ -13,9 +13,11 @@ class Cita extends Model
 
     // Constantes para estados
     const ESTADO_PENDIENTE = 'pendiente';
+    const ESTADO_PROGRAMADO = 'programado';
     const ESTADO_EN_PROCESO = 'en_proceso';
     const ESTADO_COMPLETADO = 'completado';
     const ESTADO_CANCELADO = 'cancelado';
+    const ESTADO_REPROGRAMADO = 'reprogramado';
 
     // Constantes para prioridades
     const PRIORIDAD_BAJA = 'baja';
@@ -119,9 +121,11 @@ class Cita extends Model
     {
         return match($this->estado) {
             self::ESTADO_PENDIENTE => 'yellow',
-            self::ESTADO_EN_PROCESO => 'blue',
+            self::ESTADO_PROGRAMADO => 'blue',
+            self::ESTADO_EN_PROCESO => 'indigo',
             self::ESTADO_COMPLETADO => 'green',
             self::ESTADO_CANCELADO => 'red',
+            self::ESTADO_REPROGRAMADO => 'purple',
             default => 'gray',
         };
     }
@@ -281,10 +285,12 @@ class Cita extends Model
     public function getSiguientesEstadosValidos(): array
     {
         return match($this->estado) {
-            self::ESTADO_PENDIENTE => [self::ESTADO_EN_PROCESO, self::ESTADO_CANCELADO],
+            self::ESTADO_PENDIENTE => [self::ESTADO_PROGRAMADO, self::ESTADO_EN_PROCESO, self::ESTADO_CANCELADO],
+            self::ESTADO_PROGRAMADO => [self::ESTADO_EN_PROCESO, self::ESTADO_REPROGRAMADO, self::ESTADO_CANCELADO],
             self::ESTADO_EN_PROCESO => [self::ESTADO_COMPLETADO, self::ESTADO_CANCELADO],
             self::ESTADO_COMPLETADO => [], // No se puede cambiar de completado
             self::ESTADO_CANCELADO => [self::ESTADO_PENDIENTE], // Solo se puede reactivar
+            self::ESTADO_REPROGRAMADO => [self::ESTADO_PROGRAMADO, self::ESTADO_EN_PROCESO, self::ESTADO_CANCELADO],
             default => []
         };
     }
