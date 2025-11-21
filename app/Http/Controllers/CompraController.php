@@ -27,7 +27,8 @@ class CompraController extends Controller
 
     public function index(Request $request)
     {
-        $perPage = (int) ($request->integer('per_page') ?: 10);
+        try {
+            $perPage = (int) ($request->integer('per_page') ?: 10);
         $page    = max(1, (int) $request->get('page', 1));
 
         // Validar elementos por p�gina
@@ -192,8 +193,8 @@ class CompraController extends Controller
         // Estad�sticas para el dashboard
         $stats = [
             'total' => Compra::count(),
-            'procesadas' => Compra::where('estado', EstadoCompra::Procesada)->count(),
-            'canceladas' => Compra::where('estado', EstadoCompra::Cancelada)->count(),
+            'procesadas' => Compra::where('estado', 'procesada')->count(),
+            'canceladas' => Compra::where('estado', 'cancelada')->count(),
             'con_orden_compra' => Compra::whereNotNull('orden_compra_id')->count(),
             'directas' => Compra::whereNull('orden_compra_id')->count(),
         ];
@@ -245,6 +246,10 @@ class CompraController extends Controller
             ],
             'is_admin' => auth()->check() && auth()->user()->hasRole('admin'),
         ]);
+        } catch (\Exception $e) {
+            \Log::error('Error en CompraController@index: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al cargar la lista de compras.');
+        }
     }
 
     public function create()

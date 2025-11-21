@@ -34,7 +34,7 @@ class Compra extends Model
     ];
 
     protected $casts = [
-        'estado' => EstadoCompra::class,
+        'estado' => 'string',
         'subtotal' => 'decimal:2',
         'descuento_general' => 'decimal:2',
         'descuento_items' => 'decimal:2',

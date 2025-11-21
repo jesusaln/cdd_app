@@ -208,7 +208,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
         Route::put('/{producto}/toggle', [ProductoController::class, 'toggle'])->name('toggle');
     });
     Route::get('productos/{id}/stock-detalle', [ProductoController::class, 'getStockDetalle'])->name('productos.stock-detalle');
-    Route::resource('proveedores', ProveedorController::class)->names('proveedores')->middleware('role:admin|editor');
+    Route::resource('proveedores', ProveedorController::class)->names('proveedores')->middleware('role:ventas|admin|editor');
     Route::resource('categorias', CategoriaController::class)->names('categorias')->middleware('role:admin|editor');
     Route::put('/categorias/{categoria}/toggle', [CategoriaController::class, 'toggle'])->name('categorias.toggle')->middleware('role:admin|editor');
     Route::get('/categorias/export', [CategoriaController::class, 'export'])->name('categorias.export')->middleware('role:admin|editor');
@@ -262,7 +262,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
         ->name('compras.siguiente-numero')
         ->middleware('role:admin|editor');
     
-    Route::resource('compras', CompraController::class)->names('compras')->middleware('role:admin|editor');
+    Route::resource('compras', CompraController::class)->names('compras')->middleware('role:ventas|admin|editor');
     Route::post('/compras/{id}/cancel', [CompraController::class, 'cancel'])->name('compras.cancel')->middleware('role:admin|editor');
     Route::delete('/compras/{id}/force', [CompraController::class, 'forceDestroy'])->name('compras.force-destroy')->middleware('role:admin|editor');
     Route::resource('cuentas-por-pagar', \App\Http\Controllers\CuentasPorPagarController::class)->names('cuentas-por-pagar')->middleware('role:admin|editor');

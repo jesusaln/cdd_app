@@ -49,6 +49,7 @@ class AppServiceProvider extends ServiceProvider
             'pago_prestamo' => \App\Models\PagoPrestamo::class,
             'historial_pago_prestamo' => \App\Models\HistorialPagoPrestamo::class,
             'venta' => \App\Models\Venta::class,
+            'compra' => \App\Models\Compra::class,
             // Nota: Para modelos de terceros como User/Tecnico usados por spatie/permission,
             // no definimos alias cortos para no romper pivotes existentes
 
@@ -62,6 +63,7 @@ class AppServiceProvider extends ServiceProvider
             'App\\Models\\PagoPrestamo' => \App\Models\PagoPrestamo::class,
             'App\\Models\\HistorialPagoPrestamo' => \App\Models\HistorialPagoPrestamo::class,
             'App\\Models\\Venta' => \App\Models\Venta::class,
+            'App\\Models\\Compra' => \App\Models\Compra::class,
         ]);
     }
 }

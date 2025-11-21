@@ -417,14 +417,42 @@ const filteredVendidas = computed(() => {
   return q ? list.filter(s => (s.numero_serie || '').toLowerCase().includes(q)) : list
 })
 
-const pagedEnStock = computed(() => {
-  const start = (seriesPage.value.enStock - 1) * seriesPerPage.value.enStock
-  return filteredEnStock.value.slice(start, start + seriesPerPage.value.enStock)
+// Agrupar series en stock por almacén
+const seriesEnStockPorAlmacen = computed(() => {
+  const series = filteredEnStock.value
+  const grupos = {}
+  
+  series.forEach(s => {
+    const almacenNombre = s.almacen_nombre || 'Sin almacén'
+    if (!grupos[almacenNombre]) {
+      grupos[almacenNombre] = []
+    }
+    grupos[almacenNombre].push(s)
+  })
+  
+  // Convertir a array y ordenar por nombre de almacén
+  return Object.entries(grupos)
+    .map(([nombre, series]) => ({ nombre, series }))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre))
 })
 
-const pagedVendidas = computed(() => {
-  const start = (seriesPage.value.vendidas - 1) * seriesPerPage.value.vendidas
-  return filteredVendidas.value.slice(start, start + seriesPerPage.value.vendidas)
+// Agrupar series vendidas por almacén
+const seriesVendidasPorAlmacen = computed(() => {
+  const series = filteredVendidas.value
+  const grupos = {}
+  
+  series.forEach(s => {
+    const almacenNombre = s.almacen_nombre || 'Sin almacén'
+    if (!grupos[almacenNombre]) {
+      grupos[almacenNombre] = []
+    }
+    grupos[almacenNombre].push(s)
+  })
+  
+  // Convertir a array y ordenar por nombre de almacén
+  return Object.entries(grupos)
+    .map(([nombre, series]) => ({ nombre, series }))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre))
 })
 
 const editarSerie = (s) => {
@@ -556,6 +584,14 @@ const getSeriesTotal = (productoId) => {
   if (!counts) return 0
   return Number(counts.en_stock || 0) + Number(counts.vendido || 0)
 }
+
+// Calcular cuántas series faltan por producto
+const faltanSeriesParaProducto = (producto) => {
+  if (!producto.requiere_serie) return 0
+  const stock = Number(producto.stock || 0)
+  const seriesRegistradas = getSeriesCount(producto.id, 'en_stock')
+  return Math.max(0, stock - seriesRegistradas)
+}
 </script>
 
 <template>
@@ -634,11 +670,22 @@ const getSeriesTotal = (productoId) => {
                     </button>
                     <button v-if="(getSeriesTotal(producto.id) > 0) || producto.raw.requiere_serie"
                             @click="verSeries(producto.raw)"
-                            class="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors duration-150"
-                            title="Series">
+                            :class="[
+                              'relative w-8 h-8 rounded-lg transition-colors duration-150',
+                              faltanSeriesParaProducto(producto.raw) > 0 
+                                ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' 
+                                : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
+                            ]"
+                            :title="faltanSeriesParaProducto(producto.raw) > 0 
+                              ? `Series (Faltan ${faltanSeriesParaProducto(producto.raw)})` 
+                              : 'Series'">
                       <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-7 4h8M5 8h14" />
                       </svg>
+                      <span v-if="faltanSeriesParaProducto(producto.raw) > 0" 
+                            class="absolute -top-1 -right-1 bg-amber-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold shadow-sm">
+                        {{ faltanSeriesParaProducto(producto.raw) }}
+                      </span>
                     </button>
                     <button @click="editarProducto(producto.id)" class="w-8 h-8 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-colors duration-150" title="Editar">
                       <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -999,10 +1046,22 @@ const getSeriesTotal = (productoId) => {
            </div>
          </div>
          <div class="grid grid-cols-2 gap-4 mb-4">
-           <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
-             <div class="text-xs text-emerald-700">Series en stock</div>
-             <div class="text-2xl font-semibold text-emerald-800">{{ seriesDetalle.counts.en_stock }}</div>
-           </div>
+           <div :class="[
+              'p-3 border rounded-lg',
+              faltantesSeries > 0 ? 'bg-amber-50 border-amber-300' : 'bg-emerald-50 border-emerald-200'
+            ]">
+              <div :class="[
+                'text-xs',
+                faltantesSeries > 0 ? 'text-amber-700' : 'text-emerald-700'
+              ]">Series en stock</div>
+              <div :class="[
+                'text-2xl font-semibold',
+                faltantesSeries > 0 ? 'text-amber-800' : 'text-emerald-800'
+              ]">{{ seriesDetalle.counts.en_stock }}</div>
+              <div v-if="faltantesSeries > 0" class="text-xs text-amber-600 mt-1 font-medium">
+                ⚠️ Faltan {{ faltantesSeries }} {{ faltantesSeries === 1 ? 'serie' : 'series' }}
+              </div>
+            </div>
            <div class="p-3 bg-gray-50 border border-gray-200 rounded-lg">
              <div class="text-xs text-gray-700">Series vendidas</div>
              <div class="text-2xl font-semibold text-gray-800">{{ seriesDetalle.counts.vendido }}</div>
@@ -1036,44 +1095,70 @@ const getSeriesTotal = (productoId) => {
           </div>
 
           <div>
-            <h4 class="text-sm font-medium text-gray-700 mb-2">Listado de series en stock</h4>
-           <div class="max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
-             <table class="min-w-full divide-y divide-gray-200">
-               <thead class="bg-gray-50">
-                 <tr>
-                   <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">#</th>
-                   <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">Número de serie</th>
-                   <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">Acciones</th>
-                 </tr>
-               </thead>
-               <tbody class="bg-white divide-y divide-gray-200">
-                 <tr v-for="(s, idx) in pagedEnStock" :key="s.id">
-                   <td class="px-4 py-2 text-sm text-gray-700">{{ (seriesPage.enStock - 1) * seriesPerPage.enStock + idx + 1 }}</td>
-                   <td class="px-4 py-2 text-sm font-medium text-gray-900">
-                     <template v-if="editSerie.rowId === s.id">
-                       <input v-model.trim="editSerie.value" type="text" class="w-full border border-emerald-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
-                     </template>
-                     <template v-else>
-                       {{ s.numero_serie }}
-                     </template>
-                   </td>
-                   <td class="px-4 py-2 text-right text-sm">
-                     <template v-if="editSerie.rowId === s.id">
-                       <button @click="guardarSerie(seriesDetalle.producto.id, s)" class="px-2 py-1 bg-emerald-600 text-white rounded text-xs mr-2">Guardar</button>
-                       <button @click="cancelarEdicion()" class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs">Cancelar</button>
-                     </template>
-                     <template v-else>
-                       <button @click="editarSerie(s)" class="px-2 py-1 bg-emerald-50 text-emerald-700 rounded text-xs border border-emerald-200">Editar</button>
-                     </template>
-                   </td>
-                 </tr>
-                 <tr v-if="filteredEnStock.length === 0">
-                   <td colspan="3" class="px-4 py-6 text-center text-sm text-gray-500">Sin series en stock</td>
-                 </tr>
-               </tbody>
-             </table>
-           </div>
-         </div>
+            <h4 class="text-sm font-medium text-gray-700 mb-3">Listado de series en stock ({{ filteredEnStock.length }} total)</h4>
+            <div class="overflow-y-auto border border-gray-200 rounded-lg" style="max-height: calc(100vh - 500px); min-height: 200px;">
+              <!-- Agrupar por almacén -->
+              <div v-if="seriesEnStockPorAlmacen.length > 0">
+                <div v-for="(grupo, grupoIdx) in seriesEnStockPorAlmacen" :key="grupoIdx" class="border-b border-gray-200 last:border-b-0">
+                  <!-- Header del grupo (almacén) -->
+                  <div class="bg-blue-50 px-4 py-3 border-b border-blue-100">
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center space-x-2">
+                        <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                        </svg>
+                        <span class="text-sm font-semibold text-blue-900">{{ grupo.nombre }}</span>
+                        <span class="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">{{ grupo.series.length }} {{ grupo.series.length === 1 ? 'serie' : 'series' }}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <!-- Series del almacén -->
+                  <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                      <tr>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">#</th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">Número de serie</th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                      <tr v-for="(s, idx) in grupo.series" :key="s.id" class="hover:bg-gray-50">
+                        <td class="px-4 py-2 text-sm text-gray-700">{{ idx + 1 }}</td>
+                        <td class="px-4 py-2 text-sm font-medium text-gray-900">
+                          <template v-if="editSerie.rowId === s.id">
+                            <input v-model.trim="editSerie.value" type="text" class="w-full border border-emerald-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                          </template>
+                          <template v-else>
+                            {{ s.numero_serie }}
+                          </template>
+                        </td>
+                        <td class="px-4 py-2 text-right text-sm">
+                          <template v-if="editSerie.rowId === s.id">
+                            <button @click="guardarSerie(seriesDetalle.producto.id, s)" class="px-2 py-1 bg-emerald-600 text-white rounded text-xs mr-2">Guardar</button>
+                            <button @click="cancelarEdicion()" class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs">Cancelar</button>
+                          </template>
+                          <template v-else>
+                            <button @click="editarSerie(s)" class="px-2 py-1 bg-emerald-50 text-emerald-700 rounded text-xs border border-emerald-200">Editar</button>
+                          </template>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              
+              <!-- Sin series -->
+              <div v-else class="px-4 py-8 text-center">
+                <div class="flex flex-col items-center space-y-2">
+                  <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                  </svg>
+                  <p class="text-sm text-gray-500">Sin series en stock</p>
+                </div>
+              </div>
+            </div>
+          </div>
        </div>
      </div>
      <div class="px-6 py-4 border-t bg-gray-50 border-gray-200 text-right flex-shrink-0">

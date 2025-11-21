@@ -416,13 +416,32 @@ class VentaController extends Controller
                     // Si requiere serie, validar existencia y marcar como vendidas
                     if (($modelo->requiere_serie ?? false)) {
                         $seriales = $item['seriales'] ?? [];
+                        
+                        // IMPORTANTE: Validar que las series pertenezcan al almacén seleccionado
                         $seriesEnStock = \App\Models\ProductoSerie::where('producto_id', $modelo->id)
                             ->whereIn('numero_serie', array_map('strval', $seriales))
                             ->where('estado', 'en_stock')
-                            ->get(['id', 'numero_serie']);
+                            ->where('almacen_id', $validated['almacen_id']) // ← FIX: Verificar almacén
+                            ->get(['id', 'numero_serie', 'almacen_id']);
 
                         if (count($seriales) !== $seriesEnStock->count()) {
-                            throw new \Exception("Algunas series no existen o no están en stock para el producto '{$modelo->nombre}'.");
+                            // Verificar si las series existen pero en otro almacén
+                            $seriesOtroAlmacen = \App\Models\ProductoSerie::where('producto_id', $modelo->id)
+                                ->whereIn('numero_serie', array_map('strval', $seriales))
+                                ->where('estado', 'en_stock')
+                                ->where('almacen_id', '!=', $validated['almacen_id'])
+                                ->get(['numero_serie', 'almacen_id']);
+                            
+                            if ($seriesOtroAlmacen->count() > 0) {
+                                $almacenNombres = \App\Models\Almacen::whereIn('id', $seriesOtroAlmacen->pluck('almacen_id'))
+                                    ->pluck('nombre', 'id');
+                                $detalles = $seriesOtroAlmacen->map(function($s) use ($almacenNombres) {
+                                    return "'{$s->numero_serie}' (en {$almacenNombres[$s->almacen_id]})";
+                                })->join(', ');
+                                throw new \Exception("Las siguientes series están en otro almacén: {$detalles}. Por favor, selecciona el almacén correcto o elige otras series.");
+                            }
+                            
+                            throw new \Exception("Algunas series no existen o no están en stock para el producto '{$modelo->nombre}' en el almacén seleccionado.");
                         }
 
                         \App\Models\ProductoSerie::whereIn('id', $seriesEnStock->pluck('id')->all())->update(['estado' => 'vendido']);
@@ -522,11 +541,11 @@ class VentaController extends Controller
      */
     public function show($id)
     {
-        $venta = Venta::with(['cliente', 'items.ventable'])->findOrFail($id);
+        $venta = Venta::with(['cliente', 'items.ventable', 'items.series.productoSerie.almacen'])->findOrFail($id);
 
         $items = $venta->items->map(function ($item) {
             $ventable = $item->ventable;
-            return [
+            $itemData = [
                 'id' => $ventable->id,
                 'nombre' => $ventable->nombre ?? $ventable->descripcion,
                 'tipo' => $item->ventable_type === Producto::class ? 'producto' : 'servicio',
@@ -536,6 +555,22 @@ class VentaController extends Controller
                     'descuento' => $item->descuento,
                 ],
             ];
+
+            // Agregar series si el producto las requiere
+            if ($item->ventable_type === Producto::class && $ventable->requiere_serie) {
+                $itemData['requiere_serie'] = true;
+                $itemData['series'] = $item->series->map(function ($serie) {
+                    return [
+                        'numero_serie' => $serie->numero_serie,
+                        'almacen' => $serie->productoSerie->almacen->nombre ?? 'N/A',
+                    ];
+                });
+            } else {
+                $itemData['requiere_serie'] = false;
+                $itemData['series'] = [];
+            }
+
+            return $itemData;
         });
 
         return Inertia::render('Ventas/Show', [
@@ -552,6 +587,12 @@ class VentaController extends Controller
                 'estado' => $venta->estado->value,
                 'numero_venta' => $venta->numero_venta,
                 'factura_id' => $venta->factura_id,
+                'pagado' => $venta->pagado,
+                'metodo_pago' => $venta->metodo_pago,
+                'fecha_pago' => $venta->fecha_pago ? $venta->fecha_pago->format('Y-m-d') : null,
+                'notas_pago' => $venta->notas_pago,
+                'created_at' => $venta->created_at->format('Y-m-d H:i:s'),
+                'updated_at' => $venta->updated_at->format('Y-m-d H:i:s'),
             ],
             'canEdit' => $venta->estado === EstadoVenta::Borrador || $venta->estado === EstadoVenta::Pendiente,
             'canDelete' => $venta->estado === EstadoVenta::Borrador || $venta->estado === EstadoVenta::Pendiente,
