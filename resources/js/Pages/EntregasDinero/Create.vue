@@ -1,6 +1,6 @@
 <!-- /resources/js/Pages/EntregasDinero/Create.vue -->
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { Head, router, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { Notyf } from 'notyf'
@@ -23,6 +23,7 @@ const notyf = new Notyf({
 const form = ref({
   fecha_entrega: new Date().toISOString().split('T')[0],
   monto_efectivo: 0,
+  monto_transferencia: 0,
   monto_cheques: 0,
   monto_tarjetas: 0,
   notas: ''
@@ -31,6 +32,7 @@ const form = ref({
 // Computed para el total
 const total = computed(() => {
   return parseFloat(form.value.monto_efectivo || 0) +
+         parseFloat(form.value.monto_transferencia || 0) +
          parseFloat(form.value.monto_cheques || 0) +
          parseFloat(form.value.monto_tarjetas || 0)
 })
@@ -48,6 +50,7 @@ const submit = () => {
   router.post(route('entregas-dinero.store'), {
     fecha_entrega: form.value.fecha_entrega,
     monto_efectivo: parseFloat(form.value.monto_efectivo || 0),
+    monto_transferencia: parseFloat(form.value.monto_transferencia || 0),
     monto_cheques: parseFloat(form.value.monto_cheques || 0),
     monto_tarjetas: parseFloat(form.value.monto_tarjetas || 0),
     notas: form.value.notas
@@ -102,7 +105,7 @@ const submit = () => {
           </div>
 
           <!-- Montos -->
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <!-- Efectivo -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -110,6 +113,21 @@ const submit = () => {
               </label>
               <input
                 v-model="form.monto_efectivo"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <!-- Transferencia -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Transferencia
+              </label>
+              <input
+                v-model="form.monto_transferencia"
                 type="number"
                 step="0.01"
                 min="0"

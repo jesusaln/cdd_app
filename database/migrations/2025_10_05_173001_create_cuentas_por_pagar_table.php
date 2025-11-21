@@ -11,17 +11,19 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('cuentas_por_pagar', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('compra_id')->constrained()->onDelete('cascade');
-            $table->decimal('monto_total', 15, 2);
-            $table->decimal('monto_pagado', 15, 2)->default(0);
-            $table->decimal('monto_pendiente', 15, 2);
-            $table->date('fecha_vencimiento')->nullable();
-            $table->enum('estado', ['pendiente', 'parcial', 'pagado', 'vencido'])->default('pendiente');
-            $table->text('notas')->nullable();
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('cuentas_por_pagar')) {
+            Schema::create('cuentas_por_pagar', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('compra_id')->constrained()->onDelete('cascade');
+                $table->decimal('monto_total', 15, 2);
+                $table->decimal('monto_pagado', 15, 2)->default(0);
+                $table->decimal('monto_pendiente', 15, 2);
+                $table->date('fecha_vencimiento')->nullable();
+                $table->enum('estado', ['pendiente', 'parcial', 'pagado', 'vencido'])->default('pendiente');
+                $table->text('notas')->nullable();
+                $table->timestamps();
+            });
+        }
     }
 
     /**

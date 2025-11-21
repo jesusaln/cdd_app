@@ -157,12 +157,13 @@ class EntregaDineroController extends Controller
         $request->validate([
             'fecha_entrega' => 'required|date',
             'monto_efectivo' => 'required|numeric|min:0',
+            'monto_transferencia' => 'nullable|numeric|min:0',
             'monto_cheques' => 'required|numeric|min:0',
             'monto_tarjetas' => 'required|numeric|min:0',
             'notas' => 'nullable|string|max:500',
         ]);
 
-        $total = $request->monto_efectivo + $request->monto_cheques + $request->monto_tarjetas;
+        $total = $request->monto_efectivo + ($request->monto_transferencia ?? 0) + $request->monto_cheques + $request->monto_tarjetas;
 
         if ($total <= 0) {
             return back()->withErrors(['total' => 'El total debe ser mayor a cero']);
@@ -172,6 +173,7 @@ class EntregaDineroController extends Controller
             'user_id' => auth()->id(),
             'fecha_entrega' => $request->fecha_entrega,
             'monto_efectivo' => $request->monto_efectivo,
+            'monto_transferencia' => $request->monto_transferencia ?? 0,
             'monto_cheques' => $request->monto_cheques,
             'monto_tarjetas' => $request->monto_tarjetas,
             'total' => $total,
@@ -259,12 +261,13 @@ class EntregaDineroController extends Controller
         $request->validate([
             'fecha_entrega' => 'required|date',
             'monto_efectivo' => 'required|numeric|min:0',
+            'monto_transferencia' => 'nullable|numeric|min:0',
             'monto_cheques' => 'required|numeric|min:0',
             'monto_tarjetas' => 'required|numeric|min:0',
             'notas' => 'nullable|string|max:500',
         ]);
 
-        $total = $request->monto_efectivo + $request->monto_cheques + $request->monto_tarjetas;
+        $total = $request->monto_efectivo + ($request->monto_transferencia ?? 0) + $request->monto_cheques + $request->monto_tarjetas;
 
         if ($total <= 0) {
             return back()->withErrors(['total' => 'El total debe ser mayor a cero']);
@@ -273,6 +276,7 @@ class EntregaDineroController extends Controller
         $entregaDinero->update([
             'fecha_entrega' => $request->fecha_entrega,
             'monto_efectivo' => $request->monto_efectivo,
+            'monto_transferencia' => $request->monto_transferencia ?? 0,
             'monto_cheques' => $request->monto_cheques,
             'monto_tarjetas' => $request->monto_tarjetas,
             'total' => $total,
@@ -363,12 +367,14 @@ class EntregaDineroController extends Controller
 
         // Agrupar por método de pago y calcular totales
         $reportePorMetodo = $entregas->groupBy(function ($entrega) {
-            if ($entrega->monto_efectivo > 0 && $entrega->monto_cheques == 0 && $entrega->monto_tarjetas == 0) {
+            if ($entrega->monto_efectivo > 0 && $entrega->monto_cheques == 0 && $entrega->monto_tarjetas == 0 && $entrega->monto_transferencia == 0) {
                 return 'efectivo';
-            } elseif ($entrega->monto_cheques > 0 && $entrega->monto_efectivo == 0 && $entrega->monto_tarjetas == 0) {
+            } elseif ($entrega->monto_cheques > 0 && $entrega->monto_efectivo == 0 && $entrega->monto_tarjetas == 0 && $entrega->monto_transferencia == 0) {
                 return 'cheque';
-            } elseif ($entrega->monto_tarjetas > 0 && $entrega->monto_efectivo == 0 && $entrega->monto_cheques == 0) {
+            } elseif ($entrega->monto_tarjetas > 0 && $entrega->monto_efectivo == 0 && $entrega->monto_cheques == 0 && $entrega->monto_transferencia == 0) {
                 return 'tarjeta';
+            } elseif ($entrega->monto_transferencia > 0 && $entrega->monto_efectivo == 0 && $entrega->monto_cheques == 0 && $entrega->monto_tarjetas == 0) {
+                return 'transferencia';
             } else {
                 return 'mixto';
             }
@@ -389,6 +395,7 @@ class EntregaDineroController extends Controller
                         'usuario' => $entrega->usuario->name,
                         'recibido_por' => $entrega->recibidoPor->name,
                         'monto_efectivo' => $entrega->monto_efectivo,
+                        'monto_transferencia' => $entrega->monto_transferencia,
                         'monto_cheques' => $entrega->monto_cheques,
                         'monto_tarjetas' => $entrega->monto_tarjetas,
                         'total' => $entrega->total,
@@ -405,6 +412,7 @@ class EntregaDineroController extends Controller
         $stats = [
             'total_recibido' => $entregas->sum('total'),
             'total_efectivo' => $entregas->sum('monto_efectivo'),
+            'total_transferencia' => $entregas->sum('monto_transferencia'),
             'total_cheques' => $entregas->sum('monto_cheques'),
             'total_tarjetas' => $entregas->sum('monto_tarjetas'),
             'cantidad_entregas' => $entregas->count(),
@@ -415,11 +423,14 @@ class EntregaDineroController extends Controller
         // Estadísticas por método de pago en entrega
         $metodoEntregaStats = [
             'efectivo' => $entregas->where('monto_efectivo', '>', 0)->sum('monto_efectivo'),
+            'transferencia' => $entregas->where('monto_transferencia', '>', 0)->sum('monto_transferencia'),
             'cheque' => $entregas->where('monto_cheques', '>', 0)->sum('monto_cheques'),
             'tarjeta' => $entregas->where('monto_tarjetas', '>', 0)->sum('monto_tarjetas'),
             'mixto' => $entregas->where('monto_efectivo', '>', 0)
                               ->where(function($q) {
-                                  $q->where('monto_cheques', '>', 0)->orWhere('monto_tarjetas', '>', 0);
+                                  $q->where('monto_cheques', '>', 0)
+                                    ->orWhere('monto_tarjetas', '>', 0)
+                                    ->orWhere('monto_transferencia', '>', 0);
                               })->sum('total'),
         ];
 
@@ -450,6 +461,7 @@ class EntregaDineroController extends Controller
     {
         $labels = [
             'efectivo' => 'Efectivo',
+            'transferencia' => 'Transferencia',
             'cheque' => 'Cheque',
             'tarjeta' => 'Tarjeta',
             'mixto' => 'Mixto'
@@ -508,28 +520,34 @@ class EntregaDineroController extends Controller
             return response()->json(['error' => 'El monto recibido no puede ser mayor al total'], 422);
         }
 
-        $montoYaEntregado = EntregaDinero::where('tipo_origen', $tipo_origen)
-            ->where('id_origen', $id_origen)
-            ->where('estado', 'recibido')
-            ->sum('total');
+        DB::transaction(function () use ($request, $tipo_origen, $id_origen, $montoTotal, $concepto, $fecha, $usuarioEntrega, $userId) {
+            // Bloquear registros para evitar condiciones de carrera (opcional, pero recomendado)
+            // En este caso, confiamos en la validación previa, pero en alta concurrencia deberíamos usar lockForUpdate
+            
+            $montoYaEntregado = EntregaDinero::where('tipo_origen', $tipo_origen)
+                ->where('id_origen', $id_origen)
+                ->where('estado', 'recibido')
+                ->lockForUpdate() // Bloqueo pesimista
+                ->sum('total');
 
-        $montoPendiente = $montoTotal - $montoYaEntregado;
+            $montoPendiente = $montoTotal - $montoYaEntregado;
 
-        if ($request->monto_recibido > $montoPendiente) {
-            return response()->json(['error' => 'El monto recibido excede el saldo pendiente'], 422);
-        }
+            if ($request->monto_recibido > $montoPendiente + 0.01) { // Pequeña tolerancia por flotantes
+                 throw \Illuminate\Validation\ValidationException::withMessages(['monto_recibido' => 'El monto recibido excede el saldo pendiente']);
+            }
 
-        EntregaDineroService::crearDesdeOrigen(
-            $tipo_origen,
-            $id_origen,
-            (float) $request->monto_recibido,
-            $request->metodo_pago_entrega,
-            $fecha?->format('Y-m-d') ?? now()->toDateString(),
-            (int) $usuarioEntrega,
-            'recibido',
-            (int) $userId,
-            'Entrega automática - ' . $concepto . ' - Método entrega: ' . $request->metodo_pago_entrega
-        );
+            EntregaDineroService::crearDesdeOrigen(
+                $tipo_origen,
+                $id_origen,
+                (float) $request->monto_recibido,
+                $request->metodo_pago_entrega,
+                $fecha?->format('Y-m-d') ?? now()->toDateString(),
+                (int) $usuarioEntrega,
+                'recibido',
+                (int) $userId,
+                'Entrega automática - ' . $concepto . ' - Método entrega: ' . $request->metodo_pago_entrega
+            );
+        });
 
         return redirect()->route('entregas-dinero.index')->with('success', 'Monto registrado correctamente');
     }

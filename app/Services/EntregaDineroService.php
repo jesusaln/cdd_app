@@ -60,14 +60,17 @@ class EntregaDineroService
         ?string $notas = null
     ): EntregaDinero {
         $montoEfectivo = 0.0;
+        $montoTransferencia = 0.0;
         $montoCheques  = 0.0;
         $montoTarjetas = 0.0;
 
         switch ($metodoPago) {
             case 'efectivo':
-            case 'transferencia':
             case 'otros':
                 $montoEfectivo = $monto;
+                break;
+            case 'transferencia':
+                $montoTransferencia = $monto;
                 break;
             case 'cheque':
                 $montoCheques = $monto;
@@ -84,6 +87,7 @@ class EntregaDineroService
             'user_id'        => $userId,
             'fecha_entrega'  => Carbon::parse($fechaEntregaYmd)->format('Y-m-d'),
             'monto_efectivo' => $montoEfectivo,
+            'monto_transferencia' => $montoTransferencia,
             'monto_cheques'  => $montoCheques,
             'monto_tarjetas' => $montoTarjetas,
             'total'          => $monto,

@@ -11,18 +11,20 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('lotes', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('producto_id')->constrained()->onDelete('cascade');
-            $table->string('numero_lote');
-            $table->date('fecha_caducidad')->nullable();
-            $table->integer('cantidad_inicial');
-            $table->integer('cantidad_actual');
-            $table->decimal('costo_unitario', 10, 2)->nullable();
-            $table->timestamps();
+        if (!Schema::hasTable('lotes')) {
+            Schema::create('lotes', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('producto_id')->constrained()->onDelete('cascade');
+                $table->string('numero_lote');
+                $table->date('fecha_caducidad')->nullable();
+                $table->integer('cantidad_inicial');
+                $table->integer('cantidad_actual');
+                $table->decimal('costo_unitario', 10, 2)->nullable();
+                $table->timestamps();
 
-            $table->unique(['producto_id', 'numero_lote']);
-        });
+                $table->unique(['producto_id', 'numero_lote']);
+            });
+        }
     }
 
     /**

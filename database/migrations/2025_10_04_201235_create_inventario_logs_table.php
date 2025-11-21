@@ -11,17 +11,19 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('inventario_logs', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('producto_id')->constrained('productos');
-            $table->foreignId('almacen_id')->constrained('almacenes');
-            $table->foreignId('user_id')->nullable()->constrained('users');
-            $table->enum('tipo', ['entrada', 'salida']);
-            $table->integer('cantidad');
-            $table->string('motivo');
-            $table->json('detalles')->nullable();
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('inventario_logs')) {
+            Schema::create('inventario_logs', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('producto_id')->constrained('productos');
+                $table->foreignId('almacen_id')->constrained('almacenes');
+                $table->foreignId('user_id')->nullable()->constrained('users');
+                $table->enum('tipo', ['entrada', 'salida']);
+                $table->integer('cantidad');
+                $table->string('motivo');
+                $table->json('detalles')->nullable();
+                $table->timestamps();
+            });
+        }
     }
 
     /**

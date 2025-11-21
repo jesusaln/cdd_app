@@ -11,9 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('inventario_movimientos', function (Blueprint $table) {
-            $table->foreignId('almacen_id')->nullable()->after('producto_id')->constrained('almacenes')->onDelete('cascade');
-        });
+        if (!Schema::hasColumn('inventario_movimientos', 'almacen_id')) {
+            Schema::table('inventario_movimientos', function (Blueprint $table) {
+                $table->foreignId('almacen_id')->nullable()->after('producto_id')->constrained('almacenes')->onDelete('cascade');
+            });
+        }
     }
 
     /**
