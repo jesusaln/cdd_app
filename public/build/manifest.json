@@ -1233,7 +1233,7 @@
     ]
   },
   "resources/js/Pages/EmpresaConfiguracion/Index.vue": {
-    "file": "assets/Index-DE0FnFYN.js",
+    "file": "assets/Index-CMePrlBc.js",
     "name": "Index",
     "src": "resources/js/Pages/EmpresaConfiguracion/Index.vue",
     "isDynamicEntry": true,
@@ -2995,18 +2995,14 @@
     ]
   },
   "resources/js/Pages/Ventas/Show.vue": {
-    "file": "assets/Show-CKNSeeaS.js",
+    "file": "assets/Show-BbWM3hwp.js",
     "name": "Show",
     "src": "resources/js/Pages/Ventas/Show.vue",
     "isDynamicEntry": true,
     "imports": [
       "_vendor-IYuG9v5t.js",
       "_utils-DpGW8oSp.js",
-      "__plugin-vue_export-helper-DlAUqK2U.js",
       "_ui-DeyMRlzk.js"
-    ],
-    "css": [
-      "assets/Index-tn0RQdqM.css"
     ]
   },
   "resources/js/Pages/Welcome.vue": {
@@ -3021,7 +3017,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-sD1BxYRI.js",
+    "file": "assets/app-BB_i3Dpa.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -3197,7 +3193,7 @@
       "resources/js/Pages/Welcome.vue"
     ],
     "css": [
-      "assets/app-NKYAB-GB.css"
+      "assets/app-0bSiiuhu.css"
     ]
   }
 }

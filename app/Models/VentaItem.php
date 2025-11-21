@@ -30,4 +30,9 @@ class VentaItem extends Model
     {
         return $this->morphTo();
     }
+
+    public function series()
+    {
+        return $this->hasMany(VentaItemSerie::class, 'venta_item_id');
+    }
 }

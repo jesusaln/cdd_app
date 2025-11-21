@@ -328,6 +328,14 @@ Ubicación: resources/views/venta_pdf.blade.php
                                 - Código: {{ $item->ventable->codigo }}
                             @endif
                         </small>
+                        @if($item->series->isNotEmpty())
+                            <div style="margin-top: 4px; font-size: 9px; color: #555;">
+                                <strong>Series:</strong> 
+                                @foreach($item->series as $serie)
+                                    {{ $serie->numero_serie }}@if(!$loop->last), @endif
+                                @endforeach
+                            </div>
+                        @endif
                     </td>
                     <td style="text-align: center;">{{ $item->cantidad }}</td>
                     <td style="text-align: right;">${{ number_format($item->precio, 2) }}</td>
