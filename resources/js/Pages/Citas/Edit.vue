@@ -731,6 +731,13 @@ const initFormData = () => {
         descuento_items: props.cita.descuento_items || 0,
         iva: props.cita.iva || 0,
         total: props.cita.total || 0,
+        // Campos de fotos
+        foto_equipo: null,
+        foto_hoja_servicio: null,
+        foto_identificacion: null,
+        foto_equipo_url: props.cita.foto_equipo ? `/storage/${props.cita.foto_equipo}` : null,
+        foto_hoja_servicio_url: props.cita.foto_hoja_servicio ? `/storage/${props.cita.foto_hoja_servicio}` : null,
+        foto_identificacion_url: props.cita.foto_identificacion ? `/storage/${props.cita.foto_identificacion}` : null,
     };
 };
 
@@ -958,8 +965,19 @@ const submit = () => {
     // Actualizar totales en el formulario
     form.subtotal = totales.value.subtotal;
     form.descuento_items = totales.value.descuentoItems;
-    form.iva = totales.value.iva;
-    form.total = totales.value.total;
+    formData.append('iva', totales.value.iva);
+    formData.append('total', totales.value.total);
+
+    // Adjuntar archivos de fotos si existen
+    if (form.foto_equipo) {
+        formData.append('foto_equipo', form.foto_equipo);
+    }
+    if (form.foto_hoja_servicio) {
+        formData.append('foto_hoja_servicio', form.foto_hoja_servicio);
+    }
+    if (form.foto_identificacion) {
+        formData.append('foto_identificacion', form.foto_identificacion);
+    }
 
     // Usar router.post con _method para simular PUT
     form.post(route('citas.update', props.cita.id), {
@@ -986,9 +1004,110 @@ const submit = () => {
                     });
                 }
             }, 100);
-            showTemporaryMessage('Error al actualizar la cita. Revisa los campos marcados.', 'error');
-        },
+        }
     });
+};
+
+// Función para comprimir imágenes
+const compressImage = async (file) => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Mantener aspect ratio, max 1920x1920
+                let width = img.width;
+                let height = img.height;
+                const maxSize = 1920;
+                
+                if (width > height && width > maxSize) {
+                    height = (height * maxSize) / width;
+                    width = maxSize;
+                } else if (height > maxSize) {
+                    width = (width * maxSize) / height;
+                    height = maxSize;
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                canvas.toBlob((blob) => {
+                    resolve(new File([blob], file.name, {
+                        type: 'image/jpeg',
+                        lastModified: Date.now()
+                    }));
+                }, 'image/jpeg', 0.8);
+            };
+            img.onerror = reject;
+        };
+        reader.onerror = reject;
+    });
+};
+
+// Manejar cambio de archivo de foto
+const handleFileChange = async (fieldName, event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validar tipo de archivo
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+        showTemporaryMessage('Solo se permiten imágenes (JPG, PNG, WEBP)', 'error');
+        event.target.value = '';
+        return;
+    }
+
+    // Validar tamaño (máximo 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+        showTemporaryMessage('La imagen no debe superar 10MB', 'error');
+        event.target.value = '';
+        return;
+    }
+
+    try {
+        showTemporaryMessage('Procesando imagen...', 'info');
+
+        // Comprimir imagen si es necesario
+        let processedFile = file;
+        if (file.size > 1024 * 1024) { // Si es mayor a 1MB
+            processedFile = await compressImage(file);
+        }
+
+        // Limpiar URL anterior si existe
+        if (form[`${fieldName}_url`] && form[`${fieldName}_url`].startsWith('blob:')) {
+            URL.revokeObjectURL(form[`${fieldName}_url`]);
+        }
+
+        form[fieldName] = processedFile;
+        form[`${fieldName}_url`] = URL.createObjectURL(processedFile);
+
+        showTemporaryMessage('Imagen cargada correctamente', 'success');
+    } catch (error) {
+        console.error('Error al procesar imagen:', error);
+        showTemporaryMessage('Error al procesar la imagen', 'error');
+        event.target.value = '';
+    }
+};
+
+// Limpiar archivo
+const clearFile = (fieldName) => {
+    // Limpiar URL de blob para evitar memory leaks
+    if (form[`${fieldName}_url`] && form[`${fieldName}_url`].startsWith('blob:')) {
+        URL.revokeObjectURL(form[`${fieldName}_url`]);
+    }
+
+    form[fieldName] = null;
+    form[`${fieldName}_url`] = props.cita?.[fieldName] ? `/storage/${props.cita[fieldName]}` : null;
+
+    // Limpiar el input file
+    const input = document.getElementById(fieldName);
+    if (input) input.value = '';
 };
 
 // Auto-guardar borrador cada 30 segundos
