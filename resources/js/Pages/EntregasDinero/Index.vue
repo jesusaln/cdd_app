@@ -35,6 +35,8 @@ const showModal = ref(false)
 const modalMode = ref('details')
 const selectedEntrega = ref(null)
 const selectedId = ref(null)
+const page = usePage()
+const currentUser = computed(() => page.props.auth.user)
 
 // Modal de monto recibido para registros automáticos
 const showMontoModal = ref(false)
@@ -42,6 +44,12 @@ const selectedRegistro = ref(null)
 const montoRecibido = ref('')
 const metodoPagoEntrega = ref('')
 const notasRecibido = ref('')
+
+// Modal de recepción para entregas manuales
+const showRecibirModal = ref(false)
+const entregaParaRecibir = ref(null)
+const metodoRecibo = ref('')
+const notasRecibo = ref('')
 
 // Filtros
 const filtroEstado = ref(props.filters?.estado ?? '')
@@ -201,22 +209,19 @@ const eliminarEntrega = () => {
   })
 }
 
-const marcarRecibida = (entrega) => {
-  const notas = prompt('Notas al recibir (opcional):', '')
-  if (notas === null) return // Cancelado
+const abrirModalRecibir = (entrega) => {
+  entregaParaRecibir.value = entrega
+  metodoRecibo.value = ''
+  notasRecibo.value = ''
+  showModal.value = false
+  showRecibirModal.value = true
+}
 
-  router.put(route('entregas-dinero.update', entrega.id), {
-    marcar_recibido: true,
-    notas_recibido: notas
-  }, {
-    onSuccess: () => {
-      notyf.success('Entrega marcada como recibida')
-      router.reload()
-    },
-    onError: (errors) => {
-      notyf.error('Error al marcar como recibida')
-    }
-  })
+const cerrarRecibirModal = () => {
+  showRecibirModal.value = false
+  entregaParaRecibir.value = null
+  metodoRecibo.value = ''
+  notasRecibo.value = ''
 }
 
 const marcarAutomaticoRecibido = (registro) => {
@@ -317,6 +322,54 @@ const getMetodoPagoClass = (registro) => {
     return clases[metodoPago] || 'bg-gray-100 text-gray-800'
   }
   return 'bg-gray-100 text-gray-800'
+}
+
+const getMetodoReciboLabel = (value) => {
+  const metodos = {
+    efectivo: 'Efectivo',
+    transferencia: 'Transferencia',
+    cheque: 'Cheque',
+    tarjeta: 'Tarjeta',
+    mixto: 'Mixto',
+    otros: 'Otros'
+  }
+  return metodos[value] || 'No especificado'
+}
+
+const confirmarRecepcionEntrega = () => {
+  if (!entregaParaRecibir.value) return
+
+  if (!metodoRecibo.value) {
+    notyf.error('Selecciona un metodo de recepcion')
+    return
+  }
+
+  const montos = []
+  if (entregaParaRecibir.value.monto_efectivo > 0) montos.push(`Efectivo $${formatNumber(entregaParaRecibir.value.monto_efectivo)}`)
+  if (entregaParaRecibir.value.monto_transferencia > 0) montos.push(`Transferencia $${formatNumber(entregaParaRecibir.value.monto_transferencia)}`)
+  if (entregaParaRecibir.value.monto_cheques > 0) montos.push(`Cheques $${formatNumber(entregaParaRecibir.value.monto_cheques)}`)
+  if (entregaParaRecibir.value.monto_tarjetas > 0) montos.push(`Tarjetas $${formatNumber(entregaParaRecibir.value.monto_tarjetas)}`)
+
+  const notasDetalladas = [
+    `Metodo de recepcion: ${getMetodoReciboLabel(metodoRecibo.value)}`,
+    montos.length ? `Detalle de montos: ${montos.join(' | ')}` : null,
+    notasRecibo.value ? `Notas: ${notasRecibo.value}` : null,
+    currentUser.value ? `Recibido por: ${currentUser.value.name}` : null
+  ].filter(Boolean).join(' - ')
+
+  router.put(route('entregas-dinero.update', entregaParaRecibir.value.id), {
+    marcar_recibido: true,
+    notas_recibido: notasDetalladas
+  }, {
+    onSuccess: () => {
+      notyf.success('Entrega marcada como recibida')
+      cerrarRecibirModal()
+      router.reload()
+    },
+    onError: () => {
+      notyf.error('Error al marcar como recibida')
+    }
+  })
 }
 
 // Paginación
@@ -443,7 +496,7 @@ const handlePageChange = (newPage) => {
                     </button>
                     <button
                       v-if="entrega.estado === 'pendiente'"
-                      @click="marcarRecibida(entrega)"
+                      @click="abrirModalRecibir(entrega)"
                       class="w-8 h-8 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors duration-150"
                       title="Marcar como recibida"
                     >
@@ -712,7 +765,7 @@ const handlePageChange = (newPage) => {
             <div v-if="modalMode === 'details'">
               <button
                 v-if="selectedEntrega.estado === 'pendiente'"
-                @click="marcarRecibida(selectedEntrega)"
+                @click="abrirModalRecibir(selectedEntrega)"
                 class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors mr-2"
               >
                 Marcar Recibida
@@ -724,15 +777,104 @@ const handlePageChange = (newPage) => {
             <button v-if="modalMode === 'confirm'" @click="eliminarEntrega" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
               Eliminar
             </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal para marcar como recibida (entregas manuales) -->
+  <div v-if="showRecibirModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="cerrarRecibirModal">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between p-6 border-b border-gray-200">
+        <div>
+          <h3 class="text-lg font-medium text-gray-900">Confirmar recepcion</h3>
+          <p class="text-sm text-gray-500">Registra como se recibio la entrega y deja una nota.</p>
+        </div>
+        <button @click="cerrarRecibirModal" class="text-gray-400 hover:text-gray-600 transition-colors">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="p-6 space-y-5" v-if="entregaParaRecibir">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <p class="text-sm text-gray-500">Entregado por</p>
+            <p class="text-sm font-semibold text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ entregaParaRecibir.usuario?.name }}</p>
           </div>
+          <div>
+            <p class="text-sm text-gray-500">Recibe</p>
+            <p class="text-sm font-semibold text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ currentUser?.name }}</p>
+          </div>
+          <div>
+            <p class="text-sm text-gray-500">Fecha de entrega</p>
+            <p class="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">{{ formatearFecha(entregaParaRecibir.fecha_entrega) }}</p>
+          </div>
+          <div>
+            <p class="text-sm text-gray-500">Total</p>
+            <p class="text-lg font-bold text-gray-900 bg-gray-50 px-3 py-2 rounded-md">${{ formatNumber(entregaParaRecibir.total) }}</p>
+          </div>
+        </div>
+
+        <div class="bg-gray-50 p-4 rounded-lg space-y-2">
+          <p class="text-sm font-medium text-gray-700">Detalle de montos registrados</p>
+          <div class="flex flex-wrap gap-2">
+            <span v-if="entregaParaRecibir.monto_efectivo > 0" class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">Efectivo ${{ formatNumber(entregaParaRecibir.monto_efectivo) }}</span>
+            <span v-if="entregaParaRecibir.monto_transferencia > 0" class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">Transferencia ${{ formatNumber(entregaParaRecibir.monto_transferencia) }}</span>
+            <span v-if="entregaParaRecibir.monto_cheques > 0" class="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">Cheques ${{ formatNumber(entregaParaRecibir.monto_cheques) }}</span>
+            <span v-if="entregaParaRecibir.monto_tarjetas > 0" class="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">Tarjetas ${{ formatNumber(entregaParaRecibir.monto_tarjetas) }}</span>
+            <span v-if="entregaParaRecibir.monto_efectivo <= 0 && entregaParaRecibir.monto_transferencia <= 0 && entregaParaRecibir.monto_cheques <= 0 && entregaParaRecibir.monto_tarjetas <= 0" class="text-xs text-gray-500">Sin detalle de montos</span>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Metodo de recepcion *</label>
+          <select
+            v-model="metodoRecibo"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+          >
+            <option value="">Seleccionar metodo</option>
+            <option value="efectivo">Efectivo</option>
+            <option value="transferencia">Transferencia</option>
+            <option value="cheque">Cheque</option>
+            <option value="tarjeta">Tarjeta</option>
+            <option value="mixto">Mixto</option>
+            <option value="otros">Otros</option>
+          </select>
+          <p class="text-xs text-gray-500 mt-1">Como se recibe la entrega fisicamente.</p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Notas de recepcion</label>
+          <textarea
+            v-model="notasRecibo"
+            rows="3"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+            placeholder="Detalles adicionales, referencia de transferencia, folio, etc."
+          ></textarea>
         </div>
       </div>
 
-      <!-- Modal de Monto Recibido -->
-      <div v-if="showMontoModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="cerrarMontoModal">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-          <!-- Header del modal -->
-          <div class="flex items-center justify-between p-6 border-b border-gray-200">
+      <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+        <button @click="cerrarRecibirModal" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
+          Cancelar
+        </button>
+        <button
+          @click="confirmarRecepcionEntrega"
+          :disabled="!metodoRecibo || !entregaParaRecibir"
+          class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          Confirmar recepcion
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Monto Recibido -->
+  <div v-if="showMontoModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="cerrarMontoModal">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <!-- Header del modal -->
+      <div class="flex items-center justify-between p-6 border-b border-gray-200">
             <h3 class="text-lg font-medium text-gray-900">Registrar Monto Recibido</h3>
             <button @click="cerrarMontoModal" class="text-gray-400 hover:text-gray-600 transition-colors">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

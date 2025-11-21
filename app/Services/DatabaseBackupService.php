@@ -1507,8 +1507,22 @@ class DatabaseBackupService
 
         
         try {
-            $path = $this->backupPath.$filename;
-            if (! Storage::disk($this->backupDisk)->exists($path)) {
+            // Localizar respaldo en rutas posibles (bd o full)
+            $candidates = [
+                $filename,
+                $this->backupPath . $filename,
+                $this->fullBackupPath . $filename,
+            ];
+
+            $path = null;
+            foreach ($candidates as $candidate) {
+                if (Storage::disk($this->backupDisk)->exists($candidate)) {
+                    $path = $candidate;
+                    break;
+                }
+            }
+
+            if (! $path) {
                 throw new \Exception('Archivo no existe');
             }
 
