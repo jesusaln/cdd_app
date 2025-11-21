@@ -950,6 +950,32 @@ const handleBeforeUnload = (event) => {
 
 // Lifecycle hooks
 onMounted(() => {
+  // Seleccionar automáticamente el almacén "General"
+  const almacenGeneral = almacenes.find(a => 
+    a.nombre && (a.nombre.toLowerCase() === 'general' || a.nombre.toLowerCase().includes('general'))
+  );
+  
+  if (almacenGeneral) {
+    form.almacen_id = almacenGeneral.id;
+    console.log('✅ Almacén General seleccionado automáticamente:', almacenGeneral.nombre);
+  } else if (almacenes.length > 0) {
+    // Si no hay "General", seleccionar el primero
+    form.almacen_id = almacenes[0].id;
+    console.log('⚠️ No se encontró "General", usando:', almacenes[0].nombre);
+  }
+
+  // Debug: mostrar proveedores disponibles
+  console.log('📊 Proveedores disponibles:', proveedores.length);
+  if (proveedores.length === 0) {
+    console.error('❌ NO HAY PROVEEDORES - Verifica que haya proveedores activos en la base de datos');
+  } else {
+    console.log('🔍 Lista de proveedores:', proveedores.map(p => ({
+      id: p.id,
+      nombre: p.nombre_razon_social || p.nombre,
+      email: p.email
+    })));
+  }
+
   const savedData = loadFromLocalStorage('ordenCompraEnProgreso');
   if (savedData && typeof savedData === 'object') {
     try {
@@ -958,7 +984,10 @@ onMounted(() => {
       form.fecha_entrega_esperada = savedData.fecha_entrega_esperada || '';
       form.prioridad = savedData.prioridad || 'media';
       form.proveedor_id = savedData.proveedor_id || '';
-      form.almacen_id = savedData.almacen_id || '';
+      // Solo sobrescribir almacen_id si existe en savedData, sino mantener el General seleccionado
+      if (savedData.almacen_id) {
+        form.almacen_id = savedData.almacen_id;
+      }
       form.direccion_entrega = savedData.direccion_entrega || '';
       form.terminos_pago = savedData.terminos_pago || '30_dias';
       form.metodo_pago = savedData.metodo_pago || 'transferencia';

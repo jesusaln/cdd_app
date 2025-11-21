@@ -73,6 +73,12 @@ class Compra extends Model
         return $this->hasOne(CuentasPorPagar::class);
     }
 
+    /** Relación con movimientos de inventario */
+    public function movimientos(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    {
+        return $this->morphMany(InventarioMovimiento::class, 'referencia');
+    }
+
     // Relaciones de "culpables"
     public function createdBy()
     {

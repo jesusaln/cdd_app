@@ -91,11 +91,12 @@ class StoreClienteRequest extends FormRequest
             'estado' => [
                 'nullable',
                 'string',
-                'size:3',
-                Rule::exists('sat_estados', 'clave'),
+                'min:2',
+                'max:255',
+                // Rule::exists('sat_estados', 'clave'), // Relaxed for foreign addresses
             ],
 
-            'pais' => ['required', 'string', Rule::in(['MX'])],
+            'pais' => ['required', 'string', 'max:255'],
 
             'notas' => ['nullable', 'string', 'max:1000'],
 
@@ -222,7 +223,7 @@ class StoreClienteRequest extends FormRequest
             'estado.exists'   => 'El estado seleccionado no es válido.', // ← ajustado
 
             'pais.required' => 'El país es obligatorio.',
-            'pais.in'       => 'El país debe ser MX.',
+            // 'pais.in'       => 'El país debe ser MX.',
 
             'notas.max'     => 'Las notas no pueden exceder 1000 caracteres.',
 

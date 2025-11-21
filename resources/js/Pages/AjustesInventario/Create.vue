@@ -67,6 +67,8 @@ const cantidadNueva = computed(() => {
 
 // Series para productos que lo requieren
 const seriales = ref([])
+const availableSerials = ref([])
+const loadingSerials = ref(false)
 const requiredSerials = computed(() => requiereSerie.value ? (parseInt(form.value.cantidad_ajuste) || 0) : 0)
 
 watch(requiredSerials, (n) => {
@@ -75,8 +77,14 @@ watch(requiredSerials, (n) => {
   seriales.value = next
 })
 
-watch(() => form.value.producto_id, () => { seriales.value = [] })
-watch(() => form.value.tipo, () => { seriales.value = [] })
+watch(() => form.value.producto_id, () => { 
+  seriales.value = [] 
+  loadAvailableSerials()
+})
+watch(() => form.value.tipo, () => { 
+  seriales.value = [] 
+  loadAvailableSerials()
+})
 
 const puedeGuardar = computed(() => {
   const baseOk = form.value.producto_id &&
@@ -96,6 +104,32 @@ const puedeGuardar = computed(() => {
 })
 
 // Métodos
+const loadAvailableSerials = async () => {
+  if (!form.value.producto_id || !form.value.almacen_id || form.value.tipo !== 'decremento' || !requiereSerie.value) {
+    availableSerials.value = []
+    return
+  }
+
+  loadingSerials.value = true
+  try {
+    const response = await fetch(route('productos.series', { 
+      producto: form.value.producto_id, 
+      almacen_id: form.value.almacen_id 
+    }))
+    if (response.ok) {
+      const data = await response.json()
+      availableSerials.value = data.series.en_stock || []
+    } else {
+      availableSerials.value = []
+    }
+  } catch (error) {
+    console.error('Error cargando series:', error)
+    availableSerials.value = []
+  } finally {
+    loadingSerials.value = false
+  }
+}
+
 const cargarStockActual = async () => {
   if (!form.value.producto_id || !form.value.almacen_id) {
     stockActual.value = 0
@@ -153,12 +187,14 @@ const cancel = () => {
 const watchProducto = () => {
   if (form.value.producto_id && form.value.almacen_id) {
     cargarStockActual()
+    loadAvailableSerials()
   }
 }
 
 const watchAlmacen = () => {
   if (form.value.producto_id && form.value.almacen_id) {
     cargarStockActual()
+    loadAvailableSerials()
   }
 }
 </script>
@@ -305,15 +341,39 @@ const watchAlmacen = () => {
               Este producto requiere capturar un número de serie por unidad.
               Ingresa exactamente {{ requiredSerials }} {{ requiredSerials === 1 ? 'serie' : 'series' }}.
             </p>
-            <div v-if="requiredSerials > 0" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div v-if="loadingSerials" class="flex items-center justify-center py-4">
+              <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-amber-600"></div>
+              <span class="ml-2 text-sm text-amber-600">Cargando series disponibles...</span>
+            </div>
+            <div v-else-if="requiredSerials > 0" class="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div v-for="(val, idx) in requiredSerials" :key="idx" class="flex items-center gap-2">
                 <span class="text-xs text-gray-500 w-6 text-right">#{{ idx + 1 }}</span>
+                
+                <!-- Incremento: Input manual -->
                 <input
+                  v-if="form.tipo === 'incremento'"
                   type="text"
                   class="flex-1 px-3 py-2 border border-amber-300 rounded-md focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm"
                   v-model.trim="seriales[idx]"
-                  placeholder="Número de serie"
+                  placeholder="Nuevo número de serie"
                 />
+
+                <!-- Decremento: Selección -->
+                <select
+                  v-else
+                  class="flex-1 px-3 py-2 border border-amber-300 rounded-md focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm"
+                  v-model="seriales[idx]"
+                >
+                  <option value="">Seleccionar serie</option>
+                  <option 
+                    v-for="serie in availableSerials" 
+                    :key="serie.id" 
+                    :value="serie.numero_serie"
+                    :disabled="seriales.includes(serie.numero_serie) && seriales[idx] !== serie.numero_serie"
+                  >
+                    {{ serie.numero_serie }}
+                  </option>
+                </select>
               </div>
             </div>
             <div v-else class="text-xs text-amber-700">Indica primero la cantidad a ajustar.</div>

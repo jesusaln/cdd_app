@@ -509,92 +509,66 @@ class CitaController extends Controller
                 'servicios_realizados',
                 'monto_productos_vendidos',
                 'requiere_venta',
+                'items',
             ])->toArray(), $filePaths));
 
-            // Limpiar relaciones existentes si se proporcionaron nuevos datos
-            if ($request->has('productos_utilizados')) {
-                $cita->productosUtilizados()->detach();
-            }
-            if ($request->has('productos_vendidos')) {
-                $cita->productosVendidos()->detach();
-            }
-            if ($request->has('servicios_realizados')) {
-                $cita->serviciosRealizados()->detach();
-            }
-
-            // Adjuntar productos utilizados
-            $productosUtilizados = $request->input('productos_utilizados');
-            if (is_string($productosUtilizados)) {
-                $decoded = json_decode($productosUtilizados, true);
-                if (json_last_error() === JSON_ERROR_NONE) {
-                    $productosUtilizados = $decoded;
+            // Sincronizar items (CitaItem)
+            if ($request->has('items')) {
+                $items = $request->input('items');
+                if (is_string($items)) {
+                    $items = json_decode($items, true) ?? [];
                 }
-            }
-            if (is_array($productosUtilizados)) {
-                foreach ($productosUtilizados as $item) {
-                    $productoId = (int) ($item['id'] ?? 0);
-                    $cantidad = max(1, (int) ($item['cantidad'] ?? 1));
-                    $precioUnitario = (float) ($item['precio_unitario'] ?? 0);
-                    $tipoUso = $item['tipo_uso'] ?? 'repuesto';
-                    $notas = $item['notas'] ?? null;
+                
+                // Eliminar items anteriores
+                $cita->items()->delete();
 
-                    if ($productoId > 0 && $cantidad > 0) {
-                        $cita->productosUtilizados()->attach($productoId, [
-                            'cantidad' => $cantidad,
-                            'precio_unitario' => $precioUnitario,
-                            'tipo_uso' => $tipoUso,
-                            'notas' => $notas,
-                        ]);
-                    }
-                }
-            }
+                // Crear nuevos items
+                $subtotal = 0;
+                $descuentoItems = 0;
 
-            // Adjuntar productos vendidos
-            $productosVendidos = $request->input('productos_vendidos');
-            if (is_string($productosVendidos)) {
-                $decoded = json_decode($productosVendidos, true);
-                if (json_last_error() === JSON_ERROR_NONE) {
-                    $productosVendidos = $decoded;
-                }
-            }
-            if (is_array($productosVendidos)) {
-                foreach ($productosVendidos as $item) {
-                    $productoId = (int) ($item['id'] ?? 0);
-                    $cantidad = max(1, (int) ($item['cantidad'] ?? 1));
+                foreach ($items as $item) {
+                    $class = $item['tipo'] === 'producto' ? Producto::class : Servicio::class;
+                    
+                    $cantidad = (float) ($item['cantidad'] ?? 0);
                     $precio = (float) ($item['precio'] ?? 0);
-                    if ($productoId > 0 && $cantidad > 0) {
-                        $subtotal = $cantidad * $precio;
-                        $cita->productosVendidos()->attach($productoId, [
-                            'cantidad' => $cantidad,
-                            'precio_venta' => $precio,
-                            'subtotal' => $subtotal,
-                        ]);
-                    }
-                }
-            }
+                    $descuento = (float) ($item['descuento'] ?? 0);
+                    
+                    $subtotalItem = $cantidad * $precio;
+                    $descuentoMontoItem = $subtotalItem * ($descuento / 100);
+                    
+                    $subtotal += $subtotalItem;
+                    $descuentoItems += $descuentoMontoItem;
 
-            // Adjuntar servicios realizados
-            $serviciosRealizados = $request->input('servicios_realizados');
-            if (is_string($serviciosRealizados)) {
-                $decoded = json_decode($serviciosRealizados, true);
-                if (json_last_error() === JSON_ERROR_NONE) {
-                    $serviciosRealizados = $decoded;
+                    CitaItem::create([
+                        'cita_id' => $cita->id,
+                        'citable_id' => $item['id'],
+                        'citable_type' => $class,
+                        'cantidad' => (int) $cantidad,
+                        'precio' => round($precio, 2),
+                        'descuento' => round($descuento, 2),
+                        'subtotal' => round($subtotalItem, 2),
+                        'descuento_monto' => round($descuentoMontoItem, 2),
+                        'notas' => $item['notas'] ?? null,
+                    ]);
                 }
-            }
-            if (is_array($serviciosRealizados)) {
-                foreach ($serviciosRealizados as $item) {
-                    $servicioId = (int) ($item['id'] ?? 0);
-                    $cantidad = max(1, (int) ($item['cantidad'] ?? 1));
-                    $precio = (float) ($item['precio'] ?? 0);
-                    if ($servicioId > 0 && $cantidad > 0) {
-                        $subtotal = $cantidad * $precio;
-                        $cita->serviciosRealizados()->attach($servicioId, [
-                            'cantidad' => $cantidad,
-                            'precio' => $precio,
-                            'subtotal' => $subtotal,
-                        ]);
-                    }
-                }
+
+                // Recalcular totales generales
+                $descuentoGeneralPorc = (float) ($request->descuento_general ?? $cita->descuento_general ?? 0);
+                $subtotalFinal = ($subtotal - $descuentoItems);
+                $descuentoGeneralMonto = $subtotalFinal * ($descuentoGeneralPorc / 100);
+                $subtotalFinal -= $descuentoGeneralMonto;
+                
+                $ivaRate = \App\Services\EmpresaConfiguracionService::getIvaPorcentaje() / 100;
+                $iva = $subtotalFinal * $ivaRate;
+                $total = $subtotalFinal + $iva;
+
+                $cita->update([
+                    'subtotal' => round($subtotal, 2),
+                    'descuento_items' => round($descuentoItems, 2),
+                    'descuento_general' => round($descuentoGeneralMonto, 2),
+                    'iva' => round($iva, 2),
+                    'total' => round($total, 2),
+                ]);
             }
 
             // Si la cita se marcó como completada, convertir a venta con verificación de inventario
@@ -623,25 +597,17 @@ class CitaController extends Controller
      */
     private function convertirCitaAVenta(Cita $cita, $user = null): void
     {
-        // Cargar relaciones necesarias
-        $cita->load(['cliente', 'tecnico', 'productosVendidos', 'productosUtilizados', 'serviciosRealizados']);
+        // Cargar items
+        $cita->load(['items.citable']);
 
-        // Recolectar ítems
         $items = [];
-        foreach ($cita->productosVendidos as $producto) {
+        foreach ($cita->items as $citaItem) {
             $items[] = [
-                'modelo' => $producto,
-                'tipo' => 'producto',
-                'cantidad' => (int) ($producto->pivot->cantidad ?? 1),
-                'precio' => (float) ($producto->pivot->precio_venta ?? $producto->precio_venta ?? 0),
-            ];
-        }
-        foreach ($cita->serviciosRealizados as $servicio) {
-            $items[] = [
-                'modelo' => $servicio,
-                'tipo' => 'servicio',
-                'cantidad' => (int) ($servicio->pivot->cantidad ?? 1),
-                'precio' => (float) ($servicio->pivot->precio ?? $servicio->precio ?? 0),
+                'modelo' => $citaItem->citable,
+                'tipo' => $citaItem->citable_type === Producto::class ? 'producto' : 'servicio',
+                'cantidad' => $citaItem->cantidad,
+                'precio' => $citaItem->precio,
+                'descuento' => $citaItem->descuento,
             ];
         }
 
@@ -714,8 +680,13 @@ class CitaController extends Controller
             $modelo = $it['modelo'];
             $cantidad = $it['cantidad'];
             $precio = $it['precio'];
-            $descuento = 0;
+            $descuento = $it['descuento'] ?? 0;
+            
             $lineaSubtotal = $cantidad * $precio;
+            // Aplicar descuento si existe
+            $montoDescuento = $lineaSubtotal * ($descuento / 100);
+            $lineaSubtotal -= $montoDescuento;
+            
             $subtotal += $lineaSubtotal;
 
             VentaItem::create([
@@ -776,13 +747,9 @@ class CitaController extends Controller
                 }
             }
         }
-
-        // Marcar en los pivotes de productos vendidos el id de venta
-        foreach ($cita->productosVendidos as $producto) {
-            $cita->productosVendidos()->updateExistingPivot($producto->id, [
-                'venta_id' => $venta->id,
-            ]);
-        }
+        
+        // Asociar la venta a la cita
+        $cita->update(['venta_id' => $venta->id]);
     }
 
     /**
@@ -1243,5 +1210,55 @@ class CitaController extends Controller
         $ultimo = Pedido::orderBy('id', 'desc')->first();
         $numero = $ultimo ? $ultimo->id + 1 : 1;
         return 'PED-' . str_pad($numero, 6, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Cambiar el estado de una cita (AJAX endpoint)
+     */
+    public function changeStatus(Request $request, Cita $cita)
+    {
+        try {
+            $validated = $request->validate([
+                'estado' => 'required|in:pendiente,programado,en_proceso,completado,cancelado,reprogramado',
+            ]);
+
+            $nuevoEstado = $validated['estado'];
+            
+            // Verificar si el cambio de estado es válido
+            if (!$cita->cambiarEstado($nuevoEstado)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se puede cambiar al estado solicitado desde el estado actual.',
+                ], 400);
+            }
+
+            // Si se marca como completada, intentar convertir a venta
+            if ($nuevoEstado === Cita::ESTADO_COMPLETADO) {
+                try {
+                    $this->convertirCitaAVenta($cita, $request->user());
+                } catch (\Exception $e) {
+                    Log::warning('No se pudo convertir cita a venta: ' . $e->getMessage());
+                    // No fallar el cambio de estado si la conversión falla
+                }
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Estado actualizado correctamente.',
+                'cita' => $cita->fresh(['cliente', 'tecnico']),
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Datos de validación incorrectos.',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Error al cambiar estado de cita: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al cambiar el estado de la cita.',
+            ], 500);
+        }
     }
 }

@@ -256,6 +256,12 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     Route::resource('servicios', ServicioController::class)->names('servicios')->middleware('role:admin|editor');
     Route::put('/servicios/{servicio}/toggle', [ServicioController::class, 'toggle'])->name('servicios.toggle')->middleware('role:admin|editor');
     Route::resource('usuarios', UserController::class)->names('usuarios')->middleware('role:admin');
+    
+    // Compras - Ruta para siguiente número ANTES del resource
+    Route::get('/compras/siguiente-numero', [CompraController::class, 'obtenerSiguienteNumero'])
+        ->name('compras.siguiente-numero')
+        ->middleware('role:admin|editor');
+    
     Route::resource('compras', CompraController::class)->names('compras')->middleware('role:admin|editor');
     Route::post('/compras/{id}/cancel', [CompraController::class, 'cancel'])->name('compras.cancel')->middleware('role:admin|editor');
     Route::delete('/compras/{id}/force', [CompraController::class, 'forceDestroy'])->name('compras.force-destroy')->middleware('role:admin|editor');

@@ -479,8 +479,23 @@ const props = defineProps({
 // Copia reactiva de proveedores para evitar mutación de props
 const proveedoresList = ref([...props.proveedores]);
 
-// Número de compra fijo
-const numeroCompraFijo = 'C0001';
+// Número de compra (se obtiene del backend)
+const numeroCompraFijo = ref('C0001');
+
+// Obtener el siguiente número de compra del backend
+const fetchNextNumeroCompra = async () => {
+  try {
+    const response = await axios.get('/compras/siguiente-numero');
+    if (response.data && response.data.siguiente_numero) {
+      numeroCompraFijo.value = response.data.siguiente_numero;
+      form.numero_compra = response.data.siguiente_numero;
+    }
+  } catch (error) {
+    console.error('Error al obtener el número de compra:', error);
+    numeroCompraFijo.value = 'C0001';
+    form.numero_compra = 'C0001';
+  }
+};
 
 // Obtener fecha actual en formato YYYY-MM-DD (zona horaria local)
 const getCurrentDate = () => {
@@ -493,7 +508,7 @@ const getCurrentDate = () => {
 
 // Formulario
 const form = useForm({
-  numero_compra: numeroCompraFijo,
+  numero_compra: numeroCompraFijo.value || 'C0001',
   fecha_compra: getCurrentDate(),
   proveedor_id: '',
   almacen_id: props.almacen_predeterminado || '',
@@ -636,11 +651,12 @@ const agregarProducto = (item) => {
     const key = `${item.tipo}-${item.id}`;
     quantities.value[key] = 1;
 
+    // FIX: Usar parseFloat para manejar strings y numbers
     let precio = 0;
     if (item.tipo === 'producto') {
-      precio = typeof item.precio_compra === 'number' ? item.precio_compra : 0;
+      precio = parseFloat(item.precio_compra) || 0;
     } else {
-      precio = typeof item.precio === 'number' ? item.precio : 0;
+      precio = parseFloat(item.precio) || 0;
     }
 
     prices.value[key] = precio;
@@ -657,8 +673,9 @@ const eliminarProducto = (entry) => {
   }
 
   const key = `${entry.tipo}-${entry.id}`;
+  // FIX: Cambiar item.tipo a entry.tipo
   selectedProducts.value = selectedProducts.value.filter(
-    (item) => !(item.id === entry.id && item.tipo === item.tipo)
+    (item) => !(item.id === entry.id && item.tipo === entry.tipo)
   );
   delete quantities.value[key];
   delete prices.value[key];
@@ -923,38 +940,43 @@ const asegurarFechaActual = () => {
 };
 
 // Lifecycle hooks
-onMounted(() => {
-  // Mostrar información sobre el número de compra fijo
-  showNotification(`Número de compra fijo: ${numeroCompraFijo}`, 'info');
+onMounted(async () => {
+  // Obtener el siguiente número de compra
+  await fetchNextNumeroCompra();
+
+  // Mostrar info sobre almacén predeterminado si existe
+  if (props.almacen_predeterminado && props.recordatorio_almacen) {
+    showNotification(`Almacén predeterminado: ${props.recordatorio_almacen}`, 'info');
+  }
+
+  // Nota sobre número de compra fijo
+  showNotification(`Número de compra generado: ${numeroCompraFijo.value}`, 'info');
 
   const savedData = loadFromLocalStorage('compraEnProgreso');
   if (savedData && typeof savedData === 'object') {
     try {
-      form.numero_compra = numeroCompraFijo;
+      // Usar número guardado o el generado automáticamente
+      form.numero_compra = savedData.numero_compra || numeroCompraFijo.value;
       form.fecha_compra = getCurrentDate(); // Siempre usar fecha actual
+
       form.proveedor_id = savedData.proveedor_id || '';
+      // Solo sobrescribir almacen_id si existe en savedData
+      if (savedData.almacen_id) {
+        form.almacen_id = savedData.almacen_id;
+      }
       form.descuento_general = savedData.descuento_general || 0;
       proveedorSeleccionado.value = savedData.proveedor || null;
       selectedProducts.value = Array.isArray(savedData.selectedProducts) ? savedData.selectedProducts : [];
       quantities.value = savedData.quantities || {};
       prices.value = savedData.prices || {};
       discounts.value = savedData.discounts || {};
+      serialsMap.value = savedData.serials || {};
       calcularTotal();
     } catch (error) {
       console.warn('Error al cargar datos guardados:', error);
       removeFromLocalStorage('compraEnProgreso');
     }
   }
-
-  // Verificar la fecha cada 5 minutos para mantenerla actual
-  const fechaInterval = setInterval(() => {
-    asegurarFechaActual();
-  }, 5 * 60 * 1000); // 5 minutos
-
-  // Limpiar el intervalo cuando el componente se desmonte
-  onBeforeUnmount(() => {
-    clearInterval(fechaInterval);
-  });
 
   window.addEventListener('beforeunload', handleBeforeUnload);
 });

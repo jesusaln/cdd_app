@@ -85,7 +85,7 @@ class UpdateClienteRequest extends FormRequest
                 'max:255',
             ],
 
-            'pais'  => ['nullable', 'string', Rule::in(['MX'])],
+            'pais'  => ['nullable', 'string', 'max:255'],
             'notas' => ['nullable', 'string', 'max:1000'],
             'activo' => ['boolean'],
 

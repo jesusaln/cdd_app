@@ -403,6 +403,42 @@
             </div>
 
             <div class="mb-4">
+              <label for="codigo_postal" class="block text-sm font-medium text-gray-700">
+                Código Postal
+                <span class="text-gray-400">(opcional)</span>
+              </label>
+              <input
+                type="text"
+                id="codigo_postal"
+                maxlength="5"
+                pattern="[0-9]{5}"
+                :value="form.codigo_postal"
+                @input="onCpInput"
+                :disabled="!form.mostrar_direccion"
+                placeholder="12345"
+                autocomplete="new-password"
+                :class="[
+                  'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
+                  form.errors.codigo_postal ? 'border-red-300 bg-red-50' : 'border-gray-300',
+                  !form.mostrar_direccion ? 'bg-gray-100 text-gray-400' : ''
+                ]"
+              />
+              <div v-if="isLoadingCp" class="mt-1 text-xs text-blue-600 flex items-center">
+                <svg class="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Buscando código postal...
+              </div>
+              <div v-if="form.errors.codigo_postal" class="mt-2 text-sm text-red-600">
+                {{ form.errors.codigo_postal }}
+              </div>
+              <div class="mt-1 text-xs text-gray-500">
+                Al ingresar un código postal válido, se autocompletarán automáticamente el estado y municipio.
+              </div>
+            </div>
+
+            <div class="mb-4">
               <label for="colonia" class="block text-sm font-medium text-gray-700">
                 Colonia
                 <span class="text-gray-400">(opcional)</span>
@@ -434,35 +470,6 @@
               </div>
               <div v-if="availableColonias.length === 0" class="mt-1 text-xs text-gray-500">
                 Primero ingresa un código postal válido para cargar las colonias disponibles
-              </div>
-            </div>
-
-            <div class="mb-4">
-              <label for="codigo_postal" class="block text-sm font-medium text-gray-700">
-                Código Postal
-                <span class="text-gray-400">(opcional)</span>
-              </label>
-              <input
-                type="text"
-                id="codigo_postal"
-                maxlength="5"
-                pattern="[0-9]{5}"
-                :value="form.codigo_postal"
-                @input="onCpInput"
-                :disabled="!form.mostrar_direccion"
-                placeholder="12345"
-                autocomplete="new-password"
-                :class="[
-                  'mt-1 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm',
-                  form.errors.codigo_postal ? 'border-red-300 bg-red-50' : 'border-gray-300',
-                  !form.mostrar_direccion ? 'bg-gray-100 text-gray-400' : ''
-                ]"
-              />
-              <div v-if="form.errors.codigo_postal" class="mt-2 text-sm text-red-600">
-                {{ form.errors.codigo_postal }}
-              </div>
-              <div class="mt-1 text-xs text-gray-500">
-                Al ingresar un código postal válido, se autocompletarán automáticamente el estado y municipio.
               </div>
             </div>
 
@@ -584,6 +591,7 @@ const showSuccessMessage = ref(false)
 const isDevelopment = ref(import.meta.env?.DEV || false)
 const availableColonias = ref([])
 const showAutoCompleteMessage = ref(false)
+const isLoadingCp = ref(false) // Nuevo estado de carga
 
 // Mapeo de nombres de estados a códigos SAT
 const estadoMapping = {
@@ -646,8 +654,8 @@ const initFormData = () => ({
   colonia: props.cliente?.colonia || '',
   codigo_postal: props.cliente?.codigo_postal || '',
   municipio: props.cliente?.municipio || '',
-  estado: props.cliente?.estado || 'SON', // Sonora por defecto
-  pais: 'MX',
+  estado: props.cliente?.estado || '', // Sin valor por defecto
+  pais: props.cliente?.pais || '',       // Sin valor por defecto
 })
 
 const form = useForm(initFormData())
@@ -771,11 +779,6 @@ watch(() => form.tipo_persona, (newVal, oldVal) => {
   }
 })
 
-// Forzar país a "MX" cuando no es extranjero
-watch(isExtranjero, (val) => {
-  if (!val) form.pais = 'MX'
-})
-
 // Limpiar campos de dirección si se desmarca el checkbox
 watch(() => form.mostrar_direccion, (nuevoValor) => {
   if (!nuevoValor) {
@@ -786,8 +789,8 @@ watch(() => form.mostrar_direccion, (nuevoValor) => {
     form.colonia = ''
     form.codigo_postal = ''
     form.municipio = ''
-    form.estado = 'SON'
-    form.pais = 'MX'
+    form.estado = ''
+    form.pais = ''
 
     // Limpiar errores de dirección
     form.clearErrors(['calle', 'numero_exterior', 'colonia', 'codigo_postal', 'municipio'])
@@ -836,14 +839,19 @@ const onCpInput = async (event) => {
 
   // Autocompletar cuando tenga 5 dígitos
   if (form.codigo_postal.length === 5) {
+    isLoadingCp.value = true
     try {
       const response = await axios.get(`/api/cp/${form.codigo_postal}`)
       const data = response.data
 
       // AUTOCOMPLETAR ESTADO Y MUNICIPIO
-      // Estado: convertir nombre a código SAT
+      // Estado: convertir nombre a código SAT (Case Insensitive)
       if (data.estado) {
-        const estadoCodigo = estadoMapping[data.estado] || data.estado
+        const estadoNombre = data.estado.trim().toUpperCase()
+        const estadoEntry = Object.entries(estadoMapping).find(([nombre, clave]) => 
+          nombre.toUpperCase() === estadoNombre
+        )
+        const estadoCodigo = estadoEntry ? estadoEntry[1] : (estadoMapping[data.estado] || data.estado)
         form.estado = estadoCodigo
         console.log('Estado autocompletado:', data.estado, '->', estadoCodigo)
       }
@@ -896,11 +904,14 @@ const onCpInput = async (event) => {
       // Limpiar colonias disponibles en caso de error
       availableColonias.value = []
       form.colonia = ''
+    } finally {
+      isLoadingCp.value = false
     }
   } else {
     // Si el CP no tiene 5 dígitos, limpiar colonias
     availableColonias.value = []
     form.colonia = ''
+    isLoadingCp.value = false
   }
 }
 

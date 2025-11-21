@@ -291,8 +291,8 @@ class ClienteController extends Controller
             // Agregar indicador si requiere factura
             $cliente->requiere_factura_texto = $cliente->requiere_factura ? 'Sí requiere factura' : 'No requiere factura';
 
-            // Agregar conteo de préstamos
-            $cliente->prestamos_count = $cliente->prestamos()->count();
+            // Agregar conteo de préstamos (usando el atributo cargado por withCount)
+            $cliente->prestamos_count = $cliente->prestamos_count ?? 0;
 
             return $cliente;
         });
@@ -302,112 +302,8 @@ class ClienteController extends Controller
     }
 
     // ========================= Validaciones =========================
-    private function getRfcValidationRules(?int $clienteId = null): array
-    {
-        return [
-            'required',
-            'string',
-            'max:13',
-            'regex:/^[A-ZÑ&]{3,4}[0-9]{6}[A-Z0-9]{3}$/',
-            function ($attribute, $value, $fail) use ($clienteId) {
-                $value = strtoupper(trim($value));
+    // ========================= Validaciones (Eliminadas - Se usan FormRequests) =========================
 
-                // Use cache for faster lookup
-                $existingRfc = Cache::remember("rfc_exists_{$value}", 30, function () use ($value) {
-                    return Cliente::where('rfc', $value)->value('id');
-                });
-
-                $isDuplicate = $existingRfc && (!$clienteId || $existingRfc != $clienteId);
-
-                if ($isDuplicate) {
-                    if ($value === self::RFC_GENERIC_FOREIGN) {
-                        $fail('Ya existe el cliente genérico. No se pueden crear múltiples clientes con RFC genérico.');
-                    } else {
-                        $fail('El RFC ya está registrado.');
-                    }
-                }
-            },
-        ];
-    }
-
-    private function getRegimenFiscalValidationRules(): array
-    {
-        // validamos en DB + compatibilidad con tipo_persona
-        return [
-            'required',
-            'string',
-            'exists:sat_regimenes_fiscales,clave',
-            function ($attribute, $value, $fail) {
-                $tipo = request()->input('tipo_persona');
-                $rf = SatRegimenFiscal::find($value);
-                if (!$rf) return; // exists ya fallará
-
-                if ($tipo === 'fisica' && !$rf->persona_fisica) {
-                    $fail("El régimen fiscal '{$rf->clave} - {$rf->descripcion}' no es válido para Persona Física. Selecciona un régimen fiscal para personas físicas.");
-                }
-                if ($tipo === 'moral' && !$rf->persona_moral) {
-                    $fail("El régimen fiscal '{$rf->clave} - {$rf->descripcion}' no es válido para Persona Moral. Selecciona un régimen fiscal para personas morales.");
-                }
-            },
-        ];
-    }
-
-    private function getValidationRules(?int $clienteId = null): array
-    {
-        $estadosCsv = $this->estadosSatCsv();
-
-        return [
-            'nombre_razon_social' => 'required|string|max:255|regex:/^[a-zA-Z0-9ñÑáéíóúÁÉÍÓÚüÜ\s\.,&\-\']+$/',
-            'tipo_persona'        => 'required|in:fisica,moral',
-            'rfc'                 => $this->getRfcValidationRules($clienteId),
-            'regimen_fiscal'      => $this->getRegimenFiscalValidationRules(),
-            'uso_cfdi'            => 'required|string|exists:sat_usos_cfdi,clave',
-            'email'               => ['required', 'email', 'max:255'],
-            'telefono'            => 'nullable|string|size:10|regex:/^[0-9]{10}$/',
-            'calle'               => 'required|string|max:255',
-            'numero_exterior'     => 'required|string|max:20',
-            'numero_interior'     => 'nullable|string|max:20',
-            'colonia'             => 'required|string|max:255',
-            'codigo_postal'       => 'required|string|size:5|regex:/^[0-9]{5}$/',
-            'municipio'           => 'required|string|max:255',
-            'estado'              => "required|string|min:2|max:255", // nombre completo del estado (sin validaciones estrictas)
-            'pais'                => 'required|string|in:' . self::DEFAULT_COUNTRY,
-            'notas'               => 'nullable|string|max:1000',
-            'activo'              => 'boolean',
-        ];
-    }
-
-    private function getValidationMessages(): array
-    {
-        return [
-            'nombre_razon_social.required' => 'El nombre o razón social es obligatorio.',
-            'nombre_razon_social.regex'    => 'El nombre/razón social contiene caracteres no válidos.',
-            'tipo_persona.required'        => 'El tipo de persona es obligatorio.',
-            'tipo_persona.in'              => 'El tipo de persona debe ser física o moral.',
-            'rfc.required'                 => 'El RFC es obligatorio.',
-            'rfc.regex'                    => 'El RFC no tiene un formato válido.',
-            'regimen_fiscal.required'      => 'El régimen fiscal es obligatorio.',
-            'regimen_fiscal.exists'        => 'El régimen fiscal no existe en el catálogo.',
-            'uso_cfdi.required'            => 'El uso de CFDI es obligatorio.',
-            'uso_cfdi.exists'              => 'El uso de CFDI seleccionado no es válido.',
-            'email.required'               => 'El email es obligatorio.',
-            'email.email'                  => 'El email debe tener un formato válido.',
-            'telefono.size'                => 'El teléfono debe tener exactamente 10 dígitos.',
-            'telefono.regex'               => 'El teléfono debe contener solo números (10 dígitos).',
-            'calle.required'               => 'La calle es obligatoria.',
-            'numero_exterior.required'     => 'El número exterior es obligatorio.',
-            'colonia.required'             => 'La colonia es obligatoria.',
-            'codigo_postal.required'       => 'El código postal es obligatorio.',
-            'codigo_postal.size'           => 'El código postal debe tener 5 dígitos.',
-            'codigo_postal.regex'          => 'El código postal debe contener solo números.',
-            'municipio.required'           => 'El municipio es obligatorio.',
-            'estado.required'              => 'El estado es obligatorio.',
-            'estado.min'                   => 'El estado es obligatorio y debe tener al menos 2 caracteres.',
-            'pais.required'                => 'El país es obligatorio.',
-            'pais.in'                      => 'El país debe ser ' . self::DEFAULT_COUNTRY . '.',
-            'notas.max'                    => 'Las notas no pueden exceder 1000 caracteres.',
-        ];
-    }
 
     private function formatClienteForView(Cliente $c): Cliente
     {
@@ -476,7 +372,8 @@ class ClienteController extends Controller
             'postal_code' => $codigo_postal,
             'city' => $municipio,
             'state' => $estado,
-            'country' => 'MX',
+            'state' => $estado,
+            'country' => $useData ? ($data['pais'] ?? $cliente->pais) : $cliente->pais,
             'cfdi_use' => $uso_cfdi,
         ];
     }
@@ -493,6 +390,7 @@ class ClienteController extends Controller
             if (!in_array($sortBy, self::VALID_SORT_FIELDS)) $sortBy = self::DEFAULT_SORT_BY;
             if (!in_array($sortDirection, self::VALID_SORT_DIRECTIONS)) $sortDirection = self::DEFAULT_SORT_DIRECTION;
 
+            $query->withCount('prestamos'); // Optimización N+1
             $query->orderBy($sortBy, $sortDirection);
 
             $clientes = $query->paginate(self::ITEMS_PER_PAGE)->appends($request->query());
@@ -587,19 +485,9 @@ class ClienteController extends Controller
                 }
             }
 
-            // Si no se muestra la dirección en el formulario, evitar sobrescribirla con null/''
-            $camposDireccion = ['calle','numero_exterior','numero_interior','colonia','codigo_postal','municipio','estado'];
-            if (!$request->boolean('mostrar_direccion')) {
-                foreach ($camposDireccion as $campo) {
-                    if (!array_key_exists($campo, $data) || $data[$campo] === null || $data[$campo] === '') {
-                        unset($data[$campo]);
-                    }
-                }
-            }
-
             // Normalización de datos básicos (siempre presentes)
             $data['nombre_razon_social'] = trim($data['nombre_razon_social']);
-            $data['pais']                = self::DEFAULT_COUNTRY; // Forzado
+            // $data['pais'] = self::DEFAULT_COUNTRY; // Eliminado para permitir extranjeros
 
             // Solo normalizar campos fiscales si están presentes y no son null
             if (isset($data['rfc']) && !is_null($data['rfc'])) {
@@ -669,6 +557,7 @@ class ClienteController extends Controller
         try {
             // Optimizar carga de relaciones - solo cargar las necesarias para mostrar
             $cliente->load(['regimen', 'uso', 'estadoSat']);
+            $cliente->loadCount(['cotizaciones', 'ventas', 'pedidos', 'facturas']);
             $cliente = $this->formatClienteForView($cliente);
             return Inertia::render('Clientes/Show', ['cliente' => $cliente]);
         } catch (ModelNotFoundException $e) {
@@ -720,7 +609,7 @@ class ClienteController extends Controller
 
             // Normalización
             $data['nombre_razon_social'] = trim($data['nombre_razon_social']);
-            $data['pais']                = self::DEFAULT_COUNTRY;
+            // $data['pais'] = self::DEFAULT_COUNTRY; // Eliminado para permitir extranjeros
 
             // Solo normalizar campos fiscales si están presentes (cuando requiere_factura es verdadero)
             if (isset($data['rfc']) && !is_null($data['rfc'])) {

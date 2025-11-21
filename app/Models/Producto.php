@@ -19,6 +19,7 @@ class Producto extends Model
         'precio_venta' => 'decimal:2',
         'margen_ganancia' => 'decimal:2',
         'comision_vendedor' => 'decimal:2',
+        'requiere_serie' => 'boolean',
     ];
 
     protected $fillable = [

@@ -158,23 +158,63 @@
           <p class="text-gray-700 bg-white p-4 rounded-md shadow-sm">{{ cita.notas }}</p>
         </div>
 
+        <!-- Botones de Cambio de Estado -->
+        <div class="mb-6 bg-white p-4 rounded-md shadow-sm">
+          <label class="block text-gray-700 text-sm font-bold mb-3">Acciones de Estado</label>
+          <div class="flex flex-wrap gap-3">
+            <button
+              v-if="cita.estado === 'pendiente'"
+              @click="cambiarEstado('en_proceso')"
+              class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors flex items-center gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Iniciar Cita
+            </button>
+            
+            <button
+              v-if="cita.estado === 'en_proceso'"
+              @click="cambiarEstado('completado')"
+              class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Completar Cita
+            </button>
+
+            <button
+              v-if="['pendiente', 'en_proceso', 'programado'].includes(cita.estado)"
+              @click="cambiarEstado('cancelado')"
+              class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors flex items-center gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Cancelar Cita
+            </button>
+
+            <Link
+              :href="route('citas.edit', cita.id)"
+              class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Editar
+            </Link>
+          </div>
+        </div>
+
         <!-- Información de Venta -->
         <div v-if="cita.venta_id" class="mb-4">
           <label class="block text-gray-700 text-sm font-bold mb-2">Venta Asociada</label>
           <p class="text-gray-700">Esta cita generó la venta #{{ cita.venta_id }}</p>
         </div>
 
-        <!-- Información de Requerimiento de Venta -->
-        <div class="mb-4">
-          <label class="block text-gray-700 text-sm font-bold mb-2">¿Requiere Venta?</label>
-          <p class="text-gray-700">{{ cita.requiere_venta ? 'Sí' : 'No' }}</p>
-        </div>
 
-        <!-- Monto de Productos Vendidos -->
-        <div v-if="cita.monto_productos_vendidos" class="mb-4">
-          <label class="block text-gray-700 text-sm font-bold mb-2">Monto de Productos Vendidos</label>
-          <p class="text-gray-700">${{ formatearPrecio(cita.monto_productos_vendidos) }}</p>
-        </div>
 
         <!-- Botones de Acción -->
         <div class="mt-6 flex justify-end space-x-4">
@@ -203,7 +243,8 @@
 
   <script setup>
   import { Head, Link } from '@inertiajs/vue3';
-  import { computed, onMounted } from 'vue'; // Corregido: onMounted desde vue
+  import { computed, onMounted } from 'vue';
+  import axios from 'axios';
   import AppLayout from '@/Layouts/AppLayout.vue';
 
   defineOptions({ layout: AppLayout });
@@ -294,6 +335,26 @@
     console.log('Foto de la hoja de servicio:', props.cita.foto_hoja_servicio);
     console.log('Foto de identificación:', props.cita.foto_identificacion);
   });
+
+  const cambiarEstado = async (nuevoEstado) => {
+    if (!confirm(`¿Estás seguro de cambiar el estado a "${formatearEstado(nuevoEstado)}"?`)) {
+      return;
+    }
+
+    try {
+      const response = await axios.post(route('citas.changeStatus', props.cita.id), {
+        estado: nuevoEstado,
+      });
+
+      if (response.data.success) {
+        // Recargar la página para mostrar el nuevo estado
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('Error al cambiar estado:', error);
+      alert('Error al cambiar el estado de la cita');
+    }
+  };
   </script>
 
   <style scoped>

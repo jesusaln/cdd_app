@@ -41,6 +41,7 @@ class CompraController extends Controller
             'productos',
             'almacen',
             'ordenCompra',
+            'movimientos', // Cargar movimientos para obtener stock histórico
         ]);
 
         // Aplicar filtros
@@ -105,19 +106,29 @@ class CompraController extends Controller
         $transformed = $compras->map(function ($compra) {
             $compra->load('productos');
             $compra->productos = $compra->productos->map(function ($p) use ($compra) {
-                // Calcular informaci�n de stock para cada producto
-                $stockActual = $p->stock ?? 0;
-                $cantidadComprada = $p->pivot->cantidad ?? 0;
+                // Buscar el movimiento de entrada correspondiente a este producto en esta compra
+                $movimiento = $compra->movimientos
+                    ->where('producto_id', $p->id)
+                    ->where('tipo', 'entrada')
+                    ->first();
 
-                // Calcular stock antes de la compra
-                $stockAntes = 0;
-                if ($compra->estado === EstadoCompra::Cancelada) {
-                    // Si est� cancelada, el stock actual es menor que la cantidad comprada
-                    $stockAntes = $stockActual + $cantidadComprada;
+                // Si existe el movimiento, usamos el stock_anterior real registrado
+                // Si no existe (casos antiguos o error), usamos el cálculo aproximado
+                if ($movimiento) {
+                    $stockAntes = $movimiento->stock_anterior;
                 } else {
-                    // Si est� procesada, el stock actual incluye la cantidad comprada
-                    $stockAntes = $stockActual - $cantidadComprada;
+                    // Fallback: Cálculo aproximado basado en stock actual
+                    $stockActual = $p->stock ?? 0;
+                    $cantidadComprada = $p->pivot->cantidad ?? 0;
+
+                    if ($compra->estado === EstadoCompra::Cancelada) {
+                        $stockAntes = $stockActual + $cantidadComprada;
+                    } else {
+                        $stockAntes = $stockActual - $cantidadComprada;
+                    }
                 }
+
+                $stockActual = $p->stock ?? 0; // Stock actual real del producto en este momento
 
                 return array_merge($p->toArray(), [
                     'cantidad' => $p->pivot->cantidad ?? 0,
@@ -126,7 +137,8 @@ class CompraController extends Controller
                     'subtotal' => $p->pivot->subtotal ?? 0,
                     'descuento_monto' => $p->pivot->descuento_monto ?? 0,
                     'stock_antes' => max(0, $stockAntes),
-                    'stock_despues' => (int) $stockActual,
+                    'stock_despues' => (int) $stockActual, // Esto sigue siendo el stock actual del sistema
+                    // 'diferencia_stock' ya no es tan relevante si mostramos el histórico, pero lo mantenemos
                     'diferencia_stock' => (int) ($stockActual - $stockAntes),
                 ]);
             });
@@ -474,15 +486,17 @@ class CompraController extends Controller
                             ->where('producto_id', $producto->id)
                             ->first();
 
-                        if (!$serieExistente) {
-                            \App\Models\ProductoSerie::create([
-                                'producto_id' => $producto->id,
-                                'compra_id' => $compra->id,
-                                'almacen_id' => $validatedData['almacen_id'],
-                                'numero_serie' => trim((string) $serie),
-                                'estado' => 'en_stock',
-                            ]);
+                        if ($serieExistente) {
+                            throw new \Exception("La serie '{$serie}' ya existe para el producto '{$producto->nombre}'.");
                         }
+
+                        \App\Models\ProductoSerie::create([
+                            'producto_id' => $producto->id,
+                            'compra_id' => $compra->id,
+                            'almacen_id' => $validatedData['almacen_id'],
+                            'numero_serie' => trim((string) $serie),
+                            'estado' => 'en_stock',
+                        ]);
                     }
                 }
             }
@@ -691,6 +705,18 @@ class CompraController extends Controller
         $validatedData = $this->validateCompraRequest($request);
 
         DB::transaction(function () use ($compra, $validatedData) {
+            // Validar que no existan series vendidas asociadas a esta compra
+            $seriesVendidas = \App\Models\ProductoSerie::where('compra_id', $compra->id)
+                ->where('estado', '!=', 'en_stock')
+                ->exists();
+
+            if ($seriesVendidas) {
+                throw new \Exception('No se puede editar la compra porque algunos productos (series) ya han sido vendidos o dados de baja.');
+            }
+
+            // Eliminar series antiguas asociadas a esta compra
+            \App\Models\ProductoSerie::where('compra_id', $compra->id)->delete();
+
             // Guardar items antiguos antes de eliminar
             $oldItems = $compra->productos;
 
@@ -741,6 +767,7 @@ class CompraController extends Controller
             $total = $subtotalDespuesDescuentoGeneral + $iva;
 
             // Actualizar la compra
+            // Actualizar la compra
             $compra->update([
                 'proveedor_id' => $validatedData['proveedor_id'],
                 'almacen_id' => $validatedData['almacen_id'],
@@ -750,6 +777,32 @@ class CompraController extends Controller
                 'iva' => $iva,
                 'total' => $total,
             ]);
+
+            // Actualizar Cuentas por Pagar
+            $cuentaPorPagar = CuentasPorPagar::where('compra_id', $compra->id)->first();
+            if ($cuentaPorPagar) {
+                // Calcular nuevo saldo pendiente
+                // Asumimos que si se edita, se recalcula sobre lo pagado
+                $montoPagado = $cuentaPorPagar->monto_pagado;
+                $nuevoPendiente = $total - $montoPagado;
+
+                $cuentaPorPagar->update([
+                    'monto_total' => $total,
+                    'monto_pendiente' => $nuevoPendiente,
+                    'estado' => $nuevoPendiente <= 0 ? 'pagada' : ($montoPagado > 0 ? 'parcial' : 'pendiente'),
+                ]);
+            } else {
+                // Si no existe (por error de datos antiguos), crearla
+                CuentasPorPagar::create([
+                    'compra_id' => $compra->id,
+                    'monto_total' => $total,
+                    'monto_pagado' => 0,
+                    'monto_pendiente' => $total,
+                    'fecha_vencimiento' => now()->addDays(30),
+                    'estado' => 'pendiente',
+                    'notas' => 'Cuenta regenerada por edición de compra',
+                ]);
+            }
 
             // Eliminar items antiguos
             $compra->productos()->delete();
@@ -807,6 +860,26 @@ class CompraController extends Controller
                     'subtotal' => $subtotalFinal,
                     'descuento_monto' => $descuentoMonto,
                 ]);
+
+                // Registrar series si el producto lo requiere (NUEVAS SERIES)
+                if (($producto->requiere_serie ?? false) && !empty($productoData['seriales']) && is_array($productoData['seriales'])) {
+                    foreach ($productoData['seriales'] as $serie) {
+                        // Verificar si la serie ya existe para este producto (aunque acabamos de borrar las de esta compra, podría haber conflicto con otras)
+                        $serieExistente = \App\Models\ProductoSerie::where('numero_serie', trim((string) $serie))
+                            ->where('producto_id', $producto->id)
+                            ->first();
+
+                        if (!$serieExistente) {
+                            \App\Models\ProductoSerie::create([
+                                'producto_id' => $producto->id,
+                                'compra_id' => $compra->id,
+                                'almacen_id' => $validatedData['almacen_id'],
+                                'numero_serie' => trim((string) $serie),
+                                'estado' => 'en_stock',
+                            ]);
+                        }
+                    }
+                }
             }
         });
 
@@ -820,48 +893,44 @@ class CompraController extends Controller
     {
         $compra = Compra::findOrFail($id);
 
-        // Solo se puede cancelar si est� procesada
+        // Solo se puede cancelar si est procesada
         if ($compra->estado !== EstadoCompra::Procesada) {
             return Redirect::back()->with('error', 'Solo se pueden cancelar compras procesadas');
         }
 
         DB::transaction(function () use ($compra) {
+            // 1. Validar Series Vendidas
+            $seriesVendidas = \App\Models\ProductoSerie::where('compra_id', $compra->id)
+                ->where('estado', '!=', 'en_stock')
+                ->exists();
+
+            if ($seriesVendidas) {
+                throw new \Exception('No se puede cancelar la compra porque algunos productos (series) ya han sido vendidos o dados de baja.');
+            }
+
             // Obtener los items de la compra
             $compraItems = CompraItem::where('compra_id', $compra->id)->get();
 
-            // Verificar si los productos han sido vendidos
-            $productosVendidos = [];
+            // 2. Validar Stock General (para productos sin serie o validación adicional)
             foreach ($compraItems as $item) {
-                // Como todas las compras son de productos, accedemos directamente
                 $producto = Producto::find($item->comprable_id);
                 if (!$producto) {
-                    throw new \Exception("Producto con ID {$item->comprable_id} no encontrado");
+                    continue;
                 }
 
-                $stockActual = $producto->stock;
-                $cantidadComprada = $item->cantidad;
-
-                // Si el stock actual es menor que la cantidad comprada,
-                // significa que se han vendido productos de esta compra
-                if ($stockActual < $cantidadComprada) {
-                    $productosVendidos[] = $producto->nombre;
+                // Si el producto requiere serie, la validación anterior ya cubrió lo más importante.
+                // Pero verificamos stock global por seguridad.
+                if ($producto->stock < $item->cantidad) {
+                     throw new \Exception("No se puede cancelar: Stock insuficiente del producto '{$producto->nombre}' para revertir la compra.");
                 }
             }
 
-            // Si hay productos vendidos, no permitir la cancelaci�n
-            if (!empty($productosVendidos)) {
-                throw new \Exception(
-                    'No se puede cancelar la compra porque los siguientes productos ya han sido vendidos: ' .
-                    implode(', ', $productosVendidos)
-                );
-            }
-
-            // Disminuir inventario de todos los productos
+            // 3. Revertir Stock
             foreach ($compraItems as $item) {
                 $producto = Producto::find($item->comprable_id);
                 if ($producto) {
                     $this->inventarioService->salida($producto, $item->cantidad, [
-                        'motivo' => 'Cancelaci�n de compra',
+                        'motivo' => 'Cancelación de compra',
                         'almacen_id' => $compra->almacen_id,
                         'user_id' => Auth::id(), // ? Usuario que cancela la compra
                         'referencia_type' => 'App\Models\Compra',
@@ -871,6 +940,25 @@ class CompraController extends Controller
                             'compra_item_id' => $item->id,
                         ],
                     ]);
+                }
+            }
+
+            // 4. Eliminar Series
+            \App\Models\ProductoSerie::where('compra_id', $compra->id)->delete();
+
+            // 5. Cancelar Cuentas por Pagar
+            $cuentaPorPagar = CuentasPorPagar::where('compra_id', $compra->id)->first();
+            if ($cuentaPorPagar) {
+                if ($cuentaPorPagar->monto_pagado > 0) {
+                     // Si hay pagos parciales, marcamos como cancelada pero mantenemos registro
+                     $cuentaPorPagar->update([
+                         'estado' => 'cancelada',
+                         'monto_pendiente' => 0,
+                         'notas' => ($cuentaPorPagar->notas ? $cuentaPorPagar->notas . " | " : "") . 'Cancelada por cancelación de compra'
+                     ]);
+                } else {
+                    // Si no hay pagos, eliminamos el registro
+                    $cuentaPorPagar->delete();
                 }
             }
 
@@ -941,5 +1029,48 @@ class CompraController extends Controller
         $compra->forceDelete();
 
         return redirect()->route('compras.index')->with('success', 'Compra eliminada definitivamente de la base de datos.');
+    }
+
+    /**
+     * Genera un número de compra único secuencial.
+     */
+    private function generarNumeroCompra()
+    {
+        // Buscar el último número de compra existente
+        $ultimaCompra = Compra::where('numero_compra', 'LIKE', 'C%')
+            ->orderBy('id', 'desc')
+            ->first();
+
+        if (!$ultimaCompra || !$ultimaCompra->numero_compra) {
+            return 'C0001';
+        }
+
+        // Extraer el número de la compra
+        $matches = [];
+        if (preg_match('/C(\d+)$/', $ultimaCompra->numero_compra, $matches)) {
+            $ultimoNumero = (int) $matches[1];
+            $siguienteNumero = $ultimoNumero + 1;
+            $nuevoNumero = 'C' . str_pad($siguienteNumero, 4, '0', STR_PAD_LEFT);
+
+            // Verificar que no exista ya (evitar colisiones)
+            while (Compra::where('numero_compra', $nuevoNumero)->exists()) {
+                $siguienteNumero++;
+                $nuevoNumero = 'C' . str_pad($siguienteNumero, 4, '0', STR_PAD_LEFT);
+            }
+
+            return $nuevoNumero;
+        }
+
+        // Si no se puede extraer el número, empezar desde C0001
+        return 'C0001';
+    }
+
+    /**
+     * Obtiene el siguiente número de compra para mostrar en el frontend.
+     */
+    public function obtenerSiguienteNumero()
+    {
+        $siguienteNumero = $this->generarNumeroCompra();
+        return response()->json(['siguiente_numero' => $siguienteNumero]);
     }
 }

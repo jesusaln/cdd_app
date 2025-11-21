@@ -37,12 +37,6 @@ class Cita extends Model
         'foto_equipo',
         'foto_hoja_servicio',
         'foto_identificacion',
-        'productos_utilizados',
-        'productos_vendidos',
-        'monto_productos_vendidos',
-        'requiere_venta',
-        'venta_id',
-        'activo',
         'subtotal',
         'descuento_general',
         'descuento_items',
@@ -53,10 +47,7 @@ class Cita extends Model
 
     protected $casts = [
         'fecha_hora' => 'datetime',
-        'productos_utilizados' => 'array',
-        'productos_vendidos' => 'array',
-        'monto_productos_vendidos' => 'decimal:2',
-        'requiere_venta' => 'boolean',
+        'fecha_hora' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
@@ -159,36 +150,6 @@ class Cita extends Model
     public function tecnico()
     {
         return $this->belongsTo(Tecnico::class);
-    }
-
-    /**
-     * Productos utilizados durante la cita
-     */
-    public function productosUtilizados()
-    {
-        return $this->belongsToMany(Producto::class, 'cita_productos_utilizados')
-            ->withPivot('cantidad', 'precio_unitario', 'tipo_uso', 'notas')
-            ->withTimestamps();
-    }
-
-    /**
-     * Productos que se vendieron durante la cita
-     */
-    public function productosVendidos()
-    {
-        return $this->belongsToMany(Producto::class, 'cita_productos_vendidos')
-            ->withPivot('cantidad', 'precio_venta', 'subtotal', 'venta_id')
-            ->withTimestamps();
-    }
-
-    /**
-     * Servicios realizados durante la cita
-     */
-    public function serviciosRealizados()
-    {
-        return $this->belongsToMany(Servicio::class, 'cita_servicios')
-            ->withPivot('cantidad', 'precio', 'subtotal', 'notas')
-            ->withTimestamps();
     }
 
     /**

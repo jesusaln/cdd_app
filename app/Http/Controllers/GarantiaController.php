@@ -8,44 +8,9 @@ use Inertia\Inertia;
 
 class GarantiaController extends Controller
 {
-    public function index(Request $request)
+    private function getSeriesVendidasQuery()
     {
-        $serie = trim((string) $request->query('serie', ''));
-
-        // Si hay búsqueda por serie específica
-        if ($serie !== '') {
-            $resultado = DB::table('producto_series as ps')
-                ->leftJoin('venta_item_series as vis', 'vis.producto_serie_id', '=', 'ps.id')
-                ->leftJoin('venta_items as vi', 'vi.id', '=', 'vis.venta_item_id')
-                ->leftJoin('ventas as v', 'v.id', '=', 'vi.venta_id')
-                ->leftJoin('clientes as c', 'c.id', '=', 'v.cliente_id')
-                ->leftJoin('productos as p', 'p.id', '=', 'ps.producto_id')
-                ->select(
-                    'ps.id as producto_serie_id',
-                    'ps.numero_serie',
-                    'ps.estado as estado_serie',
-                    'ps.cita_id',
-                    'p.id as producto_id',
-                    'p.nombre as producto_nombre',
-                    'v.id as venta_id',
-                    'v.numero_venta',
-                    'v.created_at as venta_fecha',
-                    'c.id as cliente_id',
-                    'c.nombre_razon_social as cliente_nombre',
-                    'c.email as cliente_email',
-                    'c.telefono as cliente_telefono'
-                )
-                ->where('ps.numero_serie', $serie)
-                ->first();
-
-            return Inertia::render('Garantias/BuscarSerie', [
-                'serie' => $serie,
-                'resultado' => $resultado,
-            ]);
-        }
-
-        // Lista de todas las series vendidas (excluyendo ventas canceladas)
-        $query = DB::table('producto_series as ps')
+        return DB::table('producto_series as ps')
             ->join('venta_item_series as vis', 'vis.producto_serie_id', '=', 'ps.id')
             ->join('venta_items as vi', 'vi.id', '=', 'vis.venta_item_id')
             ->join('ventas as v', 'v.id', '=', 'vi.venta_id')
@@ -81,6 +46,47 @@ class GarantiaController extends Controller
             )
             // Excluir ventas canceladas
             ->where('v.estado', '!=', 'cancelada');
+    }
+
+    public function index(Request $request)
+    {
+        $serie = trim((string) $request->query('serie', ''));
+
+        // Si hay búsqueda por serie específica
+        if ($serie !== '') {
+            $resultado = DB::table('producto_series as ps')
+                ->leftJoin('venta_item_series as vis', 'vis.producto_serie_id', '=', 'ps.id')
+                ->leftJoin('venta_items as vi', 'vi.id', '=', 'vis.venta_item_id')
+                ->leftJoin('ventas as v', 'v.id', '=', 'vi.venta_id')
+                ->leftJoin('clientes as c', 'c.id', '=', 'v.cliente_id')
+                ->leftJoin('productos as p', 'p.id', '=', 'ps.producto_id')
+                ->select(
+                    'ps.id as producto_serie_id',
+                    'ps.numero_serie',
+                    'ps.estado as estado_serie',
+                    'ps.cita_id',
+                    'p.id as producto_id',
+                    'p.nombre as producto_nombre',
+                    'v.id as venta_id',
+                    'v.numero_venta',
+                    'v.created_at as venta_fecha',
+                    'c.id as cliente_id',
+                    'c.nombre_razon_social as cliente_nombre',
+                    'c.email as cliente_email',
+                    'c.telefono as cliente_telefono'
+                )
+                ->where('ps.numero_serie', $serie)
+                ->first();
+
+            return Inertia::render('Garantias/BuscarSerie', [
+                'serie' => $serie,
+                'resultado' => $resultado,
+                'seriesVendidas' => $this->getSeriesVendidasQuery()->orderBy('v.created_at', 'desc')->paginate(10),
+            ]);
+        }
+
+        // Lista de todas las series vendidas (excluyendo ventas canceladas)
+        $query = $this->getSeriesVendidasQuery();
 
         // Aplicar filtros
         if ($request->filled('search')) {
@@ -114,12 +120,58 @@ class GarantiaController extends Controller
         ]);
     }
 
-    public function create()
+    public function create(Request $request)
     {
+        // Obtener series vendidas para mostrar en la lista
+        $query = $this->getSeriesVendidasQuery();
+        $resultado = null;
+        $search = $request->input('search');
+
+        // Aplicar búsqueda si existe
+        if ($search) {
+            // 1. Intentar buscar coincidencia exacta para el card de detalle
+            $resultado = DB::table('producto_series as ps')
+                ->leftJoin('venta_item_series as vis', 'vis.producto_serie_id', '=', 'ps.id')
+                ->leftJoin('venta_items as vi', 'vi.id', '=', 'vis.venta_item_id')
+                ->leftJoin('ventas as v', 'v.id', '=', 'vi.venta_id')
+                ->leftJoin('clientes as c', 'c.id', '=', 'v.cliente_id')
+                ->leftJoin('productos as p', 'p.id', '=', 'ps.producto_id')
+                ->select(
+                    'ps.id as producto_serie_id',
+                    'ps.numero_serie',
+                    'ps.estado as estado_serie',
+                    'ps.cita_id',
+                    'p.id as producto_id',
+                    'p.nombre as producto_nombre',
+                    'v.id as venta_id',
+                    'v.numero_venta',
+                    'v.created_at as venta_fecha',
+                    'c.id as cliente_id',
+                    'c.nombre_razon_social as cliente_nombre',
+                    'c.email as cliente_email',
+                    'c.telefono as cliente_telefono'
+                )
+                ->where('ps.numero_serie', $search)
+                ->first();
+
+            // 2. Filtrar la lista general
+            $query->where(function ($q) use ($search) {
+                $q->where('ps.numero_serie', 'like', "%{$search}%")
+                  ->orWhere('p.nombre', 'like', "%{$search}%")
+                  ->orWhere('p.codigo', 'like', "%{$search}%")
+                  ->orWhere('c.nombre_razon_social', 'like', "%{$search}%")
+                  ->orWhere('c.email', 'like', "%{$search}%");
+            });
+        }
+
+        $seriesVendidas = $query->orderBy('v.created_at', 'desc')->paginate(20);
+
         // Página para buscar series de garantía
         return Inertia::render('Garantias/BuscarSerie', [
-            'serie' => null,
-            'resultado' => null,
+            'serie' => $search,
+            'resultado' => $resultado,
+            'seriesVendidas' => $seriesVendidas,
+            'filters' => $request->only(['search']),
         ]);
     }
 
