@@ -209,6 +209,12 @@
                                         >
                                             ✓ Marcar como Pagado
                                         </button>
+                                        <Link
+                                            :href="route('cuentas-por-pagar.index')"
+                                            class="text-blue-600 hover:text-blue-800 text-sm font-medium text-center"
+                                        >
+                                            Volver al listado
+                                        </Link>
                                         <div v-if="cuenta.pagado" class="text-center">
                                             <span class="bg-green-100 text-green-800 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
                                                 Cuenta Completamente Pagada
@@ -509,8 +515,8 @@ const confirmarPago = async () => {
             showPagoModal.value = false;
             metodoPago.value = '';
             notasPago.value = '';
-            // Recargar la página para mostrar los nuevos datos
-            router.reload();
+            // Volver al listado tras pagar
+            router.visit(route('cuentas-por-pagar.index'));
         } else {
             notyf.error(result.error || 'Error al marcar como pagada');
         }

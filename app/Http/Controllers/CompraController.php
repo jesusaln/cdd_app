@@ -7,6 +7,7 @@ use App\Enums\EstadoCompra;
 use App\Models\Compra;
 use App\Models\CompraItem;
 use App\Models\Producto;
+use App\Models\ProductoSerie;
 use App\Models\ProductoPrecioHistorial;
 use App\Models\Proveedor;
 use App\Models\Almacen;
@@ -601,7 +602,13 @@ class CompraController extends Controller
     {
         $compra = Compra::with('proveedor', 'productos', 'almacen')->findOrFail($id);
 
-        $compra->productos = $compra->productos->map(function ($producto) {
+        $compra->productos = $compra->productos->map(function ($producto) use ($compra) {
+            $seriales = ProductoSerie::where('compra_id', $compra->id)
+                ->where('producto_id', $producto->id)
+                ->pluck('numero_serie')
+                ->values()
+                ->toArray();
+
             return [
                 'id' => $producto->id,
                 'nombre' => $producto->nombre,
@@ -611,6 +618,8 @@ class CompraController extends Controller
                 'descuento' => $producto->pivot->descuento,
                 'subtotal' => $producto->pivot->subtotal,
                 'descuento_monto' => $producto->pivot->descuento_monto,
+                'requiere_serie' => (bool) ($producto->requiere_serie ?? false),
+                'seriales' => $seriales,
             ];
         });
 
@@ -891,6 +900,94 @@ class CompraController extends Controller
         return redirect()->route('compras.index')->with('success', 'Compra actualizada exitosamente.');
     }
 
+    public function actualizarSeries(Request $request, $id)
+    {
+        $compra = Compra::with('productos')->findOrFail($id);
+
+        if ($compra->estado !== EstadoCompra::Procesada) {
+            return redirect()->back()->with('error', 'Solo se pueden editar series de compras procesadas.');
+        }
+
+        $productosConSerie = $compra->productos->filter(function ($producto) {
+            return (bool) ($producto->requiere_serie ?? false);
+        });
+
+        if ($productosConSerie->isEmpty()) {
+            return redirect()->back()->with('info', 'Esta compra no tiene productos que requieran series.');
+        }
+
+        $rules = [
+            'productos' => 'required|array|min:1',
+        ];
+
+        $productoIdsEsperados = $productosConSerie->pluck('id')->toArray();
+
+        foreach ($productosConSerie->values() as $index => $producto) {
+            $requiredSize = max(1, (int) ($producto->pivot->cantidad ?? 1));
+            $rules["productos.{$index}.id"] = 'required|integer|in:' . $producto->id;
+            $rules["productos.{$index}.seriales"] = ['required', 'array', 'size:' . $requiredSize];
+            $rules["productos.{$index}.seriales.*"] = 'required|string|max:191|distinct';
+        }
+
+        $validated = $request->validate($rules);
+
+        $serialesPorProducto = [];
+        foreach ($validated['productos'] as $productoData) {
+            $pid = (int) $productoData['id'];
+            $seriales = array_map(function ($serie) {
+                return trim((string) $serie);
+            }, $productoData['seriales'] ?? []);
+
+            $serialesPorProducto[$pid] = $seriales;
+        }
+
+        // Validar que vengan todos los productos que requieren serie
+        sort($productoIdsEsperados);
+        $productoIdsRecibidos = array_keys($serialesPorProducto);
+        sort($productoIdsRecibidos);
+        if ($productoIdsEsperados !== $productoIdsRecibidos) {
+            return redirect()->back()->with('error', 'Debes capturar series para todos los productos que lo requieren.');
+        }
+
+        // Validar que no existan series vendidas asociadas a esta compra
+        $seriesVendidas = ProductoSerie::where('compra_id', $compra->id)
+            ->where('estado', '!=', 'en_stock')
+            ->exists();
+
+        if ($seriesVendidas) {
+            return redirect()->back()->with('error', 'No se pueden editar las series porque algunas ya fueron usadas (vendidas o dadas de baja).');
+        }
+
+        DB::transaction(function () use ($compra, $serialesPorProducto) {
+            // Eliminar series previas de esta compra
+            ProductoSerie::where('compra_id', $compra->id)->delete();
+
+            foreach ($serialesPorProducto as $productoId => $seriales) {
+                foreach ($seriales as $serie) {
+                    // Validar que la serie no exista para este producto en otra compra
+                    $existe = ProductoSerie::where('producto_id', $productoId)
+                        ->where('numero_serie', $serie)
+                        ->where('compra_id', '!=', $compra->id)
+                        ->exists();
+
+                    if ($existe) {
+                        throw new \Exception("La serie '{$serie}' ya existe para este producto en otra compra.");
+                    }
+
+                    ProductoSerie::create([
+                        'producto_id' => $productoId,
+                        'compra_id' => $compra->id,
+                        'almacen_id' => $compra->almacen_id,
+                        'numero_serie' => $serie,
+                        'estado' => 'en_stock',
+                    ]);
+                }
+            }
+        });
+
+        return redirect()->back()->with('success', 'Series actualizadas correctamente.');
+    }
+
     /**
      * Cancelar la compra y disminuir inventario
      */
@@ -1078,4 +1175,5 @@ class CompraController extends Controller
         $siguienteNumero = $this->generarNumeroCompra();
         return response()->json(['siguiente_numero' => $siguienteNumero]);
     }
+
 }

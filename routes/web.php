@@ -263,6 +263,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
         ->middleware('role:admin|editor');
     
     Route::resource('compras', CompraController::class)->names('compras')->middleware('role:ventas|admin|editor');
+    Route::post('/compras/{id}/series', [CompraController::class, 'actualizarSeries'])->name('compras.actualizar-series')->middleware('role:ventas|admin|editor');
     Route::post('/compras/{id}/cancel', [CompraController::class, 'cancel'])->name('compras.cancel')->middleware('role:admin|editor');
     Route::delete('/compras/{id}/force', [CompraController::class, 'forceDestroy'])->name('compras.force-destroy')->middleware('role:admin|editor');
     Route::resource('cuentas-por-pagar', \App\Http\Controllers\CuentasPorPagarController::class)->names('cuentas-por-pagar')->middleware('role:admin|editor');

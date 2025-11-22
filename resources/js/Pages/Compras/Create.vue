@@ -358,6 +358,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
+import axios from 'axios';
 import { Notyf } from 'notyf';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Header from '@/Components/CreateComponents/Header.vue';
@@ -400,21 +401,22 @@ const props = defineProps({
 const proveedoresList = ref([...props.proveedores]);
 
 // Numero de compra (se obtiene del backend)
-const numeroCompraFijo = ref('C0001');
+const numeroCompraFijo = ref('');
 
 // Obtener el siguiente numero de compra del backend
 const fetchNextNumeroCompra = async () => {
   try {
-    const response = await axios.get('/compras/siguiente-numero');
-    if (response.data && response.data.siguiente_numero) {
-      numeroCompraFijo.value = response.data.siguiente_numero;
-      form.numero_compra = response.data.siguiente_numero;
-    }
-  } catch (error) {
-    console.error('Error al obtener el numero de compra:', error);
-    numeroCompraFijo.value = 'C0001';
-    form.numero_compra = 'C0001';
+  const response = await axios.get('/compras/siguiente-numero');
+  if (response.data && response.data.siguiente_numero) {
+    numeroCompraFijo.value = response.data.siguiente_numero;
+    form.numero_compra = response.data.siguiente_numero;
+    saveState(); // guardamos el nuevo n�mero en localStorage
   }
+} catch (error) {
+  console.error('Error al obtener el numero de compra:', error);
+  // fallback
+  numeroCompraFijo.value = form.numero_compra || 'C0001';
+}
 };
 
 // Obtener fecha actual en formato YYYY-MM-DD (zona horaria local)
@@ -815,7 +817,7 @@ const cancelSerials = () => {
 
 const limpiarFormulario = () => {
   proveedorSeleccionado.value = null;
-  form.numero_compra = numeroCompraFijo;
+  form.numero_compra = numeroCompraFijo.value || 'C0001';
   form.fecha_compra = getCurrentDate();
   form.proveedor_id = '';
   form.descuento_general = 0;
@@ -831,7 +833,7 @@ const limpiarFormulario = () => {
 
 const saveState = () => {
   const stateToSave = {
-    numero_compra: numeroCompraFijo,
+    numero_compra: form.numero_compra || numeroCompraFijo.value || 'C0001',
     fecha_compra: form.fecha_compra,
     proveedor_id: form.proveedor_id,
     descuento_general: form.descuento_general,
@@ -876,7 +878,7 @@ onMounted(async () => {
   if (savedData && typeof savedData === 'object') {
     try {
       // Usar numero guardado o el generado automaticamente
-      form.numero_compra = savedData.numero_compra || numeroCompraFijo.value;
+      form.numero_compra = numeroCompraFijo.value || savedData.numero_compra || 'C0001';
       form.fecha_compra = getCurrentDate(); // Siempre usar fecha actual
 
       form.proveedor_id = savedData.proveedor_id || '';
@@ -897,6 +899,10 @@ onMounted(async () => {
       removeFromLocalStorage('compraEnProgreso');
     }
   }
+
+  // Forzar que el numero mostrado sea siempre el obtenido del backend
+  form.numero_compra = numeroCompraFijo.value || 'C0001';
+  saveState();
 
   window.addEventListener('beforeunload', handleBeforeUnload);
 });

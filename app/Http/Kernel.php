@@ -20,6 +20,7 @@ class Kernel extends HttpKernel
         \App\Http\Middleware\HandleInertiaRequests::class, // Necesario para Inertia
         \App\Http\Middleware\DebugCorsMiddleware::class, // Middleware para debuggear CORS
         // eliminado \App\Http\Middleware\CorsMiddleware::class,
+        \App\Http\Middleware\AlignSequencesMiddleware::class, // Alinea secuencias en PostgreSQL
     ];
 
     /**
