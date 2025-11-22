@@ -1,4 +1,4 @@
-<!-- Resources/js/Pages/Compras/CrearCompra.vue -->
+﻿<!-- Resources/js/Pages/Compras/CrearCompra.vue -->
 <template>
   <Head title="Crear Compra" />
   <div class="compras-create min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
@@ -23,7 +23,7 @@
             </div>
             <div class="ml-3">
               <p class="text-sm text-blue-700">
-                <strong>Nota:</strong> El IVA se calcula automáticamente según la configuración de la empresa. Ingrese los precios SIN IVA.
+                <strong>Nota:</strong> El IVA se calcula automaticamente segun la configuracion de la empresa. Ingrese los precios SIN IVA.
               </p>
             </div>
           </div>
@@ -31,26 +31,26 @@
       </div>
 
       <form @submit.prevent="crearCompra" class="space-y-8">
-        <!-- Información General -->
+        <!-- Informacion General -->
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <div class="bg-gradient-to-r from-indigo-500 to-indigo-600 px-6 py-4">
             <h2 class="text-lg font-semibold text-white flex items-center">
               <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
               </svg>
-              Información General
+              Informacion General
             </h2>
           </div>
           <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Número de Compra -->
+            <!-- Numero de Compra -->
             <div>
               <label for="numero_compra" class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                Número de Compra *
+                Numero de Compra *
                 <span class="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
                   <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                   </svg>
-                  Número fijo
+                  Numero fijo
                 </span>
               </label>
               <div class="relative">
@@ -70,7 +70,7 @@
                 </div>
               </div>
               <p class="mt-1 text-xs text-gray-500">
-                Este número es fijo para todas las compras
+                Este numero es fijo para todas las compras
               </p>
             </div>
 
@@ -82,7 +82,7 @@
                   <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  Automática
+                  Automatica
                 </span>
               </label>
               <div class="relative">
@@ -101,7 +101,7 @@
                 </div>
               </div>
               <p class="mt-1 text-xs text-gray-500">
-                Esta fecha se establece automáticamente con la fecha de creación
+                Esta fecha se establece automaticamente con la fecha de creacion
               </p>
             </div>
           </div>
@@ -114,7 +114,7 @@
               <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
               </svg>
-              Información del Proveedor
+              Informacion del Proveedor
             </h2>
           </div>
           <div class="p-6">
@@ -129,20 +129,20 @@
           </div>
         </div>
 
-        <!-- Almacén de Recepción -->
+        <!-- Almacen de Recepcion -->
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <div class="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-4">
             <h2 class="text-lg font-semibold text-white flex items-center">
               <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
               </svg>
-              Almacén de Recepción
+              Almacen de Recepcion
             </h2>
           </div>
           <div class="p-6">
             <div>
               <label for="almacen_id" class="block text-sm font-medium text-gray-700 mb-2">
-                Almacén donde se recibirán los productos *
+                Almacen donde se recibiran los productos *
               </label>
               <select
                 id="almacen_id"
@@ -150,23 +150,14 @@
                 required
                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
               >
-                <option value="">Seleccionar almacén</option>
+                <option value="">Seleccionar almacen</option>
                 <option v-for="almacen in props.almacenes" :key="almacen.id" :value="almacen.id">
                   {{ almacen.nombre }}
                 </option>
               </select>
               <p class="mt-1 text-xs text-gray-500">
-                Los productos comprados se agregarán automáticamente al inventario de este almacén
+                Los productos comprados se agregaran automaticamente al inventario de este almacen
               </p>
-              <!-- Recordatorio del almacén predeterminado -->
-              <div v-if="props.recordatorio_almacen" class="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
-                <p class="text-xs text-blue-700">
-                  <svg class="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                  </svg>
-                  {{ props.recordatorio_almacen }}
-                </p>
-              </div>
             </div>
           </div>
         </div>
@@ -178,86 +169,15 @@
               <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
               </svg>
-              Productos Disponibles
+              Productos
             </h2>
           </div>
           <div class="p-6">
-            <!-- Productos para selección directa -->
-            <div v-if="productosDisponibles.length > 0" class="mb-6">
-              <h3 class="text-sm font-medium text-gray-700 mb-3">Selecciona productos para comprar:</h3>
-              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                <div
-                  v-for="producto in productosDisponibles"
-                  :key="producto.id"
-                  @click="seleccionarProducto(producto)"
-                  :class="[
-                    'p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md',
-                    productoSeleccionado?.id === producto.id
-                      ? 'border-green-500 bg-green-50'
-                      : 'border-gray-200 hover:border-green-300 hover:bg-green-50'
-                  ]"
-                >
-                  <div class="flex items-center justify-between mb-2">
-                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      {{ producto.codigo || 'N/A' }}
-                    </span>
-                    <span class="text-xs text-gray-500">{{ producto.unidad_medida }}</span>
-                  </div>
-
-                  <h4 class="font-medium text-gray-900 text-sm mb-1">{{ producto.nombre }}</h4>
-
-                  <div v-if="producto.categoria" class="text-xs text-gray-500 mb-2">
-                    {{ typeof producto.categoria === 'string' ? producto.categoria : producto.categoria.nombre }}
-                  </div>
-
-                  <div class="space-y-1">
-                    <div class="flex justify-between text-sm">
-                      <span class="text-gray-600">Precio compra (SIN IVA):</span>
-                      <span class="font-semibold text-green-600">${{ formatearPrecio(producto.precio_compra) }}</span>
-                    </div>
-
-                    <div class="flex justify-between text-sm">
-                      <span class="text-gray-600">Precio venta:</span>
-                      <span class="font-semibold text-blue-600">${{ formatearPrecio(producto.precio_venta) }}</span>
-                    </div>
-
-                    <div class="flex justify-between text-sm">
-                      <span class="text-gray-600">Stock disponible:</span>
-                      <span :class="[
-                        'font-semibold',
-                        producto.stock_total > 10 ? 'text-green-600' :
-                        producto.stock_total > 0 ? 'text-yellow-600' : 'text-red-600'
-                      ]">
-                        {{ producto.stock_total }}
-                      </span>
-                    </div>
-                  </div>
-
-                  <!-- Indicador de stock por almacén -->
-                  <div v-if="producto.stock_por_almacen" class="mt-2 pt-2 border-t border-gray-100">
-                    <div class="text-xs text-gray-500 mb-1">Stock por almacén:</div>
-                    <div class="space-y-1">
-                      <div v-for="(stockInfo, almacenId) in producto.stock_por_almacen" :key="almacenId" class="flex justify-between text-xs">
-                        <span class="text-gray-600">{{ stockInfo.almacen_nombre }}:</span>
-                        <span class="font-medium">{{ stockInfo.cantidad }}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <div class="mb-6 text-sm text-gray-600">
+              Usa el buscador para agregar productos; no se listan todos para evitar sobrecarga.
             </div>
 
-            <!-- Mensaje cuando no hay productos -->
-            <div v-else class="text-center py-8">
-              <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-              </svg>
-              <p class="text-gray-500 text-lg font-medium">No hay productos disponibles</p>
-              <p class="text-gray-400 text-sm mt-1">Los productos aparecerán aquí cuando tengan información completa</p>
-            </div>
-
-            <!-- Buscador tradicional (como respaldo) -->
-            <div class="mt-6 pt-6 border-t border-gray-200">
+            <div class="pt-2 border-t border-gray-200">
               <BuscarProducto
                 ref="buscarProductoRef"
                 :productos="props.productos"
@@ -295,7 +215,7 @@
                  Cantidad: {{ currentSerialQty }} unidades
                </p>
                <p class="text-xs text-gray-500 mt-1">
-                 Debe capturar exactamente {{ currentSerialQty }} series únicas
+                 Debe capturar exactamente {{ currentSerialQty }} series unicas
                </p>
              </div>
     
@@ -351,7 +271,7 @@
               v-model="form.notas"
               class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical"
               rows="4"
-              placeholder="Agrega notas adicionales, términos y condiciones, o información relevante para la compra..."
+              placeholder="Agrega notas adicionales, terminos y condiciones, o informacion relevante para la compra..."
             ></textarea>
           </div>
         </div>
@@ -382,7 +302,7 @@
                   placeholder="0.00"
                 />
                 <p class="mt-1 text-xs text-gray-500">
-                  Este descuento se aplica al subtotal después de los descuentos por item
+                  Este descuento se aplica al subtotal despues de los descuentos por item
                 </p>
               </div>
             </div>
@@ -453,9 +373,9 @@ const notyf = new Notyf({
   duration: 5000,
   position: { x: 'right', y: 'top' },
   types: [
-    { type: 'success', background: '#10B981', icon: { className: 'notyf__icon--success', tagName: 'i', text: '✓' } },
-    { type: 'error', background: '#EF4444', icon: { className: 'notyf__icon--error', tagName: 'i', text: '✗' } },
-    { type: 'info', background: '#3B82F6', icon: { className: 'notyf__icon--info', tagName: 'i', text: 'ℹ' } },
+    { type: 'success', background: '#10B981', icon: { className: 'notyf__icon--success', tagName: 'i', text: 'âœ“' } },
+    { type: 'error', background: '#EF4444', icon: { className: 'notyf__icon--error', tagName: 'i', text: 'âœ—' } },
+    { type: 'info', background: '#3B82F6', icon: { className: 'notyf__icon--info', tagName: 'i', text: 'â„¹' } },
   ],
 });
 
@@ -476,13 +396,13 @@ const props = defineProps({
   recordatorio_almacen: { type: String, default: null },
 });
 
-// Copia reactiva de proveedores para evitar mutación de props
+// Copia reactiva de proveedores para evitar mutacion de props
 const proveedoresList = ref([...props.proveedores]);
 
-// Número de compra (se obtiene del backend)
+// Numero de compra (se obtiene del backend)
 const numeroCompraFijo = ref('C0001');
 
-// Obtener el siguiente número de compra del backend
+// Obtener el siguiente numero de compra del backend
 const fetchNextNumeroCompra = async () => {
   try {
     const response = await axios.get('/compras/siguiente-numero');
@@ -491,7 +411,7 @@ const fetchNextNumeroCompra = async () => {
       form.numero_compra = response.data.siguiente_numero;
     }
   } catch (error) {
-    console.error('Error al obtener el número de compra:', error);
+    console.error('Error al obtener el numero de compra:', error);
     numeroCompraFijo.value = 'C0001';
     form.numero_compra = 'C0001';
   }
@@ -540,10 +460,10 @@ const mostrarVistaPrevia = ref(false);
 const mostrarAtajos = ref(true);
 const productoSeleccionado = ref(null);
 
-// Productos disponibles para selección directa
+// Productos disponibles para seleccion directa
 const productosDisponibles = computed(() => {
   return props.productos.filter(producto => {
-    // Filtrar productos que tienen información completa
+    // Filtrar productos que tienen informacion completa
     return producto.nombre &&
            producto.precio_compra > 0 &&
            producto.codigo &&
@@ -551,11 +471,11 @@ const productosDisponibles = computed(() => {
   });
 });
 
-// Función para seleccionar producto con click
+// Funcion para seleccionar producto con click
 const seleccionarProducto = (producto) => {
   productoSeleccionado.value = producto;
 
-  // Agregar automáticamente a la lista de productos seleccionados
+  // Agregar automaticamente a la lista de productos seleccionados
   const itemEntry = { id: producto.id, tipo: 'producto' };
   const exists = selectedProducts.value.some(
     (entry) => entry.id === producto.id && entry.tipo === 'producto'
@@ -571,11 +491,11 @@ const seleccionarProducto = (producto) => {
     saveState();
     showNotification(`Producto seleccionado: ${producto.nombre}`);
   } else {
-    showNotification('Este producto ya está seleccionado', 'info');
+    showNotification('Este producto ya esta seleccionado', 'info');
   }
 };
 
-// Función para formatear precios
+// Funcion para formatear precios
 const formatearPrecio = (precio) => {
   const precioNum = Number.parseFloat(precio) || 0;
   return precioNum.toLocaleString('es-MX', {
@@ -616,7 +536,7 @@ const handlePreview = () => {
   if (proveedorSeleccionado.value && form.almacen_id && selectedProducts.value.length > 0) {
     mostrarVistaPrevia.value = true;
   } else {
-    showNotification('Selecciona un proveedor, almacén y al menos un producto', 'error');
+    showNotification('Selecciona un proveedor, almacen y al menos un producto', 'error');
   }
 };
 
@@ -625,7 +545,7 @@ const onProveedorSeleccionado = (proveedor) => {
     proveedorSeleccionado.value = null;
     form.proveedor_id = '';
     saveState();
-    showNotification('Selección de proveedor limpiada', 'info');
+    showNotification('Seleccion de proveedor limpiada', 'info');
     return;
   }
   if (proveedorSeleccionado.value?.id === proveedor.id) return;
@@ -637,7 +557,7 @@ const onProveedorSeleccionado = (proveedor) => {
 
 const agregarProducto = (item) => {
   if (!item || typeof item.id === 'undefined' || !item.tipo) {
-    showNotification('Producto inválido', 'error');
+    showNotification('Producto invalido', 'error');
     return;
   }
 
@@ -663,7 +583,7 @@ const agregarProducto = (item) => {
     discounts.value[key] = 0;
     calcularTotal();
     saveState();
-    showNotification(`Producto añadido: ${item.nombre || item.descripcion || 'Item'}`);
+    showNotification(`Producto anadido: ${item.nombre || item.descripcion || 'Item'}`);
   }
 };
 
@@ -757,7 +677,7 @@ const validarDatos = () => {
   }
 
   if (!form.almacen_id) {
-    showNotification('Selecciona un almacén de recepción', 'error');
+    showNotification('Selecciona un almacen de recepcion', 'error');
     return false;
   }
 
@@ -788,7 +708,7 @@ const validarDatos = () => {
       return false;
     }
 
-    // Validación de series: si el producto requiere serie, debe capturar exactamente 'quantity' series únicas
+    // Validacion de series: si el producto requiere serie, debe capturar exactamente 'quantity' series unicas
     if (producto && producto.requiere_serie) {
       const serials = serialsMap.value[key] || [];
       if (!Array.isArray(serials) || serials.length !== quantity) {
@@ -797,7 +717,7 @@ const validarDatos = () => {
       }
       const unique = new Set(serials.map(s => (s || '').trim()).filter(Boolean));
       if (unique.size !== serials.length) {
-        showNotification(`Las series del producto "${producto.nombre}" deben ser únicas.`, 'error');
+        showNotification(`Las series del producto "${producto.nombre}" deben ser unicas.`, 'error');
         return false;
       }
     }
@@ -822,7 +742,7 @@ const crearCompra = () => {
       descuento: parseFloat(discounts.value[key]) || 0,
     };
 
-    // Solo incluir seriales si existen y no están vacíos
+    // Solo incluir seriales si existen y no estan vacios
     if (seriales && Array.isArray(seriales) && seriales.length > 0) {
       productoData.seriales = seriales;
     }
@@ -841,15 +761,15 @@ const crearCompra = () => {
       discounts.value = {};
       proveedorSeleccionado.value = null;
       form.reset();
-      showNotification('Compra creada con éxito');
+      showNotification('Compra creada con exito');
     },
     onError: (errors) => {
-      console.error('Errores de validación:', errors);
+      console.error('Errores de validacion:', errors);
       const firstError = Object.values(errors)[0];
       if (Array.isArray(firstError)) {
         showNotification(firstError[0], 'error');
       } else {
-        showNotification('Hubo errores de validación', 'error');
+        showNotification('Hubo errores de validacion', 'error');
       }
     },
   });
@@ -877,7 +797,7 @@ const saveSerials = () => {
     return;
   }
   if ((new Set(serials)).size !== serials.length) {
-    showNotification('Las series deben ser únicas.', 'error');
+    showNotification('Las series deben ser unicas.', 'error');
     return;
   }
   serialsMap.value[currentSerialKey.value] = serials;
@@ -927,11 +847,11 @@ const saveState = () => {
 const handleBeforeUnload = (event) => {
   if (form.proveedor_id || selectedProducts.value.length > 0) {
     event.preventDefault();
-    event.returnValue = 'Tienes cambios sin guardar. ¿Estás seguro de que quieres salir?';
+    event.returnValue = 'Tienes cambios sin guardar. Estas seguro de que quieres salir?';
   }
 };
 
-// Función para asegurar que la fecha sea siempre la actual
+// Funcion para asegurar que la fecha sea siempre la actual
 const asegurarFechaActual = () => {
   const fechaActual = getCurrentDate();
   if (form.fecha_compra !== fechaActual) {
@@ -941,21 +861,21 @@ const asegurarFechaActual = () => {
 
 // Lifecycle hooks
 onMounted(async () => {
-  // Obtener el siguiente número de compra
+  // Obtener el siguiente numero de compra
   await fetchNextNumeroCompra();
 
-  // Mostrar info sobre almacén predeterminado si existe
+  // Mostrar info sobre almacen predeterminado si existe
   if (props.almacen_predeterminado && props.recordatorio_almacen) {
-    showNotification(`Almacén predeterminado: ${props.recordatorio_almacen}`, 'info');
+    showNotification(`Almacen predeterminado: ${props.recordatorio_almacen}`, 'info');
   }
 
-  // Nota sobre número de compra fijo
-  showNotification(`Número de compra generado: ${numeroCompraFijo.value}`, 'info');
+  // Nota sobre numero de compra fijo
+  showNotification(`Numero de compra generado: ${numeroCompraFijo.value}`, 'info');
 
   const savedData = loadFromLocalStorage('compraEnProgreso');
   if (savedData && typeof savedData === 'object') {
     try {
-      // Usar número guardado o el generado automáticamente
+      // Usar numero guardado o el generado automaticamente
       form.numero_compra = savedData.numero_compra || numeroCompraFijo.value;
       form.fecha_compra = getCurrentDate(); // Siempre usar fecha actual
 
@@ -985,3 +905,6 @@ onBeforeUnmount(() => {
   window.removeEventListener('beforeunload', handleBeforeUnload);
 });
 </script>
+
+
+

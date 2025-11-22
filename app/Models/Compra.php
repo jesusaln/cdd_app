@@ -102,6 +102,17 @@ class Compra extends Model
             // Todas las compras se crean automáticamente como procesadas
             $compra->estado = EstadoCompra::Procesada;
         });
+
+        // Al eliminar una compra, elimina también la cuenta por pagar asociada para evitar huérfanos
+        static::deleting(function (Compra $compra) {
+            $cuenta = $compra->cuentasPorPagar;
+
+            if (! $cuenta) {
+                return;
+            }
+
+            $compra->isForceDeleting() ? $cuenta->forceDelete() : $cuenta->delete();
+        });
     }
 
     public static function generarNumero($ordenCompraId = null): string

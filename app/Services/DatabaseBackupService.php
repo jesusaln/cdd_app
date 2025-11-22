@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage as StorageFacade;
 use Aws\S3\S3Client;
 use Google\Cloud\Storage\StorageClient;
@@ -1677,19 +1678,25 @@ class DatabaseBackupService
 
         $sqlFiles = glob($tempDir . '*.sql');
         if (empty($sqlFiles)) {
-            // Limpiar archivos temporales
-            array_map('unlink', glob($tempDir . '*'));
-            rmdir($tempDir);
+            $this->cleanupTempDirectory($tempDir);
             throw new \Exception('No se encontraron archivos SQL en el ZIP');
         }
 
         $sqlContent = file_get_contents($sqlFiles[0]);
 
-        // Limpiar archivos temporales
-        array_map('unlink', glob($tempDir . '*'));
-        rmdir($tempDir);
+        $this->cleanupTempDirectory($tempDir);
 
         return $sqlContent;
+    }
+
+    /**
+     * Limpia un directorio temporal de forma segura (archivos y subdirectorios).
+     */
+    protected function cleanupTempDirectory(string $dir): void
+    {
+        if (is_dir($dir)) {
+            File::deleteDirectory($dir);
+        }
     }
 
     /**

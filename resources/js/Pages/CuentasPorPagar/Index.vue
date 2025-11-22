@@ -164,10 +164,10 @@
                         <tbody class="bg-white divide-y divide-gray-200">
                             <tr v-for="cuenta in cuentas.data" :key="cuenta.id">
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    {{ cuenta.compra.numero_compra }}
+                                    {{ cuenta.compra ? cuenta.compra.numero_compra : 'Sin compra' }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ cuenta.compra.proveedor.nombre_razon_social }}
+                                    {{ cuenta.compra?.proveedor?.nombre_razon_social || 'Sin proveedor' }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     {{ formatCurrency(cuenta.monto_total) }}
@@ -180,21 +180,28 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <span :class="{
-                                        'bg-red-100 text-red-800': cuenta.estado === 'vencido',
-                                        'bg-yellow-100 text-yellow-800': cuenta.estado === 'parcial',
-                                        'bg-green-100 text-green-800': cuenta.estado === 'pagado',
-                                        'bg-gray-100 text-gray-800': cuenta.estado === 'pendiente'
+                                        'bg-red-100 text-red-800': estadoPara(cuenta) === 'vencido',
+                                        'bg-yellow-100 text-yellow-800': estadoPara(cuenta) === 'parcial',
+                                        'bg-green-100 text-green-800': estadoPara(cuenta) === 'pagado',
+                                        'bg-gray-100 text-gray-800': estadoPara(cuenta) === 'pendiente'
                                     }" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
-                                        {{ cuenta.estado }}
+                                        {{ estadoPara(cuenta) }}
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                     <Link :href="route('cuentas-por-pagar.show', cuenta.id)" class="text-indigo-600 hover:text-indigo-900 mr-3">
                                         Ver
                                     </Link>
-                                    <Link :href="route('cuentas-por-pagar.edit', cuenta.id)" class="text-indigo-600 hover:text-indigo-900">
+                                    <Link :href="route('cuentas-por-pagar.edit', cuenta.id)" class="text-indigo-600 hover:text-indigo-900 mr-3">
                                         Editar
                                     </Link>
+                                    <button
+                                        type="button"
+                                        class="text-red-600 hover:text-red-800"
+                                        @click="removeCuenta(cuenta)"
+                                    >
+                                        Eliminar
+                                    </button>
                                 </td>
                             </tr>
                         </tbody>
@@ -229,7 +236,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import { Link } from '@inertiajs/vue3';
+import { Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
 const props = defineProps({
@@ -257,6 +264,23 @@ const toNumber = (value) => {
 };
 
 const formatCurrency = (value) => currencyFormatter.format(toNumber(value));
+
+const estadoPara = (cuenta) => {
+    if (cuenta?.pagado || toNumber(cuenta?.monto_pendiente) <= 0) {
+        return 'pagado';
+    }
+    return cuenta?.estado || 'pendiente';
+};
+
+const removeCuenta = (cuenta) => {
+    if (!confirm(`¿Eliminar la cuenta #${cuenta.id}?`)) {
+        return;
+    }
+
+    router.delete(route('cuentas-por-pagar.destroy', cuenta.id), {
+        preserveScroll: true,
+    });
+};
 
 const applyFilters = () => {
     // Implementar filtrado

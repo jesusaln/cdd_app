@@ -523,11 +523,12 @@ class EntregaDineroController extends Controller
         DB::transaction(function () use ($request, $tipo_origen, $id_origen, $montoTotal, $concepto, $fecha, $usuarioEntrega, $userId) {
             // Bloquear registros para evitar condiciones de carrera (opcional, pero recomendado)
             // En este caso, confiamos en la validación previa, pero en alta concurrencia deberíamos usar lockForUpdate
-            
+
             $montoYaEntregado = EntregaDinero::where('tipo_origen', $tipo_origen)
                 ->where('id_origen', $id_origen)
                 ->where('estado', 'recibido')
                 ->lockForUpdate() // Bloqueo pesimista
+                ->get()
                 ->sum('total');
 
             $montoPendiente = $montoTotal - $montoYaEntregado;

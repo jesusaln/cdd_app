@@ -324,6 +324,11 @@ const getMetodoPagoClass = (registro) => {
   return 'bg-gray-100 text-gray-800'
 }
 
+const tieneSaldoPendiente = (registro) => {
+  const pendiente = (registro?.saldo_pendiente ?? (registro?.total - (registro?.ya_entregado || 0)))
+  return pendiente > 0.01
+}
+
 const getMetodoReciboLabel = (value) => {
   const metodos = {
     efectivo: 'Efectivo',
@@ -357,7 +362,7 @@ const confirmarRecepcionEntrega = () => {
     currentUser.value ? `Recibido por: ${currentUser.value.name}` : null
   ].filter(Boolean).join(' - ')
 
-  router.put(route('entregas-dinero.update', entregaParaRecibir.value.id), {
+  router.put(route('entregas-dinero.update', { entregas_dinero: entregaParaRecibir.value.id }), {
     marcar_recibido: true,
     notas_recibido: notasDetalladas
   }, {
@@ -640,7 +645,7 @@ const handlePageChange = (newPage) => {
                 </td>
                 <td class="px-6 py-4">
                   <div class="text-sm font-semibold text-gray-900">${{ formatNumber(registro.saldo_pendiente || registro.total) }}</div>
-                  <div v-if="registro.ya_entregado > 0" class="text-xs text-blue-600">
+                  <div v-if="tieneSaldoPendiente(registro) && registro.ya_entregado > 0" class="text-xs text-blue-600">
                     Ya entregado: ${{ formatNumber(registro.ya_entregado) }}
                   </div>
                   <div v-if="registro.saldo_pendiente && registro.saldo_pendiente < registro.total" class="text-xs text-orange-600">
@@ -654,13 +659,16 @@ const handlePageChange = (newPage) => {
                   <span v-else class="text-gray-400 text-xs">-</span>
                 </td>
                 <td class="px-6 py-4 text-right">
-                  <button @click="marcarAutomaticoRecibido(registro)"
+                  <button
+                          v-if="tieneSaldoPendiente(registro)"
+                          @click="marcarAutomaticoRecibido(registro)"
                           class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     Entregar
                   </button>
+                  <span v-else class="text-xs text-gray-500">Sin saldo pendiente</span>
                 </td>
               </tr>
             </tbody>
@@ -916,7 +924,7 @@ const handlePageChange = (newPage) => {
                   <span class="text-sm font-medium text-gray-700">Saldo Pendiente:</span>
                   <span class="text-lg font-bold text-gray-900">${{ formatNumber(selectedRegistro.saldo_pendiente || selectedRegistro.total) }}</span>
                 </div>
-                <div v-if="selectedRegistro.ya_entregado > 0" class="flex justify-between items-center">
+                <div v-if="tieneSaldoPendiente(selectedRegistro) && selectedRegistro.ya_entregado > 0" class="flex justify-between items-center">
                   <span class="text-sm font-medium text-gray-600">Ya entregado:</span>
                   <span class="text-sm text-blue-600">${{ formatNumber(selectedRegistro.ya_entregado) }}</span>
                 </div>

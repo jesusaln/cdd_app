@@ -38,12 +38,12 @@
                                     <dt class="text-sm font-medium text-gray-500">Estado</dt>
                                     <dd class="mt-1">
                                         <span :class="{
-                                            'bg-red-100 text-red-800': cuenta.estado === 'vencido',
-                                            'bg-yellow-100 text-yellow-800': cuenta.estado === 'parcial',
-                                            'bg-green-100 text-green-800': cuenta.estado === 'pagado',
-                                            'bg-gray-100 text-gray-800': cuenta.estado === 'pendiente'
+                                            'bg-red-100 text-red-800': estadoCuenta === 'vencido',
+                                            'bg-yellow-100 text-yellow-800': estadoCuenta === 'parcial',
+                                            'bg-green-100 text-green-800': estadoCuenta === 'pagado',
+                                            'bg-gray-100 text-gray-800': estadoCuenta === 'pendiente'
                                         }" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
-                                            {{ cuenta.estado }}
+                                            {{ estadoCuenta }}
                                         </span>
                                     </dd>
                                 </div>
@@ -63,7 +63,7 @@
                         <!-- Información de la Compra -->
                         <div class="mb-6">
                             <h3 class="text-lg font-medium text-gray-900 mb-4">Información de la Compra</h3>
-                            <div class="bg-gray-50 p-4 rounded-lg">
+                            <div v-if="cuenta.compra" class="bg-gray-50 p-4 rounded-lg">
                                 <dl class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-6">
                                     <div>
                                         <dt class="text-sm font-medium text-gray-500">Número de Compra</dt>
@@ -75,7 +75,7 @@
                                     </div>
                                     <div>
                                         <dt class="text-sm font-medium text-gray-500">Proveedor</dt>
-                                        <dd class="mt-1 text-sm text-gray-900">{{ cuenta.compra.proveedor.nombre_razon_social }}</dd>
+                                        <dd class="mt-1 text-sm text-gray-900">{{ cuenta.compra.proveedor?.nombre_razon_social || 'Sin proveedor' }}</dd>
                                     </div>
                                     <div>
                                         <dt class="text-sm font-medium text-gray-500">Total de la Compra</dt>
@@ -83,9 +83,12 @@
                                     </div>
                                     <div>
                                         <dt class="text-sm font-medium text-gray-500">Estado de la Compra</dt>
-                                        <dd class="mt-1 text-sm text-gray-900">{{ cuenta.compra.estado }}</dd>
+                                        <dd class="mt-1 text-sm text-gray-900">{{ cuenta.compra.estado || 'N/A' }}</dd>
                                     </div>
                                 </dl>
+                            </div>
+                            <div v-else class="bg-gray-50 p-4 rounded-lg text-gray-600">
+                                Sin compra asociada
                             </div>
                         </div>
 
@@ -257,7 +260,7 @@
                             </div>
                             <div class="flex justify-between items-center mb-2">
                                 <span class="text-sm font-medium text-gray-700">Proveedor:</span>
-                                <span class="text-sm text-gray-900">{{ cuenta.compra.proveedor.nombre_razon_social }}</span>
+                                <span class="text-sm text-gray-900">{{ cuenta.compra?.proveedor?.nombre_razon_social || 'Sin compra asociada' }}</span>
                             </div>
                             <div class="flex justify-between items-center">
                                 <span class="text-sm font-medium text-gray-700">Monto Total:</span>
@@ -334,7 +337,7 @@
                             </div>
                             <div class="flex justify-between items-center mb-2">
                                 <span class="text-sm font-medium text-gray-700">Proveedor:</span>
-                                <span class="text-sm text-gray-900">{{ cuenta.compra.proveedor.nombre_razon_social }}</span>
+                                <span class="text-sm text-gray-900">{{ cuenta.compra?.proveedor?.nombre_razon_social || 'Sin compra asociada' }}</span>
                             </div>
                             <div class="flex justify-between items-center">
                                 <span class="text-sm font-medium text-gray-700">Monto Total:</span>
@@ -449,6 +452,13 @@ const pagoProgress = computed(() => {
     const porcentaje = (pagado / total) * 100;
 
     return Math.min(100, Math.max(0, Math.round(porcentaje)));
+});
+
+const estadoCuenta = computed(() => {
+    if (props.cuenta?.pagado || toNumber(props.cuenta?.monto_pendiente) <= 0) {
+        return 'pagado';
+    }
+    return props.cuenta?.estado || 'pendiente';
 });
 
 const getMetodoPagoLabel = (metodo) => {
